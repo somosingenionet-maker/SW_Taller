@@ -14,10 +14,10 @@ interface CrmTabProps {
   clientes: Cliente[];
   vehiculos: Vehiculo[];
   ordenesTrabajo: OrdenTrabajo[];
-  onAddCliente: (cliente: Cliente) => void;
-  onUpdateCliente: (cliente: Cliente) => void;
-  onDeleteCliente: (id: string) => void;
-  onAddInteraccion: (clienteId: string, interaccion: InteraccionCliente) => void;
+  onAddCliente: (input: Omit<Cliente, 'id' | 'fechaRegistro' | 'interacciones'>) => Promise<Cliente>;
+  onUpdateCliente: (cliente: Cliente) => Promise<Cliente>;
+  onDeleteCliente: (id: string) => void | Promise<void>;
+  onAddInteraccion: (clienteId: string, input: { tipo: InteraccionCliente['tipo']; notas: string }) => Promise<InteraccionCliente>;
 }
 
 export default function CrmTab({
@@ -98,29 +98,16 @@ export default function CrmTab({
   const toggleVehiculo = (vid: string, current: string[]) =>
     current.includes(vid) ? current.filter(id => id !== vid) : [...current, vid];
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.nombre || !formData.apellidos || !formData.nifNiePasaporte) {
       setAddFormError('Por favor complete Nombre, Apellidos y Documento (DNI/NIE/Pasaporte).');
       return;
     }
     setAddFormError('');
-    const nuevo: Cliente = {
-      ...formData,
-      id: 'cli-' + Date.now().toString(),
-      fechaRegistro: new Date().toISOString().split('T')[0],
-      interacciones: [
-        {
-          id: 'int-cli-aut-' + Date.now().toString(),
-          fecha: new Date().toISOString().split('T')[0],
-          tipo: 'registro_contrato',
-          notas: 'Registro de la ficha de cliente en el sistema CRM de Backoffice.'
-        }
-      ]
-    };
-    onAddCliente(nuevo);
+    const creado = await onAddCliente(formData);
     setIsAddingOpen(false);
-    setSelectedCliente(nuevo);
+    setSelectedCliente(creado);
   };
 
   const handleEditClick = (cli: Cliente) => {
@@ -129,13 +116,13 @@ export default function CrmTab({
     setIsEditing(true);
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editFormData) {
-      onUpdateCliente(editFormData);
+      const actualizado = await onUpdateCliente(editFormData);
       setIsEditing(false);
       if (selectedCliente?.id === editFormData.id) {
-        setSelectedCliente(editFormData);
+        setSelectedCliente(actualizado);
       }
     }
   };
@@ -144,31 +131,27 @@ export default function CrmTab({
     setConfirmDelete({ isOpen: true, clienteId: id });
   };
 
-  const handleDeleteConfirm = () => {
-    onDeleteCliente(confirmDelete.clienteId);
-    if (selectedCliente?.id === confirmDelete.clienteId) setSelectedCliente(null);
+  const handleDeleteConfirm = async () => {
+    const { clienteId } = confirmDelete;
     setConfirmDelete({ isOpen: false, clienteId: '' });
+    if (selectedCliente?.id === clienteId) setSelectedCliente(null);
+    await onDeleteCliente(clienteId);
   };
 
-  const handleAddInteractionSubmit = (e: React.FormEvent) => {
+  const handleAddInteractionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCliente || !newInteractionNotes) return;
 
-    const nuevaInt: InteraccionCliente = {
-      id: 'int-cli-' + Date.now().toString(),
-      fecha: new Date().toISOString().split('T')[0],
+    const creada = await onAddInteraccion(selectedCliente.id, {
       tipo: newInteractionTipo,
-      notas: newInteractionNotes
-    };
+      notas: newInteractionNotes,
+    });
 
-    onAddInteraccion(selectedCliente.id, nuevaInt);
-    
-    // Update local visual state
-    const updatedCli = {
+    // Refleja la nueva interacción en la ficha abierta.
+    setSelectedCliente({
       ...selectedCliente,
-      interacciones: [nuevaInt, ...selectedCliente.interacciones]
-    };
-    setSelectedCliente(updatedCli);
+      interacciones: [creada, ...selectedCliente.interacciones],
+    });
     setNewInteractionNotes('');
     setIsAddingInteraction(false);
   };

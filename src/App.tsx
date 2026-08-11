@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { contrastText } from './utils/color';
 import {
-  getClientes, saveClientes,
   getAlertas, saveAlertas,
   getNotificaciones, saveNotificaciones,
   getFacturas, saveFacturas,
@@ -10,6 +9,7 @@ import {
 import { supabase } from './lib/supabase';
 import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
+import { listClientes, createCliente, updateCliente, deleteCliente, addInteraccion, NuevoCliente } from './lib/data/clientes';
 import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
@@ -90,14 +90,16 @@ export default function App() {
     };
   }, []);
 
-  // Vehículos: desde Supabase.
+  // Datos desde Supabase.
   const recargarVehiculos = useCallback(async () => {
     setVehiculos(await listVehiculos());
+  }, []);
+  const recargarClientes = useCallback(async () => {
+    setClientes(await listClientes());
   }, []);
 
   // Resto de módulos: aún desde localStorage (migración incremental).
   useEffect(() => {
-    setClientes(getClientes());
     setAlertas(getAlertas());
     setNotificaciones(getNotificaciones());
     setFacturas(getFacturas());
@@ -107,9 +109,14 @@ export default function App() {
   // Datos de Supabase: se cargan cuando hay sesión (la RLS requiere estar
   // autenticado). Al cerrar sesión se limpian.
   useEffect(() => {
-    if (currentUser) recargarVehiculos();
-    else setVehiculos([]);
-  }, [currentUser, recargarVehiculos]);
+    if (currentUser) {
+      recargarVehiculos();
+      recargarClientes();
+    } else {
+      setVehiculos([]);
+      setClientes([]);
+    }
+  }, [currentUser, recargarVehiculos, recargarClientes]);
 
   // Set default tab based on user modules
   useEffect(() => {
@@ -158,31 +165,28 @@ export default function App() {
     await recargarVehiculos();
   }, [recargarVehiculos]);
 
-  const handleAddCliente = useCallback((nuevo: Cliente) => {
-    const updated = [...clientes, nuevo];
-    setClientes(updated);
-    saveClientes(updated);
-  }, [clientes]);
+  const handleAddCliente = useCallback(async (input: NuevoCliente) => {
+    const creado = await createCliente(input);
+    await recargarClientes();
+    return creado;
+  }, [recargarClientes]);
 
-  const handleUpdateCliente = useCallback((editado: Cliente) => {
-    const updated = clientes.map(c => c.id === editado.id ? editado : c);
-    setClientes(updated);
-    saveClientes(updated);
-  }, [clientes]);
+  const handleUpdateCliente = useCallback(async (editado: Cliente) => {
+    const actualizado = await updateCliente(editado);
+    await recargarClientes();
+    return actualizado;
+  }, [recargarClientes]);
 
-  const handleDeleteCliente = useCallback((id: string) => {
-    const updated = clientes.filter(c => c.id !== id);
-    setClientes(updated);
-    saveClientes(updated);
-  }, [clientes]);
+  const handleDeleteCliente = useCallback(async (id: string) => {
+    await deleteCliente(id);
+    await recargarClientes();
+  }, [recargarClientes]);
 
-  const handleAddInteraccion = useCallback((cliId: string, interaccion: InteraccionCliente) => {
-    const targetCli = clientes.find(c => c.id === cliId);
-    if (targetCli) {
-      const updatedCli = { ...targetCli, interacciones: [interaccion, ...targetCli.interacciones] };
-      handleUpdateCliente(updatedCli);
-    }
-  }, [clientes, handleUpdateCliente]);
+  const handleAddInteraccion = useCallback(async (cliId: string, input: { tipo: InteraccionCliente['tipo']; notas: string }) => {
+    const creada = await addInteraccion(cliId, input);
+    await recargarClientes();
+    return creada;
+  }, [recargarClientes]);
 
   const handleResolveAlerta = useCallback((id: string) => {
     const updated = alertas.map(a => a.id === id ? { ...a, estado: 'atendida' as const } : a);
@@ -190,23 +194,19 @@ export default function App() {
     saveAlertas(updated);
   }, [alertas]);
 
-  const handleAddNotificacion = useCallback((notif: NotificacionCliente) => {
+  const handleAddNotificacion = useCallback(async (notif: NotificacionCliente) => {
+    // La notificación en sí sigue en localStorage (migración pendiente).
     const updatedNot = [...notificaciones, notif];
     setNotificaciones(updatedNot);
     saveNotificaciones(updatedNot);
 
-    const targetCli = clientes.find(c => c.id === notif.clienteId);
-    if (targetCli) {
-      const nuevaInteraccion: InteraccionCliente = {
-        id: 'int-cli-not-' + Date.now().toString(),
-        fecha: new Date().toISOString().split('T')[0],
-        tipo: notif.tipoEnvio === 'whatsapp' ? 'whatsapp' : notif.tipoEnvio === 'email' ? 'email' : 'llamada',
-        notas: `Notificación enviada por [${notif.tipoEnvio.toUpperCase()}]: "${notif.mensaje.slice(0, 85)}..."`
-      };
-      const updatedCli = { ...targetCli, interacciones: [nuevaInteraccion, ...targetCli.interacciones] };
-      handleUpdateCliente(updatedCli);
-    }
-  }, [notificaciones, clientes, handleUpdateCliente]);
+    // La interacción asociada se registra en el cliente (Supabase).
+    await addInteraccion(notif.clienteId, {
+      tipo: notif.tipoEnvio === 'whatsapp' ? 'whatsapp' : notif.tipoEnvio === 'email' ? 'email' : 'llamada',
+      notas: `Notificación enviada por [${notif.tipoEnvio.toUpperCase()}]: "${notif.mensaje.slice(0, 85)}..."`,
+    });
+    await recargarClientes();
+  }, [notificaciones, recargarClientes]);
 
   const handleDeleteNotificacion = useCallback((id: string) => {
     const updated = notificaciones.filter(n => n.id !== id);
