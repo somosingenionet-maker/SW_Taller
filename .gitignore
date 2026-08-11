@@ -1,0 +1,12 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Supabase (artefactos locales; config.toml y migrations/ SÍ se versionan)
+supabase/.temp/
+supabase/.branches/
