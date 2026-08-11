@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { contrastText } from './utils/color';
 import {
-  getVehiculos, saveVehiculos,
   getClientes, saveClientes,
   getAlertas, saveAlertas,
   getNotificaciones, saveNotificaciones,
@@ -10,6 +9,7 @@ import {
 } from './data/mockData';
 import { supabase } from './lib/supabase';
 import { fetchPerfil, signOut } from './lib/auth';
+import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
@@ -90,15 +90,26 @@ export default function App() {
     };
   }, []);
 
-  // Load from local storage on mount
+  // Vehículos: desde Supabase.
+  const recargarVehiculos = useCallback(async () => {
+    setVehiculos(await listVehiculos());
+  }, []);
+
+  // Resto de módulos: aún desde localStorage (migración incremental).
   useEffect(() => {
-    setVehiculos(getVehiculos());
     setClientes(getClientes());
     setAlertas(getAlertas());
     setNotificaciones(getNotificaciones());
     setFacturas(getFacturas());
     setOrdenesTrabajo(getOrdenesTrabajo());
   }, []);
+
+  // Datos de Supabase: se cargan cuando hay sesión (la RLS requiere estar
+  // autenticado). Al cerrar sesión se limpian.
+  useEffect(() => {
+    if (currentUser) recargarVehiculos();
+    else setVehiculos([]);
+  }, [currentUser, recargarVehiculos]);
 
   // Set default tab based on user modules
   useEffect(() => {
@@ -119,35 +130,33 @@ export default function App() {
   const activeModulos = useMemo(() => currentUser?.modulos ?? [], [currentUser]);
 
   // Sync utilities
-  const handleAddVehiculo = useCallback((nuevo: Vehiculo) => {
-    const updated = [...vehiculos, nuevo];
-    setVehiculos(updated);
-    saveVehiculos(updated);
+  const handleAddVehiculo = useCallback(async (input: NuevoVehiculo) => {
+    const creado = await createVehiculo(input);
+    await recargarVehiculos();
 
+    // Alerta de ITV automática (alertas siguen en localStorage por ahora).
     const nuevaAlerta: Alerta = {
       id: 'al-aut-' + Date.now().toString(),
-      vehiculoId: nuevo.id,
+      vehiculoId: creado.id,
       tipo: 'itv',
-      descripcion: `Inspección Técnica obligatoria (ITV) programada para el vencimiento: ${nuevo.itvVencimiento}.`,
+      descripcion: `Inspección Técnica obligatoria (ITV) programada para el vencimiento: ${creado.itvVencimiento}.`,
       estado: 'pendiente',
-      fechaLimite: nuevo.itvVencimiento
+      fechaLimite: creado.itvVencimiento
     };
     const updatedAl = [...alertas, nuevaAlerta];
     setAlertas(updatedAl);
     saveAlertas(updatedAl);
-  }, [vehiculos, alertas]);
+  }, [alertas, recargarVehiculos]);
 
-  const handleUpdateVehiculo = useCallback((editado: Vehiculo) => {
-    const updated = vehiculos.map(v => v.id === editado.id ? editado : v);
-    setVehiculos(updated);
-    saveVehiculos(updated);
-  }, [vehiculos]);
+  const handleUpdateVehiculo = useCallback(async (editado: Vehiculo) => {
+    await updateVehiculo(editado);
+    await recargarVehiculos();
+  }, [recargarVehiculos]);
 
-  const handleDeleteVehiculo = useCallback((id: string) => {
-    const updated = vehiculos.filter(v => v.id !== id);
-    setVehiculos(updated);
-    saveVehiculos(updated);
-  }, [vehiculos]);
+  const handleDeleteVehiculo = useCallback(async (id: string) => {
+    await deleteVehiculo(id);
+    await recargarVehiculos();
+  }, [recargarVehiculos]);
 
   const handleAddCliente = useCallback((nuevo: Cliente) => {
     const updated = [...clientes, nuevo];
@@ -205,7 +214,7 @@ export default function App() {
     saveNotificaciones(updated);
   }, [notificaciones]);
 
-  const handleTriggerAutoRenew = useCallback((vehId: string, tipo: AlertaTipo, nuevaFechaOrKm: string) => {
+  const handleTriggerAutoRenew = useCallback(async (vehId: string, tipo: AlertaTipo, nuevaFechaOrKm: string) => {
     const veh = vehiculos.find(v => v.id === vehId);
     if (!veh) return;
     let updatedVeh = { ...veh };
@@ -215,7 +224,7 @@ export default function App() {
     else if (tipo === 'mantenimiento') {
       updatedVeh.kilometraje = Math.max(veh.kilometraje, Number(nuevaFechaOrKm) - 15000);
     }
-    handleUpdateVehiculo(updatedVeh);
+    await handleUpdateVehiculo(updatedVeh);
   }, [vehiculos, handleUpdateVehiculo]);
 
   // Factura handlers

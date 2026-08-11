@@ -3,6 +3,10 @@
 --  Backend Supabase (PostgreSQL). Migración versionada — fuente de verdad del
 --  modelo de datos. Convención de columnas: snake_case (idiomático en Postgres);
 --  el cliente de la API mapea a camelCase para el frontend.
+--
+--  Claves primarias de negocio en `text` (default = uuid como texto) para poder
+--  conservar los IDs existentes (veh-1, cli-1...) durante la migración
+--  incremental desde localStorage y no romper referencias cruzadas.
 -- ============================================================================
 
 -- Extensiones -----------------------------------------------------------------
@@ -20,9 +24,7 @@ end;
 $$;
 
 -- ============================================================================
---  PERFILES  (extiende auth.users de Supabase Auth)
---  La contraseña la gestiona Supabase Auth; aquí solo datos de negocio del
---  usuario: nombre, rol y módulos visibles.
+--  PERFILES  (extiende auth.users de Supabase Auth — clave uuid)
 -- ============================================================================
 create table public.perfiles (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -79,7 +81,7 @@ create trigger trg_empresa_updated before update on public.empresa_config
 --  VEHÍCULOS
 -- ============================================================================
 create table public.vehiculos (
-  id                   uuid primary key default gen_random_uuid(),
+  id                   text primary key default gen_random_uuid()::text,
   marca                text not null,
   modelo               text not null,
   anio                 int,
@@ -102,7 +104,7 @@ create trigger trg_vehiculos_updated before update on public.vehiculos
 --  CLIENTES
 -- ============================================================================
 create table public.clientes (
-  id                uuid primary key default gen_random_uuid(),
+  id                text primary key default gen_random_uuid()::text,
   nombre            text not null,
   apellidos         text not null,
   nif_nie_pasaporte text not null,
@@ -120,8 +122,8 @@ create trigger trg_clientes_updated before update on public.clientes
 
 -- Asociación cliente ⇄ vehículo (un vehículo pertenece a un único cliente) -----
 create table public.cliente_vehiculo (
-  cliente_id  uuid not null references public.clientes(id) on delete cascade,
-  vehiculo_id uuid not null references public.vehiculos(id) on delete cascade,
+  cliente_id  text not null references public.clientes(id) on delete cascade,
+  vehiculo_id text not null references public.vehiculos(id) on delete cascade,
   primary key (cliente_id, vehiculo_id),
   unique (vehiculo_id)   -- garantiza propietario único por vehículo
 );
@@ -129,8 +131,8 @@ create index on public.cliente_vehiculo (vehiculo_id);
 
 -- Interacciones del cliente (llamadas, emails, visitas...) --------------------
 create table public.interacciones_cliente (
-  id         uuid primary key default gen_random_uuid(),
-  cliente_id uuid not null references public.clientes(id) on delete cascade,
+  id         text primary key default gen_random_uuid()::text,
+  cliente_id text not null references public.clientes(id) on delete cascade,
   fecha      date not null default current_date,
   tipo       text not null check (tipo in ('llamada','email','visita','whatsapp','registro_contrato')),
   notas      text not null default '',
@@ -142,7 +144,7 @@ create index on public.interacciones_cliente (cliente_id);
 --  TÉCNICOS
 -- ============================================================================
 create table public.tecnicos (
-  id           uuid primary key default gen_random_uuid(),
+  id           text primary key default gen_random_uuid()::text,
   nombre       text not null,
   especialidad text,
   activo       boolean not null default true,
@@ -156,10 +158,10 @@ create trigger trg_tecnicos_updated before update on public.tecnicos
 --  ÓRDENES DE TRABAJO
 -- ============================================================================
 create table public.ordenes_trabajo (
-  id                     uuid primary key default gen_random_uuid(),
+  id                     text primary key default gen_random_uuid()::text,
   numero                 text not null unique,
-  vehiculo_id            uuid not null references public.vehiculos(id) on delete restrict,
-  cliente_id             uuid not null references public.clientes(id) on delete restrict,
+  vehiculo_id            text not null references public.vehiculos(id) on delete restrict,
+  cliente_id             text not null references public.clientes(id) on delete restrict,
   estado                 text not null check (estado in ('presupuesto','recibido','en_reparacion','listo','entregado','cancelado')),
   fecha_recepcion        date not null default current_date,
   fecha_estimada_entrega date,
@@ -168,7 +170,7 @@ create table public.ordenes_trabajo (
   kilometraje_salida     int,
   descripcion_problema   text not null default '',
   diagnostico            text,
-  tecnico_id             uuid references public.tecnicos(id) on delete set null,
+  tecnico_id             text references public.tecnicos(id) on delete set null,
   subtotal               numeric(12,2) not null default 0,
   iva_pct                numeric(5,2)  not null default 21,
   total_iva              numeric(12,2) not null default 0,
@@ -188,8 +190,8 @@ create trigger trg_ot_updated before update on public.ordenes_trabajo
 
 -- Líneas de la OT (mano de obra, piezas, materiales) --------------------------
 create table public.lineas_ot (
-  id              uuid primary key default gen_random_uuid(),
-  ot_id           uuid not null references public.ordenes_trabajo(id) on delete cascade,
+  id              text primary key default gen_random_uuid()::text,
+  ot_id           text not null references public.ordenes_trabajo(id) on delete cascade,
   tipo            text not null check (tipo in ('mano_de_obra','pieza','material')),
   descripcion     text not null default '',
   cantidad        numeric(12,2) not null default 1,
@@ -202,8 +204,8 @@ create index on public.lineas_ot (ot_id);
 
 -- Historial cronológico de eventos de la OT ----------------------------------
 create table public.eventos_ot (
-  id          uuid primary key default gen_random_uuid(),
-  ot_id       uuid not null references public.ordenes_trabajo(id) on delete cascade,
+  id          text primary key default gen_random_uuid()::text,
+  ot_id       text not null references public.ordenes_trabajo(id) on delete cascade,
   fecha       timestamptz not null default now(),
   descripcion text not null
 );
@@ -213,8 +215,8 @@ create index on public.eventos_ot (ot_id);
 --  ALERTAS  (ITV, seguro, impuesto, mantenimiento por km)
 -- ============================================================================
 create table public.alertas (
-  id                 uuid primary key default gen_random_uuid(),
-  vehiculo_id        uuid not null references public.vehiculos(id) on delete cascade,
+  id                 text primary key default gen_random_uuid()::text,
+  vehiculo_id        text not null references public.vehiculos(id) on delete cascade,
   tipo               text not null check (tipo in ('itv','mantenimiento','seguro','impuesto')),
   descripcion        text not null default '',
   estado             text not null check (estado in ('activa','pendiente','atendida')),
@@ -232,9 +234,9 @@ create trigger trg_alertas_updated before update on public.alertas
 --  NOTIFICACIONES A CLIENTES
 -- ============================================================================
 create table public.notificaciones_cliente (
-  id          uuid primary key default gen_random_uuid(),
-  cliente_id  uuid not null references public.clientes(id) on delete cascade,
-  vehiculo_id uuid references public.vehiculos(id) on delete set null,
+  id          text primary key default gen_random_uuid()::text,
+  cliente_id  text not null references public.clientes(id) on delete cascade,
+  vehiculo_id text references public.vehiculos(id) on delete set null,
   tipo_envio  text not null check (tipo_envio in ('email','sms','whatsapp')),
   asunto      text,
   mensaje     text not null,
@@ -252,10 +254,10 @@ create index on public.notificaciones_cliente (cliente_id);
 --  dedicada al construir el módulo legal de facturación.
 -- ============================================================================
 create table public.facturas (
-  id                uuid primary key default gen_random_uuid(),
+  id                text primary key default gen_random_uuid()::text,
   numero            text not null unique,
-  cliente_id        uuid not null references public.clientes(id) on delete restrict,
-  vehiculo_id       uuid references public.vehiculos(id) on delete set null,
+  cliente_id        text not null references public.clientes(id) on delete restrict,
+  vehiculo_id       text references public.vehiculos(id) on delete set null,
   fecha             date not null default current_date,
   fecha_vencimiento date not null,
   estado            text not null check (estado in ('borrador','emitida','pagada','vencida','cancelada')),
@@ -274,8 +276,8 @@ create trigger trg_facturas_updated before update on public.facturas
 
 -- Líneas de la factura --------------------------------------------------------
 create table public.lineas_factura (
-  id              uuid primary key default gen_random_uuid(),
-  factura_id      uuid not null references public.facturas(id) on delete cascade,
+  id              text primary key default gen_random_uuid()::text,
+  factura_id      text not null references public.facturas(id) on delete cascade,
   descripcion     text not null default '',
   cantidad        numeric(12,2) not null default 1,
   precio_unitario numeric(12,2) not null default 0,
@@ -286,8 +288,8 @@ create index on public.lineas_factura (factura_id);
 
 -- OT importadas en cada factura (trazabilidad) --------------------------------
 create table public.factura_ot (
-  factura_id uuid not null references public.facturas(id) on delete cascade,
-  ot_id      uuid not null references public.ordenes_trabajo(id) on delete restrict,
+  factura_id text not null references public.facturas(id) on delete cascade,
+  ot_id      text not null references public.ordenes_trabajo(id) on delete restrict,
   primary key (factura_id, ot_id)
 );
 create index on public.factura_ot (ot_id);

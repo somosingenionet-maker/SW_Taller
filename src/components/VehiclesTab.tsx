@@ -12,9 +12,9 @@ import { downloadCsv } from '../utils/csvExport';
 interface VehiclesTabProps {
   vehiculos: Vehiculo[];
   ordenesTrabajo?: OrdenTrabajo[];
-  onAddVehiculo: (vehiculo: Vehiculo) => void;
-  onUpdateVehiculo: (vehiculo: Vehiculo) => void;
-  onDeleteVehiculo: (id: string) => void;
+  onAddVehiculo: (input: Omit<Vehiculo, 'id' | 'fechaRegistro'>) => void | Promise<void>;
+  onUpdateVehiculo: (vehiculo: Vehiculo) => void | Promise<void>;
+  onDeleteVehiculo: (id: string) => void | Promise<void>;
 }
 
 const OT_ESTADO_LABEL: Record<OTEstado, string> = {
@@ -117,13 +117,10 @@ export default function VehiclesTab({
       return;
     }
     setAddFormError('');
-    const nuevo: Vehiculo = {
+    onAddVehiculo({
       ...formData,
-      id: 'veh-' + Date.now().toString(),
-      fechaRegistro: new Date().toISOString().split('T')[0],
       kilometraje: Number(formData.kilometraje)
-    };
-    onAddVehiculo(nuevo);
+    });
     setIsAddingOpen(false);
   };
 
