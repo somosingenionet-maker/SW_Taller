@@ -7,10 +7,10 @@ import {
   getNotificaciones, saveNotificaciones,
   getFacturas, saveFacturas,
   getOrdenesTrabajo, saveOrdenesTrabajo,
-  getUsuarios,
-  getCurrentUserId, setCurrentUserId,
 } from './data/mockData';
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Usuario, Factura, ModuloId, OrdenTrabajo } from './types';
+import { supabase } from './lib/supabase';
+import { fetchPerfil, signOut } from './lib/auth';
+import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
 import CrmTab from './components/CrmTab';
@@ -29,8 +29,9 @@ type TabId = ModuloId;
 
 export default function App() {
   // Auth state
-  const [currentUser, setCurrentUser] = useState<Usuario | null>(null);
+  const [currentUser, setCurrentUser] = useState<Perfil | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Navigation
   const [activeTab, setActiveTab] = useState<TabId>('vehiculos');
@@ -47,15 +48,46 @@ export default function App() {
   const [facturas, setFacturas] = useState<Factura[]>([]);
   const [ordenesTrabajo, setOrdenesTrabajo] = useState<OrdenTrabajo[]>([]);
 
-  // Check session on mount
+  // Sesión con Supabase Auth: comprueba la sesión al montar y escucha cambios.
   useEffect(() => {
-    const uid = getCurrentUserId();
-    if (uid) {
-      const usuarios = getUsuarios();
-      const user = usuarios.find(u => u.id === uid && u.activo);
-      if (user) setCurrentUser(user);
-    }
-    setAuthChecked(true);
+    let mounted = true;
+
+    const aplicarSesion = async (userId: string | undefined) => {
+      if (!userId) {
+        if (mounted) setCurrentUser(null);
+        return;
+      }
+      const perfil = await fetchPerfil(userId);
+      if (!mounted) return;
+      if (!perfil) {
+        await signOut();
+        setCurrentUser(null);
+        return;
+      }
+      if (!perfil.activo) {
+        await signOut();
+        setCurrentUser(null);
+        setAuthError('Tu cuenta está desactivada. Contacta con el administrador.');
+        return;
+      }
+      setAuthError(null);
+      setCurrentUser(perfil);
+    };
+
+    supabase.auth.getSession().then(({ data }) => {
+      aplicarSesion(data.session?.user.id).finally(() => {
+        if (mounted) setAuthChecked(true);
+      });
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      aplicarSesion(session?.user.id);
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   // Load from local storage on mount
@@ -78,16 +110,9 @@ export default function App() {
     }
   }, [currentUser]);
 
-  const handleLogin = useCallback((user: Usuario) => {
-    setCurrentUserId(user.id);
-    setCurrentUser(user);
-    const mods = user.modulos;
-    if (mods.length > 0) setActiveTab(mods[0]);
-  }, []);
-
   const handleLogout = useCallback(() => {
-    setCurrentUserId(null);
-    setCurrentUser(null);
+    // signOut dispara onAuthStateChange, que limpia currentUser.
+    signOut();
   }, []);
 
   // Active modules computed from user
@@ -252,7 +277,7 @@ export default function App() {
 
   // Show login if no user
   if (!currentUser) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen authError={authError} />;
   }
 
   const tabDefs: { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[] = (

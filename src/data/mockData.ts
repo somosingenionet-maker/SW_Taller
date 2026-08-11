@@ -275,14 +275,6 @@ export const getUsuarios = (): Usuario[] =>
 export const saveUsuarios = (data: Usuario[]) =>
   setLocalStorageItem('ingenio_usuarios', data);
 
-export const getCurrentUserId = (): string | null =>
-  sessionStorage.getItem('ingenio_session_uid');
-
-export const setCurrentUserId = (id: string | null) => {
-  if (id) sessionStorage.setItem('ingenio_session_uid', id);
-  else sessionStorage.removeItem('ingenio_session_uid');
-};
-
 export const getTecnicos = (): Tecnico[] =>
   getLocalStorageItem<Tecnico[]>('ingenio_tecnicos', []);
 

@@ -149,6 +149,19 @@ export interface Usuario {
   fechaCreacion: string;
 }
 
+/**
+ * Perfil del usuario autenticado (tabla `perfiles`, ligada a Supabase Auth).
+ * La contraseña la gestiona Supabase Auth — aquí no se almacena.
+ */
+export interface Perfil {
+  id: string;
+  nombre: string;
+  email: string;
+  rol: 'admin' | 'usuario';
+  modulos: ModuloId[];
+  activo: boolean;
+}
+
 export interface LineaDocumento {
   id: string;
   descripcion: string;

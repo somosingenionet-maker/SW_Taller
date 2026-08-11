@@ -341,5 +341,13 @@ begin
 end;
 $$;
 
+-- Privilegios de tabla para los roles de Supabase. La RLS sigue aplicando el
+-- filtrado por fila para anon/authenticated; service_role saltará la RLS y
+-- necesita estos GRANT para las operaciones de servidor (Edge Functions, seed).
+grant usage on schema public to anon, authenticated, service_role;
+grant all on all tables in schema public to anon, authenticated, service_role;
+grant all on all sequences in schema public to anon, authenticated, service_role;
+grant all on all routines in schema public to anon, authenticated, service_role;
+
 -- Fila única de configuración de empresa (se crea vacía; se rellena en Ajustes).
 insert into public.empresa_config (id) values (1) on conflict (id) do nothing;

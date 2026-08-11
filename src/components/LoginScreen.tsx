@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { LogIn, Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { Usuario } from '../types';
-import { getUsuarios, getEmpresaConfig } from '../data/mockData';
-import { hashPassword, migrateLegacyPasswords } from '../utils/auth';
+import { getEmpresaConfig } from '../data/mockData';
+import { signIn } from '../lib/auth';
 
 interface LoginScreenProps {
-  onLogin: (user: Usuario) => void;
+  /** Error de sesión propagado desde App (p. ej. cuenta desactivada). */
+  authError?: string | null;
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen({ authError }: LoginScreenProps) {
   const empresaConfig = getEmpresaConfig();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,30 +21,14 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     setError('');
     setLoading(true);
 
-    // Convierte contraseñas guardadas en texto plano por versiones anteriores
-    await migrateLegacyPasswords();
-
-    const inputHash = await hashPassword(password);
-    const usuarios = getUsuarios();
-    const user = usuarios.find(
-      u => u.email.toLowerCase() === email.trim().toLowerCase() && u.passwordHash === inputHash
-    );
-
-    if (!user) {
-      setError('Credenciales incorrectas. Verifica tu email y contraseña.');
-      setLoading(false);
-      return;
-    }
-
-    if (!user.activo) {
-      setError('Tu cuenta está desactivada. Contacta con el administrador.');
-      setLoading(false);
-      return;
-    }
-
+    // Autenticación real contra Supabase. Si tiene éxito, App reacciona al
+    // cambio de sesión y muestra la aplicación.
+    const err = await signIn(email, password);
     setLoading(false);
-    onLogin(user);
+    if (err) setError(err);
   };
+
+  const mensajeError = error || authError;
 
   const initials = empresaConfig.nombre
     .split(' ')
@@ -123,9 +107,9 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
               </div>
             </div>
 
-            {error && (
+            {mensajeError && (
               <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
-                {error}
+                {mensajeError}
               </div>
             )}
 

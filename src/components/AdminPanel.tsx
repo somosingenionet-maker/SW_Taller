@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { X, Shield, Plus, Edit2, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
-import { Usuario, ModuloId } from '../types';
+import { Usuario, Perfil, ModuloId } from '../types';
 import { getUsuarios, saveUsuarios } from '../data/mockData';
 import { hashPassword } from '../utils/auth';
 
 interface AdminPanelProps {
-  currentUser: Usuario;
+  currentUser: Perfil;
   onClose: () => void;
 }
 
