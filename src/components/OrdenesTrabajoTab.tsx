@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ClipboardList, Plus, Search, ChevronRight, X, Check, Trash2,
@@ -6,7 +6,8 @@ import {
   Bell, Printer, Pencil, MessageCircle, Mail
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico } from '../types';
-import { getEmpresaConfig, getTecnicos } from '../data/mockData';
+import { getEmpresaConfig } from '../data/mockData';
+import { listTecnicos } from '../lib/data/tecnicos';
 
 interface Props {
   ordenes: OrdenTrabajo[];
@@ -105,7 +106,8 @@ function evento(descripcion: string): EventoOT {
 }
 
 export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, onAdd, onUpdate, onDelete }: Props) {
-  const [tecnicos] = useState<Tecnico[]>(getTecnicos);
+  const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
+  useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<OTEstado | 'todas'>('todas');
   const [selected, setSelected] = useState<OrdenTrabajo | null>(null);

@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2 } from 'lucide-react';
-import { EmpresaConfig, DEFAULT_EMPRESA_CONFIG, getTecnicos, saveTecnicos } from '../data/mockData';
+import { EmpresaConfig, DEFAULT_EMPRESA_CONFIG } from '../data/mockData';
 import { Tecnico } from '../types';
+import { listTecnicos, createTecnico, updateTecnico, deleteTecnico } from '../lib/data/tecnicos';
 import { contrastText } from '../utils/color';
 
 interface Props {
@@ -30,29 +31,37 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Técnicos
-  const [tecnicos, setTecnicos] = useState<Tecnico[]>(getTecnicos);
+  // Técnicos (desde Supabase)
+  const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [tecnicoForm, setTecnicoForm] = useState<{ nombre: string; especialidad: string } | null>(null);
   const [editingTecnicoId, setEditingTecnicoId] = useState<string | null>(null);
 
-  const persistTecnicos = (data: Tecnico[]) => { setTecnicos(data); saveTecnicos(data); };
+  const recargarTecnicos = () => listTecnicos().then(setTecnicos);
+  useEffect(() => { recargarTecnicos(); }, []);
 
   const openTecnicoForm = (t?: Tecnico) => {
     setEditingTecnicoId(t?.id ?? null);
     setTecnicoForm({ nombre: t?.nombre ?? '', especialidad: t?.especialidad ?? '' });
   };
 
-  const handleSaveTecnico = () => {
+  const handleSaveTecnico = async () => {
     if (!tecnicoForm?.nombre.trim()) return;
+    const nombre = tecnicoForm.nombre.trim();
+    const especialidad = tecnicoForm.especialidad.trim();
     if (editingTecnicoId) {
-      persistTecnicos(tecnicos.map(t => t.id === editingTecnicoId
-        ? { ...t, nombre: tecnicoForm.nombre.trim(), especialidad: tecnicoForm.especialidad.trim() }
-        : t));
+      const actual = tecnicos.find(t => t.id === editingTecnicoId);
+      await updateTecnico({ id: editingTecnicoId, nombre, especialidad, activo: actual?.activo ?? true });
     } else {
-      persistTecnicos([...tecnicos, { id: `tec-${Date.now()}`, nombre: tecnicoForm.nombre.trim(), especialidad: tecnicoForm.especialidad.trim(), activo: true }]);
+      await createTecnico({ nombre, especialidad, activo: true });
     }
+    await recargarTecnicos();
     setTecnicoForm(null);
     setEditingTecnicoId(null);
+  };
+
+  const handleDeleteTecnico = async (id: string) => {
+    await deleteTecnico(id);
+    await recargarTecnicos();
   };
 
   const set = (field: keyof EmpresaConfig, value: string) =>
@@ -370,7 +379,7 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => openTecnicoForm(t)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"><Edit2 className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => persistTecnicos(tecnicos.filter(x => x.id !== t.id))} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => handleDeleteTecnico(t.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               ))}

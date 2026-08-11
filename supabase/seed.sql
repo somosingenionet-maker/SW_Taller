@@ -22,6 +22,12 @@ values
   ('cli-4','Lucía','Fernández Cobo','71924158W','lucia.fc@gmail.com','+34 600 112 233','Calle Alcalá 120, Madrid','2026-06-05')
 on conflict (id) do nothing;
 
+insert into public.tecnicos (id, nombre, especialidad, activo)
+values
+  ('tec-1','Miguel Ángel','Mecánica general y motor',true),
+  ('tec-2','Raúl García','Electricidad y diagnosis',true)
+on conflict (id) do nothing;
+
 insert into public.interacciones_cliente (id, cliente_id, fecha, tipo, notas)
 values
   ('int-cli-1-1','cli-1','2026-05-10','llamada','Solicita presupuesto para la revisión de los 150.000 km de su Toyota Auris.'),

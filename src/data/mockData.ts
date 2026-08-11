@@ -1,4 +1,4 @@
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, Usuario, ModuloId, Factura, OrdenTrabajo, Tecnico } from '../types';
+import { Vehiculo, Cliente, Alerta, NotificacionCliente, Usuario, ModuloId, Factura, OrdenTrabajo } from '../types';
 
 export const INITIAL_VEHICULES: Vehiculo[] = [
   {
@@ -274,12 +274,6 @@ export const getUsuarios = (): Usuario[] =>
 
 export const saveUsuarios = (data: Usuario[]) =>
   setLocalStorageItem('ingenio_usuarios', data);
-
-export const getTecnicos = (): Tecnico[] =>
-  getLocalStorageItem<Tecnico[]>('ingenio_tecnicos', []);
-
-export const saveTecnicos = (data: Tecnico[]) =>
-  setLocalStorageItem('ingenio_tecnicos', data);
 
 export const getFacturas = (): Factura[] =>
   getLocalStorageItem<Factura[]>('ingenio_facturas', []);

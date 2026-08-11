@@ -517,7 +517,7 @@ export type Database = {
           presupuesto_aprobado: boolean | null
           presupuesto_estado: string | null
           subtotal: number
-          tecnico_id: string | null
+          tecnico_asignado: string | null
           total: number
           total_iva: number
           updated_at: string
@@ -542,7 +542,7 @@ export type Database = {
           presupuesto_aprobado?: boolean | null
           presupuesto_estado?: string | null
           subtotal?: number
-          tecnico_id?: string | null
+          tecnico_asignado?: string | null
           total?: number
           total_iva?: number
           updated_at?: string
@@ -567,7 +567,7 @@ export type Database = {
           presupuesto_aprobado?: boolean | null
           presupuesto_estado?: string | null
           subtotal?: number
-          tecnico_id?: string | null
+          tecnico_asignado?: string | null
           total?: number
           total_iva?: number
           updated_at?: string
@@ -579,13 +579,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ordenes_trabajo_tecnico_id_fkey"
-            columns: ["tecnico_id"]
-            isOneToOne: false
-            referencedRelation: "tecnicos"
             referencedColumns: ["id"]
           },
           {

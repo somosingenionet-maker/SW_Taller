@@ -170,7 +170,9 @@ create table public.ordenes_trabajo (
   kilometraje_salida     int,
   descripcion_problema   text not null default '',
   diagnostico            text,
-  tecnico_id             text references public.tecnicos(id) on delete set null,
+  -- El técnico se guarda por nombre (relación laxa; la tabla tecnicos solo
+  -- alimenta el desplegable de selección).
+  tecnico_asignado       text,
   subtotal               numeric(12,2) not null default 0,
   iva_pct                numeric(5,2)  not null default 21,
   total_iva              numeric(12,2) not null default 0,
