@@ -89,3 +89,18 @@ values
   ('ot-3','2026-06-12T08:00:00.000Z','Presupuesto creado'),
   ('ot-3','2026-06-12T08:30:00.000Z','Presupuesto enviado al cliente'),
   ('ot-4','2026-06-12T11:00:00.000Z','Vehículo recibido en taller');
+
+-- ── Alertas ─────────────────────────────────────────────────────────────────
+insert into public.alertas (id, vehiculo_id, tipo, descripcion, estado, fecha_limite, kilometraje_limite)
+values
+  ('al-1','veh-2','itv','Inspección Técnica de Vehículo (ITV) vence el 2026-06-25.','activa','2026-06-25',null),
+  ('al-2','veh-2','seguro','Póliza de seguro a todo riesgo de Mapfre vence el 2026-06-18.','activa','2026-06-18',null),
+  ('al-3','veh-4','mantenimiento','Cambio de aceite de motor y filtros recomendado a los 120.000 kms (kilometraje actual: 119.800 km).','activa',null,120000),
+  ('al-4','veh-1','itv','ITV del vehículo vence pronto el 2026-07-15.','pendiente','2026-07-15',null)
+on conflict (id) do nothing;
+
+-- ── Notificaciones a clientes ───────────────────────────────────────────────
+insert into public.notificaciones_cliente (id, cliente_id, vehiculo_id, tipo_envio, mensaje, fecha_envio, leido, tipo_evento)
+values
+  ('not-3','cli-3','veh-3','sms','inGenio taller: Carlos, su vehiculo Peugeot 3008 (5531-KXT) ya tiene solucionado el problema del piloto motor tras cambiar la válvula EGR. Puede retirar el coche cuando desee. Coste final: 480.00 €.','2026-04-02 18:00',true,'reparacion_lista')
+on conflict (id) do nothing;

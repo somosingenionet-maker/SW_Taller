@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { contrastText } from './utils/color';
 import {
-  getAlertas, saveAlertas,
-  getNotificaciones, saveNotificaciones,
   getFacturas, saveFacturas,
 } from './data/mockData';
 import { supabase } from './lib/supabase';
@@ -10,6 +8,8 @@ import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, addInteraccion, NuevoCliente } from './lib/data/clientes';
 import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
+import { listAlertas, createAlerta, resolveAlerta } from './lib/data/alertas';
+import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
 import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
@@ -100,11 +100,15 @@ export default function App() {
   const recargarOrdenes = useCallback(async () => {
     setOrdenesTrabajo(await listOrdenes());
   }, []);
+  const recargarAlertas = useCallback(async () => {
+    setAlertas(await listAlertas());
+  }, []);
+  const recargarNotificaciones = useCallback(async () => {
+    setNotificaciones(await listNotificaciones());
+  }, []);
 
   // Resto de módulos: aún desde localStorage (migración incremental).
   useEffect(() => {
-    setAlertas(getAlertas());
-    setNotificaciones(getNotificaciones());
     setFacturas(getFacturas());
   }, []);
 
@@ -115,12 +119,16 @@ export default function App() {
       recargarVehiculos();
       recargarClientes();
       recargarOrdenes();
+      recargarAlertas();
+      recargarNotificaciones();
     } else {
       setVehiculos([]);
       setClientes([]);
       setOrdenesTrabajo([]);
+      setAlertas([]);
+      setNotificaciones([]);
     }
-  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes]);
+  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones]);
 
   // Set default tab based on user modules
   useEffect(() => {
@@ -145,19 +153,18 @@ export default function App() {
     const creado = await createVehiculo(input);
     await recargarVehiculos();
 
-    // Alerta de ITV automática (alertas siguen en localStorage por ahora).
-    const nuevaAlerta: Alerta = {
-      id: 'al-aut-' + Date.now().toString(),
-      vehiculoId: creado.id,
-      tipo: 'itv',
-      descripcion: `Inspección Técnica obligatoria (ITV) programada para el vencimiento: ${creado.itvVencimiento}.`,
-      estado: 'pendiente',
-      fechaLimite: creado.itvVencimiento
-    };
-    const updatedAl = [...alertas, nuevaAlerta];
-    setAlertas(updatedAl);
-    saveAlertas(updatedAl);
-  }, [alertas, recargarVehiculos]);
+    // Alerta de ITV automática al dar de alta el vehículo.
+    if (creado.itvVencimiento) {
+      await createAlerta({
+        vehiculoId: creado.id,
+        tipo: 'itv',
+        descripcion: `Inspección Técnica obligatoria (ITV) programada para el vencimiento: ${creado.itvVencimiento}.`,
+        estado: 'pendiente',
+        fechaLimite: creado.itvVencimiento,
+      });
+      await recargarAlertas();
+    }
+  }, [recargarVehiculos, recargarAlertas]);
 
   const handleUpdateVehiculo = useCallback(async (editado: Vehiculo) => {
     await updateVehiculo(editado);
@@ -192,31 +199,27 @@ export default function App() {
     return creada;
   }, [recargarClientes]);
 
-  const handleResolveAlerta = useCallback((id: string) => {
-    const updated = alertas.map(a => a.id === id ? { ...a, estado: 'atendida' as const } : a);
-    setAlertas(updated);
-    saveAlertas(updated);
-  }, [alertas]);
+  const handleResolveAlerta = useCallback(async (id: string) => {
+    await resolveAlerta(id);
+    await recargarAlertas();
+  }, [recargarAlertas]);
 
   const handleAddNotificacion = useCallback(async (notif: NotificacionCliente) => {
-    // La notificación en sí sigue en localStorage (migración pendiente).
-    const updatedNot = [...notificaciones, notif];
-    setNotificaciones(updatedNot);
-    saveNotificaciones(updatedNot);
+    await createNotificacion(notif);
+    await recargarNotificaciones();
 
-    // La interacción asociada se registra en el cliente (Supabase).
+    // La interacción asociada se registra también en el cliente.
     await addInteraccion(notif.clienteId, {
       tipo: notif.tipoEnvio === 'whatsapp' ? 'whatsapp' : notif.tipoEnvio === 'email' ? 'email' : 'llamada',
       notas: `Notificación enviada por [${notif.tipoEnvio.toUpperCase()}]: "${notif.mensaje.slice(0, 85)}..."`,
     });
     await recargarClientes();
-  }, [notificaciones, recargarClientes]);
+  }, [recargarNotificaciones, recargarClientes]);
 
-  const handleDeleteNotificacion = useCallback((id: string) => {
-    const updated = notificaciones.filter(n => n.id !== id);
-    setNotificaciones(updated);
-    saveNotificaciones(updated);
-  }, [notificaciones]);
+  const handleDeleteNotificacion = useCallback(async (id: string) => {
+    await deleteNotificacion(id);
+    await recargarNotificaciones();
+  }, [recargarNotificaciones]);
 
   const handleTriggerAutoRenew = useCallback(async (vehId: string, tipo: AlertaTipo, nuevaFechaOrKm: string) => {
     const veh = vehiculos.find(v => v.id === vehId);

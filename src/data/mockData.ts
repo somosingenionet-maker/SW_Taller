@@ -1,4 +1,4 @@
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, Usuario, ModuloId, Factura, OrdenTrabajo } from '../types';
+import { Vehiculo, Cliente, Usuario, ModuloId, Factura, OrdenTrabajo } from '../types';
 
 export const INITIAL_VEHICULES: Vehiculo[] = [
   {
@@ -135,54 +135,6 @@ export const INITIAL_CLIENTES: Cliente[] = [
   }
 ];
 
-export const INITIAL_ALERTAS: Alerta[] = [
-  {
-    id: 'al-1',
-    vehiculoId: 'veh-2',
-    tipo: 'itv',
-    descripcion: 'Inspección Técnica de Vehículo (ITV) vence el 2026-06-25.',
-    estado: 'activa',
-    fechaLimite: '2026-06-25'
-  },
-  {
-    id: 'al-2',
-    vehiculoId: 'veh-2',
-    tipo: 'seguro',
-    descripcion: 'Póliza de seguro a todo riesgo de Mapfre vence el 2026-06-18.',
-    estado: 'activa',
-    fechaLimite: '2026-06-18'
-  },
-  {
-    id: 'al-3',
-    vehiculoId: 'veh-4',
-    tipo: 'mantenimiento',
-    descripcion: 'Cambio de aceite de motor y filtros recomendado a los 120.000 kms (kilometraje actual: 119.800 km).',
-    estado: 'activa',
-    kilometrajeLimite: 120000
-  },
-  {
-    id: 'al-4',
-    vehiculoId: 'veh-1',
-    tipo: 'itv',
-    descripcion: 'ITV del vehículo vence pronto el 2026-07-15.',
-    estado: 'pendiente',
-    fechaLimite: '2026-07-15'
-  }
-];
-
-export const INITIAL_NOTIFICACIONES: NotificacionCliente[] = [
-  {
-    id: 'not-3',
-    clienteId: 'cli-3',
-    vehiculoId: 'veh-3',
-    tipoEnvio: 'sms',
-    mensaje: 'inGenio taller: Carlos, su vehiculo Peugeot 3008 (5531-KXT) ya tiene solucionado el problema del piloto motor tras cambiar la válvula EGR. Puede retirar el coche cuando desee. Coste final: 480.00 €.',
-    fechaEnvio: '2026-04-02 18:00',
-    leido: true,
-    tipoEvento: 'reparacion_lista'
-  }
-];
-
 // Acceso seguro a localStorage: devuelve el valor por defecto si la clave
 // no existe o si el JSON almacenado está corrupto.
 const getLocalStorageItem = <T>(key: string, defaultValue: T): T => {
@@ -208,12 +160,6 @@ export const saveVehiculos = (data: Vehiculo[]) => setLocalStorageItem('ingenio_
 
 export const getClientes = () => getLocalStorageItem<Cliente[]>('ingenio_clientes', INITIAL_CLIENTES);
 export const saveClientes = (data: Cliente[]) => setLocalStorageItem('ingenio_clientes', data);
-
-export const getAlertas = () => getLocalStorageItem<Alerta[]>('ingenio_alertas', INITIAL_ALERTAS);
-export const saveAlertas = (data: Alerta[]) => setLocalStorageItem('ingenio_alertas', data);
-
-export const getNotificaciones = () => getLocalStorageItem<NotificacionCliente[]>('ingenio_notificaciones', INITIAL_NOTIFICACIONES);
-export const saveNotificaciones = (data: NotificacionCliente[]) => setLocalStorageItem('ingenio_notificaciones', data);
 
 
 export interface EmpresaConfig {
