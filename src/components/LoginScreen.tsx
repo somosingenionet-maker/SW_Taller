@@ -67,8 +67,9 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
               El sistema operativo<br />de tu taller.
             </h1>
             <p className="text-slate-400 text-sm max-w-sm">
-              Una plataforma para que cada taller gestione sus vehículos, clientes,
-              órdenes de trabajo y facturación — de forma simple y centralizada.
+              Una plataforma para que cada taller gestione los vehículos de sus
+              clientes, las órdenes de trabajo y la facturación — de forma simple
+              y centralizada.
             </p>
           </div>
 
