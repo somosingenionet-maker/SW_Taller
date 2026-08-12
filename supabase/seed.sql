@@ -37,3 +37,55 @@ values
   ('int-cli-3-1','cli-3','2026-05-20','email','Reportó leve ruido metálico en Peugeot 3008 tras entrega. Se agendó revisión.'),
   ('int-cli-4-1','cli-4','2026-06-05','llamada','Nueva cliente. Solicita cita para diagnóstico de ruido en frenos de su BMW Serie 3.')
 on conflict (id) do nothing;
+
+-- ── Órdenes de trabajo ──────────────────────────────────────────────────────
+insert into public.ordenes_trabajo
+  (id, numero, vehiculo_id, cliente_id, estado, fecha_recepcion, fecha_estimada_entrega,
+   fecha_entrega, kilometraje_entrada, kilometraje_salida, descripcion_problema, diagnostico,
+   tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, updated_at)
+values
+  ('ot-1','OT-2026-001','veh-4','cli-3','entregado','2026-05-10','2026-05-13','2026-05-13',114000,114005,
+   'El coche no arranca bien por las mañanas y a veces se apaga solo.',
+   'Batería de arranque en mal estado. Tensión en frío: 9.8V. Recomendada sustitución inmediata.',
+   'Miguel Ángel',205,21,43.05,248.05,'Fallo de arranque inicial por baja tensión con clima invernal.',null,'2026-05-13T10:00:00.000Z'),
+  ('ot-2','OT-2026-002','veh-4','cli-3','en_reparacion','2026-06-10','2026-06-14',null,119800,null,
+   'Luz de revisión encendida. Consumo de aceite elevado.',
+   'Revisión diagnóstico: código P0011 (distribución árbol de levas). Requiere cambio de aceite y revisión de la válvula de control de distribución.',
+   'Miguel Ángel',303,21,63.63,366.63,null,null,'2026-06-10T09:00:00.000Z'),
+  ('ot-3','OT-2026-003','veh-4','cli-2','presupuesto','2026-06-12','2026-06-16',null,95400,null,
+   'Ruido metálico en la parte delantera al frenar.',
+   'Pastillas de freno delanteras al límite. Discos con marcas de desgaste. Recomiendo cambio completo del sistema delantero.',
+   'Raúl García',305,21,64.05,369.05,null,'enviado','2026-06-12T08:00:00.000Z'),
+  ('ot-4','OT-2026-004','veh-4','cli-1','recibido','2026-06-12',null,null,62000,null,
+   'Revisión previa al verano. Quiere revisar aire acondicionado y frenos traseros.',
+   null,'Raúl García',0,21,0,0,null,null,'2026-06-12T11:00:00.000Z')
+on conflict (id) do nothing;
+
+insert into public.lineas_ot (id, ot_id, tipo, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion)
+values
+  ('lot-1-1','ot-1','pieza','Batería Varta E39 AGM 70Ah',1,175,110,175,0),
+  ('lot-1-2','ot-1','mano_de_obra','Mano de obra sustitución batería',0.5,60,25,30,1),
+  ('lot-2-1','ot-2','pieza','Aceite motor 5W30 (5L)',1,45,28,45,0),
+  ('lot-2-2','ot-2','pieza','Filtro de aceite',1,18,8,18,1),
+  ('lot-2-3','ot-2','pieza','Válvula control distribución VW',1,120,75,120,2),
+  ('lot-2-4','ot-2','mano_de_obra','Mano de obra diagnóstico y reparación',2,60,25,120,3),
+  ('lot-3-1','ot-3','pieza','Kit pastillas Brembo delanteras',1,85,50,85,0),
+  ('lot-3-2','ot-3','pieza','Discos de freno delanteros (par)',1,130,80,130,1),
+  ('lot-3-3','ot-3','mano_de_obra','Sustitución frenos delanteros',1.5,60,25,90,2)
+on conflict (id) do nothing;
+
+insert into public.eventos_ot (ot_id, fecha, descripcion)
+values
+  ('ot-1','2026-05-10T09:00:00.000Z','Vehículo recibido en taller'),
+  ('ot-1','2026-05-10T11:30:00.000Z','Presupuesto generado'),
+  ('ot-1','2026-05-10T12:00:00.000Z','Presupuesto enviado al cliente'),
+  ('ot-1','2026-05-10T14:00:00.000Z','Reparación iniciada'),
+  ('ot-1','2026-05-13T09:00:00.000Z','Trabajo completado'),
+  ('ot-1','2026-05-13T10:00:00.000Z','Vehículo entregado al cliente'),
+  ('ot-2','2026-06-10T09:00:00.000Z','Vehículo recibido en taller'),
+  ('ot-2','2026-06-10T10:00:00.000Z','Presupuesto generado'),
+  ('ot-2','2026-06-10T10:30:00.000Z','Presupuesto enviado al cliente'),
+  ('ot-2','2026-06-11T08:00:00.000Z','Reparación iniciada'),
+  ('ot-3','2026-06-12T08:00:00.000Z','Presupuesto creado'),
+  ('ot-3','2026-06-12T08:30:00.000Z','Presupuesto enviado al cliente'),
+  ('ot-4','2026-06-12T11:00:00.000Z','Vehículo recibido en taller');

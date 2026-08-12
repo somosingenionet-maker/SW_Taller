@@ -4,12 +4,12 @@ import {
   getAlertas, saveAlertas,
   getNotificaciones, saveNotificaciones,
   getFacturas, saveFacturas,
-  getOrdenesTrabajo, saveOrdenesTrabajo,
 } from './data/mockData';
 import { supabase } from './lib/supabase';
 import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, addInteraccion, NuevoCliente } from './lib/data/clientes';
+import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
 import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
@@ -97,13 +97,15 @@ export default function App() {
   const recargarClientes = useCallback(async () => {
     setClientes(await listClientes());
   }, []);
+  const recargarOrdenes = useCallback(async () => {
+    setOrdenesTrabajo(await listOrdenes());
+  }, []);
 
   // Resto de módulos: aún desde localStorage (migración incremental).
   useEffect(() => {
     setAlertas(getAlertas());
     setNotificaciones(getNotificaciones());
     setFacturas(getFacturas());
-    setOrdenesTrabajo(getOrdenesTrabajo());
   }, []);
 
   // Datos de Supabase: se cargan cuando hay sesión (la RLS requiere estar
@@ -112,11 +114,13 @@ export default function App() {
     if (currentUser) {
       recargarVehiculos();
       recargarClientes();
+      recargarOrdenes();
     } else {
       setVehiculos([]);
       setClientes([]);
+      setOrdenesTrabajo([]);
     }
-  }, [currentUser, recargarVehiculos, recargarClientes]);
+  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes]);
 
   // Set default tab based on user modules
   useEffect(() => {
@@ -246,24 +250,21 @@ export default function App() {
     saveFacturas(updated);
   }, [facturas]);
 
-  // OT handlers
-  const handleAddOT = useCallback((ot: OrdenTrabajo) => {
-    const updated = [...ordenesTrabajo, ot];
-    setOrdenesTrabajo(updated);
-    saveOrdenesTrabajo(updated);
-  }, [ordenesTrabajo]);
+  // OT handlers (Supabase)
+  const handleAddOT = useCallback(async (ot: OrdenTrabajo) => {
+    await createOrden(ot);
+    await recargarOrdenes();
+  }, [recargarOrdenes]);
 
-  const handleUpdateOT = useCallback((ot: OrdenTrabajo) => {
-    const updated = ordenesTrabajo.map(x => x.id === ot.id ? ot : x);
-    setOrdenesTrabajo(updated);
-    saveOrdenesTrabajo(updated);
-  }, [ordenesTrabajo]);
+  const handleUpdateOT = useCallback(async (ot: OrdenTrabajo) => {
+    await updateOrden(ot);
+    await recargarOrdenes();
+  }, [recargarOrdenes]);
 
-  const handleDeleteOT = useCallback((id: string) => {
-    const updated = ordenesTrabajo.filter(x => x.id !== id);
-    setOrdenesTrabajo(updated);
-    saveOrdenesTrabajo(updated);
-  }, [ordenesTrabajo]);
+  const handleDeleteOT = useCallback(async (id: string) => {
+    await deleteOrden(id);
+    await recargarOrdenes();
+  }, [recargarOrdenes]);
 
   const handleSaveEmpresa = useCallback((config: EmpresaConfig) => {
     setEmpresaConfig(config);

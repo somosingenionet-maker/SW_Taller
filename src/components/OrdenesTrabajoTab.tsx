@@ -13,9 +13,9 @@ interface Props {
   ordenes: OrdenTrabajo[];
   vehiculos: Vehiculo[];
   clientes: Cliente[];
-  onAdd: (ot: OrdenTrabajo) => void;
-  onUpdate: (ot: OrdenTrabajo) => void;
-  onDelete: (id: string) => void;
+  onAdd: (ot: OrdenTrabajo) => void | Promise<void>;
+  onUpdate: (ot: OrdenTrabajo) => void | Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
 }
 
 const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string }> = {
