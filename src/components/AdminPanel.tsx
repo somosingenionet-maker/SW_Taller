@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Shield, Plus, Edit2, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
-import { Usuario, Perfil, ModuloId } from '../types';
-import { getUsuarios, saveUsuarios } from '../data/mockData';
-import { hashPassword } from '../utils/auth';
+import { Perfil, ModuloId } from '../types';
+import { listUsuarios, createUsuario, updateUsuario, deleteUsuario, setUsuarioPassword } from '../lib/data/usuarios';
 
 interface AdminPanelProps {
   currentUser: Perfil;
@@ -37,17 +36,31 @@ const EMPTY_FORM: FormState = {
 };
 
 export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
-  const [usuarios, setUsuarios] = useState<Usuario[]>(getUsuarios());
+  const [usuarios, setUsuarios] = useState<Perfil[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const persist = (data: Usuario[]) => {
-    setUsuarios(data);
-    saveUsuarios(data);
+  const recargar = async () => {
+    setListError('');
+    try {
+      setUsuarios(await listUsuarios());
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : 'Error cargando usuarios.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    recargar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -56,7 +69,7 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
     setShowForm(true);
   };
 
-  const openEdit = (u: Usuario) => {
+  const openEdit = (u: Perfil) => {
     setForm({
       nombre: u.nombre,
       email: u.email,
@@ -93,51 +106,65 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
       return;
     }
 
-    // Check email uniqueness
     const duplicate = usuarios.find(
       u => u.email.toLowerCase() === form.email.trim().toLowerCase() && u.id !== editingId
     );
     if (duplicate) { setFormError('Ya existe un usuario con ese email.'); return; }
 
-    if (editingId) {
-      const newHash = form.password.length > 0 ? await hashPassword(form.password) : null;
-      const updated = usuarios.map(u =>
-        u.id === editingId
-          ? { ...u, nombre: form.nombre.trim(), email: form.email.trim(), passwordHash: newHash ?? u.passwordHash, rol: form.rol, activo: form.activo, modulos: form.modulos }
-          : u
-      );
-      persist(updated);
-    } else {
-      const nuevo: Usuario = {
-        id: 'usr-' + Date.now().toString(),
-        nombre: form.nombre.trim(),
-        email: form.email.trim(),
-        passwordHash: await hashPassword(form.password),
-        rol: form.rol,
-        activo: form.activo,
-        modulos: form.modulos,
-        fechaCreacion: new Date().toISOString().split('T')[0],
-      };
-      persist([...usuarios, nuevo]);
+    setSaving(true);
+    try {
+      if (editingId) {
+        await updateUsuario(editingId, {
+          nombre: form.nombre.trim(),
+          rol: form.rol,
+          activo: form.activo,
+          modulos: form.modulos,
+        });
+        if (form.password.length > 0) {
+          await setUsuarioPassword(editingId, form.password);
+        }
+      } else {
+        await createUsuario({
+          email: form.email.trim(),
+          password: form.password,
+          nombre: form.nombre.trim(),
+          rol: form.rol,
+          activo: form.activo,
+          modulos: form.modulos,
+        });
+      }
+      await recargar();
+      setShowForm(false);
+      setEditingId(null);
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'No se pudo guardar el usuario.');
+    } finally {
+      setSaving(false);
     }
-
-    setShowForm(false);
-    setEditingId(null);
   };
 
-  const handleToggleActivo = (u: Usuario) => {
-    const updated = usuarios.map(usr => usr.id === u.id ? { ...usr, activo: !usr.activo } : usr);
-    persist(updated);
+  const handleToggleActivo = async (u: Perfil) => {
+    setListError('');
+    try {
+      await updateUsuario(u.id, { activo: !u.activo });
+      await recargar();
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : 'No se pudo actualizar el usuario.');
+    }
   };
 
-  const handleDelete = (u: Usuario) => {
-    if (u.id === currentUser.id) return; // can't delete self
-    const admins = usuarios.filter(usr => usr.rol === 'admin' && usr.id !== u.id);
-    if (u.rol === 'admin' && admins.length === 0) return; // last admin
-    persist(usuarios.filter(usr => usr.id !== u.id));
+  const handleDelete = async (u: Perfil) => {
+    if (!canDelete(u)) return;
+    setListError('');
+    try {
+      await deleteUsuario(u.id);
+      await recargar();
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : 'No se pudo eliminar el usuario.');
+    }
   };
 
-  const canDelete = (u: Usuario) => {
+  const canDelete = (u: Perfil) => {
     if (u.id === currentUser.id) return false;
     if (u.rol === 'admin') {
       const otherAdmins = usuarios.filter(usr => usr.rol === 'admin' && usr.id !== u.id);
@@ -165,6 +192,12 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
 
+          {listError && (
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+              {listError}
+            </div>
+          )}
+
           {/* User list */}
           {!showForm && (
             <>
@@ -178,6 +211,9 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
                 </button>
               </div>
 
+              {loading ? (
+                <p className="text-xs text-slate-400 text-center py-6">Cargando usuarios…</p>
+              ) : (
               <div className="space-y-2">
                 {usuarios.map(u => (
                   <div key={u.id} className="border border-slate-200 rounded-xl overflow-hidden">
@@ -250,6 +286,7 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
                   </div>
                 ))}
               </div>
+              )}
             </>
           )}
 
@@ -282,9 +319,11 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
                   type="email"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  disabled={!!editingId}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400"
                   placeholder="usuario@empresa.net"
                 />
+                {editingId && <p className="text-[10px] text-slate-400 mt-1">El email no se puede cambiar desde aquí.</p>}
               </div>
 
               <div>
@@ -354,10 +393,11 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
 
               <button
                 onClick={handleSave}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer"
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60"
               >
                 <Check className="w-4 h-4" />
-                {editingId ? 'Guardar cambios' : 'Crear usuario'}
+                {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear usuario'}
               </button>
             </div>
           )}

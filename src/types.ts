@@ -151,18 +151,6 @@ export interface EmpresaConfig {
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
 export type ModuloId = 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas';
 
-export interface Usuario {
-  id: string;
-  nombre: string;
-  email: string;
-  /** SHA-256(SALT + contraseña). Nunca se almacena la contraseña en claro. */
-  passwordHash: string;
-  rol: 'admin' | 'usuario';
-  modulos: ModuloId[];
-  activo: boolean;
-  fechaCreacion: string;
-}
-
 /**
  * Perfil del usuario autenticado (tabla `perfiles`, ligada a Supabase Auth).
  * La contraseña la gestiona Supabase Auth — aquí no se almacena.

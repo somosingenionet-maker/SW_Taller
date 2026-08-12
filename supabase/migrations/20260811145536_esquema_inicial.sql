@@ -320,12 +320,19 @@ alter table public.lineas_factura         enable row level security;
 alter table public.factura_ot             enable row level security;
 
 -- Perfiles: cualquiera autenticado puede leerlos (para mostrar técnicos/usuarios);
--- cada usuario solo edita su propia ficha. La gestión de altas/roles de otros
--- usuarios se hará vía Edge Function con service_role (Panel de Administración).
+-- cada usuario edita su propia ficha, y un admin puede editar la ficha de
+-- cualquiera (rol, módulos, activo...) desde el Panel de Administración. El
+-- alta, la baja y el cambio de contraseña de otros usuarios requieren
+-- service_role (Auth Admin API) y se resuelven en la Edge Function
+-- `admin-users`, ya que no son operaciones expresables con RLS.
 create policy "perfiles_select" on public.perfiles
   for select to authenticated using (true);
 create policy "perfiles_update_propio" on public.perfiles
   for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+create policy "perfiles_update_admin" on public.perfiles
+  for update to authenticated
+  using (exists (select 1 from public.perfiles p where p.id = auth.uid() and p.rol = 'admin'))
+  with check (true);
 
 -- Tablas de negocio: acceso total al personal autenticado.
 do $$
