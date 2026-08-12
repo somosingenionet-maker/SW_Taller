@@ -39,7 +39,7 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
   return (
     <div className="min-h-screen flex bg-slate-950">
       {/* Panel de marca — oculto en móvil */}
-      <div className="hidden md:flex md:w-1/2 lg:w-[45%] relative overflow-hidden flex-col justify-between p-12">
+      <div className="hidden md:flex md:w-3/5 lg:w-[62%] relative overflow-hidden flex-col justify-between p-12">
         {/* Fondo con gradiente animado */}
         <div className="absolute inset-0 bg-slate-950" />
         <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-blue-600/30 blur-3xl animate-pulse" />
@@ -87,10 +87,10 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
       </div>
 
       {/* Formulario */}
-      <div className="flex-1 relative flex flex-col items-center justify-center px-4 py-12 bg-slate-950 md:bg-slate-50 overflow-hidden">
-        {/* Fondo sutil en el lado claro — le da al recuadro algo de "opacidad" real contra lo que contrastar */}
-        <div className="hidden md:block absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-100/60 blur-3xl" />
-        <div className="hidden md:block absolute bottom-0 left-0 w-80 h-80 rounded-full bg-indigo-100/50 blur-3xl" />
+      <div className="flex-1 relative flex flex-col items-center justify-center px-4 py-12 bg-slate-950 md:bg-gradient-to-br md:from-slate-100 md:via-blue-50 md:to-indigo-100 overflow-hidden">
+        {/* Fondo con más presencia en el lado claro — para que la tarjeta contraste de verdad */}
+        <div className="hidden md:block absolute top-0 right-0 w-[28rem] h-[28rem] rounded-full bg-blue-300/40 blur-3xl" />
+        <div className="hidden md:block absolute bottom-0 left-0 w-96 h-96 rounded-full bg-indigo-300/30 blur-3xl" />
 
         {/* Marca compacta — solo visible en móvil */}
         <div className="md:hidden relative z-10 flex flex-col items-center gap-3 mb-8">
@@ -100,7 +100,7 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           <span className="text-white font-bold text-lg tracking-tight">inGenio Taller</span>
         </div>
 
-        <div className="relative z-10 w-full max-w-sm md:bg-white/70 md:backdrop-blur-xl md:border md:border-white md:rounded-3xl md:shadow-xl md:shadow-slate-200/70 md:p-8">
+        <div className="relative z-10 w-full max-w-sm md:bg-white/90 md:backdrop-blur-xl md:border md:border-white md:rounded-3xl md:shadow-2xl md:shadow-slate-400/20 md:p-8">
           <div className="mb-7">
             <h2 className="text-xl font-bold text-white md:text-slate-800 tracking-tight">Iniciar sesión</h2>
             <p className="text-sm text-slate-400 md:text-slate-500 mt-1">Accede a tu espacio de trabajo</p>
