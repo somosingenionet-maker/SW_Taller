@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Cliente, InteraccionCliente, Vehiculo, OrdenTrabajo } from '../types';
-import { getEmpresaConfig } from '../data/mockData';
+import { Cliente, InteraccionCliente, Vehiculo, OrdenTrabajo, EmpresaConfig } from '../types';
 import {
   Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, PenTool, Car
 } from 'lucide-react';
@@ -14,6 +13,7 @@ interface CrmTabProps {
   clientes: Cliente[];
   vehiculos: Vehiculo[];
   ordenesTrabajo: OrdenTrabajo[];
+  empresaConfig: EmpresaConfig;
   onAddCliente: (input: Omit<Cliente, 'id' | 'fechaRegistro' | 'interacciones'>) => Promise<Cliente>;
   onUpdateCliente: (cliente: Cliente) => Promise<Cliente>;
   onDeleteCliente: (id: string) => void | Promise<void>;
@@ -24,6 +24,7 @@ export default function CrmTab({
   clientes,
   vehiculos,
   ordenesTrabajo,
+  empresaConfig,
   onAddCliente,
   onUpdateCliente,
   onDeleteCliente,
@@ -53,7 +54,7 @@ export default function CrmTab({
     correo: '',
     telefono: '',
     direccion: '',
-    ciudad: getEmpresaConfig().ciudad ?? '',
+    ciudad: empresaConfig.ciudad ?? '',
     pais: 'España',
     vehiculosAsociados: []
   });
@@ -87,7 +88,7 @@ export default function CrmTab({
       correo: '',
       telefono: '',
       direccion: '',
-      ciudad: getEmpresaConfig().ciudad ?? '',
+      ciudad: empresaConfig.ciudad ?? '',
       pais: 'España',
       vehiculosAsociados: []
     });

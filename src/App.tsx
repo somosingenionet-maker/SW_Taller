@@ -8,7 +8,8 @@ import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/o
 import { listAlertas, createAlerta, resolveAlerta } from './lib/data/alertas';
 import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
 import { listFacturas, createFactura, updateFactura, deleteFactura } from './lib/data/facturas';
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo } from './types';
+import { getEmpresaConfig, saveEmpresaConfig, DEFAULT_EMPRESA_CONFIG } from './lib/data/empresa';
+import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, EmpresaConfig } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
 import CrmTab from './components/CrmTab';
@@ -21,7 +22,6 @@ import {
   Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut
 } from 'lucide-react';
 import CompanySettingsPanel from './components/CompanySettingsPanel';
-import { EmpresaConfig, getEmpresaConfig, saveEmpresaConfig } from './data/mockData';
 
 type TabId = ModuloId;
 
@@ -36,7 +36,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
-  const [empresaConfig, setEmpresaConfig] = useState<EmpresaConfig>(getEmpresaConfig);
+  const [empresaConfig, setEmpresaConfig] = useState<EmpresaConfig>(DEFAULT_EMPRESA_CONFIG);
 
   // States
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
@@ -86,6 +86,11 @@ export default function App() {
       mounted = false;
       sub.subscription.unsubscribe();
     };
+  }, []);
+
+  // Configuración de empresa: legible sin sesión (la usa la pantalla de login).
+  useEffect(() => {
+    getEmpresaConfig().then(setEmpresaConfig).catch((err) => console.error('Error cargando empresa_config', err));
   }, []);
 
   // Datos desde Supabase.
@@ -264,9 +269,8 @@ export default function App() {
     await recargarOrdenes();
   }, [recargarOrdenes]);
 
-  const handleSaveEmpresa = useCallback((config: EmpresaConfig) => {
-    setEmpresaConfig(config);
-    saveEmpresaConfig(config);
+  const handleSaveEmpresa = useCallback(async (config: EmpresaConfig) => {
+    setEmpresaConfig(await saveEmpresaConfig(config));
   }, []);
 
   const activeAlertsCount = useMemo(() => alertas.filter(a => a.estado === 'activa').length, [alertas]);
@@ -285,7 +289,7 @@ export default function App() {
 
   // Show login if no user
   if (!currentUser) {
-    return <LoginScreen authError={authError} />;
+    return <LoginScreen authError={authError} empresaConfig={empresaConfig} />;
   }
 
   const tabDefs: { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[] = (
@@ -517,6 +521,7 @@ export default function App() {
             ordenes={ordenesTrabajo}
             vehiculos={vehiculos}
             clientes={clientes}
+            empresaConfig={empresaConfig}
             onAdd={handleAddOT}
             onUpdate={handleUpdateOT}
             onDelete={handleDeleteOT}
@@ -528,6 +533,7 @@ export default function App() {
             clientes={clientes}
             vehiculos={vehiculos}
             ordenesTrabajo={ordenesTrabajo}
+            empresaConfig={empresaConfig}
             onAddCliente={handleAddCliente}
             onUpdateCliente={handleUpdateCliente}
             onDeleteCliente={handleDeleteCliente}
@@ -561,6 +567,7 @@ export default function App() {
             clientes={clientes}
             vehiculos={vehiculos}
             ordenesTrabajo={ordenesTrabajo}
+            empresaConfig={empresaConfig}
             onAddFactura={handleAddFactura}
             onUpdateFactura={handleUpdateFactura}
             onDeleteFactura={handleDeleteFactura}

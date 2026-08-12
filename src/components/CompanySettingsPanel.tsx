@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2 } from 'lucide-react';
-import { EmpresaConfig, DEFAULT_EMPRESA_CONFIG } from '../data/mockData';
-import { Tecnico } from '../types';
+import { DEFAULT_EMPRESA_CONFIG } from '../lib/data/empresa';
+import { Tecnico, EmpresaConfig } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico } from '../lib/data/tecnicos';
 import { contrastText } from '../utils/color';
 
 interface Props {
   config: EmpresaConfig;
-  onSave: (config: EmpresaConfig) => void;
+  onSave: (config: EmpresaConfig) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -75,8 +75,8 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
-    onSave(draft);
+  const handleSave = async () => {
+    await onSave(draft);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

@@ -2,6 +2,20 @@
 -- Los IDs coinciden con los de la app (veh-1...) para conservar las
 -- referencias cruzadas durante la migración incremental desde localStorage.
 
+-- ── Configuración de empresa ────────────────────────────────────────────────
+update public.empresa_config set
+  nombre = 'inGenio',
+  tagline = 'Sistema de Gestión de Flota y CRM de Backoffice',
+  razon_social = 'inGenio Datos y Comunicaciones S.L.',
+  nif = 'B-89419102',
+  direccion_fiscal = 'Calle Mayor 45, Planta 2, Madrid',
+  correo = 'proyectos@somosingenio.net',
+  telefono = '(+34) 696 722 198',
+  web = 'www.somosingenio.net',
+  ciudad = 'Madrid (España)',
+  brand_color = '#2563eb'
+where id = 1;
+
 insert into public.vehiculos
   (id, marca, modelo, anio, color, combustible, matricula, bastidor, kilometraje,
    itv_vencimiento, seguro_vencimiento, impuesto_vencimiento, fecha_registro)

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { LogIn, Eye, EyeOff, Mail, Lock } from 'lucide-react';
-import { getEmpresaConfig } from '../data/mockData';
 import { signIn } from '../lib/auth';
+import type { EmpresaConfig } from '../types';
 
 interface LoginScreenProps {
   /** Error de sesión propagado desde App (p. ej. cuenta desactivada). */
   authError?: string | null;
+  empresaConfig: EmpresaConfig;
 }
 
-export default function LoginScreen({ authError }: LoginScreenProps) {
-  const empresaConfig = getEmpresaConfig();
+export default function LoginScreen({ authError, empresaConfig }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);

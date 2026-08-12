@@ -345,6 +345,11 @@ begin
 end;
 $$;
 
+-- empresa_config también debe poder leerse sin sesión: la pantalla de login
+-- (previa a autenticar) muestra el nombre, logo y color de marca.
+create policy "empresa_config_select_anon" on public.empresa_config
+  for select to anon using (true);
+
 -- Privilegios de tabla para los roles de Supabase. La RLS sigue aplicando el
 -- filtrado por fila para anon/authenticated; service_role saltará la RLS y
 -- necesita estos GRANT para las operaciones de servidor (Edge Functions, seed).

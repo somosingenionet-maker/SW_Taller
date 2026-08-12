@@ -134,6 +134,20 @@ export interface Tecnico {
   activo: boolean;
 }
 
+export interface EmpresaConfig {
+  nombre: string;
+  tagline: string;
+  razonSocial: string;
+  nif: string;
+  direccionFiscal: string;
+  correo: string;
+  telefono: string;
+  web: string;
+  ciudad: string;
+  brandColor: string;
+  logoBase64: string;
+}
+
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
 export type ModuloId = 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas';
 
