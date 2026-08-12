@@ -1,5 +1,9 @@
 import { supabase } from '../supabase';
 import type { Factura, LineaDocumento } from '../../types';
+import type { Database } from '../database.types';
+
+// empresa_id lo rellena el trigger set_empresa_id() en el servidor.
+type FacturaInsert = Database['public']['Tables']['facturas']['Insert'];
 
 const SELECT =
   'id, numero, cliente_id, vehiculo_id, fecha, fecha_vencimiento, estado, notas, ' +
@@ -90,7 +94,7 @@ export async function listFacturas(): Promise<Factura[]> {
 }
 
 export async function createFactura(f: Factura): Promise<Factura> {
-  const { data, error } = await supabase.from('facturas').insert(toRow(f)).select('id').single();
+  const { data, error } = await supabase.from('facturas').insert(toRow(f) as FacturaInsert).select('id').single();
   if (error) throw error;
   const id = (data as { id: string }).id;
 

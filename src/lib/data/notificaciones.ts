@@ -1,7 +1,11 @@
 import { supabase } from '../supabase';
 import type { NotificacionCliente } from '../../types';
+import type { Database } from '../database.types';
 
 export type NuevaNotificacion = Omit<NotificacionCliente, 'id'>;
+
+// empresa_id lo rellena el trigger set_empresa_id() en el servidor.
+type NotificacionInsert = Database['public']['Tables']['notificaciones_cliente']['Insert'];
 
 const COLS = 'id, cliente_id, vehiculo_id, tipo_envio, asunto, mensaje, fecha_envio, leido, tipo_evento';
 
@@ -44,7 +48,7 @@ export async function listNotificaciones(): Promise<NotificacionCliente[]> {
 }
 
 export async function createNotificacion(input: NuevaNotificacion): Promise<NotificacionCliente> {
-  const { data, error } = await supabase.from('notificaciones_cliente').insert(toRow(input)).select(COLS).single();
+  const { data, error } = await supabase.from('notificaciones_cliente').insert(toRow(input) as NotificacionInsert).select(COLS).single();
   if (error) throw error;
   return mapNotificacion(data as NotificacionRow);
 }

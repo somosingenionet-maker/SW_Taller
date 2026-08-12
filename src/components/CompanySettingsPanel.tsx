@@ -1,15 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2 } from 'lucide-react';
-import { DEFAULT_EMPRESA_CONFIG } from '../lib/data/empresa';
-import { Tecnico, EmpresaConfig } from '../types';
+import { Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico } from '../lib/data/tecnicos';
 import { contrastText } from '../utils/color';
 
 interface Props {
-  config: EmpresaConfig;
-  onSave: (config: EmpresaConfig) => void | Promise<void>;
+  config: Empresa;
+  onSave: (config: Partial<Empresa>) => void | Promise<void>;
   onClose: () => void;
 }
+
+/** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo se conservan). */
+const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo'> = {
+  nombre: 'Mi Empresa',
+  tagline: '',
+  razonSocial: '',
+  nif: '',
+  direccionFiscal: '',
+  correo: '',
+  telefono: '',
+  web: '',
+  ciudad: '',
+  brandColor: '#2563eb',
+  logoBase64: '',
+};
 
 const BRAND_COLORS = [
   { label: 'Azul',       value: '#2563eb' },
@@ -27,7 +41,7 @@ const BRAND_COLORS = [
 ];
 
 export default function CompanySettingsPanel({ config, onSave, onClose }: Props) {
-  const [draft, setDraft] = useState<EmpresaConfig>({ ...config });
+  const [draft, setDraft] = useState<Empresa>({ ...config });
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -64,7 +78,7 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
     await recargarTecnicos();
   };
 
-  const set = (field: keyof EmpresaConfig, value: string) =>
+  const set = (field: keyof Empresa, value: string) =>
     setDraft(prev => ({ ...prev, [field]: value }));
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +95,7 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
     setTimeout(() => setSaved(false), 2000);
   };
 
-  const handleReset = () => setDraft({ ...DEFAULT_EMPRESA_CONFIG });
+  const handleReset = () => setDraft(prev => ({ ...prev, ...DEFAULT_BRAND_FIELDS }));
 
   // Derive initials for logo preview
   const initials = draft.nombre

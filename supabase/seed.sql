@@ -1,45 +1,41 @@
 -- Datos de demostración. Se aplican con `supabase db reset`.
 -- Los IDs coinciden con los de la app (veh-1...) para conservar las
 -- referencias cruzadas durante la migración incremental desde localStorage.
+-- Todo pertenece a la empresa de demostración 'emp-demo' (multi-tenant).
 
--- ── Configuración de empresa ────────────────────────────────────────────────
-update public.empresa_config set
-  nombre = 'inGenio',
-  tagline = 'Sistema de Gestión de Flota y CRM de Backoffice',
-  razon_social = 'inGenio Datos y Comunicaciones S.L.',
-  nif = 'B-89419102',
-  direccion_fiscal = 'Calle Mayor 45, Planta 2, Madrid',
-  correo = 'proyectos@somosingenio.net',
-  telefono = '(+34) 696 722 198',
-  web = 'www.somosingenio.net',
-  ciudad = 'Madrid (España)',
-  brand_color = '#2563eb'
-where id = 1;
+-- ── Empresa de demostración ─────────────────────────────────────────────────
+insert into public.empresas
+  (id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color)
+values
+  ('emp-demo','Taller Ejemplo S.L.','Sistema de Gestión de Flota y CRM de Backoffice',
+   'Taller Ejemplo S.L.','B-89419102','Calle Mayor 45, Planta 2, Madrid',
+   'contacto@tallerejemplo.net','(+34) 696 722 198','www.tallerejemplo.net','Madrid (España)','#2563eb')
+on conflict (id) do nothing;
 
 insert into public.vehiculos
-  (id, marca, modelo, anio, color, combustible, matricula, bastidor, kilometraje,
+  (id, empresa_id, marca, modelo, anio, color, combustible, matricula, bastidor, kilometraje,
    itv_vencimiento, seguro_vencimiento, impuesto_vencimiento, fecha_registro)
 values
-  ('veh-1','Toyota','Auris Hybrid',2019,'Blanco','hibrido','2840-KPT','SB1ZA3JE40E819385',142500,'2026-07-15','2026-10-10','2027-05-20','2022-03-12'),
-  ('veh-2','Seat','León TSI',2021,'Gris','gasolina','8912-LMN','VSSZZZ5FZHR041920',95400,'2026-06-25','2026-06-18','2027-05-20','2023-01-15'),
-  ('veh-3','Peugeot','3008 BlueHDi',2018,'Negro','diesel','5531-KXT','VF3JRHNYHHS592183',188300,'2026-12-05','2026-09-01','2027-05-20','2021-08-04'),
-  ('veh-4','Volkswagen','Golf TDI',2017,'Azul','diesel','4410-JVZ','WVWZZZAUZGW289410',119800,'2027-02-14','2026-11-15','2027-05-20','2020-11-20'),
-  ('veh-5','BMW','Serie 3 320d',2022,'Plata','diesel','0123-MBL','WBA8C51040A591280',62000,'2028-04-10','2026-07-30','2027-05-20','2024-04-10')
+  ('veh-1','emp-demo','Toyota','Auris Hybrid',2019,'Blanco','hibrido','2840-KPT','SB1ZA3JE40E819385',142500,'2026-07-15','2026-10-10','2027-05-20','2022-03-12'),
+  ('veh-2','emp-demo','Seat','León TSI',2021,'Gris','gasolina','8912-LMN','VSSZZZ5FZHR041920',95400,'2026-06-25','2026-06-18','2027-05-20','2023-01-15'),
+  ('veh-3','emp-demo','Peugeot','3008 BlueHDi',2018,'Negro','diesel','5531-KXT','VF3JRHNYHHS592183',188300,'2026-12-05','2026-09-01','2027-05-20','2021-08-04'),
+  ('veh-4','emp-demo','Volkswagen','Golf TDI',2017,'Azul','diesel','4410-JVZ','WVWZZZAUZGW289410',119800,'2027-02-14','2026-11-15','2027-05-20','2020-11-20'),
+  ('veh-5','emp-demo','BMW','Serie 3 320d',2022,'Plata','diesel','0123-MBL','WBA8C51040A591280',62000,'2028-04-10','2026-07-30','2027-05-20','2024-04-10')
 on conflict (id) do nothing;
 
 insert into public.clientes
-  (id, nombre, apellidos, nif_nie_pasaporte, correo, telefono, direccion, fecha_registro)
+  (id, empresa_id, nombre, apellidos, nif_nie_pasaporte, correo, telefono, direccion, fecha_registro)
 values
-  ('cli-1','Alejandro','Gómez Ruiz','45123987M','alejandro.gomez@gmail.com','+34 611 223 344','Calle Mayor 45, 2ºA, Madrid','2024-02-10'),
-  ('cli-2','María Pilar','Sánchez Ortiz','02894156X','pilar.sanchez.cortes@outlook.com','+34 655 443 322','Avenida de la Constitución 12, Sevilla','2023-11-05'),
-  ('cli-3','Carlos','Benítez Varga','Y1284562P','carlos.benitez@ingenio.es','+34 688 991 122','Paseo de Gracia 89, Barcelona','2025-01-20'),
-  ('cli-4','Lucía','Fernández Cobo','71924158W','lucia.fc@gmail.com','+34 600 112 233','Calle Alcalá 120, Madrid','2026-06-05')
+  ('cli-1','emp-demo','Alejandro','Gómez Ruiz','45123987M','alejandro.gomez@gmail.com','+34 611 223 344','Calle Mayor 45, 2ºA, Madrid','2024-02-10'),
+  ('cli-2','emp-demo','María Pilar','Sánchez Ortiz','02894156X','pilar.sanchez.cortes@outlook.com','+34 655 443 322','Avenida de la Constitución 12, Sevilla','2023-11-05'),
+  ('cli-3','emp-demo','Carlos','Benítez Varga','Y1284562P','carlos.benitez@ingenio.es','+34 688 991 122','Paseo de Gracia 89, Barcelona','2025-01-20'),
+  ('cli-4','emp-demo','Lucía','Fernández Cobo','71924158W','lucia.fc@gmail.com','+34 600 112 233','Calle Alcalá 120, Madrid','2026-06-05')
 on conflict (id) do nothing;
 
-insert into public.tecnicos (id, nombre, especialidad, activo)
+insert into public.tecnicos (id, empresa_id, nombre, especialidad, activo)
 values
-  ('tec-1','Miguel Ángel','Mecánica general y motor',true),
-  ('tec-2','Raúl García','Electricidad y diagnosis',true)
+  ('tec-1','emp-demo','Miguel Ángel','Mecánica general y motor',true),
+  ('tec-2','emp-demo','Raúl García','Electricidad y diagnosis',true)
 on conflict (id) do nothing;
 
 insert into public.interacciones_cliente (id, cliente_id, fecha, tipo, notas)
@@ -54,23 +50,23 @@ on conflict (id) do nothing;
 
 -- ── Órdenes de trabajo ──────────────────────────────────────────────────────
 insert into public.ordenes_trabajo
-  (id, numero, vehiculo_id, cliente_id, estado, fecha_recepcion, fecha_estimada_entrega,
+  (id, empresa_id, numero, vehiculo_id, cliente_id, estado, fecha_recepcion, fecha_estimada_entrega,
    fecha_entrega, kilometraje_entrada, kilometraje_salida, descripcion_problema, diagnostico,
    tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, updated_at)
 values
-  ('ot-1','OT-2026-001','veh-4','cli-3','entregado','2026-05-10','2026-05-13','2026-05-13',114000,114005,
+  ('ot-1','emp-demo','OT-2026-001','veh-4','cli-3','entregado','2026-05-10','2026-05-13','2026-05-13',114000,114005,
    'El coche no arranca bien por las mañanas y a veces se apaga solo.',
    'Batería de arranque en mal estado. Tensión en frío: 9.8V. Recomendada sustitución inmediata.',
    'Miguel Ángel',205,21,43.05,248.05,'Fallo de arranque inicial por baja tensión con clima invernal.',null,'2026-05-13T10:00:00.000Z'),
-  ('ot-2','OT-2026-002','veh-4','cli-3','en_reparacion','2026-06-10','2026-06-14',null,119800,null,
+  ('ot-2','emp-demo','OT-2026-002','veh-4','cli-3','en_reparacion','2026-06-10','2026-06-14',null,119800,null,
    'Luz de revisión encendida. Consumo de aceite elevado.',
    'Revisión diagnóstico: código P0011 (distribución árbol de levas). Requiere cambio de aceite y revisión de la válvula de control de distribución.',
    'Miguel Ángel',303,21,63.63,366.63,null,null,'2026-06-10T09:00:00.000Z'),
-  ('ot-3','OT-2026-003','veh-4','cli-2','presupuesto','2026-06-12','2026-06-16',null,95400,null,
+  ('ot-3','emp-demo','OT-2026-003','veh-4','cli-2','presupuesto','2026-06-12','2026-06-16',null,95400,null,
    'Ruido metálico en la parte delantera al frenar.',
    'Pastillas de freno delanteras al límite. Discos con marcas de desgaste. Recomiendo cambio completo del sistema delantero.',
    'Raúl García',305,21,64.05,369.05,null,'enviado','2026-06-12T08:00:00.000Z'),
-  ('ot-4','OT-2026-004','veh-4','cli-1','recibido','2026-06-12',null,null,62000,null,
+  ('ot-4','emp-demo','OT-2026-004','veh-4','cli-1','recibido','2026-06-12',null,null,62000,null,
    'Revisión previa al verano. Quiere revisar aire acondicionado y frenos traseros.',
    null,'Raúl García',0,21,0,0,null,null,'2026-06-12T11:00:00.000Z')
 on conflict (id) do nothing;
@@ -105,16 +101,16 @@ values
   ('ot-4','2026-06-12T11:00:00.000Z','Vehículo recibido en taller');
 
 -- ── Alertas ─────────────────────────────────────────────────────────────────
-insert into public.alertas (id, vehiculo_id, tipo, descripcion, estado, fecha_limite, kilometraje_limite)
+insert into public.alertas (id, empresa_id, vehiculo_id, tipo, descripcion, estado, fecha_limite, kilometraje_limite)
 values
-  ('al-1','veh-2','itv','Inspección Técnica de Vehículo (ITV) vence el 2026-06-25.','activa','2026-06-25',null),
-  ('al-2','veh-2','seguro','Póliza de seguro a todo riesgo de Mapfre vence el 2026-06-18.','activa','2026-06-18',null),
-  ('al-3','veh-4','mantenimiento','Cambio de aceite de motor y filtros recomendado a los 120.000 kms (kilometraje actual: 119.800 km).','activa',null,120000),
-  ('al-4','veh-1','itv','ITV del vehículo vence pronto el 2026-07-15.','pendiente','2026-07-15',null)
+  ('al-1','emp-demo','veh-2','itv','Inspección Técnica de Vehículo (ITV) vence el 2026-06-25.','activa','2026-06-25',null),
+  ('al-2','emp-demo','veh-2','seguro','Póliza de seguro a todo riesgo de Mapfre vence el 2026-06-18.','activa','2026-06-18',null),
+  ('al-3','emp-demo','veh-4','mantenimiento','Cambio de aceite de motor y filtros recomendado a los 120.000 kms (kilometraje actual: 119.800 km).','activa',null,120000),
+  ('al-4','emp-demo','veh-1','itv','ITV del vehículo vence pronto el 2026-07-15.','pendiente','2026-07-15',null)
 on conflict (id) do nothing;
 
 -- ── Notificaciones a clientes ───────────────────────────────────────────────
-insert into public.notificaciones_cliente (id, cliente_id, vehiculo_id, tipo_envio, mensaje, fecha_envio, leido, tipo_evento)
+insert into public.notificaciones_cliente (id, empresa_id, cliente_id, vehiculo_id, tipo_envio, mensaje, fecha_envio, leido, tipo_evento)
 values
-  ('not-3','cli-3','veh-3','sms','inGenio taller: Carlos, su vehiculo Peugeot 3008 (5531-KXT) ya tiene solucionado el problema del piloto motor tras cambiar la válvula EGR. Puede retirar el coche cuando desee. Coste final: 480.00 €.','2026-04-02 18:00',true,'reparacion_lista')
+  ('not-3','emp-demo','cli-3','veh-3','sms','inGenio taller: Carlos, su vehiculo Peugeot 3008 (5531-KXT) ya tiene solucionado el problema del piloto motor tras cambiar la válvula EGR. Puede retirar el coche cuando desee. Coste final: 480.00 €.','2026-04-02 18:00',true,'reparacion_lista')
 on conflict (id) do nothing;

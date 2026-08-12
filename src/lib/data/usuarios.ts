@@ -1,12 +1,30 @@
 import { supabase } from '../supabase';
 import type { Perfil, ModuloId } from '../../types';
 
-const SELECT = 'id, nombre, email, rol, modulos, activo';
+const SELECT = 'id, empresa_id, nombre, email, rol, modulos, activo';
 
+type PerfilRow = {
+  id: string; empresa_id: string | null; nombre: string; email: string | null;
+  rol: string; modulos: string[]; activo: boolean;
+};
+
+function mapPerfil(r: PerfilRow): Perfil {
+  return {
+    id: r.id,
+    empresaId: r.empresa_id,
+    nombre: r.nombre,
+    email: r.email ?? '',
+    rol: r.rol as Perfil['rol'],
+    modulos: (r.modulos ?? []) as ModuloId[],
+    activo: r.activo,
+  };
+}
+
+/** Devuelve los usuarios de la propia empresa (o de todas, si quien llama es super admin) — filtrado por RLS. */
 export async function listUsuarios(): Promise<Perfil[]> {
   const { data, error } = await supabase.from('perfiles').select(SELECT).order('nombre');
   if (error) throw error;
-  return (data ?? []) as Perfil[];
+  return (data ?? []).map((r) => mapPerfil(r as PerfilRow));
 }
 
 export interface PerfilPatch {
@@ -19,7 +37,7 @@ export interface PerfilPatch {
 export async function updateUsuario(id: string, patch: PerfilPatch): Promise<Perfil> {
   const { data, error } = await supabase.from('perfiles').update(patch).eq('id', id).select(SELECT).single();
   if (error) throw error;
-  return data as Perfil;
+  return mapPerfil(data as PerfilRow);
 }
 
 async function invokeAdminUsers<T>(body: Record<string, unknown>): Promise<T> {
@@ -51,8 +69,8 @@ export interface NuevoUsuarioInput {
 }
 
 export async function createUsuario(input: NuevoUsuarioInput): Promise<Perfil> {
-  const { perfil } = await invokeAdminUsers<{ perfil: Perfil }>({ action: 'create', ...input });
-  return perfil;
+  const { perfil } = await invokeAdminUsers<{ perfil: PerfilRow }>({ action: 'create', ...input });
+  return mapPerfil(perfil);
 }
 
 export async function deleteUsuario(id: string): Promise<void> {

@@ -1,5 +1,9 @@
 import { supabase } from '../supabase';
 import type { OrdenTrabajo, LineaOT, EventoOT, OTEstado, LineaOTTipo } from '../../types';
+import type { Database } from '../database.types';
+
+// empresa_id lo rellena el trigger set_empresa_id() en el servidor.
+type OrdenInsert = Database['public']['Tables']['ordenes_trabajo']['Insert'];
 
 const SELECT =
   'id, numero, vehiculo_id, cliente_id, estado, fecha_recepcion, fecha_estimada_entrega, ' +
@@ -128,7 +132,7 @@ export async function listOrdenes(): Promise<OrdenTrabajo[]> {
 }
 
 export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
-  const { data, error } = await supabase.from('ordenes_trabajo').insert(toRow(ot)).select('id').single();
+  const { data, error } = await supabase.from('ordenes_trabajo').insert(toRow(ot) as OrdenInsert).select('id').single();
   if (error) throw error;
   const id = (data as { id: string }).id;
 

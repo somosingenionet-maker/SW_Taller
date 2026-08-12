@@ -1,5 +1,9 @@
 import { supabase } from '../supabase';
 import type { Cliente, InteraccionCliente } from '../../types';
+import type { Database } from '../database.types';
+
+// empresa_id lo rellena el trigger set_empresa_id() en el servidor.
+type ClienteInsert = Database['public']['Tables']['clientes']['Insert'];
 
 /** Datos para dar de alta un cliente (id, fecha e interacciones los pone la BD). */
 export type NuevoCliente = Omit<Cliente, 'id' | 'fechaRegistro' | 'interacciones'>;
@@ -64,7 +68,7 @@ export async function listClientes(): Promise<Cliente[]> {
 }
 
 export async function createCliente(input: NuevoCliente): Promise<Cliente> {
-  const { data, error } = await supabase.from('clientes').insert(toRow(input)).select('id').single();
+  const { data, error } = await supabase.from('clientes').insert(toRow(input) as ClienteInsert).select('id').single();
   if (error) throw error;
   const id = (data as { id: string }).id;
 

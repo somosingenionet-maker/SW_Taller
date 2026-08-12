@@ -8,8 +8,8 @@ import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/o
 import { listAlertas, createAlerta, resolveAlerta } from './lib/data/alertas';
 import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
 import { listFacturas, createFactura, updateFactura, deleteFactura } from './lib/data/facturas';
-import { getEmpresaConfig, saveEmpresaConfig, DEFAULT_EMPRESA_CONFIG } from './lib/data/empresa';
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, EmpresaConfig } from './types';
+import { getEmpresa, updateEmpresa } from './lib/data/empresa';
+import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, Empresa } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
 import CrmTab from './components/CrmTab';
@@ -18,6 +18,7 @@ import AlertsNotificationsTab from './components/AlertsNotificationsTab';
 import FacturasTab from './components/FacturasTab';
 import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
+import SuperAdminPanel from './components/SuperAdminPanel';
 import {
   Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut
 } from 'lucide-react';
@@ -36,7 +37,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
-  const [empresaConfig, setEmpresaConfig] = useState<EmpresaConfig>(DEFAULT_EMPRESA_CONFIG);
+  const [empresa, setEmpresa] = useState<Empresa | null>(null);
 
   // States
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
@@ -68,6 +69,15 @@ export default function App() {
         setAuthError('Tu cuenta está desactivada. Contacta con el administrador.');
         return;
       }
+      if (perfil.empresaId) {
+        const empresaDelUsuario = await getEmpresa(perfil.empresaId).catch(() => null);
+        if (!empresaDelUsuario?.activo) {
+          await signOut();
+          setCurrentUser(null);
+          setAuthError('Tu empresa está suspendida. Contacta con el proveedor del servicio.');
+          return;
+        }
+      }
       setAuthError(null);
       setCurrentUser(perfil);
     };
@@ -88,10 +98,15 @@ export default function App() {
     };
   }, []);
 
-  // Configuración de empresa: legible sin sesión (la usa la pantalla de login).
+  // Datos de la propia empresa: se cargan tras autenticar (multi-tenant, sin
+  // marca genérica antes de login — la pantalla de login es de la plataforma).
   useEffect(() => {
-    getEmpresaConfig().then(setEmpresaConfig).catch((err) => console.error('Error cargando empresa_config', err));
-  }, []);
+    if (currentUser?.empresaId) {
+      getEmpresa(currentUser.empresaId).then(setEmpresa).catch((err) => console.error('Error cargando la empresa', err));
+    } else {
+      setEmpresa(null);
+    }
+  }, [currentUser]);
 
   // Datos desde Supabase.
   const recargarVehiculos = useCallback(async () => {
@@ -269,13 +284,14 @@ export default function App() {
     await recargarOrdenes();
   }, [recargarOrdenes]);
 
-  const handleSaveEmpresa = useCallback(async (config: EmpresaConfig) => {
-    setEmpresaConfig(await saveEmpresaConfig(config));
-  }, []);
+  const handleSaveEmpresa = useCallback(async (config: Partial<Empresa>) => {
+    if (!currentUser?.empresaId) return;
+    setEmpresa(await updateEmpresa(currentUser.empresaId, config));
+  }, [currentUser]);
 
   const activeAlertsCount = useMemo(() => alertas.filter(a => a.estado === 'activa').length, [alertas]);
 
-  const brandColor = empresaConfig.brandColor;
+  const brandColor = empresa?.brandColor ?? '#2563eb';
   const brandText = contrastText(brandColor);
 
   useEffect(() => {
@@ -289,8 +305,16 @@ export default function App() {
 
   // Show login if no user
   if (!currentUser) {
-    return <LoginScreen authError={authError} empresaConfig={empresaConfig} />;
+    return <LoginScreen authError={authError} />;
   }
+
+  // El super admin gestiona empresas clientes — no opera datos de negocio.
+  if (currentUser.rol === 'super_admin') {
+    return <SuperAdminPanel currentUser={currentUser} onLogout={handleLogout} />;
+  }
+
+  // Datos de la propia empresa aún cargando.
+  if (!empresa) return null;
 
   const tabDefs: { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[] = (
     [
@@ -335,15 +359,15 @@ export default function App() {
               className="w-10 h-10 rounded-xl flex items-center justify-center font-black tracking-tighter text-lg shadow-md shrink-0 overflow-hidden"
               style={{ backgroundColor: `${brandColor}33`, color: brandText }}
             >
-              {empresaConfig.logoBase64 ? (
-                <img src={empresaConfig.logoBase64} alt="logo" className="w-full h-full object-contain" />
+              {empresa.logoBase64 ? (
+                <img src={empresa.logoBase64} alt="logo" className="w-full h-full object-contain" />
               ) : (
-                empresaConfig.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'E'
+                empresa.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'E'
               )}
             </div>
             <div>
               <h1 className="text-md sm:text-lg font-display font-bold tracking-tight flex items-center gap-2" style={{ color: brandText }}>
-                {empresaConfig.nombre}
+                {empresa.nombre}
                 <span
                   className="text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest"
                   style={{ backgroundColor: `${brandText === '#ffffff' ? '#ffffff' : '#000000'}22`, color: brandText, border: `1px solid ${brandText}44` }}
@@ -351,7 +375,7 @@ export default function App() {
                   FLOTAS Y CRM
                 </span>
               </h1>
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${brandText}99` }}>{empresaConfig.tagline}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${brandText}99` }}>{empresa.tagline}</p>
             </div>
           </div>
 
@@ -361,22 +385,22 @@ export default function App() {
               className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs p-2.5 px-4 rounded-xl font-medium"
               style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
             >
-              {empresaConfig.correo && (
+              {empresa.correo && (
                 <div className="flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5" style={{ color: brandText }} />
-                  <span>{empresaConfig.correo}</span>
+                  <span>{empresa.correo}</span>
                 </div>
               )}
-              {empresaConfig.telefono && (
+              {empresa.telefono && (
                 <div className="flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5" style={{ color: brandText }} />
-                  <span>{empresaConfig.telefono}</span>
+                  <span>{empresa.telefono}</span>
                 </div>
               )}
-              {empresaConfig.web && (
+              {empresa.web && (
                 <div className="flex items-center gap-1.5">
                   <Globe className="w-3.5 h-3.5" style={{ color: brandText }} />
-                  <span>{empresaConfig.web}</span>
+                  <span>{empresa.web}</span>
                 </div>
               )}
             </div>
@@ -521,7 +545,7 @@ export default function App() {
             ordenes={ordenesTrabajo}
             vehiculos={vehiculos}
             clientes={clientes}
-            empresaConfig={empresaConfig}
+            empresa={empresa}
             onAdd={handleAddOT}
             onUpdate={handleUpdateOT}
             onDelete={handleDeleteOT}
@@ -533,7 +557,7 @@ export default function App() {
             clientes={clientes}
             vehiculos={vehiculos}
             ordenesTrabajo={ordenesTrabajo}
-            empresaConfig={empresaConfig}
+            empresa={empresa}
             onAddCliente={handleAddCliente}
             onUpdateCliente={handleUpdateCliente}
             onDeleteCliente={handleDeleteCliente}
@@ -567,7 +591,7 @@ export default function App() {
             clientes={clientes}
             vehiculos={vehiculos}
             ordenesTrabajo={ordenesTrabajo}
-            empresaConfig={empresaConfig}
+            empresa={empresa}
             onAddFactura={handleAddFactura}
             onUpdateFactura={handleUpdateFactura}
             onDeleteFactura={handleDeleteFactura}
@@ -577,7 +601,7 @@ export default function App() {
 
       {settingsOpen && (
         <CompanySettingsPanel
-          config={empresaConfig}
+          config={empresa}
           onSave={handleSaveEmpresa}
           onClose={() => setSettingsOpen(false)}
         />

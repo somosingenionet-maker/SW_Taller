@@ -1,5 +1,11 @@
 import { supabase } from '../supabase';
 import type { Vehiculo } from '../../types';
+import type { Database } from '../database.types';
+
+// empresa_id es NOT NULL sin default en el tipo generado (lo rellena el
+// trigger set_empresa_id() en el servidor si no se envía) — el cliente nunca
+// lo gestiona, por eso no aparece en NuevoVehiculo/toRow.
+type VehiculoInsert = Database['public']['Tables']['vehiculos']['Insert'];
 
 /** Datos para dar de alta un vehículo (el id y la fecha los pone la BD). */
 export type NuevoVehiculo = Omit<Vehiculo, 'id' | 'fechaRegistro'>;
@@ -59,7 +65,7 @@ export async function listVehiculos(): Promise<Vehiculo[]> {
 }
 
 export async function createVehiculo(input: NuevoVehiculo): Promise<Vehiculo> {
-  const { data, error } = await supabase.from('vehiculos').insert(toRow(input)).select(COLS).single();
+  const { data, error } = await supabase.from('vehiculos').insert(toRow(input) as VehiculoInsert).select(COLS).single();
   if (error) throw error;
   return mapVehiculo(data as VehiculoRow);
 }

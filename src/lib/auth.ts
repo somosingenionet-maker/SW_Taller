@@ -26,7 +26,7 @@ export async function signOut(): Promise<void> {
 export async function fetchPerfil(userId: string): Promise<Perfil | null> {
   const { data, error } = await supabase
     .from('perfiles')
-    .select('id, nombre, email, rol, modulos, activo')
+    .select('id, empresa_id, nombre, email, rol, modulos, activo')
     .eq('id', userId)
     .single();
 
@@ -34,6 +34,7 @@ export async function fetchPerfil(userId: string): Promise<Perfil | null> {
 
   return {
     id: data.id,
+    empresaId: data.empresa_id,
     nombre: data.nombre,
     email: data.email ?? '',
     rol: data.rol as Perfil['rol'],

@@ -5,14 +5,14 @@ import {
   Car, User, Calendar, Gauge, Wrench, Package, AlertCircle, FileText,
   Bell, Printer, Pencil, MessageCircle, Mail
 } from 'lucide-react';
-import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, EmpresaConfig } from '../types';
+import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
 
 interface Props {
   ordenes: OrdenTrabajo[];
   vehiculos: Vehiculo[];
   clientes: Cliente[];
-  empresaConfig: EmpresaConfig;
+  empresa: Empresa;
   onAdd: (ot: OrdenTrabajo) => void | Promise<void>;
   onUpdate: (ot: OrdenTrabajo) => void | Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
@@ -105,7 +105,7 @@ function evento(descripcion: string): EventoOT {
   return { fecha: new Date().toISOString(), descripcion };
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresaConfig, onAdd, onUpdate, onDelete }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, onAdd, onUpdate, onDelete }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
@@ -648,7 +648,6 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Bloque: Notificar al cliente cuando está listo */}
                 {selected.estado === 'listo' && (() => {
-                  const empresa = empresaConfig;
                   const cli = clientes.find(c => c.id === selected.clienteId);
                   const veh = vehiculos.find(v => v.id === selected.vehiculoId);
                   const notificado = selected.notificacionEnviada;
@@ -1464,7 +1463,6 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       <AnimatePresence>
         {presupuestoPDF && (() => {
           const ot = presupuestoPDF;
-          const empresa = empresaConfig;
           const cli = clientes.find(c => c.id === ot.clienteId);
           const veh = vehiculos.find(v => v.id === ot.vehiculoId);
           const esListo = ot.estado === 'listo' || ot.estado === 'entregado';

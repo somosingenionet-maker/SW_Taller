@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { LogIn, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { LogIn, Eye, EyeOff, Mail, Lock, Car, Wrench, Users, FileText } from 'lucide-react';
 import { signIn } from '../lib/auth';
-import type { EmpresaConfig } from '../types';
 
 interface LoginScreenProps {
   /** Error de sesión propagado desde App (p. ej. cuenta desactivada). */
   authError?: string | null;
-  empresaConfig: EmpresaConfig;
 }
 
-export default function LoginScreen({ authError, empresaConfig }: LoginScreenProps) {
+const FEATURES = [
+  { icon: Car, label: 'Flota y vehículos' },
+  { icon: Wrench, label: 'Taller y órdenes de trabajo' },
+  { icon: Users, label: 'CRM de clientes' },
+  { icon: FileText, label: 'Facturación' },
+];
+
+export default function LoginScreen({ authError }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,7 +27,8 @@ export default function LoginScreen({ authError, empresaConfig }: LoginScreenPro
     setLoading(true);
 
     // Autenticación real contra Supabase. Si tiene éxito, App reacciona al
-    // cambio de sesión y muestra la aplicación.
+    // cambio de sesión y muestra la aplicación (con la marca de la empresa
+    // del usuario, ya autenticado).
     const err = await signIn(email, password);
     setLoading(false);
     if (err) setError(err);
@@ -30,77 +36,109 @@ export default function LoginScreen({ authError, empresaConfig }: LoginScreenPro
 
   const mensajeError = error || authError;
 
-  const initials = empresaConfig.nombre
-    .split(' ')
-    .slice(0, 2)
-    .map(w => w[0])
-    .join('')
-    .toUpperCase() || 'E';
-
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center px-4">
-      {/* Card */}
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
-        {/* Header band */}
-        <div className="bg-slate-950 px-8 py-8 flex flex-col items-center gap-4 border-b border-slate-800">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg"
-            style={{ backgroundColor: empresaConfig.brandColor }}
-          >
-            {empresaConfig.logoBase64 ? (
-              <img src={empresaConfig.logoBase64} alt="logo" className="w-full h-full object-contain" />
-            ) : (
-              <span className="text-white font-black text-2xl tracking-tighter">{initials}</span>
-            )}
-          </div>
-          <div className="text-center">
-            <h1 className="text-white font-bold text-lg tracking-tight">{empresaConfig.nombre}</h1>
-            <p className="text-slate-400 text-xs mt-0.5">{empresaConfig.tagline}</p>
+    <div className="min-h-screen flex bg-slate-950">
+      {/* Panel de marca — oculto en móvil */}
+      <div className="hidden md:flex md:w-1/2 lg:w-[45%] relative overflow-hidden flex-col justify-between p-12">
+        {/* Fondo con gradiente animado */}
+        <div className="absolute inset-0 bg-slate-950" />
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-blue-600/30 blur-3xl animate-pulse" />
+        <div className="absolute top-1/3 -right-32 w-96 h-96 rounded-full bg-indigo-500/20 blur-3xl animate-pulse" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-blue-400/10 blur-3xl animate-pulse" style={{ animationDelay: '3s' }} />
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: 'repeating-linear-gradient(-45deg, transparent, transparent 6px, white 6px, white 7px)',
+          }}
+        />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
+              <span className="text-white font-black text-xl tracking-tighter">i</span>
+            </div>
+            <span className="text-white font-bold text-lg tracking-tight">inGenio Taller</span>
           </div>
         </div>
 
-        {/* Form */}
-        <div className="px-8 py-7">
-          <h2 className="text-sm font-bold text-slate-700 mb-5 text-center">Acceso al sistema</h2>
+        <div className="relative z-10 space-y-8">
+          <div className="space-y-3">
+            <h1 className="text-4xl font-display font-bold text-white tracking-tight leading-tight">
+              Gestiona tu taller,<br />flota y clientes<br />en un solo lugar.
+            </h1>
+            <p className="text-slate-400 text-sm max-w-sm">
+              La plataforma de backoffice para talleres y gestores de flota:
+              vehículos, órdenes de trabajo, CRM y facturación, todo conectado.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 max-w-sm">
+            {FEATURES.map(({ icon: Icon, label }) => (
+              <div key={label} className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
+                <Icon className="w-4 h-4 text-blue-400 shrink-0" />
+                <span className="text-xs font-medium text-slate-300">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="relative z-10 text-slate-600 text-xs">© 2026 inGenio Datos y Comunicaciones</p>
+      </div>
+
+      {/* Formulario */}
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 bg-slate-950 md:bg-white">
+        {/* Marca compacta — solo visible en móvil */}
+        <div className="md:hidden flex flex-col items-center gap-3 mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
+            <span className="text-white font-black text-2xl tracking-tighter">i</span>
+          </div>
+          <span className="text-white font-bold text-lg tracking-tight">inGenio Taller</span>
+        </div>
+
+        <div className="w-full max-w-sm">
+          <div className="mb-7">
+            <h2 className="text-xl font-bold text-white md:text-slate-800 tracking-tight">Iniciar sesión</h2>
+            <p className="text-sm text-slate-400 md:text-slate-500 mt-1">Accede a tu espacio de trabajo</p>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-300 md:text-slate-600 mb-1.5">
                 Correo electrónico
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 md:text-slate-400" />
                 <input
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
                   required
                   placeholder="usuario@empresa.net"
-                  className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-lg text-sm bg-white/5 md:bg-white border border-white/10 md:border-slate-200 text-white md:text-slate-900 placeholder:text-slate-500 md:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-300 md:text-slate-600 mb-1.5">
                 Contraseña
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 md:text-slate-400" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
                   required
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-10 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                  className="w-full pl-9 pr-10 py-2.5 rounded-lg text-sm bg-white/5 md:bg-white border border-white/10 md:border-slate-200 text-white md:text-slate-900 placeholder:text-slate-500 md:placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                  onClick={() => setShowPassword((p) => !p)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 md:text-slate-400 hover:text-slate-300 md:hover:text-slate-600 transition cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -108,7 +146,7 @@ export default function LoginScreen({ authError, empresaConfig }: LoginScreenPro
             </div>
 
             {mensajeError && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+              <div className="bg-rose-500/10 md:bg-rose-50 border border-rose-500/30 md:border-rose-200 text-rose-300 md:text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
                 {mensajeError}
               </div>
             )}
@@ -116,8 +154,7 @@ export default function LoginScreen({ authError, empresaConfig }: LoginScreenPro
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-white transition disabled:opacity-60 cursor-pointer"
-              style={{ backgroundColor: empresaConfig.brandColor }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition disabled:opacity-60 cursor-pointer shadow-lg shadow-blue-600/20"
             >
               {loading ? (
                 <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
@@ -127,12 +164,12 @@ export default function LoginScreen({ authError, empresaConfig }: LoginScreenPro
               {loading ? 'Verificando...' : 'Iniciar sesión'}
             </button>
           </form>
+
+          <p className="md:hidden text-slate-600 text-xs mt-8 text-center">
+            © 2026 inGenio Datos y Comunicaciones
+          </p>
         </div>
       </div>
-
-      <p className="text-slate-600 text-xs mt-6">
-        © 2026 inGenio Datos y Comunicaciones — Entorno privado de backoffice
-      </p>
     </div>
   );
 }

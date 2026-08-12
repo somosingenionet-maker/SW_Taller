@@ -74,7 +74,9 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
       nombre: u.nombre,
       email: u.email,
       password: '', // vacío = mantener la contraseña actual
-      rol: u.rol,
+      // AdminPanel es de empresa: el listado (filtrado por RLS a la propia
+      // empresa) nunca trae un super_admin, pero se acota el tipo por si acaso.
+      rol: u.rol === 'admin' ? 'admin' : 'usuario',
       activo: u.activo,
       modulos: [...u.modulos],
     });

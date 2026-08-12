@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon } from 'lucide-react';
-import { Factura, LineaDocumento, Cliente, Vehiculo, OrdenTrabajo, EmpresaConfig } from '../types';
+import { Factura, LineaDocumento, Cliente, Vehiculo, OrdenTrabajo, Empresa } from '../types';
 import { formatDate } from '../utils/dateFormat';
 
 interface FacturasTabProps {
@@ -8,7 +8,7 @@ interface FacturasTabProps {
   clientes: Cliente[];
   vehiculos: Vehiculo[];
   ordenesTrabajo: OrdenTrabajo[];
-  empresaConfig: EmpresaConfig;
+  empresa: Empresa;
   onAddFactura: (f: Factura) => void;
   onUpdateFactura: (f: Factura) => void;
   onDeleteFactura: (id: string) => void;
@@ -275,7 +275,7 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, nextNumero
 
 // -------- Main FacturasTab --------
 export default function FacturasTab({
-  facturas, clientes, vehiculos, ordenesTrabajo, empresaConfig,
+  facturas, clientes, vehiculos, ordenesTrabajo, empresa,
   onAddFactura, onUpdateFactura, onDeleteFactura,
 }: FacturasTabProps) {
   const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null }>({ open: false, factura: null });
@@ -414,7 +414,6 @@ export default function FacturasTab({
 
       {/* Visor de factura */}
       {viewingDoc && (() => {
-        const empresa = empresaConfig;
         const f = viewingDoc;
         const cli = clientes.find(c => c.id === f.clienteId);
         const veh = vehiculos.find(v => v.id === f.vehiculoId);

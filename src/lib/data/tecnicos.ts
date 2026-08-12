@@ -1,7 +1,11 @@
 import { supabase } from '../supabase';
 import type { Tecnico } from '../../types';
+import type { Database } from '../database.types';
 
 export type NuevoTecnico = Omit<Tecnico, 'id'>;
+
+// empresa_id lo rellena el trigger set_empresa_id() en el servidor.
+type TecnicoInsert = Database['public']['Tables']['tecnicos']['Insert'];
 
 const COLS = 'id, nombre, especialidad, activo';
 
@@ -25,7 +29,7 @@ export async function listTecnicos(): Promise<Tecnico[]> {
 export async function createTecnico(input: NuevoTecnico): Promise<Tecnico> {
   const { data, error } = await supabase
     .from('tecnicos')
-    .insert({ nombre: input.nombre, especialidad: input.especialidad || null, activo: input.activo })
+    .insert({ nombre: input.nombre, especialidad: input.especialidad || null, activo: input.activo } as TecnicoInsert)
     .select(COLS)
     .single();
   if (error) throw error;

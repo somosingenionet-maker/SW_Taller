@@ -134,7 +134,9 @@ export interface Tecnico {
   activo: boolean;
 }
 
-export interface EmpresaConfig {
+/** Una empresa cliente del SaaS (tenant). */
+export interface Empresa {
+  id: string;
   nombre: string;
   tagline: string;
   razonSocial: string;
@@ -146,6 +148,8 @@ export interface EmpresaConfig {
   ciudad: string;
   brandColor: string;
   logoBase64: string;
+  /** Si es false, la empresa está suspendida (impago, baja, etc.). */
+  activo: boolean;
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
@@ -157,9 +161,11 @@ export type ModuloId = 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentab
  */
 export interface Perfil {
   id: string;
+  /** Empresa a la que pertenece. `null` solo para el super admin de la plataforma. */
+  empresaId: string | null;
   nombre: string;
   email: string;
-  rol: 'admin' | 'usuario';
+  rol: 'super_admin' | 'admin' | 'usuario';
   modulos: ModuloId[];
   activo: boolean;
 }

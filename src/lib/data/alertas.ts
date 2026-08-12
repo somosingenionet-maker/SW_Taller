@@ -1,7 +1,11 @@
 import { supabase } from '../supabase';
 import type { Alerta, AlertaTipo } from '../../types';
+import type { Database } from '../database.types';
 
 export type NuevaAlerta = Omit<Alerta, 'id'>;
+
+// empresa_id lo rellena el trigger set_empresa_id() en el servidor.
+type AlertaInsert = Database['public']['Tables']['alertas']['Insert'];
 
 const COLS = 'id, vehiculo_id, tipo, descripcion, estado, fecha_limite, kilometraje_limite';
 
@@ -40,7 +44,7 @@ export async function listAlertas(): Promise<Alerta[]> {
 }
 
 export async function createAlerta(input: NuevaAlerta): Promise<Alerta> {
-  const { data, error } = await supabase.from('alertas').insert(toRow(input)).select(COLS).single();
+  const { data, error } = await supabase.from('alertas').insert(toRow(input) as AlertaInsert).select(COLS).single();
   if (error) throw error;
   return mapAlerta(data as AlertaRow);
 }
