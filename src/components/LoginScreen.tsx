@@ -64,11 +64,11 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
         <div className="relative z-10 space-y-8">
           <div className="space-y-3">
             <h1 className="text-4xl font-display font-bold text-white tracking-tight leading-tight">
-              Gestiona tu taller,<br />flota y clientes<br />en un solo lugar.
+              El sistema operativo<br />de tu taller.
             </h1>
             <p className="text-slate-400 text-sm max-w-sm">
-              La plataforma de backoffice para talleres y gestores de flota:
-              vehículos, órdenes de trabajo, CRM y facturación, todo conectado.
+              Una plataforma para que cada taller gestione sus vehículos, clientes,
+              órdenes de trabajo y facturación — de forma simple y centralizada.
             </p>
           </div>
 
