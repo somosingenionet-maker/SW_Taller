@@ -8,7 +8,7 @@ interface LoginScreenProps {
 }
 
 const FEATURES = [
-  { icon: Car, label: 'Flota y vehículos' },
+  { icon: Car, label: 'Vehículos' },
   { icon: Wrench, label: 'Taller y órdenes de trabajo' },
   { icon: Users, label: 'CRM de clientes' },
   { icon: FileText, label: 'Facturación' },
