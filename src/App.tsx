@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { contrastText } from './utils/color';
-import {
-  getFacturas, saveFacturas,
-} from './data/mockData';
 import { supabase } from './lib/supabase';
 import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
@@ -10,6 +7,7 @@ import { listClientes, createCliente, updateCliente, deleteCliente, addInteracci
 import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
 import { listAlertas, createAlerta, resolveAlerta } from './lib/data/alertas';
 import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
+import { listFacturas, createFactura, updateFactura, deleteFactura } from './lib/data/facturas';
 import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
@@ -106,10 +104,8 @@ export default function App() {
   const recargarNotificaciones = useCallback(async () => {
     setNotificaciones(await listNotificaciones());
   }, []);
-
-  // Resto de módulos: aún desde localStorage (migración incremental).
-  useEffect(() => {
-    setFacturas(getFacturas());
+  const recargarFacturas = useCallback(async () => {
+    setFacturas(await listFacturas());
   }, []);
 
   // Datos de Supabase: se cargan cuando hay sesión (la RLS requiere estar
@@ -121,14 +117,16 @@ export default function App() {
       recargarOrdenes();
       recargarAlertas();
       recargarNotificaciones();
+      recargarFacturas();
     } else {
       setVehiculos([]);
       setClientes([]);
       setOrdenesTrabajo([]);
       setAlertas([]);
       setNotificaciones([]);
+      setFacturas([]);
     }
-  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones]);
+  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarFacturas]);
 
   // Set default tab based on user modules
   useEffect(() => {
@@ -234,24 +232,21 @@ export default function App() {
     await handleUpdateVehiculo(updatedVeh);
   }, [vehiculos, handleUpdateVehiculo]);
 
-  // Factura handlers
-  const handleAddFactura = useCallback((f: Factura) => {
-    const updated = [...facturas, f];
-    setFacturas(updated);
-    saveFacturas(updated);
-  }, [facturas]);
+  // Factura handlers (Supabase)
+  const handleAddFactura = useCallback(async (f: Factura) => {
+    await createFactura(f);
+    await recargarFacturas();
+  }, [recargarFacturas]);
 
-  const handleUpdateFactura = useCallback((f: Factura) => {
-    const updated = facturas.map(x => x.id === f.id ? f : x);
-    setFacturas(updated);
-    saveFacturas(updated);
-  }, [facturas]);
+  const handleUpdateFactura = useCallback(async (f: Factura) => {
+    await updateFactura(f);
+    await recargarFacturas();
+  }, [recargarFacturas]);
 
-  const handleDeleteFactura = useCallback((id: string) => {
-    const updated = facturas.filter(x => x.id !== id);
-    setFacturas(updated);
-    saveFacturas(updated);
-  }, [facturas]);
+  const handleDeleteFactura = useCallback(async (id: string) => {
+    await deleteFactura(id);
+    await recargarFacturas();
+  }, [recargarFacturas]);
 
   // OT handlers (Supabase)
   const handleAddOT = useCallback(async (ot: OrdenTrabajo) => {
