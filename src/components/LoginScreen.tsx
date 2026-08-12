@@ -86,16 +86,20 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
       </div>
 
       {/* Formulario */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 bg-slate-950 md:bg-white">
+      <div className="flex-1 relative flex flex-col items-center justify-center px-4 py-12 bg-slate-950 md:bg-slate-50 overflow-hidden">
+        {/* Fondo sutil en el lado claro — le da al recuadro algo de "opacidad" real contra lo que contrastar */}
+        <div className="hidden md:block absolute top-0 right-0 w-96 h-96 rounded-full bg-blue-100/60 blur-3xl" />
+        <div className="hidden md:block absolute bottom-0 left-0 w-80 h-80 rounded-full bg-indigo-100/50 blur-3xl" />
+
         {/* Marca compacta — solo visible en móvil */}
-        <div className="md:hidden flex flex-col items-center gap-3 mb-8">
+        <div className="md:hidden relative z-10 flex flex-col items-center gap-3 mb-8">
           <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
             <span className="text-white font-black text-2xl tracking-tighter">i</span>
           </div>
           <span className="text-white font-bold text-lg tracking-tight">inGenio Taller</span>
         </div>
 
-        <div className="w-full max-w-sm">
+        <div className="relative z-10 w-full max-w-sm md:bg-white/70 md:backdrop-blur-xl md:border md:border-white md:rounded-3xl md:shadow-xl md:shadow-slate-200/70 md:p-8">
           <div className="mb-7">
             <h2 className="text-xl font-bold text-white md:text-slate-800 tracking-tight">Iniciar sesión</h2>
             <p className="text-sm text-slate-400 md:text-slate-500 mt-1">Accede a tu espacio de trabajo</p>
