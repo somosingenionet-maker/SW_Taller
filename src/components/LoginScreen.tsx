@@ -83,7 +83,17 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           </div>
         </div>
 
-        <p className="relative z-10 text-slate-600 text-xs">© 2026 Tibox — Desarrollado por InGenio</p>
+        <p className="relative z-10 text-slate-600 text-xs">
+          © 2026 Tibox — Desarrollado por{' '}
+          <a
+            href="https://www.somosingenio.net"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-slate-400 underline underline-offset-2 transition"
+          >
+            InGenio
+          </a>
+        </p>
       </div>
 
       {/* Formulario */}
@@ -171,7 +181,15 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           </form>
 
           <p className="md:hidden text-slate-600 text-xs mt-8 text-center">
-            © 2026 Tibox — Desarrollado por InGenio
+            © 2026 Tibox — Desarrollado por{' '}
+            <a
+              href="https://www.somosingenio.net"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-slate-400 underline underline-offset-2 transition"
+            >
+              InGenio
+            </a>
           </p>
         </div>
       </div>
