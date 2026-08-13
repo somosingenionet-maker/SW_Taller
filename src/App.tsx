@@ -578,6 +578,7 @@ export default function App() {
             notificaciones={notificaciones}
             clientes={clientes}
             vehiculos={vehiculos}
+            empresa={empresa}
             onAddNotificacion={handleAddNotificacion}
             onResolveAlerta={handleResolveAlerta}
             onDeleteNotificacion={handleDeleteNotificacion}
@@ -617,7 +618,7 @@ export default function App() {
       {/* FOOTER */}
       <footer className="bg-slate-900 border-t border-slate-800 text-center py-4 text-xs text-slate-500 print:hidden shrink-0 mt-auto">
         <div className="max-w-7xl mx-auto px-4">
-          <p>© 2026 inGenio Datos y Comunicaciones. Reservados todos los derechos. Entorno Privado de Backoffice.</p>
+          <p>© 2026 Thivox Motor. Reservados todos los derechos.</p>
         </div>
       </footer>
     </div>

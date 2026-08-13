@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Alerta, NotificacionCliente, Cliente, Vehiculo, AlertaTipo } from '../types';
+import { Alerta, NotificacionCliente, Cliente, Vehiculo, AlertaTipo, Empresa } from '../types';
 import {
   Bell, Check, MessageSquare, AlertTriangle, Send, Mail, Phone, Calendar, Sparkles, RefreshCw
 } from 'lucide-react';
@@ -11,6 +11,7 @@ interface AlertsNotificationsTabProps {
   notificaciones: NotificacionCliente[];
   clientes: Cliente[];
   vehiculos: Vehiculo[];
+  empresa: Empresa;
   onAddNotificacion: (notif: NotificacionCliente) => void;
   onResolveAlerta: (alertaId: string) => void;
   onDeleteNotificacion: (id: string) => void;
@@ -22,6 +23,7 @@ export default function AlertsNotificationsTab({
   notificaciones,
   clientes,
   vehiculos,
+  empresa,
   onAddNotificacion,
   onResolveAlerta,
   onDeleteNotificacion,
@@ -66,18 +68,18 @@ export default function AlertsNotificationsTab({
 
     if (selectedTemplate === 'mantenimiento_preventivo') {
       setCustomSubject(`🔧 Mantenimiento Preventivo Pendiente: ${veh.marca} ${veh.matricula}`);
-      setCustomBody(`Estimado/a ${cli.nombre} ${cli.apellidos},\n\nLe informamos que de acuerdo con el kilometraje de su vehículo (${veh.marca} ${veh.modelo} con matrícula ${veh.matricula}), se recomienda agendar cita previa para el cambio de filtros y aceite de motor.\n\nAtentamente, Servicio Técnico inGenio.`);
+      setCustomBody(`Estimado/a ${cli.nombre} ${cli.apellidos},\n\nLe informamos que de acuerdo con el kilometraje de su vehículo (${veh.marca} ${veh.modelo} con matrícula ${veh.matricula}), se recomienda agendar cita previa para el cambio de filtros y aceite de motor.\n\nAtentamente, Servicio Técnico ${empresa.nombre}.`);
     } else if (selectedTemplate === 'itv_proxima') {
       setCustomSubject(`⚠️ Recordatorio de ITV Próxima: ${veh.marca} ${veh.matricula}`);
-      setCustomBody(`Hola ${cli.nombre},\n\nLe recordamos que la Inspección Técnica de Vehículo (ITV) de su coche asignado (${veh.marca} ${veh.modelo} matrícula ${veh.matricula}) caduca el ${veh.itvVencimiento}.\n\nPor favor, pase por nuestras instalaciones para preparar el coche. Taller Central inGenio.`);
+      setCustomBody(`Hola ${cli.nombre},\n\nLe recordamos que la Inspección Técnica de Vehículo (ITV) de su coche asignado (${veh.marca} ${veh.modelo} matrícula ${veh.matricula}) caduca el ${veh.itvVencimiento}.\n\nPor favor, pase por nuestras instalaciones para preparar el coche. ${empresa.nombre}.`);
     } else if (selectedTemplate === 'vencimiento_seguro') {
       setCustomSubject(`🛡️ Póliza de Seguro Próxima a Vencer: ${veh.marca}`);
       setCustomBody(`Servicio de Gestión de Flotas: Estimado/a ${cli.nombre}, la póliza de seguro del vehículo ${veh.marca} ${veh.modelo} matrícula ${veh.matricula} vencerá el próximo ${veh.seguroVencimiento}. Estamos tramitando la renovación obligatoria automática.`);
     } else if (selectedTemplate === 'reparacion_lista') {
       setCustomSubject(`✅ Vehículo Reparado Listo para Entrega: ${veh.marca}`);
-      setCustomBody(`⚙️ inGenio Taller: Estimado ${cli.nombre}, tenemos el placer de comunicarle que la reparación de su vehículo ${veh.marca} ${veh.modelo} (${veh.matricula}) ha concluido exitosamente y ha sido verificado en carretera. Puede pasar a retirarlo.`);
+      setCustomBody(`⚙️ ${empresa.nombre}: Estimado ${cli.nombre}, tenemos el placer de comunicarle que la reparación de su vehículo ${veh.marca} ${veh.modelo} (${veh.matricula}) ha concluido exitosamente y ha sido verificado en carretera. Puede pasar a retirarlo.`);
     }
-  }, [targetClienteId, targetVehiculoId, selectedTemplate]);
+  }, [targetClienteId, targetVehiculoId, selectedTemplate, empresa]);
 
   // Handle Dispatch Send
   const handleDispatchSubmit = (e: React.FormEvent) => {

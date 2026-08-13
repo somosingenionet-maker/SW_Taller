@@ -55,9 +55,9 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
         <div className="relative z-10">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
-              <span className="text-white font-black text-xl tracking-tighter">i</span>
+              <span className="text-white font-black text-xl tracking-tighter">T</span>
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">inGenio Taller</span>
+            <span className="text-white font-bold text-lg tracking-tight">Thivox Motor</span>
           </div>
         </div>
 
@@ -83,7 +83,7 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           </div>
         </div>
 
-        <p className="relative z-10 text-slate-600 text-xs">© 2026 inGenio Datos y Comunicaciones</p>
+        <p className="relative z-10 text-slate-600 text-xs">© 2026 Thivox Motor</p>
       </div>
 
       {/* Formulario */}
@@ -95,9 +95,9 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
         {/* Marca compacta — solo visible en móvil */}
         <div className="md:hidden relative z-10 flex flex-col items-center gap-3 mb-8">
           <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
-            <span className="text-white font-black text-2xl tracking-tighter">i</span>
+            <span className="text-white font-black text-2xl tracking-tighter">T</span>
           </div>
-          <span className="text-white font-bold text-lg tracking-tight">inGenio Taller</span>
+          <span className="text-white font-bold text-lg tracking-tight">Thivox Motor</span>
         </div>
 
         <div className="relative z-10 w-full max-w-sm md:bg-white/90 md:backdrop-blur-xl md:border md:border-white md:rounded-3xl md:shadow-2xl md:shadow-slate-400/20 md:p-8">
@@ -171,7 +171,7 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           </form>
 
           <p className="md:hidden text-slate-600 text-xs mt-8 text-center">
-            © 2026 inGenio Datos y Comunicaciones
+            © 2026 Thivox Motor
           </p>
         </div>
       </div>
