@@ -111,7 +111,7 @@ export default function SuperAdminPanel({ currentUser, onLogout }: SuperAdminPan
             </div>
             <div>
               <h1 className="text-md sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                Thivox Motor
+                Tibox Motor
                 <span className="text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest bg-white/10 text-white border border-white/20">
                   Super Admin
                 </span>

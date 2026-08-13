@@ -618,7 +618,7 @@ export default function App() {
       {/* FOOTER */}
       <footer className="bg-slate-900 border-t border-slate-800 text-center py-4 text-xs text-slate-500 print:hidden shrink-0 mt-auto">
         <div className="max-w-7xl mx-auto px-4">
-          <p>© 2026 Thivox Motor. Reservados todos los derechos.</p>
+          <p>© 2026 Tibox — Desarrollado por InGenio. Reservados todos los derechos.</p>
         </div>
       </footer>
     </div>
