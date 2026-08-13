@@ -187,8 +187,10 @@ export type Database = {
           nif: string
           nombre: string
           razon_social: string
+          siguiente_numero_factura: number
           tagline: string
           telefono: string
+          ultimo_hash_factura: string | null
           updated_at: string
           web: string
         }
@@ -204,8 +206,10 @@ export type Database = {
           nif?: string
           nombre: string
           razon_social?: string
+          siguiente_numero_factura?: number
           tagline?: string
           telefono?: string
+          ultimo_hash_factura?: string | null
           updated_at?: string
           web?: string
         }
@@ -221,8 +225,10 @@ export type Database = {
           nif?: string
           nombre?: string
           razon_social?: string
+          siguiente_numero_factura?: number
           tagline?: string
           telefono?: string
+          ultimo_hash_factura?: string | null
           updated_at?: string
           web?: string
         }
@@ -294,11 +300,15 @@ export type Database = {
           empresa_id: string
           estado: string
           fecha: string
+          fecha_emision_hash: string | null
           fecha_vencimiento: string
+          hash: string | null
+          hash_anterior: string | null
           id: string
           iva_pct: number
           notas: string
           numero: string
+          qr_url: string | null
           subtotal: number
           total: number
           total_iva: number
@@ -311,11 +321,15 @@ export type Database = {
           empresa_id: string
           estado: string
           fecha?: string
+          fecha_emision_hash?: string | null
           fecha_vencimiento: string
+          hash?: string | null
+          hash_anterior?: string | null
           id?: string
           iva_pct?: number
           notas?: string
           numero: string
+          qr_url?: string | null
           subtotal?: number
           total?: number
           total_iva?: number
@@ -328,11 +342,15 @@ export type Database = {
           empresa_id?: string
           estado?: string
           fecha?: string
+          fecha_emision_hash?: string | null
           fecha_vencimiento?: string
+          hash?: string | null
+          hash_anterior?: string | null
           id?: string
           iva_pct?: number
           notas?: string
           numero?: string
+          qr_url?: string | null
           subtotal?: number
           total?: number
           total_iva?: number

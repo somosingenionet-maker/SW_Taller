@@ -45,6 +45,10 @@ create table public.empresas (
   brand_color      text not null default '#2563eb',
   logo_base64      text not null default '',
   activo           boolean not null default true,  -- permite suspender el acceso de una empresa
+  -- Contadores atómicos para la cadena VeriFactu de facturas (ver tabla
+  -- `facturas`); el cliente nunca los toca, los gestionan los triggers.
+  siguiente_numero_factura int not null default 1,
+  ultimo_hash_factura      text,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
@@ -321,26 +325,37 @@ create trigger trg_notificaciones_empresa before insert on public.notificaciones
 
 -- ============================================================================
 --  FACTURAS
---  Nota: los campos VeriFactu (huella, huella_anterior, qr_url, numeración
---  correlativa garantizada e inmutabilidad) se añaden en una migración
---  dedicada al construir el módulo legal de facturación.
+--  Cumplimiento técnico VeriFactu (alcance local, sin envío a la AEAT
+--  todavía — ver detalle en los triggers más abajo): numeración correlativa
+--  garantizada por servidor, cadena de huellas (hash) e inmutabilidad real
+--  de las facturas ya emitidas. El formato exacto de la cadena que se
+--  hashea y de la URL del QR sigue la estructura pública conocida del
+--  reglamento, pero debe verificarse contra la especificación oficial de
+--  la AEAT (o con un gestor/asesor fiscal) antes de usarse con clientes
+--  reales — esto es ingeniería de software, no asesoría fiscal.
 -- ============================================================================
 create table public.facturas (
-  id                text primary key default gen_random_uuid()::text,
-  empresa_id        text not null references public.empresas(id) on delete cascade,
-  numero            text not null unique,
-  cliente_id        text not null references public.clientes(id) on delete restrict,
-  vehiculo_id       text references public.vehiculos(id) on delete set null,
-  fecha             date not null default current_date,
-  fecha_vencimiento date not null,
-  estado            text not null check (estado in ('borrador','emitida','pagada','vencida','cancelada')),
-  notas             text not null default '',
-  subtotal          numeric(12,2) not null default 0,
-  iva_pct           numeric(5,2)  not null default 21,
-  total_iva         numeric(12,2) not null default 0,
-  total             numeric(12,2) not null default 0,
-  created_at        timestamptz not null default now(),
-  updated_at        timestamptz not null default now()
+  id                  text primary key default gen_random_uuid()::text,
+  empresa_id          text not null references public.empresas(id) on delete cascade,
+  numero              text not null unique,
+  cliente_id          text not null references public.clientes(id) on delete restrict,
+  vehiculo_id         text references public.vehiculos(id) on delete set null,
+  fecha               date not null default current_date,
+  fecha_vencimiento   date not null,
+  estado              text not null check (estado in ('borrador','emitida','pagada','vencida','cancelada')),
+  notas               text not null default '',
+  subtotal            numeric(12,2) not null default 0,
+  iva_pct             numeric(5,2)  not null default 21,
+  total_iva           numeric(12,2) not null default 0,
+  total               numeric(12,2) not null default 0,
+  -- Cadena VeriFactu: se rellenan solo al emitir (borrador -> emitida); los
+  -- gestiona el trigger trg_facturas_emitir, nunca el cliente.
+  hash                text,
+  hash_anterior       text,
+  qr_url              text,
+  fecha_emision_hash  timestamptz,
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
 );
 create index on public.facturas (empresa_id);
 create index on public.facturas (cliente_id);
@@ -349,6 +364,142 @@ create trigger trg_facturas_updated before update on public.facturas
   for each row execute function public.set_updated_at();
 create trigger trg_facturas_empresa before insert on public.facturas
   for each row execute function public.set_empresa_id();
+
+-- Numeración correlativa atómica: si el cliente no envía `numero` (el caso
+-- normal — igual que empresa_id, el cliente no gestiona este campo), se
+-- asigna incrementando el contador de la propia empresa. `for update`
+-- serializa la asignación entre creaciones concurrentes.
+create or replace function public.set_numero_factura()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_siguiente int;
+begin
+  if new.numero is null then
+    update public.empresas
+      set siguiente_numero_factura = siguiente_numero_factura + 1
+      where id = new.empresa_id
+      returning siguiente_numero_factura - 1 into v_siguiente;
+    new.numero := 'FAC-' || lpad(v_siguiente::text, 4, '0');
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_facturas_numero before insert on public.facturas
+  for each row execute function public.set_numero_factura();
+
+-- Emisión, cadena de huellas e inmutabilidad. Un único trigger before
+-- update cubre las tres situaciones posibles según la transición de
+-- estado:
+--  1) borrador -> emitida: es el momento de emitir. Calcula la huella
+--     encadenada (hash de esta factura + huella de la anterior emitida de
+--     la misma empresa) y el QR de verificación; a partir de aquí la
+--     factura queda protegida por el caso 3.
+--  2) cualquier otro estado ya no borrador (emitida/pagada/vencida) hacia
+--     otro estado: solo se permiten las transiciones administrativas
+--     legítimas (marcar pagada, vencida o cancelada) y ningún campo de
+--     contenido puede cambiar — si cambia, se rechaza la operación entera.
+--  3) borrador -> borrador: edición normal de un borrador, sin restricción.
+create or replace function public.emitir_y_proteger_factura()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_hash_anterior text;
+  v_nif           text;
+  v_cadena        text;
+begin
+  if old.estado = 'borrador' and new.estado = 'emitida' then
+    select nif into v_nif from public.empresas where id = new.empresa_id;
+
+    -- `for update` bloquea la fila de la empresa hasta el commit, así dos
+    -- emisiones concurrentes de la misma empresa se serializan y ninguna
+    -- lee la huella "anterior" que la otra está a punto de sobrescribir.
+    select ultimo_hash_factura into v_hash_anterior
+      from public.empresas where id = new.empresa_id for update;
+
+    new.fecha_emision_hash := now();
+    -- Cadena a verificar contra la especificación oficial antes de producción.
+    v_cadena := coalesce(v_hash_anterior, '') || '|' || coalesce(v_nif, '') || '|' || new.numero
+      || '|' || new.fecha::text || '|' || new.total::text;
+    -- digest() vive en el esquema `extensions` en Supabase (no en `public`),
+    -- por eso se cualifica: la función usa search_path = public a propósito
+    -- por seguridad y no lo incluye por defecto.
+    new.hash := encode(extensions.digest(v_cadena::bytea, 'sha256'::text), 'hex');
+    new.hash_anterior := v_hash_anterior;
+    new.qr_url := 'https://www2.agenciatributaria.gob.es/wlpl/TIKE-CONT/ValidarQR'
+      || '?nif=' || coalesce(v_nif, '')
+      || '&numserie=' || new.numero
+      || '&fecha=' || to_char(new.fecha, 'DD-MM-YYYY')
+      || '&importe=' || new.total::text;
+
+    update public.empresas set ultimo_hash_factura = new.hash where id = new.empresa_id;
+
+  elsif old.estado <> 'borrador' then
+    if new.numero <> old.numero or new.cliente_id <> old.cliente_id
+       or new.vehiculo_id is distinct from old.vehiculo_id
+       or new.fecha <> old.fecha or new.fecha_vencimiento <> old.fecha_vencimiento
+       or new.subtotal <> old.subtotal or new.iva_pct <> old.iva_pct
+       or new.total_iva <> old.total_iva or new.total <> old.total
+       or new.notas <> old.notas or new.empresa_id <> old.empresa_id
+       or new.hash is distinct from old.hash or new.hash_anterior is distinct from old.hash_anterior
+       or new.qr_url is distinct from old.qr_url
+    then
+      raise exception 'No se puede modificar el contenido de una factura ya emitida (VeriFactu). Usa una factura rectificativa.';
+    end if;
+
+    if new.estado <> old.estado then
+      if not (
+        (old.estado = 'emitida' and new.estado in ('pagada', 'vencida', 'cancelada')) or
+        (old.estado = 'vencida' and new.estado in ('pagada', 'cancelada'))
+      ) then
+        raise exception 'Transición de estado no permitida: % -> %', old.estado, new.estado;
+      end if;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+create trigger trg_facturas_emitir before update on public.facturas
+  for each row execute function public.emitir_y_proteger_factura();
+
+-- Bloquea el borrado de cualquier factura que ya haya sido emitida.
+create or replace function public.bloquear_borrado_factura()
+returns trigger
+language plpgsql
+as $$
+begin
+  if old.estado <> 'borrador' then
+    raise exception 'No se puede eliminar una factura ya emitida (VeriFactu). Usa una factura rectificativa.';
+  end if;
+  return old;
+end;
+$$;
+create trigger trg_facturas_no_borrar before delete on public.facturas
+  for each row execute function public.bloquear_borrado_factura();
+
+-- Las líneas y las OT asociadas de una factura ya emitida tampoco se
+-- pueden tocar (hoy updateFactura() borra y reinserta líneas en cada
+-- guardado — a partir de aquí eso queda bloqueado por la base de datos si
+-- la factura padre ya no es un borrador).
+create or replace function public.bloquear_edicion_hijos_factura()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_estado text;
+  v_factura_id text;
+begin
+  v_factura_id := coalesce(new.factura_id, old.factura_id);
+  select estado into v_estado from public.facturas where id = v_factura_id;
+  if v_estado is not null and v_estado <> 'borrador' then
+    raise exception 'No se pueden modificar las líneas de una factura ya emitida (VeriFactu).';
+  end if;
+  return coalesce(new, old);
+end;
+$$;
 
 -- Líneas de la factura --------------------------------------------------------
 create table public.lineas_factura (
@@ -361,6 +512,8 @@ create table public.lineas_factura (
   posicion        int not null default 0
 );
 create index on public.lineas_factura (factura_id);
+create trigger trg_lineas_factura_inmutable before insert or update or delete on public.lineas_factura
+  for each row execute function public.bloquear_edicion_hijos_factura();
 
 -- OT importadas en cada factura (trazabilidad) --------------------------------
 create table public.factura_ot (
@@ -369,6 +522,8 @@ create table public.factura_ot (
   primary key (factura_id, ot_id)
 );
 create index on public.factura_ot (ot_id);
+create trigger trg_factura_ot_inmutable before insert or update or delete on public.factura_ot
+  for each row execute function public.bloquear_edicion_hijos_factura();
 
 -- ============================================================================
 --  ROW LEVEL SECURITY

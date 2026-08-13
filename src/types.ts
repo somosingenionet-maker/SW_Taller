@@ -194,4 +194,9 @@ export interface Factura {
   ivaPct: number;
   totalIva: number;
   total: number;
+  /** Cadena VeriFactu — solo presentes tras emitir (nunca en un borrador). */
+  hash?: string;
+  hashAnterior?: string;
+  qrUrl?: string;
+  fechaEmisionHash?: string;
 }

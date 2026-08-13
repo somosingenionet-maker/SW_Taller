@@ -2,12 +2,13 @@ import { supabase } from '../supabase';
 import type { Factura, LineaDocumento } from '../../types';
 import type { Database } from '../database.types';
 
-// empresa_id lo rellena el trigger set_empresa_id() en el servidor.
+// empresa_id y numero los rellenan los triggers del servidor
+// (set_empresa_id / set_numero_factura) — el cliente nunca los envía.
 type FacturaInsert = Database['public']['Tables']['facturas']['Insert'];
 
 const SELECT =
   'id, numero, cliente_id, vehiculo_id, fecha, fecha_vencimiento, estado, notas, ' +
-  'subtotal, iva_pct, total_iva, total, ' +
+  'subtotal, iva_pct, total_iva, total, hash, hash_anterior, qr_url, fecha_emision_hash, ' +
   'lineas_factura ( id, descripcion, cantidad, precio_unitario, subtotal, posicion ), ' +
   'factura_ot ( ot_id )';
 
@@ -19,6 +20,8 @@ type FacturaRow = {
   id: string; numero: string; cliente_id: string; vehiculo_id: string | null;
   fecha: string; fecha_vencimiento: string; estado: string; notas: string;
   subtotal: number; iva_pct: number; total_iva: number; total: number;
+  hash: string | null; hash_anterior: string | null; qr_url: string | null;
+  fecha_emision_hash: string | null;
   lineas_factura: LineaRow[] | null; factura_ot: { ot_id: string }[] | null;
 };
 
@@ -48,12 +51,17 @@ function mapFactura(r: FacturaRow): Factura {
     ivaPct: r.iva_pct,
     totalIva: r.total_iva,
     total: r.total,
+    hash: r.hash ?? undefined,
+    hashAnterior: r.hash_anterior ?? undefined,
+    qrUrl: r.qr_url ?? undefined,
+    fechaEmisionHash: r.fecha_emision_hash ?? undefined,
   };
 }
 
+// `numero` nunca se envía: lo asigna el trigger set_numero_factura() al
+// crear, y una vez asignado no se vuelve a tocar (la UI no deja editarlo).
 function toRow(f: Factura) {
   return {
-    numero: f.numero,
     cliente_id: f.clienteId,
     vehiculo_id: f.vehiculoId || null,
     fecha: f.fecha,
@@ -93,6 +101,7 @@ export async function listFacturas(): Promise<Factura[]> {
   return (data ?? []).map((r) => mapFactura(r as unknown as FacturaRow));
 }
 
+/** Crea una factura nueva, siempre en estado 'borrador'. El número lo asigna el servidor. */
 export async function createFactura(f: Factura): Promise<Factura> {
   const { data, error } = await supabase.from('facturas').insert(toRow(f) as FacturaInsert).select('id').single();
   if (error) throw error;
@@ -109,6 +118,15 @@ export async function createFactura(f: Factura): Promise<Factura> {
   return getFactura(id);
 }
 
+/**
+ * Guarda cambios de contenido (cliente, líneas, importes...) en una
+ * factura. Solo pensada para facturas en 'borrador' — una vez emitida, la
+ * base de datos rechaza cualquier cambio de contenido y también bloquea
+ * el borrado-y-reinserción de líneas que hace esta función en cada
+ * guardado (ver cambiarEstadoFactura para transiciones de estado
+ * administrativas como pagada/vencida/cancelada, que no deben pasar por
+ * aquí).
+ */
 export async function updateFactura(f: Factura): Promise<Factura> {
   const { error } = await supabase.from('facturas').update(toRow(f)).eq('id', f.id);
   if (error) throw error;
@@ -130,6 +148,34 @@ export async function updateFactura(f: Factura): Promise<Factura> {
   return getFactura(f.id);
 }
 
+/**
+ * Marca una factura como emitida. El servidor calcula en ese momento la
+ * huella encadenada (hash + hash_anterior) y el QR de verificación
+ * (trigger emitir_y_proteger_factura); a partir de aquí la factura queda
+ * inmutable — ver updateFactura.
+ */
+export async function emitirFactura(id: string): Promise<Factura> {
+  const { error } = await supabase.from('facturas').update({ estado: 'emitida' }).eq('id', id);
+  if (error) throw error;
+  return getFactura(id);
+}
+
+/**
+ * Cambia el estado administrativo de una factura ya emitida
+ * (pagada/vencida/cancelada). A diferencia de updateFactura(), esta
+ * función NO toca lineas_factura ni factura_ot — solo actualiza `estado`.
+ * Es necesario mantenerlas separadas: una vez emitida, la base de datos
+ * bloquea cualquier escritura en las líneas de la factura (trigger
+ * bloquear_edicion_hijos_factura), así que el borrado-y-reinserción que
+ * hace updateFactura() en cada guardado fallaría aquí.
+ */
+export async function cambiarEstadoFactura(id: string, estado: Factura['estado']): Promise<Factura> {
+  const { error } = await supabase.from('facturas').update({ estado }).eq('id', id);
+  if (error) throw error;
+  return getFactura(id);
+}
+
+/** Solo permitido mientras la factura siga en 'borrador' (bloqueado en servidor si no). */
 export async function deleteFactura(id: string): Promise<void> {
   const { error } = await supabase.from('facturas').delete().eq('id', id);
   if (error) throw error;

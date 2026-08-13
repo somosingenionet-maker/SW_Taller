@@ -7,7 +7,7 @@ import { listClientes, createCliente, updateCliente, deleteCliente, addInteracci
 import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
 import { listAlertas, createAlerta, resolveAlerta } from './lib/data/alertas';
 import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
-import { listFacturas, createFactura, updateFactura, deleteFactura } from './lib/data/facturas';
+import { listFacturas, createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
 import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, Empresa } from './types';
 import VehiclesTab from './components/VehiclesTab';
@@ -265,6 +265,16 @@ export default function App() {
 
   const handleDeleteFactura = useCallback(async (id: string) => {
     await deleteFactura(id);
+    await recargarFacturas();
+  }, [recargarFacturas]);
+
+  const handleEmitirFactura = useCallback(async (id: string) => {
+    await emitirFactura(id);
+    await recargarFacturas();
+  }, [recargarFacturas]);
+
+  const handleCambiarEstadoFactura = useCallback(async (id: string, estado: Factura['estado']) => {
+    await cambiarEstadoFactura(id, estado);
     await recargarFacturas();
   }, [recargarFacturas]);
 
@@ -596,6 +606,8 @@ export default function App() {
             onAddFactura={handleAddFactura}
             onUpdateFactura={handleUpdateFactura}
             onDeleteFactura={handleDeleteFactura}
+            onEmitirFactura={handleEmitirFactura}
+            onCambiarEstadoFactura={handleCambiarEstadoFactura}
           />
         )}
       </main>
