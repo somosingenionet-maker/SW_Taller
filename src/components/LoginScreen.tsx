@@ -61,23 +61,23 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           </div>
         </div>
 
-        <div className="relative z-10 space-y-8">
-          <div className="space-y-3">
-            <h1 className="text-4xl font-display font-bold text-white tracking-tight leading-tight">
+        <div className="relative z-10 space-y-10 max-w-xl">
+          <div className="space-y-4">
+            <h1 className="text-6xl font-display font-bold text-white tracking-tight leading-[1.1]">
               El sistema operativo<br />de tu taller.
             </h1>
-            <p className="text-slate-400 text-sm max-w-sm">
+            <p className="text-slate-400 text-lg max-w-lg">
               Una plataforma para que cada taller gestione los vehículos de sus
               clientes, las órdenes de trabajo y la facturación — de forma simple
               y centralizada.
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 max-w-sm">
+          <div className="grid grid-cols-2 gap-4">
             {FEATURES.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/5 border border-white/10">
-                <Icon className="w-4 h-4 text-blue-400 shrink-0" />
-                <span className="text-xs font-medium text-slate-300">{label}</span>
+              <div key={label} className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/5 border border-white/10">
+                <Icon className="w-5 h-5 text-blue-400 shrink-0" />
+                <span className="text-sm font-medium text-slate-300">{label}</span>
               </div>
             ))}
           </div>
