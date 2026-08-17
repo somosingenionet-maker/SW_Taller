@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Building2, Plus, Trash2, LogOut, Shield, Check, X } from 'lucide-react';
+import { Building2, Plus, Trash2, LogOut, Shield, Check, X, Users, Pencil } from 'lucide-react';
 import { Perfil } from '../types';
 import { listEmpresas, createEmpresaConAdmin, toggleEmpresaActivo, deleteEmpresa, NuevaEmpresaInput } from '../lib/data/empresa';
+import { updateUsuario, setUsuarioPassword } from '../lib/data/usuarios';
 import type { Empresa } from '../types';
 import ConfirmDialog from './ConfirmDialog';
+import AdminPanel from './AdminPanel';
 
 interface SuperAdminPanelProps {
   currentUser: Perfil;
   onLogout: () => void;
+  /** Refresca el perfil en App tras editar el propio nombre desde "Mi cuenta". */
+  onUserUpdated: () => void;
 }
 
 interface FormState {
@@ -20,7 +24,7 @@ interface FormState {
 
 const EMPTY_FORM: FormState = { nombre: '', nif: '', adminNombre: '', adminEmail: '', adminPassword: '' };
 
-export default function SuperAdminPanel({ currentUser, onLogout }: SuperAdminPanelProps) {
+export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }: SuperAdminPanelProps) {
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
@@ -29,6 +33,8 @@ export default function SuperAdminPanel({ currentUser, onLogout }: SuperAdminPan
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Empresa | null>(null);
+  const [manageEmpresa, setManageEmpresa] = useState<Empresa | null>(null);
+  const [miCuentaOpen, setMiCuentaOpen] = useState(false);
 
   const recargar = async () => {
     setListError('');
@@ -120,12 +126,17 @@ export default function SuperAdminPanel({ currentUser, onLogout }: SuperAdminPan
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white/10 text-white">
+            <button
+              onClick={() => setMiCuentaOpen(true)}
+              title="Mi cuenta"
+              className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            >
               <div className="w-6 h-6 rounded-full bg-white text-slate-900 flex items-center justify-center text-[10px] font-black">
                 {currentUser.nombre[0].toUpperCase()}
               </div>
               <span className="text-xs font-semibold hidden sm:block">{currentUser.nombre}</span>
-            </div>
+              <Pencil className="w-3 h-3 opacity-60" />
+            </button>
             <button
               onClick={onLogout}
               title="Cerrar sesión"
@@ -187,6 +198,13 @@ export default function SuperAdminPanel({ currentUser, onLogout }: SuperAdminPan
                       {e.nif && <p className="text-xs text-slate-500 mt-0.5">NIF: {e.nif}</p>}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setManageEmpresa(e)}
+                        title="Ver usuarios"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => handleToggleActivo(e)}
                         title={e.activo ? 'Suspender' : 'Reactivar'}
@@ -305,6 +323,112 @@ export default function SuperAdminPanel({ currentUser, onLogout }: SuperAdminPan
         onConfirm={handleDeleteConfirmed}
         onCancel={() => setConfirmDelete(null)}
       />
+
+      {manageEmpresa && (
+        <AdminPanel
+          currentUser={currentUser}
+          empresaId={manageEmpresa.id}
+          empresaNombre={manageEmpresa.nombre}
+          canCreate={false}
+          onClose={() => setManageEmpresa(null)}
+        />
+      )}
+
+      {miCuentaOpen && (
+        <MiCuentaModal
+          currentUser={currentUser}
+          onClose={() => setMiCuentaOpen(false)}
+          onSaved={() => {
+            setMiCuentaOpen(false);
+            onUserUpdated();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+interface MiCuentaModalProps {
+  currentUser: Perfil;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
+  const [nombre, setNombre] = useState(currentUser.nombre);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setError('');
+    if (!nombre.trim()) { setError('El nombre es obligatorio.'); return; }
+    if (password.length > 0 && password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres.'); return; }
+
+    setSaving(true);
+    try {
+      if (nombre.trim() !== currentUser.nombre) {
+        await updateUsuario(currentUser.id, { nombre: nombre.trim() });
+      }
+      if (password.length > 0) {
+        await setUsuarioPassword(currentUser.id, password);
+      }
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron guardar los cambios.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-slate-800">Mi cuenta</p>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre</label>
+          <input
+            type="text"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Nueva contraseña (dejar vacío para no cambiarla)</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="••••••••"
+            autoComplete="new-password"
+          />
+        </div>
+
+        {error && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60"
+        >
+          <Check className="w-4 h-4" />
+          {saving ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </div>
     </div>
   );
 }

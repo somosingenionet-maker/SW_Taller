@@ -6,6 +6,11 @@ import { listUsuarios, createUsuario, updateUsuario, deleteUsuario, setUsuarioPa
 interface AdminPanelProps {
   currentUser: Perfil;
   onClose: () => void;
+  /** Solo para el super admin: acota el listado a una empresa concreta (panel de soporte). */
+  empresaId?: string;
+  empresaNombre?: string;
+  /** Alta de usuarios nuevos — desactivada cuando el super admin gestiona otra empresa (la Edge Function admin-users crea siempre en la empresa de quien llama). */
+  canCreate?: boolean;
 }
 
 const MODULOS_BASE = [
@@ -35,7 +40,7 @@ const EMPTY_FORM: FormState = {
   modulos: MODULOS_BASE.map(m => m.id),
 };
 
-export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
+export default function AdminPanel({ currentUser, onClose, empresaId, empresaNombre, canCreate = true }: AdminPanelProps) {
   const [usuarios, setUsuarios] = useState<Perfil[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
@@ -49,7 +54,7 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
   const recargar = async () => {
     setListError('');
     try {
-      setUsuarios(await listUsuarios());
+      setUsuarios(await listUsuarios(empresaId));
     } catch (err) {
       setListError(err instanceof Error ? err.message : 'Error cargando usuarios.');
     } finally {
@@ -60,7 +65,7 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
   useEffect(() => {
     recargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [empresaId]);
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -184,7 +189,9 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white">
           <div className="flex items-center gap-2.5">
             <Shield className="w-4 h-4 text-blue-400" />
-            <span className="font-bold text-sm tracking-tight">Panel de Administración</span>
+            <span className="font-bold text-sm tracking-tight">
+              {empresaNombre ? `Usuarios de ${empresaNombre}` : 'Panel de Administración'}
+            </span>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg transition">
             <X className="w-4 h-4" />
@@ -205,12 +212,14 @@ export default function AdminPanel({ currentUser, onClose }: AdminPanelProps) {
             <>
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Usuarios del sistema ({usuarios.length})</p>
-                <button
-                  onClick={openCreate}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Nuevo Usuario
-                </button>
+                {canCreate && (
+                  <button
+                    onClick={openCreate}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Nuevo Usuario
+                  </button>
+                )}
               </div>
 
               {loading ? (

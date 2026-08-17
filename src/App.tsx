@@ -108,6 +108,13 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Refresca el perfil del usuario logueado (p.ej. tras editar su propio nombre desde "Mi cuenta").
+  const recargarPerfil = useCallback(async () => {
+    if (!currentUser) return;
+    const perfil = await fetchPerfil(currentUser.id);
+    if (perfil) setCurrentUser(perfil);
+  }, [currentUser]);
+
   // Datos desde Supabase.
   const recargarVehiculos = useCallback(async () => {
     setVehiculos(await listVehiculos());
@@ -320,7 +327,7 @@ export default function App() {
 
   // El super admin gestiona empresas clientes — no opera datos de negocio.
   if (currentUser.rol === 'super_admin') {
-    return <SuperAdminPanel currentUser={currentUser} onLogout={handleLogout} />;
+    return <SuperAdminPanel currentUser={currentUser} onLogout={handleLogout} onUserUpdated={recargarPerfil} />;
   }
 
   // Datos de la propia empresa aún cargando.

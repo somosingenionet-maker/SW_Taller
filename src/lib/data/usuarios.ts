@@ -20,9 +20,15 @@ function mapPerfil(r: PerfilRow): Perfil {
   };
 }
 
-/** Devuelve los usuarios de la propia empresa (o de todas, si quien llama es super admin) — filtrado por RLS. */
-export async function listUsuarios(): Promise<Perfil[]> {
-  const { data, error } = await supabase.from('perfiles').select(SELECT).order('nombre');
+/**
+ * Devuelve los usuarios de la propia empresa (o de todas, si quien llama es
+ * super admin) — filtrado por RLS. El super admin puede además acotar a una
+ * empresa concreta pasando `empresaId` (panel de soporte por empresa).
+ */
+export async function listUsuarios(empresaId?: string): Promise<Perfil[]> {
+  let query = supabase.from('perfiles').select(SELECT).order('nombre');
+  if (empresaId) query = query.eq('empresa_id', empresaId);
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []).map((r) => mapPerfil(r as PerfilRow));
 }

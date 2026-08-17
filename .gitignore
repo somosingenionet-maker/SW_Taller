@@ -10,3 +10,4 @@ coverage/
 # Supabase (artefactos locales; config.toml y migrations/ SÍ se versionan)
 supabase/.temp/
 supabase/.branches/
+.vercel

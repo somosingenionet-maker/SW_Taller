@@ -576,10 +576,16 @@ create policy "perfiles_update_propio" on public.perfiles
 create policy "perfiles_update_admin" on public.perfiles
   for update to authenticated
   using (
-    empresa_id = mi_empresa_id()
-    and exists (select 1 from public.perfiles p where p.id = auth.uid() and p.rol = 'admin')
+    es_super_admin()
+    or (
+      empresa_id = mi_empresa_id()
+      and exists (select 1 from public.perfiles p where p.id = auth.uid() and p.rol = 'admin')
+    )
   )
-  with check (empresa_id = mi_empresa_id() and rol <> 'super_admin');
+  with check (
+    rol <> 'super_admin'
+    and (es_super_admin() or empresa_id = mi_empresa_id())
+  );
 
 -- Tablas raíz de negocio: acceso total al personal autenticado de la misma
 -- empresa (o al super admin, aunque en la práctica no las usa).
