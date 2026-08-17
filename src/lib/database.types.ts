@@ -709,6 +709,21 @@ export type Database = {
           },
         ]
       }
+      plataforma_config: {
+        Row: {
+          id: string
+          logo_base64: string | null
+        }
+        Insert: {
+          id?: string
+          logo_base64?: string | null
+        }
+        Update: {
+          id?: string
+          logo_base64?: string | null
+        }
+        Relationships: []
+      }
       tecnicos: {
         Row: {
           activo: boolean

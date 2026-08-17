@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Building2, Plus, Trash2, LogOut, Shield, Check, X, Users, Pencil } from 'lucide-react';
+import { useEffect, useState, useRef, ChangeEvent } from 'react';
+import { Building2, Plus, Trash2, LogOut, Shield, Check, X, Users, Pencil, Image, Upload } from 'lucide-react';
 import { Perfil } from '../types';
 import { listEmpresas, createEmpresaConAdmin, toggleEmpresaActivo, deleteEmpresa, NuevaEmpresaInput } from '../lib/data/empresa';
 import { updateUsuario, setUsuarioPassword, setUsuarioEmail } from '../lib/data/usuarios';
+import { getPlataformaLogo, setPlataformaLogo } from '../lib/data/plataforma';
 import type { Empresa } from '../types';
 import ConfirmDialog from './ConfirmDialog';
 import AdminPanel from './AdminPanel';
@@ -35,6 +36,12 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
   const [confirmDelete, setConfirmDelete] = useState<Empresa | null>(null);
   const [manageEmpresa, setManageEmpresa] = useState<Empresa | null>(null);
   const [miCuentaOpen, setMiCuentaOpen] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [logoModalOpen, setLogoModalOpen] = useState(false);
+
+  useEffect(() => {
+    getPlataformaLogo().then(setLogo).catch(() => setLogo(null));
+  }, []);
 
   const recargar = async () => {
     setListError('');
@@ -112,9 +119,17 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
       <header className="bg-slate-950 shadow-md shrink-0">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
-              <Shield className="w-5 h-5 text-white" />
-            </div>
+            <button
+              onClick={() => setLogoModalOpen(true)}
+              title="Cambiar logo de la plataforma"
+              className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-400 transition"
+            >
+              {logo ? (
+                <img src={logo} alt="Tibox" className="w-full h-full object-contain" />
+              ) : (
+                <Shield className="w-5 h-5 text-white" />
+              )}
+            </button>
             <div>
               <h1 className="text-md sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
                 Tibox Motor
@@ -344,6 +359,108 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
           }}
         />
       )}
+
+      {logoModalOpen && (
+        <LogoPlataformaModal
+          logoActual={logo}
+          onClose={() => setLogoModalOpen(false)}
+          onSaved={(nuevoLogo) => {
+            setLogo(nuevoLogo);
+            setLogoModalOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+interface LogoPlataformaModalProps {
+  logoActual: string | null;
+  onClose: () => void;
+  onSaved: (logo: string | null) => void;
+}
+
+function LogoPlataformaModal({ logoActual, onClose, onSaved }: LogoPlataformaModalProps) {
+  const [draft, setDraft] = useState<string | null>(logoActual);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setDraft(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    setError('');
+    setSaving(true);
+    try {
+      await setPlataformaLogo(draft);
+      onSaved(draft);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo guardar el logo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-slate-800">Logo de la plataforma</p>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-xs text-slate-500 -mt-2">
+          Se muestra en la pantalla de login y aquí en el panel de Super Admin. No afecta al logo propio de cada empresa cliente.
+        </p>
+
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-xl bg-blue-600 flex items-center justify-center overflow-hidden shrink-0 shadow-md border border-slate-200">
+            {draft ? (
+              <img src={draft} alt="logo" className="w-full h-full object-contain" />
+            ) : (
+              <Image className="w-6 h-6 text-white/70" />
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold rounded-lg border border-blue-200 transition cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" /> Subir imagen
+            </button>
+            {draft && (
+              <button onClick={() => setDraft(null)} className="text-xs text-slate-400 hover:text-rose-500 transition text-left cursor-pointer">
+                Quitar logo
+              </button>
+            )}
+            <p className="text-[10px] text-slate-400">PNG, JPG o SVG — máx. 2 MB</p>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+        </div>
+
+        {error && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60"
+        >
+          <Check className="w-4 h-4" />
+          {saving ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LogIn, Eye, EyeOff, Mail, Lock, Car, Wrench, Users, FileText } from 'lucide-react';
 import { signIn } from '../lib/auth';
+import { getPlataformaLogo } from '../lib/data/plataforma';
 
 interface LoginScreenProps {
   /** Error de sesión propagado desde App (p. ej. cuenta desactivada). */
@@ -20,6 +21,11 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPlataformaLogo().then(setLogo).catch(() => setLogo(null));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +60,12 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
 
         <div className="relative z-10">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
-              <span className="text-white font-black text-xl tracking-tighter">T</span>
+            <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30 overflow-hidden">
+              {logo ? (
+                <img src={logo} alt="Tibox" className="w-full h-full object-contain" />
+              ) : (
+                <span className="text-white font-black text-xl tracking-tighter">T</span>
+              )}
             </div>
             <span className="text-white font-bold text-lg tracking-tight">Tibox Motor</span>
           </div>
@@ -104,8 +114,12 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
 
         {/* Marca compacta — solo visible en móvil */}
         <div className="md:hidden relative z-10 flex flex-col items-center gap-3 mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30">
-            <span className="text-white font-black text-2xl tracking-tighter">T</span>
+          <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30 overflow-hidden">
+            {logo ? (
+              <img src={logo} alt="Tibox" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-white font-black text-2xl tracking-tighter">T</span>
+            )}
           </div>
           <span className="text-white font-bold text-lg tracking-tight">Tibox Motor</span>
         </div>

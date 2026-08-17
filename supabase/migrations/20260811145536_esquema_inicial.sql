@@ -661,6 +661,26 @@ create policy "factura_ot_tenant" on public.factura_ot
     select 1 from public.facturas f where f.id = factura_ot.factura_id and f.empresa_id = mi_empresa_id()
   ));
 
+-- Configuración de plataforma: fila única (branding global — logo de Tibox).
+-- Se lee en la pantalla de login (antes de autenticar), por eso el select es
+-- público; solo el super admin puede modificarla.
+create table public.plataforma_config (
+  id text primary key default 'global',
+  logo_base64 text,
+  constraint plataforma_config_fila_unica check (id = 'global')
+);
+insert into public.plataforma_config (id, logo_base64) values ('global', null);
+
+alter table public.plataforma_config enable row level security;
+
+create policy "plataforma_config_select_publico" on public.plataforma_config
+  for select to anon, authenticated
+  using (true);
+create policy "plataforma_config_update_super_admin" on public.plataforma_config
+  for update to authenticated
+  using (es_super_admin())
+  with check (es_super_admin());
+
 -- Privilegios de tabla para los roles de Supabase. La RLS sigue aplicando el
 -- filtrado por fila para anon/authenticated; service_role saltará la RLS y
 -- necesita estos GRANT para las operaciones de servidor (Edge Functions, seed).
