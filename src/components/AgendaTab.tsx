@@ -175,7 +175,8 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
       if (form.tecnicoId && c.tecnicoId && c.tecnicoId !== form.tecnicoId) return false;
       return seSolapan(rangoForm, rango(c.fechaHora, c.duracionMinutos));
     });
-    return candidatas.length > 0 ? candidatas : null;
+    if (candidatas.length === 0) return null;
+    return { candidatas, mismoTecnico: form.tecnicoId ? candidatas.filter((c) => c.tecnicoId === form.tecnicoId) : [] };
   }, [citas, fechaHoraForm, form.duracionMinutos, form.tecnicoId, editingId]);
 
   const handleSave = async () => {
@@ -404,13 +405,6 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
 
-              {solapamiento && (
-                <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-4 py-2.5 rounded-lg flex items-start gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                  <span>Se solapa con {solapamiento.length} cita{solapamiento.length !== 1 ? 's' : ''} ya programada{solapamiento.length !== 1 ? 's' : ''} ese día. Puedes guardarla igualmente.</span>
-                </div>
-              )}
-
               <div className="flex gap-2">
                 <button onClick={() => setForm((f) => ({ ...f, modo: 'registrado' }))}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${form.modo === 'registrado' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-500 border-slate-200'}`}>
@@ -488,6 +482,18 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
                 <textarea value={form.notas} onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))} rows={2}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
+
+              {solapamiento && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-4 py-2.5 rounded-lg flex items-start gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    {solapamiento.mismoTecnico.length > 0
+                      ? `${tecnicos.find((t) => t.id === form.tecnicoId)?.nombre ?? 'Este técnico'} ya tiene ${solapamiento.mismoTecnico.length > 1 ? `${solapamiento.mismoTecnico.length} citas` : 'otra cita'} a esa hora.`
+                      : `Se solapa con ${solapamiento.candidatas.length} cita${solapamiento.candidatas.length !== 1 ? 's' : ''} ya programada${solapamiento.candidatas.length !== 1 ? 's' : ''} ese día${form.tecnicoId ? ' (sin técnico asignado)' : ''}.`}
+                    {' '}Puedes guardarla igualmente.
+                  </span>
+                </div>
+              )}
 
               {formError && (
                 <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{formError}</div>
