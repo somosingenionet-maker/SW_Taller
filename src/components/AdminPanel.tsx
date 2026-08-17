@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Shield, Plus, Edit2, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Perfil, ModuloId } from '../types';
 import { listUsuarios, createUsuario, updateUsuario, deleteUsuario, setUsuarioPassword, setUsuarioEmail } from '../lib/data/usuarios';
+import { validarPassword, REQUISITOS_PASSWORD } from '../utils/password';
 
 interface AdminPanelProps {
   currentUser: Perfil;
@@ -108,9 +109,9 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
     if (!form.nombre.trim()) { setFormError('El nombre es obligatorio.'); return; }
     if (!form.email.trim()) { setFormError('El email es obligatorio.'); return; }
     // Al editar, dejar la contraseña vacía significa no cambiarla
-    if ((!editingId || form.password.length > 0) && form.password.length < 6) {
-      setFormError('La contraseña debe tener al menos 6 caracteres.');
-      return;
+    if (!editingId || form.password.length > 0) {
+      const errorPassword = validarPassword(form.password);
+      if (errorPassword) { setFormError(errorPassword); return; }
     }
 
     const duplicate = usuarios.find(
@@ -342,16 +343,17 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
 
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  {editingId ? 'Nueva contraseña (dejar vacío para no cambiarla)' : 'Contraseña * (mín. 6 caracteres)'}
+                  {editingId ? 'Nueva contraseña (dejar vacío para no cambiarla)' : 'Contraseña *'}
                 </label>
                 <input
                   type="password"
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder={editingId ? '••••••••' : 'mínimo 6 caracteres'}
+                  placeholder="••••••••"
                   autoComplete="new-password"
                 />
+                <p className="text-[10px] text-slate-400 mt-1">{REQUISITOS_PASSWORD}</p>
               </div>
 
               <div className="flex gap-4">

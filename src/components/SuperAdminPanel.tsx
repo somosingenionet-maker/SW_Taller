@@ -4,6 +4,7 @@ import { Perfil } from '../types';
 import { listEmpresas, createEmpresaConAdmin, toggleEmpresaActivo, deleteEmpresa, NuevaEmpresaInput } from '../lib/data/empresa';
 import { updateUsuario, setUsuarioPassword, setUsuarioEmail } from '../lib/data/usuarios';
 import { getPlataformaLogo, setPlataformaLogo } from '../lib/data/plataforma';
+import { validarPassword, REQUISITOS_PASSWORD } from '../utils/password';
 import type { Empresa } from '../types';
 import ConfirmDialog from './ConfirmDialog';
 import AdminPanel from './AdminPanel';
@@ -69,7 +70,8 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
     setFormError('');
     if (!form.nombre.trim()) { setFormError('El nombre de la empresa es obligatorio.'); return; }
     if (!form.adminNombre.trim() || !form.adminEmail.trim()) { setFormError('Nombre y email del administrador son obligatorios.'); return; }
-    if (form.adminPassword.length < 6) { setFormError('La contraseña debe tener al menos 6 caracteres.'); return; }
+    const errorPassword = validarPassword(form.adminPassword);
+    if (errorPassword) { setFormError(errorPassword); return; }
 
     setSaving(true);
     try {
@@ -243,7 +245,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
         )}
 
         {showForm && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 max-w-lg">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 max-w-lg mx-auto">
             <div className="flex items-center justify-between">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nueva empresa</p>
               <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600 transition cursor-pointer">
@@ -298,15 +300,16 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Contraseña * (mín. 6 caracteres)</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Contraseña *</label>
                   <input
                     type="password"
                     value={form.adminPassword}
                     onChange={(e) => setForm((f) => ({ ...f, adminPassword: e.target.value }))}
                     className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    placeholder="mínimo 6 caracteres"
+                    placeholder="••••••••"
                     autoComplete="new-password"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">{REQUISITOS_PASSWORD}</p>
                 </div>
               </div>
             </div>
@@ -482,7 +485,10 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
     setError('');
     if (!nombre.trim()) { setError('El nombre es obligatorio.'); return; }
     if (!email.trim() || !email.includes('@')) { setError('Email inválido.'); return; }
-    if (password.length > 0 && password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres.'); return; }
+    if (password.length > 0) {
+      const errorPassword = validarPassword(password);
+      if (errorPassword) { setError(errorPassword); return; }
+    }
 
     setSaving(true);
     try {
@@ -545,6 +551,7 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
             placeholder="••••••••"
             autoComplete="new-password"
           />
+          <p className="text-[10px] text-slate-400 mt-1">{REQUISITOS_PASSWORD}</p>
         </div>
 
         {error && (

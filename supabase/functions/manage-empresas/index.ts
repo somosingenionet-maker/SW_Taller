@@ -19,6 +19,16 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Política mínima de contraseña — debe mantenerse igual que
+// src/utils/password.ts (no se puede importar entre proyectos Deno/Vite).
+function errorPassword(password: string): string | null {
+  if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+  if (!/[A-Z]/.test(password)) return 'La contraseña debe incluir al menos una mayúscula.';
+  if (!/[a-z]/.test(password)) return 'La contraseña debe incluir al menos una minúscula.';
+  if (!/[0-9]/.test(password)) return 'La contraseña debe incluir al menos un número.';
+  return null;
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -67,7 +77,8 @@ Deno.serve(async (req) => {
 
       if (!nombre) return json({ error: 'El nombre de la empresa es obligatorio.' }, 400);
       if (!adminEmail || !adminNombre) return json({ error: 'Nombre y email del administrador son obligatorios.' }, 400);
-      if (adminPassword.length < 6) return json({ error: 'La contraseña debe tener al menos 6 caracteres.' }, 400);
+      const errPw = errorPassword(adminPassword);
+      if (errPw) return json({ error: errPw }, 400);
 
       const { data: empresa, error: empresaErr } = await admin
         .from('empresas')
