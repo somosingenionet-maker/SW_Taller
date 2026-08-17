@@ -15,13 +15,13 @@ interface AdminPanelProps {
 }
 
 const MODULOS_BASE = [
+  { id: 'inventario' as ModuloId, label: 'Inventario', desc: 'Catálogo y control de stock' },
   { id: 'vehiculos' as ModuloId, label: 'Vehículos', desc: 'Gestión de flota' },
   { id: 'clientes' as ModuloId, label: 'Clientes CRM', desc: 'Directorio de clientes' },
   { id: 'taller' as ModuloId, label: 'Taller', desc: 'Diario de mantenimientos' },
   { id: 'alertas' as ModuloId, label: 'Alertas', desc: 'ITV y vencimientos' },
   { id: 'rentabilidad' as ModuloId, label: 'Rentabilidad', desc: 'Análisis LTV' },
   { id: 'facturas' as ModuloId, label: 'Facturas', desc: 'Documentos comerciales' },
-  { id: 'inventario' as ModuloId, label: 'Inventario', desc: 'Catálogo y control de stock' },
 ];
 
 interface FormState {
