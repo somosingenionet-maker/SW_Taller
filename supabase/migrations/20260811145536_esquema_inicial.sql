@@ -530,7 +530,7 @@ create table public.notificaciones_cliente (
   mensaje     text not null,
   fecha_envio timestamptz not null default now(),
   leido       boolean not null default false,
-  tipo_evento text not null check (tipo_evento in ('mantenimiento_preventivo','itv_proxima','vencimiento_seguro','reparacion_lista')),
+  tipo_evento text not null check (tipo_evento in ('mantenimiento_preventivo','itv_proxima','vencimiento_seguro','impuesto_proximo','reparacion_lista')),
   created_at  timestamptz not null default now()
 );
 create index on public.notificaciones_cliente (empresa_id);
@@ -966,3 +966,163 @@ grant usage on schema public to anon, authenticated, service_role;
 grant all on all tables in schema public to anon, authenticated, service_role;
 grant all on all sequences in schema public to anon, authenticated, service_role;
 grant all on all routines in schema public to anon, authenticated, service_role;
+
+-- ============================================================================
+--  RECORDATORIOS AUTOMÁTICOS POR EMAIL
+--  Reutiliza `alertas` (ITV, seguro, impuesto, mantenimiento) como fuente de
+--  qué recordar. Antes de esto solo ITV se creaba automáticamente al dar de
+--  alta un vehículo (código en App.tsx) y "atender" una alerta la marcaba
+--  `atendida` para siempre sin volver a crearla — sin arreglar eso, los
+--  recordatorios automáticos no tendrían casi nada de qué avisar y dejarían
+--  de funcionar después del primer ciclo. Se resuelve con triggers.
+-- ============================================================================
+
+alter table public.alertas
+  add column recordatorio_enviado_en timestamptz;
+
+alter table public.notificaciones_cliente
+  add column origen text not null default 'manual' check (origen in ('manual','automatico'));
+
+-- Por defecto DESACTIVADO (opt-in): enviar email real tiene coste y
+-- reputación, y los tenants de demo/pruebas tienen correos de cliente
+-- ficticios — nunca debe dispararse sin que el admin de esa empresa lo
+-- active explícitamente.
+alter table public.empresas
+  add column recordatorios_automaticos_activos boolean not null default false;
+
+-- Reabre el ciclo de recordatorio cuando una alerta se renueva (cambia su
+-- fecha límite o su kilometraje límite) — así el siguiente vencimiento
+-- vuelve a poder recordarse.
+create or replace function public.reset_recordatorio_alerta()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.fecha_limite is distinct from old.fecha_limite
+     or new.kilometraje_limite is distinct from old.kilometraje_limite then
+    new.recordatorio_enviado_en := null;
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_alertas_reset_recordatorio before update on public.alertas
+  for each row execute function public.reset_recordatorio_alerta();
+
+-- Alta de vehículo: crea itv/seguro/impuesto (si el vehículo trae esa fecha)
+-- y una alerta inicial de mantenimiento a kilometraje + 15000 (mismo
+-- incremento que ya usaba la renovación manual de mantenimiento).
+create or replace function public.crear_alertas_vehiculo()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if new.itv_vencimiento is not null then
+    insert into public.alertas (empresa_id, vehiculo_id, tipo, descripcion, estado, fecha_limite)
+    values (new.empresa_id, new.id, 'itv',
+      'Inspección Técnica obligatoria (ITV) programada para el vencimiento: ' || new.itv_vencimiento || '.',
+      'activa', new.itv_vencimiento);
+  end if;
+  if new.seguro_vencimiento is not null then
+    insert into public.alertas (empresa_id, vehiculo_id, tipo, descripcion, estado, fecha_limite)
+    values (new.empresa_id, new.id, 'seguro',
+      'Póliza de seguro con vencimiento el ' || new.seguro_vencimiento || '.',
+      'activa', new.seguro_vencimiento);
+  end if;
+  if new.impuesto_vencimiento is not null then
+    insert into public.alertas (empresa_id, vehiculo_id, tipo, descripcion, estado, fecha_limite)
+    values (new.empresa_id, new.id, 'impuesto',
+      'Impuesto de circulación con vencimiento el ' || new.impuesto_vencimiento || '.',
+      'activa', new.impuesto_vencimiento);
+  end if;
+  insert into public.alertas (empresa_id, vehiculo_id, tipo, descripcion, estado, kilometraje_limite)
+  values (new.empresa_id, new.id, 'mantenimiento',
+    'Revisión de mantenimiento preventivo recomendada a los ' || (new.kilometraje + 15000) || ' km.',
+    'activa', new.kilometraje + 15000);
+  return new;
+end;
+$$;
+create trigger trg_vehiculos_crear_alertas after insert on public.vehiculos
+  for each row execute function public.crear_alertas_vehiculo();
+
+-- Renovación: cuando cambia una fecha de vencimiento del vehículo (lo que ya
+-- hace la UI al "Atender Alerta" de itv/seguro/impuesto), reabre/actualiza
+-- la misma fila de alerta en vez de dejarla huérfana en 'atendida'.
+create or replace function public.sincronizar_alertas_vencimiento()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_alerta_id text;
+begin
+  if new.itv_vencimiento is distinct from old.itv_vencimiento and new.itv_vencimiento is not null then
+    select id into v_alerta_id from public.alertas
+      where vehiculo_id = new.id and tipo = 'itv' order by created_at desc limit 1;
+    if v_alerta_id is null then
+      insert into public.alertas (empresa_id, vehiculo_id, tipo, descripcion, estado, fecha_limite)
+      values (new.empresa_id, new.id, 'itv',
+        'Inspección Técnica obligatoria (ITV) programada para el vencimiento: ' || new.itv_vencimiento || '.',
+        'activa', new.itv_vencimiento);
+    else
+      update public.alertas set estado = 'activa', fecha_limite = new.itv_vencimiento,
+        descripcion = 'Inspección Técnica obligatoria (ITV) programada para el vencimiento: ' || new.itv_vencimiento || '.'
+        where id = v_alerta_id;
+    end if;
+  end if;
+
+  if new.seguro_vencimiento is distinct from old.seguro_vencimiento and new.seguro_vencimiento is not null then
+    select id into v_alerta_id from public.alertas
+      where vehiculo_id = new.id and tipo = 'seguro' order by created_at desc limit 1;
+    if v_alerta_id is null then
+      insert into public.alertas (empresa_id, vehiculo_id, tipo, descripcion, estado, fecha_limite)
+      values (new.empresa_id, new.id, 'seguro',
+        'Póliza de seguro con vencimiento el ' || new.seguro_vencimiento || '.', 'activa', new.seguro_vencimiento);
+    else
+      update public.alertas set estado = 'activa', fecha_limite = new.seguro_vencimiento,
+        descripcion = 'Póliza de seguro con vencimiento el ' || new.seguro_vencimiento || '.'
+        where id = v_alerta_id;
+    end if;
+  end if;
+
+  if new.impuesto_vencimiento is distinct from old.impuesto_vencimiento and new.impuesto_vencimiento is not null then
+    select id into v_alerta_id from public.alertas
+      where vehiculo_id = new.id and tipo = 'impuesto' order by created_at desc limit 1;
+    if v_alerta_id is null then
+      insert into public.alertas (empresa_id, vehiculo_id, tipo, descripcion, estado, fecha_limite)
+      values (new.empresa_id, new.id, 'impuesto',
+        'Impuesto de circulación con vencimiento el ' || new.impuesto_vencimiento || '.', 'activa', new.impuesto_vencimiento);
+    else
+      update public.alertas set estado = 'activa', fecha_limite = new.impuesto_vencimiento,
+        descripcion = 'Impuesto de circulación con vencimiento el ' || new.impuesto_vencimiento || '.'
+        where id = v_alerta_id;
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+create trigger trg_vehiculos_sync_alertas
+  after update of itv_vencimiento, seguro_vencimiento, impuesto_vencimiento on public.vehiculos
+  for each row execute function public.sincronizar_alertas_vencimiento();
+
+-- Cron diario que llama a la Edge Function enviar-recordatorios. Los
+-- secretos se leen de Vault por nombre (nunca en texto plano en este
+-- archivo versionado) — se registran una sola vez contra cada proyecto con
+-- vault.create_secret(), ver checklist de despliegue.
+create extension if not exists pg_cron;
+create extension if not exists pg_net;
+
+select cron.schedule(
+  'recordatorios-diarios',
+  '0 8 * * *',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'edge_functions_base_url') || '/enviar-recordatorios',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key'),
+      'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'cron_shared_secret')
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);

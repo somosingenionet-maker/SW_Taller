@@ -7,11 +7,12 @@ export type NuevaNotificacion = Omit<NotificacionCliente, 'id'>;
 // empresa_id lo rellena el trigger set_empresa_id() en el servidor.
 type NotificacionInsert = Database['public']['Tables']['notificaciones_cliente']['Insert'];
 
-const COLS = 'id, cliente_id, vehiculo_id, tipo_envio, asunto, mensaje, fecha_envio, leido, tipo_evento';
+const COLS = 'id, cliente_id, vehiculo_id, tipo_envio, asunto, mensaje, fecha_envio, leido, tipo_evento, origen';
 
 type NotificacionRow = {
   id: string; cliente_id: string; vehiculo_id: string | null; tipo_envio: string;
   asunto: string | null; mensaje: string; fecha_envio: string; leido: boolean; tipo_evento: string;
+  origen: string;
 };
 
 function mapNotificacion(r: NotificacionRow): NotificacionCliente {
@@ -25,6 +26,7 @@ function mapNotificacion(r: NotificacionRow): NotificacionCliente {
     fechaEnvio: r.fecha_envio,
     leido: r.leido,
     tipoEvento: r.tipo_evento as NotificacionCliente['tipoEvento'],
+    origen: r.origen as NotificacionCliente['origen'],
   };
 }
 
@@ -38,6 +40,7 @@ function toRow(n: NuevaNotificacion) {
     fecha_envio: n.fechaEnvio,
     leido: n.leido,
     tipo_evento: n.tipoEvento,
+    origen: n.origen,
   };
 }
 

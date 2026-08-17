@@ -128,13 +128,9 @@ values
   ('ot-4','2026-06-12T11:00:00.000Z','Vehículo recibido en taller');
 
 -- ── Alertas ─────────────────────────────────────────────────────────────────
-insert into public.alertas (id, empresa_id, vehiculo_id, tipo, descripcion, estado, fecha_limite, kilometraje_limite)
-values
-  ('al-1','emp-demo','veh-2','itv','Inspección Técnica de Vehículo (ITV) vence el 2026-06-25.','activa','2026-06-25',null),
-  ('al-2','emp-demo','veh-2','seguro','Póliza de seguro a todo riesgo de Mapfre vence el 2026-06-18.','activa','2026-06-18',null),
-  ('al-3','emp-demo','veh-4','mantenimiento','Cambio de aceite de motor y filtros recomendado a los 120.000 kms (kilometraje actual: 119.800 km).','activa',null,120000),
-  ('al-4','emp-demo','veh-1','itv','ITV del vehículo vence pronto el 2026-07-15.','pendiente','2026-07-15',null)
-on conflict (id) do nothing;
+-- Ya no se insertan a mano: el trigger trg_vehiculos_crear_alertas crea
+-- itv/seguro/impuesto/mantenimiento automáticamente al insertar cada
+-- vehículo de arriba.
 
 -- ── Notificaciones a clientes ───────────────────────────────────────────────
 insert into public.notificaciones_cliente (id, empresa_id, cliente_id, vehiculo_id, tipo_envio, mensaje, fecha_envio, leido, tipo_evento)

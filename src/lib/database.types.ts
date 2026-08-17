@@ -43,6 +43,7 @@ export type Database = {
           fecha_limite: string | null
           id: string
           kilometraje_limite: number | null
+          recordatorio_enviado_en: string | null
           tipo: string
           updated_at: string
           vehiculo_id: string
@@ -55,6 +56,7 @@ export type Database = {
           fecha_limite?: string | null
           id?: string
           kilometraje_limite?: number | null
+          recordatorio_enviado_en?: string | null
           tipo: string
           updated_at?: string
           vehiculo_id: string
@@ -67,6 +69,7 @@ export type Database = {
           fecha_limite?: string | null
           id?: string
           kilometraje_limite?: number | null
+          recordatorio_enviado_en?: string | null
           tipo?: string
           updated_at?: string
           vehiculo_id?: string
@@ -280,6 +283,7 @@ export type Database = {
           nif: string
           nombre: string
           razon_social: string
+          recordatorios_automaticos_activos: boolean
           siguiente_numero_factura: number
           tagline: string
           telefono: string
@@ -299,6 +303,7 @@ export type Database = {
           nif?: string
           nombre: string
           razon_social?: string
+          recordatorios_automaticos_activos?: boolean
           siguiente_numero_factura?: number
           tagline?: string
           telefono?: string
@@ -318,6 +323,7 @@ export type Database = {
           nif?: string
           nombre?: string
           razon_social?: string
+          recordatorios_automaticos_activos?: boolean
           siguiente_numero_factura?: number
           tagline?: string
           telefono?: string
@@ -656,6 +662,7 @@ export type Database = {
           id: string
           leido: boolean
           mensaje: string
+          origen: string
           tipo_envio: string
           tipo_evento: string
           vehiculo_id: string | null
@@ -669,6 +676,7 @@ export type Database = {
           id?: string
           leido?: boolean
           mensaje: string
+          origen?: string
           tipo_envio: string
           tipo_evento: string
           vehiculo_id?: string | null
@@ -682,6 +690,7 @@ export type Database = {
           id?: string
           leido?: boolean
           mensaje?: string
+          origen?: string
           tipo_envio?: string
           tipo_evento?: string
           vehiculo_id?: string | null

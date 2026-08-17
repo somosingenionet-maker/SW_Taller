@@ -2,12 +2,13 @@ import { supabase } from '../supabase';
 import type { Empresa } from '../../types';
 
 const SELECT =
-  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, activo';
+  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, activo, recordatorios_automaticos_activos';
 
 type EmpresaRow = {
   id: string; nombre: string; tagline: string; razon_social: string; nif: string;
   direccion_fiscal: string; correo: string; telefono: string; web: string;
   ciudad: string; brand_color: string; logo_base64: string; activo: boolean;
+  recordatorios_automaticos_activos: boolean;
 };
 
 function mapEmpresa(r: EmpresaRow): Empresa {
@@ -25,6 +26,7 @@ function mapEmpresa(r: EmpresaRow): Empresa {
     brandColor: r.brand_color,
     logoBase64: r.logo_base64,
     activo: r.activo,
+    recordatoriosAutomaticosActivos: r.recordatorios_automaticos_activos,
   };
 }
 
@@ -42,6 +44,7 @@ function toRow(c: Partial<Empresa>) {
   if (c.brandColor !== undefined) row.brand_color = c.brandColor;
   if (c.logoBase64 !== undefined) row.logo_base64 = c.logoBase64;
   if (c.activo !== undefined) row.activo = c.activo;
+  if (c.recordatoriosAutomaticosActivos !== undefined) row.recordatorios_automaticos_activos = c.recordatoriosAutomaticosActivos;
   return row;
 }
 

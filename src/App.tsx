@@ -5,7 +5,7 @@ import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, addInteraccion, NuevoCliente } from './lib/data/clientes';
 import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
-import { listAlertas, createAlerta, resolveAlerta } from './lib/data/alertas';
+import { listAlertas, renovarAlertaMantenimiento } from './lib/data/alertas';
 import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
 import { listFacturas, createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
 import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
@@ -191,20 +191,10 @@ export default function App() {
 
   // Sync utilities
   const handleAddVehiculo = useCallback(async (input: NuevoVehiculo) => {
-    const creado = await createVehiculo(input);
+    await createVehiculo(input);
     await recargarVehiculos();
-
-    // Alerta de ITV automática al dar de alta el vehículo.
-    if (creado.itvVencimiento) {
-      await createAlerta({
-        vehiculoId: creado.id,
-        tipo: 'itv',
-        descripcion: `Inspección Técnica obligatoria (ITV) programada para el vencimiento: ${creado.itvVencimiento}.`,
-        estado: 'pendiente',
-        fechaLimite: creado.itvVencimiento,
-      });
-      await recargarAlertas();
-    }
+    // El trigger de BD crea las alertas de itv/seguro/impuesto/mantenimiento.
+    await recargarAlertas();
   }, [recargarVehiculos, recargarAlertas]);
 
   const handleUpdateVehiculo = useCallback(async (editado: Vehiculo) => {
@@ -240,8 +230,8 @@ export default function App() {
     return creada;
   }, [recargarClientes]);
 
-  const handleResolveAlerta = useCallback(async (id: string) => {
-    await resolveAlerta(id);
+  const handleRenovarMantenimiento = useCallback(async (alertaId: string, nuevoKilometrajeLimite: number) => {
+    await renovarAlertaMantenimiento(alertaId, nuevoKilometrajeLimite);
     await recargarAlertas();
   }, [recargarAlertas]);
 
@@ -262,18 +252,17 @@ export default function App() {
     await recargarNotificaciones();
   }, [recargarNotificaciones]);
 
-  const handleTriggerAutoRenew = useCallback(async (vehId: string, tipo: AlertaTipo, nuevaFechaOrKm: string) => {
+  const handleTriggerAutoRenew = useCallback(async (vehId: string, tipo: Exclude<AlertaTipo, 'mantenimiento'>, nuevaFecha: string) => {
     const veh = vehiculos.find(v => v.id === vehId);
     if (!veh) return;
-    let updatedVeh = { ...veh };
-    if (tipo === 'itv') updatedVeh.itvVencimiento = nuevaFechaOrKm;
-    else if (tipo === 'seguro') updatedVeh.seguroVencimiento = nuevaFechaOrKm;
-    else if (tipo === 'impuesto') updatedVeh.impuestoVencimiento = nuevaFechaOrKm;
-    else if (tipo === 'mantenimiento') {
-      updatedVeh.kilometraje = Math.max(veh.kilometraje, Number(nuevaFechaOrKm) - 15000);
-    }
+    const updatedVeh = { ...veh };
+    if (tipo === 'itv') updatedVeh.itvVencimiento = nuevaFecha;
+    else if (tipo === 'seguro') updatedVeh.seguroVencimiento = nuevaFecha;
+    else if (tipo === 'impuesto') updatedVeh.impuestoVencimiento = nuevaFecha;
     await handleUpdateVehiculo(updatedVeh);
-  }, [vehiculos, handleUpdateVehiculo]);
+    // El trigger de BD reabre/actualiza la alerta correspondiente.
+    await recargarAlertas();
+  }, [vehiculos, handleUpdateVehiculo, recargarAlertas]);
 
   // Factura handlers (Supabase)
   const handleAddFactura = useCallback(async (f: Factura) => {
@@ -672,7 +661,7 @@ export default function App() {
             vehiculos={vehiculos}
             empresa={empresa}
             onAddNotificacion={handleAddNotificacion}
-            onResolveAlerta={handleResolveAlerta}
+            onRenovarMantenimiento={handleRenovarMantenimiento}
             onDeleteNotificacion={handleDeleteNotificacion}
             onTriggerAutoRenew={handleTriggerAutoRenew}
           />

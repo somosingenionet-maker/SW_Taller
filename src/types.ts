@@ -115,6 +115,8 @@ export interface Alerta {
   fechaLimite?: string;
   /** Kilometraje límite para alertas por odómetro (mantenimiento). */
   kilometrajeLimite?: number;
+  /** ISO timestamp del último recordatorio automático enviado para el ciclo actual (undefined = pendiente). */
+  recordatorioEnviadoEn?: string;
 }
 
 export interface NotificacionCliente {
@@ -126,7 +128,9 @@ export interface NotificacionCliente {
   mensaje: string;
   fechaEnvio: string;
   leido: boolean;
-  tipoEvento: 'mantenimiento_preventivo' | 'itv_proxima' | 'vencimiento_seguro' | 'reparacion_lista';
+  tipoEvento: 'mantenimiento_preventivo' | 'itv_proxima' | 'vencimiento_seguro' | 'impuesto_proximo' | 'reparacion_lista';
+  /** 'automatico' = disparado por el cron de recordatorios; 'manual' = despachado desde el simulador. */
+  origen: 'manual' | 'automatico';
 }
 
 export interface Tecnico {
@@ -168,6 +172,8 @@ export interface Empresa {
   logoBase64: string;
   /** Si es false, la empresa está suspendida (impago, baja, etc.). */
   activo: boolean;
+  /** Activa el envío automático diario de recordatorios por email (opt-in). */
+  recordatoriosAutomaticosActivos: boolean;
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */

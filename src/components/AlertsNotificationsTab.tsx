@@ -13,9 +13,9 @@ interface AlertsNotificationsTabProps {
   vehiculos: Vehiculo[];
   empresa: Empresa;
   onAddNotificacion: (notif: NotificacionCliente) => void;
-  onResolveAlerta: (alertaId: string) => void;
+  onRenovarMantenimiento: (alertaId: string, nuevoKilometrajeLimite: number) => void;
   onDeleteNotificacion: (id: string) => void;
-  onTriggerAutoRenew: (vehiculoId: string, tipo: AlertaTipo, nuevaFecha: string) => void;
+  onTriggerAutoRenew: (vehiculoId: string, tipo: Exclude<AlertaTipo, 'mantenimiento'>, nuevaFecha: string) => void;
 }
 
 export default function AlertsNotificationsTab({
@@ -25,7 +25,7 @@ export default function AlertsNotificationsTab({
   vehiculos,
   empresa,
   onAddNotificacion,
-  onResolveAlerta,
+  onRenovarMantenimiento,
   onDeleteNotificacion,
   onTriggerAutoRenew
 }: AlertsNotificationsTabProps) {
@@ -99,7 +99,8 @@ export default function AlertsNotificationsTab({
         mensaje: customBody,
         fechaEnvio: new Date().toISOString().replace('T', ' ').slice(0, 16),
         leido: false,
-        tipoEvento: selectedTemplate
+        tipoEvento: selectedTemplate,
+        origen: 'manual'
       };
 
       onAddNotificacion(nueva);
@@ -139,23 +140,23 @@ export default function AlertsNotificationsTab({
       const nuevaFecha = new Date(today.setFullYear(today.getFullYear() + 1)).toISOString().split('T')[0];
       title = 'Confirmar ITV realizada';
       message = `La fecha de vencimiento técnico de la ITV se actualizará a ${nuevaFecha} (+1 año) y se cerrará esta alerta.`;
-      onConfirm = () => { onTriggerAutoRenew(alerta.vehiculoId, 'itv', nuevaFecha); onResolveAlerta(alerta.id); };
+      onConfirm = () => { onTriggerAutoRenew(alerta.vehiculoId, 'itv', nuevaFecha); };
     } else if (alerta.tipo === 'seguro') {
       const nuevaFecha = new Date(today.setFullYear(today.getFullYear() + 1)).toISOString().split('T')[0];
       title = 'Confirmar renovación de seguro';
       message = `El vencimiento de la póliza de seguro se actualizará a ${nuevaFecha} (+1 año) y se cerrará esta alerta.`;
-      onConfirm = () => { onTriggerAutoRenew(alerta.vehiculoId, 'seguro', nuevaFecha); onResolveAlerta(alerta.id); };
+      onConfirm = () => { onTriggerAutoRenew(alerta.vehiculoId, 'seguro', nuevaFecha); };
     } else if (alerta.tipo === 'impuesto') {
       const nuevaFecha = new Date(today.setFullYear(today.getFullYear() + 1)).toISOString().split('T')[0];
       title = 'Confirmar pago de impuesto de circulación';
       message = `La fecha del impuesto de circulación se actualizará a ${nuevaFecha} (+1 año) y se cerrará esta alerta.`;
-      onConfirm = () => { onTriggerAutoRenew(alerta.vehiculoId, 'impuesto', nuevaFecha); onResolveAlerta(alerta.id); };
+      onConfirm = () => { onTriggerAutoRenew(alerta.vehiculoId, 'impuesto', nuevaFecha); };
     } else if (alerta.tipo === 'mantenimiento') {
       const targetVeh = vehiculos.find(v => v.id === alerta.vehiculoId);
       const nextMaintKm = (targetVeh ? targetVeh.kilometraje : 0) + 15000;
       title = 'Confirmar mantenimiento realizado';
       message = `La alerta de kilometraje se pospondrá 15.000 km (próxima revisión recomendada: ${nextMaintKm.toLocaleString()} km).`;
-      onConfirm = () => { onTriggerAutoRenew(alerta.vehiculoId, 'mantenimiento', nextMaintKm.toString()); onResolveAlerta(alerta.id); };
+      onConfirm = () => { onRenovarMantenimiento(alerta.id, nextMaintKm); };
     }
 
     setConfirmAlerta({ isOpen: true, title, message, onConfirm });
@@ -426,6 +427,9 @@ export default function AlertsNotificationsTab({
                     <span className="flex items-center gap-1">
                       {not.tipoEnvio === 'email' ? <Mail className="w-3 h-3 text-blue-500" /> : not.tipoEnvio === 'whatsapp' ? <MessageSquare className="w-3 h-3 text-emerald-500" /> : <Phone className="w-3 h-3 text-amber-500" />}
                       {cli ? `${cli.nombre} ${cli.apellidos}` : 'Cliente desconocido'} ({not.tipoEnvio.toUpperCase()})
+                      {not.origen === 'automatico' && (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[9px] font-extrabold uppercase">Automático</span>
+                      )}
                     </span>
                     <span>{formatDate(not.fechaEnvio)}</span>
                   </div>

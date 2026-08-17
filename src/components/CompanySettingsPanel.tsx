@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2 } from 'lucide-react';
+import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail } from 'lucide-react';
 import { Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico } from '../lib/data/tecnicos';
 import { contrastText } from '../utils/color';
@@ -10,8 +10,8 @@ interface Props {
   onClose: () => void;
 }
 
-/** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo se conservan). */
-const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo'> = {
+/** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo/recordatorios se conservan). */
+const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos'> = {
   nombre: 'Mi Empresa',
   tagline: '',
   razonSocial: '',
@@ -274,6 +274,23 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                 placeholder="Madrid, Barcelona..."
               />
             </div>
+          </section>
+
+          {/* Recordatorios automáticos */}
+          <section className="space-y-2">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Recordatorios Automáticos</p>
+            <label className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2.5 cursor-pointer">
+              <span className="text-xs text-slate-600 flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                Enviar por email recordatorios de ITV, seguro, impuesto y mantenimiento a los clientes automáticamente.
+              </span>
+              <input
+                type="checkbox"
+                checked={draft.recordatoriosAutomaticosActivos}
+                onChange={e => setDraft(prev => ({ ...prev, recordatoriosAutomaticosActivos: e.target.checked }))}
+                className="w-4 h-4 shrink-0 cursor-pointer"
+              />
+            </label>
           </section>
 
           {/* Color de marca */}

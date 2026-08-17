@@ -7,11 +7,12 @@ export type NuevaAlerta = Omit<Alerta, 'id'>;
 // empresa_id lo rellena el trigger set_empresa_id() en el servidor.
 type AlertaInsert = Database['public']['Tables']['alertas']['Insert'];
 
-const COLS = 'id, vehiculo_id, tipo, descripcion, estado, fecha_limite, kilometraje_limite';
+const COLS = 'id, vehiculo_id, tipo, descripcion, estado, fecha_limite, kilometraje_limite, recordatorio_enviado_en';
 
 type AlertaRow = {
   id: string; vehiculo_id: string; tipo: string; descripcion: string;
   estado: string; fecha_limite: string | null; kilometraje_limite: number | null;
+  recordatorio_enviado_en: string | null;
 };
 
 function mapAlerta(r: AlertaRow): Alerta {
@@ -23,6 +24,7 @@ function mapAlerta(r: AlertaRow): Alerta {
     estado: r.estado as Alerta['estado'],
     fechaLimite: r.fecha_limite ?? undefined,
     kilometrajeLimite: r.kilometraje_limite ?? undefined,
+    recordatorioEnviadoEn: r.recordatorio_enviado_en ?? undefined,
   };
 }
 
@@ -52,5 +54,14 @@ export async function createAlerta(input: NuevaAlerta): Promise<Alerta> {
 /** Marca una alerta como atendida. */
 export async function resolveAlerta(id: string): Promise<void> {
   const { error } = await supabase.from('alertas').update({ estado: 'atendida' }).eq('id', id);
+  if (error) throw error;
+}
+
+/** Renueva una alerta de mantenimiento a un nuevo kilometraje límite (p.ej. +15.000 km tras la revisión). */
+export async function renovarAlertaMantenimiento(id: string, nuevoKilometrajeLimite: number): Promise<void> {
+  const { error } = await supabase
+    .from('alertas')
+    .update({ kilometraje_limite: nuevoKilometrajeLimite, estado: 'activa' })
+    .eq('id', id);
   if (error) throw error;
 }
