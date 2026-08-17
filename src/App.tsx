@@ -8,19 +8,21 @@ import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/o
 import { listAlertas, createAlerta, resolveAlerta } from './lib/data/alertas';
 import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
 import { listFacturas, createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
+import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, Empresa } from './types';
+import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, Empresa, Producto } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
 import CrmTab from './components/CrmTab';
 import AnalyticsTab from './components/AnalyticsTab';
 import AlertsNotificationsTab from './components/AlertsNotificationsTab';
 import FacturasTab from './components/FacturasTab';
+import InventarioTab from './components/InventarioTab';
 import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminPanel from './components/SuperAdminPanel';
 import {
-  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut
+  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package
 } from 'lucide-react';
 import CompanySettingsPanel from './components/CompanySettingsPanel';
 
@@ -46,6 +48,7 @@ export default function App() {
   const [notificaciones, setNotificaciones] = useState<NotificacionCliente[]>([]);
   const [facturas, setFacturas] = useState<Factura[]>([]);
   const [ordenesTrabajo, setOrdenesTrabajo] = useState<OrdenTrabajo[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
 
   // Sesión con Supabase Auth: comprueba la sesión al montar y escucha cambios.
   useEffect(() => {
@@ -134,6 +137,9 @@ export default function App() {
   const recargarFacturas = useCallback(async () => {
     setFacturas(await listFacturas());
   }, []);
+  const recargarProductos = useCallback(async () => {
+    setProductos(await listProductos());
+  }, []);
 
   // Datos de Supabase: se cargan cuando hay sesión (la RLS requiere estar
   // autenticado). Al cerrar sesión se limpian.
@@ -145,6 +151,7 @@ export default function App() {
       recargarAlertas();
       recargarNotificaciones();
       recargarFacturas();
+      recargarProductos();
     } else {
       setVehiculos([]);
       setClientes([]);
@@ -152,8 +159,9 @@ export default function App() {
       setAlertas([]);
       setNotificaciones([]);
       setFacturas([]);
+      setProductos([]);
     }
-  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarFacturas]);
+  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarFacturas, recargarProductos]);
 
   // Set default tab based on user modules
   useEffect(() => {
@@ -285,6 +293,28 @@ export default function App() {
     await recargarFacturas();
   }, [recargarFacturas]);
 
+  // Producto / inventario handlers (Supabase)
+  const handleAddProducto = useCallback(async (p: Producto, stockInicial: number) => {
+    const creado = await createProducto(p, stockInicial);
+    await recargarProductos();
+    return creado;
+  }, [recargarProductos]);
+
+  const handleUpdateProducto = useCallback(async (p: Producto) => {
+    await updateProducto(p);
+    await recargarProductos();
+  }, [recargarProductos]);
+
+  const handleDeleteProducto = useCallback(async (id: string) => {
+    await deleteProducto(id);
+    await recargarProductos();
+  }, [recargarProductos]);
+
+  const handleRegistrarMovimiento = useCallback(async (m: NuevoMovimiento) => {
+    await registrarMovimiento(m);
+    await recargarProductos();
+  }, [recargarProductos]);
+
   // OT handlers (Supabase)
   const handleAddOT = useCallback(async (ot: OrdenTrabajo) => {
     await createOrden(ot);
@@ -292,8 +322,9 @@ export default function App() {
   }, [recargarOrdenes]);
 
   const handleUpdateOT = useCallback(async (ot: OrdenTrabajo) => {
-    await updateOrden(ot);
+    const actualizada = await updateOrden(ot);
     await recargarOrdenes();
+    return actualizada;
   }, [recargarOrdenes]);
 
   const handleDeleteOT = useCallback(async (id: string) => {
@@ -341,6 +372,7 @@ export default function App() {
       { id: 'alertas' as ModuloId, label: 'Alertas', icon: <Bell className="w-4 h-4" />, emoji: '🔔' },
       { id: 'rentabilidad' as ModuloId, label: 'Rentabilidad', icon: <BarChart2 className="w-4 h-4" />, emoji: '📈' },
       { id: 'facturas' as ModuloId, label: 'Facturas', icon: <FileText className="w-4 h-4" />, emoji: '🧾' },
+      { id: 'inventario' as ModuloId, label: 'Inventario', icon: <Package className="w-4 h-4" />, emoji: '📦' },
     ] as { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[]
   ).filter(t => activeModulos.includes(t.id));
 
@@ -563,9 +595,11 @@ export default function App() {
             vehiculos={vehiculos}
             clientes={clientes}
             empresa={empresa}
+            productos={productos}
             onAdd={handleAddOT}
             onUpdate={handleUpdateOT}
             onDelete={handleDeleteOT}
+            onCreateProducto={handleAddProducto}
           />
         )}
 
@@ -615,6 +649,16 @@ export default function App() {
             onDeleteFactura={handleDeleteFactura}
             onEmitirFactura={handleEmitirFactura}
             onCambiarEstadoFactura={handleCambiarEstadoFactura}
+          />
+        )}
+
+        {activeTab === 'inventario' && (
+          <InventarioTab
+            productos={productos}
+            onAddProducto={handleAddProducto}
+            onUpdateProducto={handleUpdateProducto}
+            onDeleteProducto={handleDeleteProducto}
+            onRegistrarMovimiento={handleRegistrarMovimiento}
           />
         )}
       </main>

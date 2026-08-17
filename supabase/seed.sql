@@ -48,6 +48,29 @@ values
   ('int-cli-4-1','cli-4','2026-06-05','llamada','Nueva cliente. Solicita cita para diagnóstico de ruido en frenos de su BMW Serie 3.')
 on conflict (id) do nothing;
 
+-- ── Inventario ──────────────────────────────────────────────────────────────
+insert into public.productos
+  (id, empresa_id, nombre, sku, precio_venta, costo, stock_minimo, unidad)
+values
+  ('prod-1','emp-demo','Batería Varta E39 AGM 70Ah','VAR-E39',175,110,2,'unidad'),
+  ('prod-2','emp-demo','Aceite motor 5W30 (5L)','ACE-5W30-5L',45,28,5,'unidad'),
+  ('prod-3','emp-demo','Filtro de aceite','FIL-ACE-01',18,8,5,'unidad'),
+  ('prod-4','emp-demo','Válvula control distribución VW','VAL-DIST-VW',120,75,1,'unidad'),
+  ('prod-5','emp-demo','Kit pastillas Brembo delanteras','BRE-PAST-DEL',85,50,2,'unidad'),
+  ('prod-6','emp-demo','Discos de freno delanteros (par)','DIS-FRE-DEL',130,80,1,'unidad')
+on conflict (id) do nothing;
+
+-- Alta inicial de stock (vía el libro de movimientos, no escribiendo
+-- stock_actual directamente — mismo camino que seguirá la app).
+insert into public.movimientos_stock (producto_id, tipo, cantidad, motivo)
+values
+  ('prod-1','entrada',5,'Alta inicial de inventario'),
+  ('prod-2','entrada',12,'Alta inicial de inventario'),
+  ('prod-3','entrada',4,'Alta inicial de inventario'),
+  ('prod-4','entrada',2,'Alta inicial de inventario'),
+  ('prod-5','entrada',3,'Alta inicial de inventario'),
+  ('prod-6','entrada',2,'Alta inicial de inventario');
+
 -- ── Órdenes de trabajo ──────────────────────────────────────────────────────
 insert into public.ordenes_trabajo
   (id, empresa_id, numero, vehiculo_id, cliente_id, estado, fecha_recepcion, fecha_estimada_entrega,
@@ -71,17 +94,21 @@ values
    null,'Raúl García',0,21,0,0,null,null,'2026-06-12T11:00:00.000Z')
 on conflict (id) do nothing;
 
-insert into public.lineas_ot (id, ot_id, tipo, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion)
+-- tipo='producto' dispara trg_lineas_ot_stock_insert: como ot-1 y ot-2 ya
+-- están fuera de 'presupuesto', estas líneas descuentan stock al insertarse
+-- (ot-3 sigue en 'presupuesto', así que sus líneas de producto NO descuentan
+-- todavía — se descontarán cuando pase a 'recibido').
+insert into public.lineas_ot (id, ot_id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion)
 values
-  ('lot-1-1','ot-1','pieza','Batería Varta E39 AGM 70Ah',1,175,110,175,0),
-  ('lot-1-2','ot-1','mano_de_obra','Mano de obra sustitución batería',0.5,60,25,30,1),
-  ('lot-2-1','ot-2','pieza','Aceite motor 5W30 (5L)',1,45,28,45,0),
-  ('lot-2-2','ot-2','pieza','Filtro de aceite',1,18,8,18,1),
-  ('lot-2-3','ot-2','pieza','Válvula control distribución VW',1,120,75,120,2),
-  ('lot-2-4','ot-2','mano_de_obra','Mano de obra diagnóstico y reparación',2,60,25,120,3),
-  ('lot-3-1','ot-3','pieza','Kit pastillas Brembo delanteras',1,85,50,85,0),
-  ('lot-3-2','ot-3','pieza','Discos de freno delanteros (par)',1,130,80,130,1),
-  ('lot-3-3','ot-3','mano_de_obra','Sustitución frenos delanteros',1.5,60,25,90,2)
+  ('lot-1-1','ot-1','producto','prod-1','Batería Varta E39 AGM 70Ah',1,175,110,175,0),
+  ('lot-1-2','ot-1','mano_de_obra',null,'Mano de obra sustitución batería',0.5,60,25,30,1),
+  ('lot-2-1','ot-2','producto','prod-2','Aceite motor 5W30 (5L)',1,45,28,45,0),
+  ('lot-2-2','ot-2','producto','prod-3','Filtro de aceite',1,18,8,18,1),
+  ('lot-2-3','ot-2','producto','prod-4','Válvula control distribución VW',1,120,75,120,2),
+  ('lot-2-4','ot-2','mano_de_obra',null,'Mano de obra diagnóstico y reparación',2,60,25,120,3),
+  ('lot-3-1','ot-3','producto','prod-5','Kit pastillas Brembo delanteras',1,85,50,85,0),
+  ('lot-3-2','ot-3','producto','prod-6','Discos de freno delanteros (par)',1,130,80,130,1),
+  ('lot-3-3','ot-3','mano_de_obra',null,'Sustitución frenos delanteros',1.5,60,25,90,2)
 on conflict (id) do nothing;
 
 insert into public.eventos_ot (ot_id, fecha, descripcion)

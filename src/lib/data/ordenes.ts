@@ -10,11 +10,11 @@ const SELECT =
   'fecha_entrega, kilometraje_entrada, kilometraje_salida, descripcion_problema, diagnostico, ' +
   'tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, ' +
   'presupuesto_aprobado, notificacion_enviada, updated_at, ' +
-  'lineas_ot ( id, tipo, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion ), ' +
+  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion ), ' +
   'eventos_ot ( fecha, descripcion )';
 
 type LineaRow = {
-  id: string; tipo: string; descripcion: string; cantidad: number;
+  id: string; tipo: string; producto_id: string | null; descripcion: string; cantidad: number;
   precio_unitario: number; costo_unitario: number | null; subtotal: number; posicion: number;
 };
 type EventoRow = { fecha: string; descripcion: string };
@@ -33,6 +33,7 @@ function mapLinea(l: LineaRow): LineaOT {
   return {
     id: l.id,
     tipo: l.tipo as LineaOTTipo,
+    productoId: l.producto_id ?? undefined,
     descripcion: l.descripcion,
     cantidad: l.cantidad,
     precioUnitario: l.precio_unitario,
@@ -99,17 +100,22 @@ function toRow(ot: OrdenTrabajo) {
   };
 }
 
-function lineasToRows(otId: string, lineas: LineaOT[]) {
-  return lineas.map((l, i) => ({
+function lineaToRow(l: LineaOT, otId: string, posicion: number) {
+  return {
     ot_id: otId,
     tipo: l.tipo,
+    producto_id: l.productoId ?? null,
     descripcion: l.descripcion,
     cantidad: l.cantidad,
     precio_unitario: l.precioUnitario,
     costo_unitario: l.costoUnitario ?? null,
     subtotal: l.subtotal,
-    posicion: i,
-  }));
+    posicion,
+  };
+}
+
+function lineasToRows(otId: string, lineas: LineaOT[]) {
+  return lineas.map((l, i) => lineaToRow(l, otId, i));
 }
 
 function eventosToRows(otId: string, historial: EventoOT[]) {
@@ -147,16 +153,49 @@ export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   return getOrden(id);
 }
 
+/**
+ * Actualiza una OT. IMPORTANTE: la fila `ordenes_trabajo` se actualiza
+ * primero, y las `lineas_ot` después — en ese orden. Es lo que hace que
+ * "pasar a recibido y añadir una línea de producto en el mismo guardado"
+ * descuente stock una sola vez (el trigger de transición de la OT ve las
+ * líneas ya existentes; el trigger de inserción de línea ve el estado ya
+ * actualizado) — ver el esquema para el detalle de los triggers de stock.
+ *
+ * A diferencia de `createOrden`, aquí las líneas se diferencian (insert de
+ * las nuevas, update de las que ya existían, delete de las que se quitaron)
+ * en vez de borrar todo y reinsertar: un borrado+reinserción dispararía los
+ * triggers de stock en cada guardado aunque las líneas no hayan cambiado
+ * (ruido falso en el libro de movimientos). El historial no tiene ningún
+ * efecto secundario ligado a su ciclo de vida, así que se deja igual.
+ */
 export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   const { error } = await supabase.from('ordenes_trabajo').update(toRow(ot)).eq('id', ot.id);
   if (error) throw error;
 
-  // Reemplaza líneas e historial (más simple y correcto que hacer diffs).
-  const { error: eDelL } = await supabase.from('lineas_ot').delete().eq('ot_id', ot.id);
-  if (eDelL) throw eDelL;
-  if (ot.lineas.length) {
-    const { error: eL } = await supabase.from('lineas_ot').insert(lineasToRows(ot.id, ot.lineas));
-    if (eL) throw eL;
+  const { data: existentes, error: eExist } = await supabase
+    .from('lineas_ot').select('id').eq('ot_id', ot.id);
+  if (eExist) throw eExist;
+  const idsExistentes = new Set((existentes ?? []).map((r) => (r as { id: string }).id));
+  const idsEntrantes = new Set(ot.lineas.map((l) => l.id));
+
+  const aBorrar = [...idsExistentes].filter((id) => !idsEntrantes.has(id));
+  if (aBorrar.length) {
+    const { error: eDel } = await supabase.from('lineas_ot').delete().in('id', aBorrar);
+    if (eDel) throw eDel;
+  }
+
+  const aInsertar: ReturnType<typeof lineaToRow>[] = [];
+  for (const [i, l] of ot.lineas.entries()) {
+    if (idsExistentes.has(l.id)) {
+      const { error: eUpd } = await supabase.from('lineas_ot').update(lineaToRow(l, ot.id, i)).eq('id', l.id);
+      if (eUpd) throw eUpd;
+    } else {
+      aInsertar.push(lineaToRow(l, ot.id, i));
+    }
+  }
+  if (aInsertar.length) {
+    const { error: eIns } = await supabase.from('lineas_ot').insert(aInsertar);
+    if (eIns) throw eIns;
   }
 
   const { error: eDelE } = await supabase.from('eventos_ot').delete().eq('ot_id', ot.id);

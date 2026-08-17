@@ -463,6 +463,7 @@ export type Database = {
           ot_id: string
           posicion: number
           precio_unitario: number
+          producto_id: string | null
           subtotal: number
           tipo: string
         }
@@ -474,6 +475,7 @@ export type Database = {
           ot_id: string
           posicion?: number
           precio_unitario?: number
+          producto_id?: string | null
           subtotal?: number
           tipo: string
         }
@@ -485,6 +487,7 @@ export type Database = {
           ot_id?: string
           posicion?: number
           precio_unitario?: number
+          producto_id?: string | null
           subtotal?: number
           tipo?: string
         }
@@ -494,6 +497,58 @@ export type Database = {
             columns: ["ot_id"]
             isOneToOne: false
             referencedRelation: "ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lineas_ot_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimientos_stock: {
+        Row: {
+          cantidad: number
+          created_at: string
+          id: string
+          motivo: string | null
+          ot_id: string | null
+          producto_id: string
+          tipo: string
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          ot_id?: string | null
+          producto_id: string
+          tipo: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          ot_id?: string | null
+          producto_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_stock_ot_id_fkey"
+            columns: ["ot_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_stock_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
             referencedColumns: ["id"]
           },
         ]
@@ -724,6 +779,62 @@ export type Database = {
         }
         Relationships: []
       }
+      productos: {
+        Row: {
+          activo: boolean
+          costo: number
+          created_at: string
+          descripcion: string | null
+          empresa_id: string
+          id: string
+          nombre: string
+          precio_venta: number
+          sku: string | null
+          stock_actual: number
+          stock_minimo: number
+          unidad: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          costo?: number
+          created_at?: string
+          descripcion?: string | null
+          empresa_id: string
+          id?: string
+          nombre: string
+          precio_venta?: number
+          sku?: string | null
+          stock_actual?: number
+          stock_minimo?: number
+          unidad?: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          costo?: number
+          created_at?: string
+          descripcion?: string | null
+          empresa_id?: string
+          id?: string
+          nombre?: string
+          precio_venta?: number
+          sku?: string | null
+          stock_actual?: number
+          stock_minimo?: number
+          unidad?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "productos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tecnicos: {
         Row: {
           activo: boolean
@@ -833,6 +944,7 @@ export type Database = {
     }
     Functions: {
       es_super_admin: { Args: never; Returns: boolean }
+      estado_de_ot: { Args: { p_ot_id: string }; Returns: string }
       mi_empresa_id: { Args: never; Returns: string }
     }
     Enums: {

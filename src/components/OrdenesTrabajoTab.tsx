@@ -5,17 +5,21 @@ import {
   Car, User, Calendar, Gauge, Wrench, Package, AlertCircle, FileText,
   Bell, Printer, Pencil, MessageCircle, Mail
 } from 'lucide-react';
-import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa } from '../types';
+import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
+import SearchableSelect from './SearchableSelect';
 
 interface Props {
   ordenes: OrdenTrabajo[];
   vehiculos: Vehiculo[];
   clientes: Cliente[];
   empresa: Empresa;
+  productos: Producto[];
   onAdd: (ot: OrdenTrabajo) => void | Promise<void>;
-  onUpdate: (ot: OrdenTrabajo) => void | Promise<void>;
+  /** Devuelve la OT tal como quedó en el servidor (con los ids reales de sus líneas) — imprescindible para que ediciones encadenadas de líneas recién creadas se reconozcan como existentes en vez de generar un delete+insert espurio. */
+  onUpdate: (ot: OrdenTrabajo) => Promise<OrdenTrabajo>;
   onDelete: (id: string) => void | Promise<void>;
+  onCreateProducto: (p: Producto, stockInicial: number) => Promise<Producto>;
 }
 
 const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string }> = {
@@ -33,14 +37,14 @@ const ESTADO_FLOW: OTEstado[] = [
 
 const TIPO_META: Record<LineaOTTipo, { label: string; icon: React.ReactNode }> = {
   mano_de_obra: { label: 'Mano de obra', icon: <Wrench size={12} /> },
-  pieza:        { label: 'Pieza',        icon: <Package size={12} /> },
-  material:     { label: 'Material',     icon: <Package size={12} /> },
+  producto:     { label: 'Producto',     icon: <Package size={12} /> },
 };
 
 const IVA_DEFAULT = 21;
 
 interface LineaForm {
   tipo: LineaOTTipo;
+  productoId?: string;
   descripcion: string;
   cantidad: number | '';
   precioUnitario: number | '';
@@ -49,11 +53,78 @@ interface LineaForm {
 
 const EMPTY_LINEA: LineaForm = {
   tipo: 'mano_de_obra',
+  productoId: undefined,
   descripcion: '',
   cantidad: 1,
   precioUnitario: '',
   costoUnitario: '',
 };
+
+/** Selector de tipo + (descripción libre o producto de catálogo), reutilizado
+ * en los 4 formularios de línea (nueva/editar × crear-OT/editar-OT). Cuando
+ * tipo='producto' el nombre queda fijado por el producto elegido — no se
+ * edita a mano (así solo hay "un nombre": el del catálogo). */
+function LineaTipoYProducto({
+  form, setForm, productos, onSolicitarCrearProducto, bloquearTipo,
+}: {
+  form: LineaForm;
+  setForm: (updater: (f: LineaForm) => LineaForm) => void;
+  productos: Producto[];
+  onSolicitarCrearProducto: (nombreBuscado: string, aplicar: (p: Producto) => void) => void;
+  /** true cuando la línea ya existe en la OT (tipo/producto quedan fijos, solo cantidad/precio/costo editables). */
+  bloquearTipo?: boolean;
+}) {
+  const opciones = productos.map((p) => ({
+    value: p.id,
+    label: p.nombre,
+    sublabel: `Stock: ${p.stockActual} ${p.unidad} · Costo: ${p.costo.toFixed(2)} €`,
+  }));
+
+  const aplicarProducto = (p: Producto) => {
+    setForm((f) => ({ ...f, productoId: p.id, descripcion: p.nombre, precioUnitario: p.precioVenta, costoUnitario: p.costo }));
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <select
+        value={form.tipo}
+        disabled={bloquearTipo}
+        onChange={(e) => setForm((f) => ({ ...EMPTY_LINEA, tipo: e.target.value as LineaOTTipo, cantidad: f.cantidad }))}
+        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none bg-white disabled:bg-slate-100 disabled:text-slate-400"
+      >
+        {(Object.keys(TIPO_META) as LineaOTTipo[]).map((t) => <option key={t} value={t}>{TIPO_META[t].label}</option>)}
+      </select>
+      {form.tipo === 'producto' ? (
+        bloquearTipo ? (
+          <div className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-100 text-slate-500 truncate flex items-center" title={form.descripcion}>
+            {form.descripcion || '—'}
+          </div>
+        ) : (
+          <SearchableSelect
+            options={opciones}
+            value={form.productoId ?? ''}
+            onChange={(val) => {
+              const p = productos.find((x) => x.id === val);
+              if (p) aplicarProducto(p);
+            }}
+            placeholder="Buscar producto..."
+            emptyMessage="Sin productos — créalo escribiendo su nombre"
+            onCreateNew={(termino) => onSolicitarCrearProducto(termino, aplicarProducto)}
+            createLabel="Crear producto"
+          />
+        )
+      ) : (
+        <input
+          type="text"
+          placeholder="Descripción *"
+          value={form.descripcion}
+          onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+          className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none"
+        />
+      )}
+    </div>
+  );
+}
 
 interface OTForm {
   vehiculoId: string;
@@ -105,7 +176,7 @@ function evento(descripcion: string): EventoOT {
   return { fecha: new Date().toISOString(), descripcion };
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, onAdd, onUpdate, onDelete }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onCreateProducto }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
@@ -128,6 +199,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const [editOTEditLineaForm, setEditOTEditLineaForm] = useState<LineaForm>(EMPTY_LINEA);
   const [editOTNewLinea, setEditOTNewLinea] = useState<LineaForm>(EMPTY_LINEA);
   const [recepcionModal, setRecepcionModal] = useState<{ km: number | ''; fechaEst: string; tecnico: string } | null>(null);
+  const [crearProductoRapido, setCrearProductoRapido] = useState<{ nombreInicial: string; aplicar: (p: Producto) => void } | null>(null);
+
+  const solicitarCrearProducto = (nombreBuscado: string, aplicar: (p: Producto) => void) => {
+    setCrearProductoRapido({ nombreInicial: nombreBuscado, aplicar });
+  };
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
@@ -157,9 +233,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
   const handleAddLinea = () => {
     if (!newLinea.descripcion || newLinea.cantidad === '' || newLinea.precioUnitario === '') return;
+    if (newLinea.tipo === 'producto' && !newLinea.productoId) return;
     const linea: LineaOT = {
       id: 'lot-' + Date.now(),
       tipo: newLinea.tipo,
+      productoId: newLinea.productoId,
       descripcion: newLinea.descripcion,
       cantidad: Number(newLinea.cantidad),
       precioUnitario: Number(newLinea.precioUnitario),
@@ -174,15 +252,13 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
   const openEditLinea = (l: LineaOT) => {
     setEditingLineaId(l.id);
-    setEditLineaForm({ tipo: l.tipo, descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario, costoUnitario: l.costoUnitario ?? '' });
+    setEditLineaForm({ tipo: l.tipo, productoId: l.productoId, descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario, costoUnitario: l.costoUnitario ?? '' });
   };
 
   const handleSaveEditLinea = (id: string) => {
     if (!editLineaForm.descripcion || editLineaForm.cantidad === '' || editLineaForm.precioUnitario === '') return;
     setFormLineas(prev => prev.map(l => l.id !== id ? l : {
       ...l,
-      tipo: editLineaForm.tipo,
-      descripcion: editLineaForm.descripcion,
       cantidad: Number(editLineaForm.cantidad),
       precioUnitario: Number(editLineaForm.precioUnitario),
       costoUnitario: editLineaForm.costoUnitario !== '' ? Number(editLineaForm.costoUnitario) : undefined,
@@ -228,7 +304,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setIsCreating(false);
   };
 
-  const handleEstadoChange = (ot: OrdenTrabajo, estado: OTEstado) => {
+  const handleEstadoChange = async (ot: OrdenTrabajo, estado: OTEstado) => {
     if (ot.estado === 'presupuesto' && estado === 'recibido') {
       setRecepcionModal({ km: '', fechaEst: '', tecnico: ot.tecnicoAsignado ?? '' });
       return;
@@ -252,11 +328,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     if (estado === 'entregado' && !ot.fechaEntrega) {
       updated.fechaEntrega = new Date().toISOString().split('T')[0];
     }
-    onUpdate(updated);
-    setSelected(updated);
+    setSelected(await onUpdate(updated));
   };
 
-  const handleConfirmarRecepcion = (ot: OrdenTrabajo) => {
+  const handleConfirmarRecepcion = async (ot: OrdenTrabajo) => {
     if (!recepcionModal || recepcionModal.km === '') return;
     const updated: OrdenTrabajo = {
       ...ot,
@@ -269,31 +344,28 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       fechaEstimadaEntrega: recepcionModal.fechaEst || ot.fechaEstimadaEntrega,
       tecnicoAsignado: recepcionModal.tecnico || ot.tecnicoAsignado,
     };
-    onUpdate(updated);
-    setSelected(updated);
+    setSelected(await onUpdate(updated));
     setRecepcionModal(null);
   };
 
-  const handleEnviarPresupuesto = (ot: OrdenTrabajo) => {
+  const handleEnviarPresupuesto = async (ot: OrdenTrabajo) => {
     const updated: OrdenTrabajo = {
       ...ot,
       presupuestoEstado: 'enviado',
       fechaActualizacion: new Date().toISOString(),
       historial: [...(ot.historial ?? []), evento('Presupuesto enviado al cliente')],
     };
-    onUpdate(updated);
-    setSelected(updated);
+    setSelected(await onUpdate(updated));
   };
 
-  const handleNotificarListo = (ot: OrdenTrabajo) => {
+  const handleNotificarListo = async (ot: OrdenTrabajo) => {
     const updated: OrdenTrabajo = {
       ...ot,
       notificacionEnviada: true,
       fechaActualizacion: new Date().toISOString(),
       historial: [...(ot.historial ?? []), evento('Cliente notificado — vehículo listo para recoger')],
     };
-    onUpdate(updated);
-    setSelected(updated);
+    setSelected(await onUpdate(updated));
   };
 
   const openEdit = (ot: OrdenTrabajo) => {
@@ -315,7 +387,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setIsEditing(true);
   };
 
-  const handleEditSave = (ot: OrdenTrabajo) => {
+  const handleEditSave = async (ot: OrdenTrabajo) => {
     const { subtotal, totalIva, total } = calcTotals(editOTLineas, editForm.ivaPct);
     const updated: OrdenTrabajo = {
       ...ot,
@@ -333,8 +405,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       lineas: editOTLineas,
       subtotal, totalIva, total,
     };
-    onUpdate(updated);
-    setSelected(updated);
+    setSelected(await onUpdate(updated));
     setIsEditing(false);
   };
 
@@ -935,15 +1006,13 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             <tr key={l.id} className="bg-blue-50/40">
                               <td colSpan={5} className="px-3 py-2">
                                 <div className="space-y-2">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <select value={editOTEditLineaForm.tipo} onChange={e => setEditOTEditLineaForm(f => ({ ...f, tipo: e.target.value as LineaOTTipo }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs focus:outline-none bg-white">
-                                      {(Object.keys(TIPO_META) as LineaOTTipo[]).map(t => <option key={t} value={t}>{TIPO_META[t].label}</option>)}
-                                    </select>
-                                    <input type="text" value={editOTEditLineaForm.descripcion}
-                                      onChange={e => setEditOTEditLineaForm(f => ({ ...f, descripcion: e.target.value }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs focus:outline-none" placeholder="Descripción *" />
-                                  </div>
+                                  <LineaTipoYProducto
+                                    form={editOTEditLineaForm}
+                                    setForm={(updater) => setEditOTEditLineaForm(updater)}
+                                    productos={productos}
+                                    onSolicitarCrearProducto={solicitarCrearProducto}
+                                    bloquearTipo
+                                  />
                                   <div className="grid grid-cols-3 gap-2">
                                     <input type="number" min="1" step="1" value={editOTEditLineaForm.cantidad}
                                       onChange={e => setEditOTEditLineaForm(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
@@ -963,8 +1032,6 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                       if (!editOTEditLineaForm.descripcion || editOTEditLineaForm.cantidad === '' || editOTEditLineaForm.precioUnitario === '') return;
                                       setEditOTLineas(prev => prev.map(x => x.id !== l.id ? x : {
                                         ...x,
-                                        tipo: editOTEditLineaForm.tipo,
-                                        descripcion: editOTEditLineaForm.descripcion,
                                         cantidad: Number(editOTEditLineaForm.cantidad),
                                         precioUnitario: Number(editOTEditLineaForm.precioUnitario),
                                         costoUnitario: editOTEditLineaForm.costoUnitario !== '' ? Number(editOTEditLineaForm.costoUnitario) : undefined,
@@ -988,7 +1055,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                 <div className="flex items-center justify-end gap-2">
                                   <button type="button" onClick={() => {
                                     setEditOTEditingLineaId(l.id);
-                                    setEditOTEditLineaForm({ tipo: l.tipo, descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario, costoUnitario: l.costoUnitario ?? '' });
+                                    setEditOTEditLineaForm({ tipo: l.tipo, productoId: l.productoId, descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario, costoUnitario: l.costoUnitario ?? '' });
                                   }} className="text-slate-300 hover:text-blue-500 transition"><Pencil size={11} /></button>
                                   <button type="button" onClick={() => setEditOTLineas(prev => prev.filter(x => x.id !== l.id))}
                                     className="text-slate-300 hover:text-rose-500 transition"><X size={12} /></button>
@@ -1003,15 +1070,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   {/* Nueva línea */}
                   <div className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">Añadir línea</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <select value={editOTNewLinea.tipo} onChange={e => setEditOTNewLinea(f => ({ ...f, tipo: e.target.value as LineaOTTipo }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none bg-white">
-                        {(Object.keys(TIPO_META) as LineaOTTipo[]).map(t => <option key={t} value={t}>{TIPO_META[t].label}</option>)}
-                      </select>
-                      <input type="text" placeholder="Descripción *" value={editOTNewLinea.descripcion}
-                        onChange={e => setEditOTNewLinea(f => ({ ...f, descripcion: e.target.value }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none" />
-                    </div>
+                    <LineaTipoYProducto
+                      form={editOTNewLinea}
+                      setForm={(updater) => setEditOTNewLinea(updater)}
+                      productos={productos}
+                      onSolicitarCrearProducto={solicitarCrearProducto}
+                    />
                     <div className="grid grid-cols-3 gap-2">
                       <input type="number" min="1" step="1" value={editOTNewLinea.cantidad}
                         onChange={e => setEditOTNewLinea(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
@@ -1028,9 +1092,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     </div>
                     <button type="button" onClick={() => {
                       if (!editOTNewLinea.descripcion || editOTNewLinea.cantidad === '' || editOTNewLinea.precioUnitario === '') return;
+                      if (editOTNewLinea.tipo === 'producto' && !editOTNewLinea.productoId) return;
                       const linea: LineaOT = {
                         id: 'lot-' + Date.now(),
                         tipo: editOTNewLinea.tipo,
+                        productoId: editOTNewLinea.productoId,
                         descripcion: editOTNewLinea.descripcion,
                         cantidad: Number(editOTNewLinea.cantidad),
                         precioUnitario: Number(editOTNewLinea.precioUnitario),
@@ -1253,14 +1319,13 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             <tr key={l.id} className="bg-blue-50/40">
                               <td colSpan={5} className="px-3 py-2">
                                 <div className="space-y-2">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <select value={editLineaForm.tipo} onChange={e => setEditLineaForm(f => ({ ...f, tipo: e.target.value as LineaOTTipo }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs focus:outline-none bg-white">
-                                      {(Object.keys(TIPO_META) as LineaOTTipo[]).map(t => <option key={t} value={t}>{TIPO_META[t].label}</option>)}
-                                    </select>
-                                    <input type="text" value={editLineaForm.descripcion} onChange={e => setEditLineaForm(f => ({ ...f, descripcion: e.target.value }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs focus:outline-none" placeholder="Descripción *" />
-                                  </div>
+                                  <LineaTipoYProducto
+                                    form={editLineaForm}
+                                    setForm={(updater) => setEditLineaForm(updater)}
+                                    productos={productos}
+                                    onSolicitarCrearProducto={solicitarCrearProducto}
+                                    bloquearTipo
+                                  />
                                   <div className="grid grid-cols-3 gap-2">
                                     <input type="number" min="1" step="1" value={editLineaForm.cantidad}
                                       onChange={e => setEditLineaForm(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
@@ -1305,17 +1370,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   {/* Add line form */}
                   <div className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">Añadir línea</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <select value={newLinea.tipo} onChange={e => setNewLinea(l => ({ ...l, tipo: e.target.value as LineaOTTipo }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none bg-white">
-                        {(Object.keys(TIPO_META) as LineaOTTipo[]).map(t => (
-                          <option key={t} value={t}>{TIPO_META[t].label}</option>
-                        ))}
-                      </select>
-                      <input type="text" placeholder="Descripción *" value={newLinea.descripcion}
-                        onChange={e => setNewLinea(l => ({ ...l, descripcion: e.target.value }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none" />
-                    </div>
+                    <LineaTipoYProducto
+                      form={newLinea}
+                      setForm={(updater) => setNewLinea(updater)}
+                      productos={productos}
+                      onSolicitarCrearProducto={solicitarCrearProducto}
+                    />
                     <div className="grid grid-cols-3 gap-2">
                       <input type="number" min="1" step="1" placeholder={newLinea.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'} value={newLinea.cantidad}
                         onChange={e => setNewLinea(l => ({ ...l, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
@@ -1623,6 +1683,90 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
           );
         })()}
       </AnimatePresence>
+
+      {crearProductoRapido && (
+        <CrearProductoRapidoModal
+          nombreInicial={crearProductoRapido.nombreInicial}
+          onClose={() => setCrearProductoRapido(null)}
+          onCreado={(p) => { crearProductoRapido.aplicar(p); setCrearProductoRapido(null); }}
+          onCreateProducto={onCreateProducto}
+        />
+      )}
+    </div>
+  );
+}
+
+interface CrearProductoRapidoModalProps {
+  nombreInicial: string;
+  onClose: () => void;
+  onCreado: (p: Producto) => void;
+  onCreateProducto: (p: Producto, stockInicial: number) => Promise<Producto>;
+}
+
+function CrearProductoRapidoModal({ nombreInicial, onClose, onCreado, onCreateProducto }: CrearProductoRapidoModalProps) {
+  const [nombre, setNombre] = useState(nombreInicial);
+  const [precioVenta, setPrecioVenta] = useState('');
+  const [costo, setCosto] = useState('');
+  const [stockInicial, setStockInicial] = useState('0');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setError('');
+    if (!nombre.trim()) { setError('El nombre es obligatorio.'); return; }
+    setSaving(true);
+    try {
+      const creado = await onCreateProducto(
+        {
+          id: '', nombre: nombre.trim(), precioVenta: Number(precioVenta) || 0, costo: Number(costo) || 0,
+          stockActual: 0, stockMinimo: 0, unidad: 'unidad', activo: true,
+        },
+        Number(stockInicial) || 0,
+      );
+      onCreado(creado);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo crear el producto.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-slate-800">Nuevo producto</p>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer"><X size={16} /></button>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre *</label>
+          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Precio venta €</label>
+            <input type="number" min="0" step="0.01" value={precioVenta} onChange={(e) => setPrecioVenta(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Costo €</label>
+            <input type="number" min="0" step="0.01" value={costo} onChange={(e) => setCosto(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Stock inicial</label>
+          <input type="number" min="0" step="1" value={stockInicial} onChange={(e) => setStockInicial(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{error}</div>}
+        <button onClick={handleSave} disabled={saving}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60">
+          <Check size={15} /> {saving ? 'Creando…' : 'Crear y usar en la línea'}
+        </button>
+      </div>
     </div>
   );
 }

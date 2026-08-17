@@ -24,7 +24,7 @@ export type OTEstado =
   | 'entregado'
   | 'cancelado';
 
-export type LineaOTTipo = 'mano_de_obra' | 'pieza' | 'material';
+export type LineaOTTipo = 'mano_de_obra' | 'producto';
 
 export interface EventoOT {
   fecha: string;       // ISO timestamp
@@ -34,6 +34,8 @@ export interface EventoOT {
 export interface LineaOT {
   id: string;
   tipo: LineaOTTipo;
+  /** Solo cuando tipo='producto' — referencia al catálogo de inventario. */
+  productoId?: string;
   descripcion: string;
   cantidad: number;
   precioUnitario: number;
@@ -153,7 +155,7 @@ export interface Empresa {
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
-export type ModuloId = 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas';
+export type ModuloId = 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas' | 'inventario';
 
 /**
  * Perfil del usuario autenticado (tabla `perfiles`, ligada a Supabase Auth).
@@ -199,4 +201,31 @@ export interface Factura {
   hashAnterior?: string;
   qrUrl?: string;
   fechaEmisionHash?: string;
+}
+
+/** Producto del catálogo de inventario de una empresa. */
+export interface Producto {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  sku?: string;
+  precioVenta: number;
+  costo: number;
+  /** Solo se lee — se modifica siempre a través de un MovimientoStock, nunca directamente. */
+  stockActual: number;
+  stockMinimo: number;
+  unidad: string;
+  activo: boolean;
+}
+
+/** Asiento del libro de movimientos de stock (inmutable — solo se inserta). */
+export interface MovimientoStock {
+  id: string;
+  productoId: string;
+  tipo: 'entrada' | 'salida' | 'ajuste';
+  cantidad: number;
+  motivo?: string;
+  /** OT que originó el movimiento, si aplica (consumo/reversión automáticos). */
+  otId?: string;
+  createdAt: string;
 }

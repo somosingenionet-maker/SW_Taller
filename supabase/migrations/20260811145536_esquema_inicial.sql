@@ -65,7 +65,7 @@ create table public.perfiles (
   nombre      text not null,
   email       text,
   rol         text not null default 'usuario' check (rol in ('super_admin','admin','usuario')),
-  modulos     text[] not null default array['vehiculos','clientes','taller','alertas','rentabilidad','facturas'],
+  modulos     text[] not null default array['vehiculos','clientes','taller','alertas','rentabilidad','facturas','inventario'],
   activo      boolean not null default true,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -256,19 +256,86 @@ create trigger trg_ot_updated before update on public.ordenes_trabajo
 create trigger trg_ot_empresa before insert on public.ordenes_trabajo
   for each row execute function public.set_empresa_id();
 
--- Líneas de la OT (mano de obra, piezas, materiales) --------------------------
+-- ============================================================================
+--  INVENTARIO (productos + libro de movimientos de stock)
+-- ============================================================================
+create table public.productos (
+  id             text primary key default gen_random_uuid()::text,
+  empresa_id     text not null references public.empresas(id) on delete cascade,
+  nombre         text not null,
+  descripcion    text,
+  sku            text,
+  precio_venta   numeric(12,2) not null default 0,
+  costo          numeric(12,2) not null default 0,
+  stock_actual   numeric(12,2) not null default 0,
+  stock_minimo   numeric(12,2) not null default 0,
+  unidad         text not null default 'unidad',
+  activo         boolean not null default true,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create index on public.productos (empresa_id);
+create trigger trg_productos_updated before update on public.productos
+  for each row execute function public.set_updated_at();
+create trigger trg_productos_empresa before insert on public.productos
+  for each row execute function public.set_empresa_id();
+
+-- Libro de movimientos de stock: fuente de verdad, solo se inserta (nunca se
+-- edita ni se borra — una corrección se hace con un movimiento 'ajuste'
+-- nuevo, no reescribiendo uno viejo). `productos.stock_actual` solo lo toca
+-- el trigger de abajo; nada más debe escribir en esa columna.
+create table public.movimientos_stock (
+  id           text primary key default gen_random_uuid()::text,
+  producto_id  text not null references public.productos(id) on delete cascade,
+  tipo         text not null check (tipo in ('entrada','salida','ajuste')),
+  cantidad     numeric(12,2) not null,
+  motivo       text,
+  ot_id        text references public.ordenes_trabajo(id) on delete set null,
+  created_at   timestamptz not null default now(),
+  constraint movimientos_stock_cantidad_valida
+    check ((tipo in ('entrada','salida') and cantidad > 0) or tipo = 'ajuste')
+);
+create index on public.movimientos_stock (producto_id);
+create index on public.movimientos_stock (ot_id);
+
+-- Aplica el delta de cada movimiento a productos.stock_actual. No hace falta
+-- `for update` explícito: igual que set_numero_factura(), todo el
+-- read-modify-write ocurre en una única sentencia UPDATE, que ya serializa
+-- por fila.
+create or replace function public.aplicar_movimiento_stock()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_delta numeric(12,2);
+begin
+  v_delta := case when new.tipo = 'salida' then -new.cantidad else new.cantidad end;
+  update public.productos set stock_actual = stock_actual + v_delta where id = new.producto_id;
+  return new;
+end;
+$$;
+create trigger trg_movimientos_aplicar after insert on public.movimientos_stock
+  for each row execute function public.aplicar_movimiento_stock();
+
+-- Líneas de la OT (mano de obra o producto de inventario) ---------------------
+-- `tipo = 'producto'` siempre va ligado a una fila de `productos` (nunca
+-- texto libre) — de ahí el constraint de abajo; `descripcion` se sincroniza
+-- con `productos.nombre` vía trigger (ver trg_lineas_ot_descripcion más abajo).
 create table public.lineas_ot (
   id              text primary key default gen_random_uuid()::text,
   ot_id           text not null references public.ordenes_trabajo(id) on delete cascade,
-  tipo            text not null check (tipo in ('mano_de_obra','pieza','material')),
+  tipo            text not null check (tipo in ('mano_de_obra','producto')),
+  producto_id     text references public.productos(id) on delete restrict,
   descripcion     text not null default '',
   cantidad        numeric(12,2) not null default 1,
   precio_unitario numeric(12,2) not null default 0,
   costo_unitario  numeric(12,2),
   subtotal        numeric(12,2) not null default 0,
-  posicion        int not null default 0
+  posicion        int not null default 0,
+  constraint lineas_ot_producto_requerido check (tipo <> 'producto' or producto_id is not null)
 );
 create index on public.lineas_ot (ot_id);
+create index on public.lineas_ot (producto_id);
 
 -- Historial cronológico de eventos de la OT ----------------------------------
 create table public.eventos_ot (
@@ -278,6 +345,154 @@ create table public.eventos_ot (
   descripcion text not null
 );
 create index on public.eventos_ot (ot_id);
+
+-- Helper: estado actual de una OT, reutilizado por los triggers de stock de
+-- abajo (mismo patrón que mi_empresa_id()/es_super_admin()).
+create or replace function public.estado_de_ot(p_ot_id text)
+returns text
+language sql stable security definer set search_path = public
+as $$
+  select estado from public.ordenes_trabajo where id = p_ot_id
+$$;
+
+-- Sincroniza descripcion con el nombre del producto cuando tipo='producto' —
+-- garantiza a nivel de base de datos que una línea de producto solo tiene un
+-- nombre (el del catálogo), no texto libre independiente.
+create or replace function public.sincronizar_descripcion_producto()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if new.tipo = 'producto' then
+    select nombre into new.descripcion from public.productos where id = new.producto_id;
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_lineas_ot_descripcion before insert or update on public.lineas_ot
+  for each row execute function public.sincronizar_descripcion_producto();
+
+-- --------------------------------------------------------------------------
+-- Descuento de stock ligado al ciclo de vida de la OT y sus líneas.
+-- Regla de negocio: el stock se descuenta quede reservado en firme al pasar
+-- de 'presupuesto' a 'recibido' (cliente ya aprobó, coche ya está en el
+-- taller) — nunca al añadir la línea mientras sigue en 'presupuesto'. Una
+-- vez la OT ha dejado 'presupuesto', cualquier alta/edición/baja de una
+-- línea de producto ajusta el stock al momento.
+--
+-- Los 4 triggers de abajo son los primeros triggers AFTER de este esquema
+-- (el resto son BEFORE porque mutan su propia fila antes de guardarla); solo
+-- generan un efecto secundario en movimientos_stock, así que no necesitan
+-- interceptar la escritura.
+-- --------------------------------------------------------------------------
+
+-- 1) Transición presupuesto -> recibido: descuenta todas las líneas de
+--    producto que ya tuviera la OT en ese momento.
+create or replace function public.descontar_stock_transicion_ot()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  r record;
+begin
+  if old.estado = 'presupuesto' and new.estado = 'recibido' then
+    for r in
+      select producto_id, cantidad from public.lineas_ot
+      where ot_id = new.id and tipo = 'producto'
+    loop
+      insert into public.movimientos_stock (producto_id, tipo, cantidad, motivo, ot_id)
+      values (r.producto_id, 'salida', r.cantidad, 'Recepción OT ' || new.numero, new.id);
+    end loop;
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_ot_stock_transicion after update on public.ordenes_trabajo
+  for each row execute function public.descontar_stock_transicion_ot();
+
+-- 2) Línea de producto añadida a una OT que YA no está en 'presupuesto'
+--    (pieza añadida durante la reparación, u OT creada directamente como
+--    'recibido') — descuento inmediato.
+create or replace function public.descontar_stock_linea_nueva()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_estado text;
+  v_numero text;
+begin
+  if new.tipo = 'producto' then
+    v_estado := public.estado_de_ot(new.ot_id);
+    if v_estado is not null and v_estado <> 'presupuesto' then
+      select numero into v_numero from public.ordenes_trabajo where id = new.ot_id;
+      insert into public.movimientos_stock (producto_id, tipo, cantidad, motivo, ot_id)
+      values (new.producto_id, 'salida', new.cantidad, 'Línea añadida en OT ' || v_numero, new.ot_id);
+    end if;
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_lineas_ot_stock_insert after insert on public.lineas_ot
+  for each row execute function public.descontar_stock_linea_nueva();
+
+-- 3) Cambio de cantidad en una línea de producto ya guardada (tipo/producto
+--    quedan fijos tras crearse la línea — lo impone la UI — así que este
+--    trigger solo maneja el delta de cantidad).
+create or replace function public.ajustar_stock_linea_editada()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_estado text;
+  v_numero text;
+  v_delta  numeric(12,2);
+begin
+  if new.tipo = 'producto' and new.cantidad <> old.cantidad then
+    v_estado := public.estado_de_ot(new.ot_id);
+    if v_estado is not null and v_estado <> 'presupuesto' then
+      select numero into v_numero from public.ordenes_trabajo where id = new.ot_id;
+      v_delta := new.cantidad - old.cantidad;
+      if v_delta > 0 then
+        insert into public.movimientos_stock (producto_id, tipo, cantidad, motivo, ot_id)
+        values (new.producto_id, 'salida', v_delta, 'Ajuste de cantidad en OT ' || v_numero, new.ot_id);
+      else
+        insert into public.movimientos_stock (producto_id, tipo, cantidad, motivo, ot_id)
+        values (new.producto_id, 'entrada', -v_delta, 'Ajuste de cantidad en OT ' || v_numero, new.ot_id);
+      end if;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_lineas_ot_stock_update after update on public.lineas_ot
+  for each row execute function public.ajustar_stock_linea_editada();
+
+-- 4) Baja de una línea de producto de una OT que ya no está en
+--    'presupuesto' — revierte el stock consumido. Si la línea se borra en
+--    cascada por borrar la OT entera, la fila padre ya no existe en ese
+--    punto de la transacción y estado_de_ot() devuelve null: no se revierte
+--    (mismo no-objetivo aceptado que "cancelada no revierte VeriFactu").
+create or replace function public.revertir_stock_linea_borrada()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare
+  v_estado text;
+  v_numero text;
+begin
+  if old.tipo = 'producto' then
+    v_estado := public.estado_de_ot(old.ot_id);
+    if v_estado is not null and v_estado <> 'presupuesto' then
+      select numero into v_numero from public.ordenes_trabajo where id = old.ot_id;
+      insert into public.movimientos_stock (producto_id, tipo, cantidad, motivo, ot_id)
+      values (old.producto_id, 'entrada', old.cantidad, 'Línea eliminada en OT ' || v_numero, old.ot_id);
+    end if;
+  end if;
+  return old;
+end;
+$$;
+create trigger trg_lineas_ot_stock_delete after delete on public.lineas_ot
+  for each row execute function public.revertir_stock_linea_borrada();
 
 -- ============================================================================
 --  ALERTAS  (ITV, seguro, impuesto, mantenimiento por km)
@@ -543,6 +758,8 @@ alter table public.tecnicos               enable row level security;
 alter table public.ordenes_trabajo        enable row level security;
 alter table public.lineas_ot              enable row level security;
 alter table public.eventos_ot             enable row level security;
+alter table public.productos              enable row level security;
+alter table public.movimientos_stock      enable row level security;
 alter table public.alertas                enable row level security;
 alter table public.notificaciones_cliente enable row level security;
 alter table public.facturas               enable row level security;
@@ -594,7 +811,7 @@ declare t text;
 begin
   foreach t in array array[
     'vehiculos','clientes','tecnicos','ordenes_trabajo','alertas',
-    'notificaciones_cliente','facturas'
+    'notificaciones_cliente','facturas','productos'
   ]
   loop
     execute format(
@@ -660,6 +877,28 @@ create policy "factura_ot_tenant" on public.factura_ot
   with check (es_super_admin() or exists (
     select 1 from public.facturas f where f.id = factura_ot.factura_id and f.empresa_id = mi_empresa_id()
   ));
+
+-- movimientos_stock: libro inmutable — deliberadamente sin política de
+-- update/delete (con RLS activo y sin política, esas operaciones quedan
+-- denegadas por defecto para cualquier rol; una corrección se hace con un
+-- movimiento 'ajuste' nuevo, no editando uno existente).
+create policy "movimientos_stock_select" on public.movimientos_stock
+  for select to authenticated
+  using (es_super_admin() or exists (
+    select 1 from public.productos p where p.id = movimientos_stock.producto_id and p.empresa_id = mi_empresa_id()
+  ));
+create policy "movimientos_stock_insert" on public.movimientos_stock
+  for insert to authenticated
+  with check (es_super_admin() or exists (
+    select 1 from public.productos p where p.id = movimientos_stock.producto_id and p.empresa_id = mi_empresa_id()
+  ));
+
+-- Los perfiles ya existentes se crearon antes de que 'inventario' formara
+-- parte del default de `modulos` — se los añadimos para que los admins de
+-- empresas ya dadas de alta vean la pestaña nueva sin tocar nada a mano.
+update public.perfiles
+  set modulos = array_append(modulos, 'inventario')
+  where not ('inventario' = any(modulos));
 
 -- Configuración de plataforma: fila única (branding global — logo de Tibox).
 -- Se lee en la pantalla de login (antes de autenticar), por eso el select es

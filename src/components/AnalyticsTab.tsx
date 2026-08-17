@@ -169,16 +169,23 @@ export default function AnalyticsTab({ ordenesTrabajo, clientes }: AnalyticsTabP
     return total / entregadas.length;
   }, [ordenesTrabajo, start, end]);
 
-  // 5. Margen por tipo de línea
+  // 5. Ingreso, costo y margen por tipo de línea
   const margenTipo = useMemo(() => {
-    const totals = { mano_de_obra: 0, pieza: 0, material: 0 };
+    const totals = { mano_de_obra: 0, producto: 0 };
+    const costos = { mano_de_obra: 0, producto: 0 };
     otsActual.filter(ot => ot.estado === 'entregado').forEach(ot => {
       ot.lineas.forEach(l => {
-        if (l.tipo in totals) totals[l.tipo as keyof typeof totals] += l.subtotal;
+        if (l.tipo in totals) {
+          totals[l.tipo as keyof typeof totals] += l.subtotal;
+          costos[l.tipo as keyof typeof costos] += (l.costoUnitario ?? 0) * l.cantidad;
+        }
       });
     });
-    const total = totals.mano_de_obra + totals.pieza + totals.material;
-    return { totals, total };
+    const total = totals.mano_de_obra + totals.producto;
+    const totalCosto = costos.mano_de_obra + costos.producto;
+    const margen = total - totalCosto;
+    const margenPct = total > 0 ? (margen / total) * 100 : 0;
+    return { totals, costos, total, totalCosto, margen, margenPct };
   }, [otsActual]);
 
   // 6. Técnicos más productivos
@@ -333,10 +340,10 @@ export default function AnalyticsTab({ ordenesTrabajo, clientes }: AnalyticsTabP
           </div>
         </div>
 
-        {/* 5. Margen por tipo */}
+        {/* 5. Ingreso, costo y margen por tipo */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
           <h3 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-            <BarChart2 className="w-4 h-4 text-blue-500" /> Facturación por tipo
+            <BarChart2 className="w-4 h-4 text-blue-500" /> Facturación y margen por tipo
           </h3>
           {margenTipo.total === 0 ? (
             <p className="text-xs text-slate-400 italic text-center py-6">Sin datos en el período</p>
@@ -344,8 +351,7 @@ export default function AnalyticsTab({ ordenesTrabajo, clientes }: AnalyticsTabP
             <div className="space-y-4">
               {([
                 { key: 'mano_de_obra', label: 'Mano de obra', color: 'bg-blue-500' },
-                { key: 'pieza', label: 'Piezas', color: 'bg-violet-500' },
-                { key: 'material', label: 'Material', color: 'bg-orange-400' },
+                { key: 'producto', label: 'Productos', color: 'bg-violet-500' },
               ] as const).map(({ key, label, color }) => {
                 const val = margenTipo.totals[key];
                 const pct = margenTipo.total > 0 ? (val / margenTipo.total) * 100 : 0;
@@ -361,9 +367,19 @@ export default function AnalyticsTab({ ordenesTrabajo, clientes }: AnalyticsTabP
                   </div>
                 );
               })}
-              <div className="border-t border-slate-100 pt-3 flex justify-between text-xs">
-                <span className="text-slate-400">Total facturado</span>
-                <span className="font-black text-slate-800">{fmt(margenTipo.total)}</span>
+              <div className="border-t border-slate-100 pt-3 space-y-1.5">
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-400">Total facturado</span>
+                  <span className="font-semibold text-slate-700">{fmt(margenTipo.total)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-400">Costo (mano de obra + productos)</span>
+                  <span className="font-semibold text-slate-700">{fmt(margenTipo.totalCosto)}</span>
+                </div>
+                <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
+                  <span className="text-slate-500 font-semibold">Margen bruto</span>
+                  <span className="font-black text-slate-800">{fmt(margenTipo.margen)} <span className="text-slate-400 font-normal">({margenTipo.margenPct.toFixed(0)}%)</span></span>
+                </div>
               </div>
             </div>
           )}

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Search, X } from 'lucide-react';
+import { ChevronDown, Search, X, Plus } from 'lucide-react';
 
 /** Una opción del desplegable. `sublabel` se muestra en gris bajo el label principal. */
 export interface SelectOption {
@@ -15,6 +15,9 @@ interface SearchableSelectProps {
   placeholder?: string;
   emptyMessage?: string;
   required?: boolean;
+  /** Si se pasa, añade una fila fija "+ {createLabel} '{término buscado}'" al final del desplegable. */
+  onCreateNew?: (searchTerm: string) => void;
+  createLabel?: string;
 }
 
 export default function SearchableSelect({
@@ -24,6 +27,8 @@ export default function SearchableSelect({
   placeholder = 'Seleccionar...',
   emptyMessage = 'Sin resultados',
   required,
+  onCreateNew,
+  createLabel = 'Crear',
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -55,6 +60,13 @@ export default function SearchableSelect({
 
   const handleSelect = (val: string) => {
     onChange(val);
+    setOpen(false);
+    setQuery('');
+  };
+
+  const handleCreateNew = () => {
+    if (!onCreateNew) return;
+    onCreateNew(query.trim());
     setOpen(false);
     setQuery('');
   };
@@ -122,7 +134,7 @@ export default function SearchableSelect({
 
           {/* Options list */}
           <ul className="max-h-52 overflow-y-auto py-1">
-            {filtered.length === 0 ? (
+            {filtered.length === 0 && !(onCreateNew && query.trim()) ? (
               <li className="px-3 py-3 text-xs text-slate-400 text-center">{emptyMessage}</li>
             ) : filtered.map(opt => (
               <li
@@ -134,6 +146,15 @@ export default function SearchableSelect({
                 {opt.sublabel && <span className="text-[11px] text-slate-400">{opt.sublabel}</span>}
               </li>
             ))}
+            {onCreateNew && query.trim() && (
+              <li
+                onClick={handleCreateNew}
+                className="px-3 py-2 cursor-pointer hover:bg-blue-50 transition flex items-center gap-1.5 text-blue-700 border-t border-slate-100"
+              >
+                <Plus size={13} className="shrink-0" />
+                <span className="text-sm font-medium truncate">{createLabel} "{query.trim()}"</span>
+              </li>
+            )}
           </ul>
         </div>
       )}
