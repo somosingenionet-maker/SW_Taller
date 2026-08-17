@@ -5,8 +5,8 @@ import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, addInteraccion, NuevoCliente } from './lib/data/clientes';
 import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
-import { listAlertas, renovarAlertaMantenimiento } from './lib/data/alertas';
-import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
+import { listAlertas, renovarAlertaMantenimiento, forzarRecordatorio } from './lib/data/alertas';
+import { listNotificaciones, deleteNotificacion } from './lib/data/notificaciones';
 import { listFacturas, createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
 import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
 import { listCitas, createCita, updateCita, deleteCita } from './lib/data/citas';
@@ -235,17 +235,11 @@ export default function App() {
     await recargarAlertas();
   }, [recargarAlertas]);
 
-  const handleAddNotificacion = useCallback(async (notif: NotificacionCliente) => {
-    await createNotificacion(notif);
+  const handleForzarRecordatorio = useCallback(async (alertaId: string) => {
+    await forzarRecordatorio(alertaId);
+    await recargarAlertas();
     await recargarNotificaciones();
-
-    // La interacción asociada se registra también en el cliente.
-    await addInteraccion(notif.clienteId, {
-      tipo: notif.tipoEnvio === 'whatsapp' ? 'whatsapp' : notif.tipoEnvio === 'email' ? 'email' : 'llamada',
-      notas: `Notificación enviada por [${notif.tipoEnvio.toUpperCase()}]: "${notif.mensaje.slice(0, 85)}..."`,
-    });
-    await recargarClientes();
-  }, [recargarNotificaciones, recargarClientes]);
+  }, [recargarAlertas, recargarNotificaciones]);
 
   const handleDeleteNotificacion = useCallback(async (id: string) => {
     await deleteNotificacion(id);
@@ -659,8 +653,7 @@ export default function App() {
             notificaciones={notificaciones}
             clientes={clientes}
             vehiculos={vehiculos}
-            empresa={empresa}
-            onAddNotificacion={handleAddNotificacion}
+            onForzarRecordatorio={handleForzarRecordatorio}
             onRenovarMantenimiento={handleRenovarMantenimiento}
             onDeleteNotificacion={handleDeleteNotificacion}
             onTriggerAutoRenew={handleTriggerAutoRenew}

@@ -65,3 +65,22 @@ export async function renovarAlertaMantenimiento(id: string, nuevoKilometrajeLim
     .eq('id', id);
   if (error) throw error;
 }
+
+/** Fuerza el envío inmediato del recordatorio automático de una alerta (Edge Function, cualquier miembro de la empresa). */
+export async function forzarRecordatorio(alertaId: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('enviar-recordatorios', { body: { action: 'forzar', alertaId } });
+  if (error) {
+    let message = error.message;
+    const context = (error as { context?: Response }).context;
+    if (context) {
+      try {
+        const parsed = await context.clone().json();
+        if (parsed?.error) message = parsed.error;
+      } catch {
+        // el cuerpo de error no era JSON; se mantiene el mensaje genérico
+      }
+    }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(data.error as string);
+}
