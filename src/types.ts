@@ -136,6 +136,22 @@ export interface Tecnico {
   activo: boolean;
 }
 
+export interface Cita {
+  id: string;
+  fechaHora: string;
+  duracionMinutos: number;
+  clienteId?: string;
+  vehiculoId?: string;
+  contactoNombre?: string;
+  contactoTelefono?: string;
+  vehiculoDescripcion?: string;
+  motivo: string;
+  tecnicoId?: string;
+  estado: 'pendiente' | 'confirmada' | 'cancelada' | 'convertida';
+  notas?: string;
+  otId?: string;
+}
+
 /** Una empresa cliente del SaaS (tenant). */
 export interface Empresa {
   id: string;
@@ -155,7 +171,7 @@ export interface Empresa {
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
-export type ModuloId = 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas' | 'inventario';
+export type ModuloId = 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas' | 'inventario' | 'citas';
 
 /**
  * Perfil del usuario autenticado (tabla `perfiles`, ligada a Supabase Auth).

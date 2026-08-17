@@ -65,7 +65,7 @@ create table public.perfiles (
   nombre      text not null,
   email       text,
   rol         text not null default 'usuario' check (rol in ('super_admin','admin','usuario')),
-  modulos     text[] not null default array['vehiculos','clientes','taller','alertas','rentabilidad','facturas','inventario'],
+  modulos     text[] not null default array['vehiculos','clientes','taller','alertas','rentabilidad','facturas','inventario','citas'],
   activo      boolean not null default true,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
@@ -539,6 +539,39 @@ create trigger trg_notificaciones_empresa before insert on public.notificaciones
   for each row execute function public.set_empresa_id();
 
 -- ============================================================================
+--  AGENDA DE CITAS
+--  Admite datos libres (contacto_nombre/telefono/vehiculo_descripcion) para
+--  clientes o vehículos que aún no están registrados — se completan al
+--  convertir la cita en OT. Es la primera tabla del esquema con hora
+--  (timestamptz), no solo fecha.
+-- ============================================================================
+create table public.citas (
+  id                   text primary key default gen_random_uuid()::text,
+  empresa_id           text not null references public.empresas(id) on delete cascade,
+  fecha_hora           timestamptz not null,
+  duracion_minutos     int not null default 60,
+  cliente_id           text references public.clientes(id) on delete set null,
+  vehiculo_id          text references public.vehiculos(id) on delete set null,
+  contacto_nombre      text,
+  contacto_telefono    text,
+  vehiculo_descripcion text,
+  motivo               text not null default '',
+  tecnico_id           text references public.tecnicos(id) on delete set null,
+  estado               text not null default 'pendiente' check (estado in ('pendiente','confirmada','cancelada','convertida')),
+  notas                text,
+  ot_id                text references public.ordenes_trabajo(id) on delete set null,
+  created_at           timestamptz not null default now(),
+  updated_at           timestamptz not null default now(),
+  constraint citas_cliente_o_contacto check (cliente_id is not null or contacto_nombre is not null)
+);
+create index on public.citas (empresa_id);
+create index on public.citas (fecha_hora);
+create trigger trg_citas_updated before update on public.citas
+  for each row execute function public.set_updated_at();
+create trigger trg_citas_empresa before insert on public.citas
+  for each row execute function public.set_empresa_id();
+
+-- ============================================================================
 --  FACTURAS
 --  Cumplimiento técnico VeriFactu (alcance local, sin envío a la AEAT
 --  todavía — ver detalle en los triggers más abajo): numeración correlativa
@@ -762,6 +795,7 @@ alter table public.productos              enable row level security;
 alter table public.movimientos_stock      enable row level security;
 alter table public.alertas                enable row level security;
 alter table public.notificaciones_cliente enable row level security;
+alter table public.citas                  enable row level security;
 alter table public.facturas               enable row level security;
 alter table public.lineas_factura         enable row level security;
 alter table public.factura_ot             enable row level security;
@@ -811,7 +845,7 @@ declare t text;
 begin
   foreach t in array array[
     'vehiculos','clientes','tecnicos','ordenes_trabajo','alertas',
-    'notificaciones_cliente','facturas','productos'
+    'notificaciones_cliente','facturas','productos','citas'
   ]
   loop
     execute format(
@@ -899,6 +933,11 @@ create policy "movimientos_stock_insert" on public.movimientos_stock
 update public.perfiles
   set modulos = array_append(modulos, 'inventario')
   where not ('inventario' = any(modulos));
+
+-- Mismo backfill para 'citas' (agenda de citas).
+update public.perfiles
+  set modulos = array_append(modulos, 'citas')
+  where not ('citas' = any(modulos));
 
 -- Configuración de plataforma: fila única (branding global — logo de Tibox).
 -- Se lee en la pantalla de login (antes de autenticar), por eso el select es

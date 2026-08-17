@@ -83,7 +83,7 @@ console.log(`✅ Super admin listo. Acceso: ${SUPER_ADMIN_EMAIL} / ${SUPER_ADMIN
 const DEMO_ADMIN_EMAIL = process.env.DEMO_ADMIN_EMAIL || 'admin@tallerejemplo.net';
 const DEMO_ADMIN_PASSWORD = process.env.DEMO_ADMIN_PASSWORD || 'admin123';
 const DEMO_ADMIN_NOMBRE = process.env.DEMO_ADMIN_NOMBRE || 'Administrador';
-const TODOS_MODULOS = ['vehiculos', 'clientes', 'taller', 'alertas', 'rentabilidad', 'facturas', 'inventario'];
+const TODOS_MODULOS = ['vehiculos', 'clientes', 'taller', 'alertas', 'rentabilidad', 'facturas', 'inventario', 'citas'];
 
 const { data: empresaDemo, error: empresaErr } = await admin
   .from('empresas')

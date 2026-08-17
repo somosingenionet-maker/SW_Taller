@@ -9,8 +9,9 @@ import { listAlertas, createAlerta, resolveAlerta } from './lib/data/alertas';
 import { listNotificaciones, createNotificacion, deleteNotificacion } from './lib/data/notificaciones';
 import { listFacturas, createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
 import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
+import { listCitas, createCita, updateCita, deleteCita } from './lib/data/citas';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, Empresa, Producto } from './types';
+import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, Empresa, Producto, Cita } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
 import CrmTab from './components/CrmTab';
@@ -18,11 +19,12 @@ import AnalyticsTab from './components/AnalyticsTab';
 import AlertsNotificationsTab from './components/AlertsNotificationsTab';
 import FacturasTab from './components/FacturasTab';
 import InventarioTab from './components/InventarioTab';
+import AgendaTab from './components/AgendaTab';
 import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminPanel from './components/SuperAdminPanel';
 import {
-  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package
+  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock
 } from 'lucide-react';
 import CompanySettingsPanel from './components/CompanySettingsPanel';
 
@@ -49,6 +51,7 @@ export default function App() {
   const [facturas, setFacturas] = useState<Factura[]>([]);
   const [ordenesTrabajo, setOrdenesTrabajo] = useState<OrdenTrabajo[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [citas, setCitas] = useState<Cita[]>([]);
 
   // Sesión con Supabase Auth: comprueba la sesión al montar y escucha cambios.
   useEffect(() => {
@@ -140,6 +143,9 @@ export default function App() {
   const recargarProductos = useCallback(async () => {
     setProductos(await listProductos());
   }, []);
+  const recargarCitas = useCallback(async () => {
+    setCitas(await listCitas());
+  }, []);
 
   // Datos de Supabase: se cargan cuando hay sesión (la RLS requiere estar
   // autenticado). Al cerrar sesión se limpian.
@@ -152,6 +158,7 @@ export default function App() {
       recargarNotificaciones();
       recargarFacturas();
       recargarProductos();
+      recargarCitas();
     } else {
       setVehiculos([]);
       setClientes([]);
@@ -160,8 +167,9 @@ export default function App() {
       setNotificaciones([]);
       setFacturas([]);
       setProductos([]);
+      setCitas([]);
     }
-  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarFacturas, recargarProductos]);
+  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarFacturas, recargarProductos, recargarCitas]);
 
   // Set default tab based on user modules
   useEffect(() => {
@@ -317,8 +325,9 @@ export default function App() {
 
   // OT handlers (Supabase)
   const handleAddOT = useCallback(async (ot: OrdenTrabajo) => {
-    await createOrden(ot);
+    const creada = await createOrden(ot);
     await recargarOrdenes();
+    return creada;
   }, [recargarOrdenes]);
 
   const handleUpdateOT = useCallback(async (ot: OrdenTrabajo) => {
@@ -331,6 +340,24 @@ export default function App() {
     await deleteOrden(id);
     await recargarOrdenes();
   }, [recargarOrdenes]);
+
+  // Cita handlers (Supabase)
+  const handleAddCita = useCallback(async (c: Omit<Cita, 'id'>) => {
+    const creada = await createCita(c);
+    await recargarCitas();
+    return creada;
+  }, [recargarCitas]);
+
+  const handleUpdateCita = useCallback(async (id: string, cambios: Partial<Omit<Cita, 'id'>>) => {
+    const actualizada = await updateCita(id, cambios);
+    await recargarCitas();
+    return actualizada;
+  }, [recargarCitas]);
+
+  const handleDeleteCita = useCallback(async (id: string) => {
+    await deleteCita(id);
+    await recargarCitas();
+  }, [recargarCitas]);
 
   const handleSaveEmpresa = useCallback(async (config: Partial<Empresa>) => {
     if (!currentUser?.empresaId) return;
@@ -366,6 +393,7 @@ export default function App() {
 
   const tabDefs: { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[] = (
     [
+      { id: 'citas' as ModuloId, label: 'Agenda', icon: <CalendarClock className="w-4 h-4" />, emoji: '📅' },
       { id: 'inventario' as ModuloId, label: 'Inventario', icon: <Package className="w-4 h-4" />, emoji: '📦' },
       { id: 'vehiculos' as ModuloId, label: 'Vehículos', icon: <Car className="w-4 h-4" />, emoji: '🚗' },
       { id: 'clientes' as ModuloId, label: 'Clientes', icon: <Users className="w-4 h-4" />, emoji: '👥' },
@@ -579,6 +607,19 @@ export default function App() {
 
       {/* CORE WORKSPACE */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto">
+        {activeTab === 'citas' && (
+          <AgendaTab
+            citas={citas}
+            vehiculos={vehiculos}
+            clientes={clientes}
+            ordenes={ordenesTrabajo}
+            onAddCita={handleAddCita}
+            onUpdateCita={handleUpdateCita}
+            onDeleteCita={handleDeleteCita}
+            onCreateOT={handleAddOT}
+          />
+        )}
+
         {activeTab === 'vehiculos' && (
           <VehiclesTab
             vehiculos={vehiculos}

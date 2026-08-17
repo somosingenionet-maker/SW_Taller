@@ -15,7 +15,7 @@ interface Props {
   clientes: Cliente[];
   empresa: Empresa;
   productos: Producto[];
-  onAdd: (ot: OrdenTrabajo) => void | Promise<void>;
+  onAdd: (ot: OrdenTrabajo) => void | Promise<OrdenTrabajo>;
   /** Devuelve la OT tal como quedó en el servidor (con los ids reales de sus líneas) — imprescindible para que ediciones encadenadas de líneas recién creadas se reconozcan como existentes en vez de generar un delete+insert espurio. */
   onUpdate: (ot: OrdenTrabajo) => Promise<OrdenTrabajo>;
   onDelete: (id: string) => void | Promise<void>;

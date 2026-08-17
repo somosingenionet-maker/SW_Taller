@@ -88,6 +88,99 @@ export type Database = {
           },
         ]
       }
+      citas: {
+        Row: {
+          cliente_id: string | null
+          contacto_nombre: string | null
+          contacto_telefono: string | null
+          created_at: string
+          duracion_minutos: number
+          empresa_id: string
+          estado: string
+          fecha_hora: string
+          id: string
+          motivo: string
+          notas: string | null
+          ot_id: string | null
+          tecnico_id: string | null
+          updated_at: string
+          vehiculo_descripcion: string | null
+          vehiculo_id: string | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          contacto_nombre?: string | null
+          contacto_telefono?: string | null
+          created_at?: string
+          duracion_minutos?: number
+          empresa_id: string
+          estado?: string
+          fecha_hora: string
+          id?: string
+          motivo?: string
+          notas?: string | null
+          ot_id?: string | null
+          tecnico_id?: string | null
+          updated_at?: string
+          vehiculo_descripcion?: string | null
+          vehiculo_id?: string | null
+        }
+        Update: {
+          cliente_id?: string | null
+          contacto_nombre?: string | null
+          contacto_telefono?: string | null
+          created_at?: string
+          duracion_minutos?: number
+          empresa_id?: string
+          estado?: string
+          fecha_hora?: string
+          id?: string
+          motivo?: string
+          notas?: string | null
+          ot_id?: string | null
+          tecnico_id?: string | null
+          updated_at?: string
+          vehiculo_descripcion?: string | null
+          vehiculo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "citas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citas_ot_id_fkey"
+            columns: ["ot_id"]
+            isOneToOne: false
+            referencedRelation: "ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citas_tecnico_id_fkey"
+            columns: ["tecnico_id"]
+            isOneToOne: false
+            referencedRelation: "tecnicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citas_vehiculo_id_fkey"
+            columns: ["vehiculo_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cliente_vehiculo: {
         Row: {
           cliente_id: string
