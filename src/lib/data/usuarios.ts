@@ -86,3 +86,7 @@ export async function deleteUsuario(id: string): Promise<void> {
 export async function setUsuarioPassword(id: string, password: string): Promise<void> {
   await invokeAdminUsers<{ ok: true }>({ action: 'set_password', id, password });
 }
+
+export async function setUsuarioEmail(id: string, email: string): Promise<void> {
+  await invokeAdminUsers<{ ok: true }>({ action: 'set_email', id, email });
+}

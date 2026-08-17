@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, Shield, Plus, Edit2, Trash2, Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { Perfil, ModuloId } from '../types';
-import { listUsuarios, createUsuario, updateUsuario, deleteUsuario, setUsuarioPassword } from '../lib/data/usuarios';
+import { listUsuarios, createUsuario, updateUsuario, deleteUsuario, setUsuarioPassword, setUsuarioEmail } from '../lib/data/usuarios';
 
 interface AdminPanelProps {
   currentUser: Perfil;
@@ -127,6 +127,10 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
           activo: form.activo,
           modulos: form.modulos,
         });
+        const original = usuarios.find(u => u.id === editingId);
+        if (original && form.email.trim() !== original.email) {
+          await setUsuarioEmail(editingId, form.email.trim());
+        }
         if (form.password.length > 0) {
           await setUsuarioPassword(editingId, form.password);
         }
@@ -330,11 +334,10 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
                   type="email"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  disabled={!!editingId}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-slate-50 disabled:text-slate-400"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                   placeholder="usuario@empresa.net"
                 />
-                {editingId && <p className="text-[10px] text-slate-400 mt-1">El email no se puede cambiar desde aquí.</p>}
+                {editingId && <p className="text-[10px] text-slate-400 mt-1">Cambiar el email actualiza también las credenciales de acceso.</p>}
               </div>
 
               <div>

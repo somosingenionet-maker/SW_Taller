@@ -155,6 +155,36 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    if (action === 'set_email') {
+      const id = String(body.id ?? '');
+      const email = String(body.email ?? '').trim();
+      if (!id) return json({ error: 'Falta el id del usuario.' }, 400);
+      if (!email || !email.includes('@')) return json({ error: 'Email inválido.' }, 400);
+
+      if (!esSuperAdmin) {
+        const { data: target, error: targetErr } = await admin
+          .from('perfiles')
+          .select('empresa_id')
+          .eq('id', id)
+          .single();
+        if (targetErr || !target) return json({ error: 'Usuario no encontrado.' }, 404);
+        if (target.empresa_id !== callerPerfil.empresa_id) {
+          return json({ error: 'No puedes cambiar el email de usuarios de otra empresa.' }, 403);
+        }
+      }
+
+      // perfiles.email es una copia que solo pone handle_new_user() al crear
+      // el usuario; auth.users es la fuente de verdad y no se sincroniza
+      // sola, así que hay que actualizar las dos.
+      const { error: emailErr } = await admin.auth.admin.updateUserById(id, { email, email_confirm: true });
+      if (emailErr) return json({ error: emailErr.message }, 400);
+
+      const { error: perfilErr2 } = await admin.from('perfiles').update({ email }).eq('id', id);
+      if (perfilErr2) return json({ error: perfilErr2.message }, 400);
+
+      return json({ ok: true });
+    }
+
     return json({ error: 'Acción no soportada.' }, 400);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Error inesperado' }, 500);

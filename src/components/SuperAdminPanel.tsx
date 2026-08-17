@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Building2, Plus, Trash2, LogOut, Shield, Check, X, Users, Pencil } from 'lucide-react';
 import { Perfil } from '../types';
 import { listEmpresas, createEmpresaConAdmin, toggleEmpresaActivo, deleteEmpresa, NuevaEmpresaInput } from '../lib/data/empresa';
-import { updateUsuario, setUsuarioPassword } from '../lib/data/usuarios';
+import { updateUsuario, setUsuarioPassword, setUsuarioEmail } from '../lib/data/usuarios';
 import type { Empresa } from '../types';
 import ConfirmDialog from './ConfirmDialog';
 import AdminPanel from './AdminPanel';
@@ -356,6 +356,7 @@ interface MiCuentaModalProps {
 
 function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
   const [nombre, setNombre] = useState(currentUser.nombre);
+  const [email, setEmail] = useState(currentUser.email);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -363,12 +364,16 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
   const handleSave = async () => {
     setError('');
     if (!nombre.trim()) { setError('El nombre es obligatorio.'); return; }
+    if (!email.trim() || !email.includes('@')) { setError('Email inválido.'); return; }
     if (password.length > 0 && password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres.'); return; }
 
     setSaving(true);
     try {
       if (nombre.trim() !== currentUser.nombre) {
         await updateUsuario(currentUser.id, { nombre: nombre.trim() });
+      }
+      if (email.trim() !== currentUser.email) {
+        await setUsuarioEmail(currentUser.id, email.trim());
       }
       if (password.length > 0) {
         await setUsuarioPassword(currentUser.id, password);
@@ -400,6 +405,17 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
             onChange={(e) => setNombre(e.target.value)}
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <p className="text-[10px] text-slate-400 mt-1">Es también tu usuario de acceso — al cambiarlo, inicia sesión con el nuevo email.</p>
         </div>
 
         <div>
