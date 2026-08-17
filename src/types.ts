@@ -174,6 +174,8 @@ export interface Empresa {
   activo: boolean;
   /** Activa el envío automático diario de recordatorios por email (opt-in). */
   recordatoriosAutomaticosActivos: boolean;
+  /** Texto personalizado por tipo de alerta para los recordatorios automáticos; ausente = usa el texto por defecto. */
+  plantillasRecordatorios: Partial<Record<AlertaTipo, string>>;
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */

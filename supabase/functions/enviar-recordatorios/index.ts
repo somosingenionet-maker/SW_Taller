@@ -44,25 +44,41 @@ const ASUNTO: Record<TipoAlerta, string> = {
   mantenimiento: 'Recordatorio: mantenimiento preventivo recomendado',
 };
 
+// Textos por defecto — duplicado en src/utils/recordatorioTemplates.ts
+// (Deno no puede importar código del frontend). Mantener ambos en sincronía.
+const PLANTILLA_DEFAULT: Record<TipoAlerta, string> = {
+  itv: 'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte que la ITV de tu vehículo {{vehiculo}} vence el {{fecha}}.\n\nContacta con nosotros para programar tu cita cuando te venga bien.',
+  seguro: 'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte que el seguro de tu vehículo {{vehiculo}} vence el {{fecha}}.\n\nContacta con nosotros si necesitas ayuda con la renovación.',
+  impuesto: 'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte que el impuesto de circulación de tu vehículo {{vehiculo}} vence el {{fecha}}.',
+  mantenimiento: 'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte que tu vehículo {{vehiculo}} tiene una revisión de mantenimiento preventivo recomendada a los {{km}} km.\n\nContacta con nosotros para programar tu cita cuando te venga bien.',
+};
+
+function sustituirVariables(texto: string, valores: Record<string, string>): string {
+  return texto.replace(/\{\{(\w+)\}\}/g, (match, key) => valores[key] ?? match);
+}
+
 function construirEmail(
   tipo: TipoAlerta,
-  empresa: { nombre: string },
+  empresa: { nombre: string; plantillas_recordatorios: Partial<Record<TipoAlerta, string>> | null },
   cliente: { nombre: string; apellidos: string },
   vehiculo: { marca: string; modelo: string; matricula: string },
   alerta: { fecha_limite: string | null; kilometraje_limite: number | null },
 ): { asunto: string; html: string } {
   const vehiculoDesc = `${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.matricula})`;
-  const detalle = tipo === 'mantenimiento'
-    ? `se recomienda una revisión de mantenimiento preventivo a los ${alerta.kilometraje_limite?.toLocaleString('es-ES')} km`
-    : `vence el ${alerta.fecha_limite ? new Date(alerta.fecha_limite).toLocaleDateString('es-ES') : ''}`;
+  const plantilla = empresa.plantillas_recordatorios?.[tipo]?.trim() || PLANTILLA_DEFAULT[tipo];
+
+  const cuerpo = sustituirVariables(plantilla, {
+    cliente: cliente.nombre,
+    vehiculo: vehiculoDesc,
+    empresa: empresa.nombre,
+    fecha: alerta.fecha_limite ? new Date(alerta.fecha_limite).toLocaleDateString('es-ES') : '',
+    km: alerta.kilometraje_limite != null ? alerta.kilometraje_limite.toLocaleString('es-ES') : '',
+  });
 
   const html = `
-    <div style="font-family: sans-serif; color: #1e293b; max-width: 480px; margin: 0 auto;">
-      <p>Hola ${cliente.nombre},</p>
-      <p>Te escribimos desde <strong>${empresa.nombre}</strong> para recordarte que tu vehículo
-      <strong>${vehiculoDesc}</strong> ${detalle}.</p>
-      <p>Contacta con nosotros para programar tu cita cuando te venga bien.</p>
-      <p style="color:#64748b; font-size: 12px; margin-top: 24px;">
+    <div style="font-family: sans-serif; color: #1e293b; max-width: 480px; margin: 0 auto; white-space: pre-line;">
+      ${cuerpo}
+      <p style="color:#64748b; font-size: 12px; margin-top: 24px; white-space: normal;">
         Este es un recordatorio automático de ${empresa.nombre}.
       </p>
     </div>
@@ -85,7 +101,7 @@ Deno.serve(async (req) => {
   try {
     const { data: empresas, error: empresasErr } = await admin
       .from('empresas')
-      .select('id, nombre')
+      .select('id, nombre, plantillas_recordatorios')
       .eq('activo', true)
       .eq('recordatorios_automaticos_activos', true);
     if (empresasErr) throw empresasErr;

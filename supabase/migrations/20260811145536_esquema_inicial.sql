@@ -990,6 +990,13 @@ alter table public.notificaciones_cliente
 alter table public.empresas
   add column recordatorios_automaticos_activos boolean not null default false;
 
+-- Plantillas de mensaje personalizables por tipo de alerta (itv/seguro/
+-- impuesto/mantenimiento). Claves ausentes o vacías = se usa el texto por
+-- defecto (definido en el frontend y en la Edge Function). Admite variables
+-- {{cliente}}, {{vehiculo}}, {{empresa}}, {{fecha}}, {{km}}.
+alter table public.empresas
+  add column plantillas_recordatorios jsonb not null default '{}'::jsonb;
+
 -- Reabre el ciclo de recordatorio cuando una alerta se renueva (cambia su
 -- fecha límite o su kilometraje límite) — así el siguiente vencimiento
 -- vuelve a poder recordarse.

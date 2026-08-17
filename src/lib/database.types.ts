@@ -282,6 +282,7 @@ export type Database = {
           logo_base64: string
           nif: string
           nombre: string
+          plantillas_recordatorios: Json
           razon_social: string
           recordatorios_automaticos_activos: boolean
           siguiente_numero_factura: number
@@ -302,6 +303,7 @@ export type Database = {
           logo_base64?: string
           nif?: string
           nombre: string
+          plantillas_recordatorios?: Json
           razon_social?: string
           recordatorios_automaticos_activos?: boolean
           siguiente_numero_factura?: number
@@ -322,6 +324,7 @@ export type Database = {
           logo_base64?: string
           nif?: string
           nombre?: string
+          plantillas_recordatorios?: Json
           razon_social?: string
           recordatorios_automaticos_activos?: boolean
           siguiente_numero_factura?: number

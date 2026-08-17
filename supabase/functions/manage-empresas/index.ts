@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       const { data: empresa, error: empresaErr } = await admin
         .from('empresas')
         .insert({ nombre, nif })
-        .select('id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, activo, recordatorios_automaticos_activos')
+        .select('id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, activo, recordatorios_automaticos_activos, plantillas_recordatorios')
         .single();
       if (empresaErr) return json({ error: empresaErr.message }, 400);
 

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail } from 'lucide-react';
-import { Tecnico, Empresa } from '../types';
+import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText } from 'lucide-react';
+import { AlertaTipo, Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico } from '../lib/data/tecnicos';
 import { contrastText } from '../utils/color';
+import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioTemplates';
 
 interface Props {
   config: Empresa;
@@ -10,8 +11,15 @@ interface Props {
   onClose: () => void;
 }
 
+const TIPO_LABEL: Record<AlertaTipo, string> = {
+  itv: 'ITV',
+  seguro: 'Seguro',
+  impuesto: 'Impuesto de circulación',
+  mantenimiento: 'Mantenimiento preventivo',
+};
+
 /** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo/recordatorios se conservan). */
-const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos'> = {
+const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios'> = {
   nombre: 'Mi Empresa',
   tagline: '',
   razonSocial: '',
@@ -291,6 +299,29 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                 className="w-4 h-4 shrink-0 cursor-pointer"
               />
             </label>
+
+            <div className="space-y-3 pt-1">
+              <p className="text-[10px] text-slate-400">
+                Mensaje de cada recordatorio — precargado con el texto por defecto, puedes editarlo o dejarlo tal cual.
+                Variables disponibles: {VARIABLES_DISPONIBLES.join(', ')}.
+              </p>
+              {(Object.keys(TIPO_LABEL) as AlertaTipo[]).map(tipo => (
+                <div key={tipo}>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1.5">
+                    <MessageSquareText className="w-3.5 h-3.5 text-slate-400" /> {TIPO_LABEL[tipo]}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={draft.plantillasRecordatorios[tipo] ?? PLANTILLA_DEFAULT[tipo]}
+                    onChange={e => setDraft(prev => ({
+                      ...prev,
+                      plantillasRecordatorios: { ...prev.plantillasRecordatorios, [tipo]: e.target.value },
+                    }))}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              ))}
+            </div>
           </section>
 
           {/* Color de marca */}
