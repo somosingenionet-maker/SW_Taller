@@ -1,11 +1,5 @@
 import { supabase } from '../supabase';
 import type { NotificacionCliente } from '../../types';
-import type { Database } from '../database.types';
-
-export type NuevaNotificacion = Omit<NotificacionCliente, 'id'>;
-
-// empresa_id lo rellena el trigger set_empresa_id() en el servidor.
-type NotificacionInsert = Database['public']['Tables']['notificaciones_cliente']['Insert'];
 
 const COLS = 'id, cliente_id, vehiculo_id, tipo_envio, asunto, mensaje, fecha_envio, leido, tipo_evento, origen';
 
@@ -30,30 +24,10 @@ function mapNotificacion(r: NotificacionRow): NotificacionCliente {
   };
 }
 
-function toRow(n: NuevaNotificacion) {
-  return {
-    cliente_id: n.clienteId,
-    vehiculo_id: n.vehiculoId || null,
-    tipo_envio: n.tipoEnvio,
-    asunto: n.asunto || null,
-    mensaje: n.mensaje,
-    fecha_envio: n.fechaEnvio,
-    leido: n.leido,
-    tipo_evento: n.tipoEvento,
-    origen: n.origen,
-  };
-}
-
 export async function listNotificaciones(): Promise<NotificacionCliente[]> {
   const { data, error } = await supabase.from('notificaciones_cliente').select(COLS).order('fecha_envio', { ascending: false });
   if (error) throw error;
   return (data ?? []).map((r) => mapNotificacion(r as NotificacionRow));
-}
-
-export async function createNotificacion(input: NuevaNotificacion): Promise<NotificacionCliente> {
-  const { data, error } = await supabase.from('notificaciones_cliente').insert(toRow(input) as NotificacionInsert).select(COLS).single();
-  if (error) throw error;
-  return mapNotificacion(data as NotificacionRow);
 }
 
 export async function deleteNotificacion(id: string): Promise<void> {
