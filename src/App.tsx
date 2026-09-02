@@ -37,7 +37,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<TabId>('vehiculos');
+  const [activeTab, setActiveTab] = useState<TabId>('citas');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
