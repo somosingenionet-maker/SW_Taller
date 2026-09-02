@@ -46,6 +46,25 @@ function addDays(d: Date, n: number): Date {
   return copy;
 }
 
+function addMonths(d: Date, n: number): Date {
+  const copy = new Date(d);
+  copy.setDate(1); // evita que un día 31 "salte" un mes al cambiar a uno más corto
+  copy.setMonth(copy.getMonth() + n);
+  copy.setDate(Math.min(d.getDate(), new Date(copy.getFullYear(), copy.getMonth() + 1, 0).getDate()));
+  return copy;
+}
+
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+
+type Vista = 'dia' | 'semana' | 'mes';
+const VISTAS: { id: Vista; label: string }[] = [
+  { id: 'dia', label: 'Día' },
+  { id: 'semana', label: 'Semana' },
+  { id: 'mes', label: 'Mes' },
+];
+
 function evento(descripcion: string): EventoOT {
   return { fecha: new Date().toISOString(), descripcion };
 }
@@ -114,9 +133,18 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
 
+  const [vista, setVista] = useState<Vista>('dia');
   const [selectedDay, setSelectedDay] = useState(() => new Date());
   const weekStart = useMemo(() => startOfWeek(selectedDay), [selectedDay]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+
+  const handlePrev = () => setSelectedDay((d) => (vista === 'mes' ? addMonths(d, -1) : addDays(d, -7)));
+  const handleNext = () => setSelectedDay((d) => (vista === 'mes' ? addMonths(d, 1) : addDays(d, 7)));
+
+  const irADia = (d: Date) => {
+    setSelectedDay(d);
+    setVista('dia');
+  };
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -236,7 +264,7 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setSelectedDay((d) => addDays(d, -7))}
+            onClick={handlePrev}
             className="p-2 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 transition cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -248,7 +276,7 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
             Hoy
           </button>
           <button
-            onClick={() => setSelectedDay((d) => addDays(d, 7))}
+            onClick={handleNext}
             className="p-2 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 transition cursor-pointer"
           >
             <ChevronRight className="w-4 h-4" />
@@ -262,7 +290,24 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
         </button>
       </div>
 
+      {/* Selector de vista */}
+      <div className="flex gap-1 p-1 bg-slate-50 border border-slate-100 rounded-lg w-fit">
+        {VISTAS.map((v) => (
+          <button
+            key={v.id}
+            onClick={() => setVista(v.id)}
+            className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer ${
+              vista === v.id ? 'bg-white text-slate-800 shadow-3xs' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       {/* Tira de 7 días */}
+      {vista === 'dia' && (
+      <>
       <div className="grid grid-cols-7 gap-2">
         {weekDays.map((d, i) => {
           const key = localKey(d);
@@ -369,6 +414,33 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {/* Vista semanal */}
+      {vista === 'semana' && (
+        <VistaSemanal
+          weekDays={weekDays}
+          citas={citas}
+          tecnicos={tecnicos}
+          hoy={hoy}
+          clienteLabel={clienteLabel}
+          onSelectCita={openEdit}
+          onSelectDay={irADia}
+        />
+      )}
+
+      {/* Vista mensual */}
+      {vista === 'mes' && (
+        <VistaMensual
+          mesAncla={selectedDay}
+          citas={citas}
+          hoy={hoy}
+          clienteLabel={clienteLabel}
+          onSelectCita={openEdit}
+          onSelectDay={irADia}
+        />
+      )}
 
       {/* Crear / editar cita */}
       {showForm && (
@@ -657,6 +729,157 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, on
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60">
           <Check className="w-4 h-4" /> {saving ? 'Creando…' : 'Crear orden de trabajo'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+interface VistaSemanalProps {
+  weekDays: Date[];
+  citas: Cita[];
+  tecnicos: Tecnico[];
+  hoy: string;
+  clienteLabel: (id?: string) => string | null;
+  onSelectCita: (c: Cita) => void;
+  onSelectDay: (d: Date) => void;
+}
+
+/** Semana completa: una columna por día con sus citas ordenadas por hora. */
+function VistaSemanal({ weekDays, citas, tecnicos, hoy, clienteLabel, onSelectCita, onSelectDay }: VistaSemanalProps) {
+  const label = `${weekDays[0].toLocaleDateString('es-ES', { day: 'numeric', month: weekDays[0].getMonth() === weekDays[6].getMonth() ? undefined : 'short' })} – ${weekDays[6].toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-100">
+        <p className="text-sm font-bold text-slate-800 capitalize">Semana del {label}</p>
+      </div>
+      <div className="overflow-x-auto p-3">
+        <div className="grid grid-cols-7 gap-2 min-w-[770px]">
+          {weekDays.map((d, i) => {
+            const key = localKey(d);
+            const esHoy = key === hoy;
+            const citasDia = citas
+              .filter((c) => localKey(new Date(c.fechaHora)) === key)
+              .sort((a, b) => a.fechaHora.localeCompare(b.fechaHora));
+            return (
+              <div key={key} className="flex flex-col bg-slate-50/60 border border-slate-100 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => onSelectDay(d)}
+                  title="Ver el día"
+                  className={`px-2 py-2 text-center border-b transition cursor-pointer ${
+                    esHoy ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <p className={`text-[10px] font-bold uppercase tracking-wider ${esHoy ? 'text-blue-100' : 'text-slate-400'}`}>{DIAS_SEMANA[i]}</p>
+                  <p className="text-sm font-extrabold">{d.getDate()}</p>
+                </button>
+                <div className="flex-1 p-1.5 space-y-1.5 min-h-[90px]">
+                  {citasDia.length === 0 ? (
+                    <p className="text-[10px] text-slate-300 text-center py-3">—</p>
+                  ) : (
+                    citasDia.map((c) => {
+                      const meta = ESTADO_META[c.estado];
+                      const tecnico = tecnicos.find((t) => t.id === c.tecnicoId);
+                      const cli = clienteLabel(c.clienteId) ?? c.contactoNombre;
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => onSelectCita(c)}
+                          className={`w-full text-left px-2 py-1.5 rounded-lg text-[10px] leading-tight transition hover:opacity-80 cursor-pointer ${meta.bg} ${meta.color}`}
+                        >
+                          <p className="font-extrabold">
+                            {new Date(c.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                          <p className="truncate font-semibold">{c.motivo}</p>
+                          {cli && <p className="truncate opacity-70">{cli}</p>}
+                          {tecnico && <p className="truncate opacity-70">{tecnico.nombre}</p>}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface VistaMensualProps {
+  mesAncla: Date;
+  citas: Cita[];
+  hoy: string;
+  clienteLabel: (id?: string) => string | null;
+  onSelectCita: (c: Cita) => void;
+  onSelectDay: (d: Date) => void;
+}
+
+const MAX_CITAS_POR_CELDA = 3;
+
+/** Calendario mensual clásico (6 semanas), con hasta 3 citas por celda y "+N más". */
+function VistaMensual({ mesAncla, citas, hoy, clienteLabel, onSelectCita, onSelectDay }: VistaMensualProps) {
+  const dias = useMemo(() => {
+    const inicioGrid = startOfWeek(startOfMonth(mesAncla));
+    return Array.from({ length: 42 }, (_, i) => addDays(inicioGrid, i));
+  }, [mesAncla]);
+
+  const label = mesAncla.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      <div className="px-5 py-4 border-b border-slate-100">
+        <p className="text-sm font-bold text-slate-800 capitalize">{label}</p>
+      </div>
+      <div className="p-3">
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {DIAS_SEMANA.map((d) => (
+            <p key={d} className="text-[10px] font-bold uppercase tracking-wider text-slate-400 text-center py-1">{d}</p>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {dias.map((d) => {
+            const key = localKey(d);
+            const enMes = d.getMonth() === mesAncla.getMonth();
+            const esHoy = key === hoy;
+            const citasDia = citas
+              .filter((c) => localKey(new Date(c.fechaHora)) === key)
+              .sort((a, b) => a.fechaHora.localeCompare(b.fechaHora));
+            return (
+              <div
+                key={key}
+                onClick={() => onSelectDay(d)}
+                className={`min-h-[92px] p-1.5 rounded-lg border transition cursor-pointer ${
+                  esHoy ? 'border-blue-400 ring-1 ring-blue-200' : 'border-slate-100'
+                } ${enMes ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/50 hover:bg-slate-50'}`}
+              >
+                <span className={`text-xs font-bold ${esHoy ? 'text-blue-600' : enMes ? 'text-slate-700' : 'text-slate-300'}`}>
+                  {d.getDate()}
+                </span>
+                <div className="mt-1 space-y-0.5">
+                  {citasDia.slice(0, MAX_CITAS_POR_CELDA).map((c) => {
+                    const meta = ESTADO_META[c.estado];
+                    const cli = clienteLabel(c.clienteId) ?? c.contactoNombre;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={(e) => { e.stopPropagation(); onSelectCita(c); }}
+                        title={`${c.motivo}${cli ? ' · ' + cli : ''}`}
+                        className={`w-full text-left text-[9px] px-1 py-0.5 rounded truncate font-semibold transition hover:opacity-80 cursor-pointer ${meta.bg} ${meta.color}`}
+                      >
+                        {new Date(c.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} {c.motivo}
+                      </button>
+                    );
+                  })}
+                  {citasDia.length > MAX_CITAS_POR_CELDA && (
+                    <p className="text-[9px] text-slate-400 font-bold pl-1">+{citasDia.length - MAX_CITAS_POR_CELDA} más</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
