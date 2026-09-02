@@ -188,19 +188,19 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-hidden border-l border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
           <div className="flex items-center gap-2.5">
             <Shield className="w-4 h-4 text-blue-400" />
             <span className="font-bold text-sm tracking-tight">
               {empresaNombre ? `Usuarios de ${empresaNombre}` : 'Panel de Administración'}
             </span>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg transition">
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-xl transition">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -209,7 +209,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
 
           {listError && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">
               {listError}
             </div>
           )}
@@ -222,7 +222,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
                 {canCreate && (
                   <button
                     onClick={openCreate}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" /> Nuevo Usuario
                   </button>
@@ -234,7 +234,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
               ) : (
               <div className="space-y-2">
                 {usuarios.map(u => (
-                  <div key={u.id} className="border border-slate-200 rounded-xl overflow-hidden">
+                  <div key={u.id} className="border border-slate-200 rounded-2xl overflow-hidden">
                     <div className="flex items-center gap-3 px-4 py-3 bg-slate-50">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -261,7 +261,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
 
                         <button
                           onClick={() => openEdit(u)}
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"
                           title="Editar usuario"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -270,7 +270,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
                         <button
                           onClick={() => handleDelete(u)}
                           disabled={!canDelete(u)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                           title={!canDelete(u) ? 'No se puede eliminar' : 'Eliminar usuario'}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -278,7 +278,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
 
                         <button
                           onClick={() => setExpandedId(expandedId === u.id ? null : u.id)}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg transition cursor-pointer"
+                          className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl transition cursor-pointer"
                         >
                           {expandedId === u.id ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                         </button>
@@ -326,7 +326,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
                   type="text"
                   value={form.nombre}
                   onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                   placeholder="Juan Pérez"
                 />
               </div>
@@ -337,7 +337,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
                   type="email"
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                   placeholder="usuario@empresa.net"
                 />
                 {editingId && <p className="text-[10px] text-slate-400 mt-1">Cambiar el email actualiza también las credenciales de acceso.</p>}
@@ -351,7 +351,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
                   type="password"
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                   placeholder="••••••••"
                   autoComplete="new-password"
                 />
@@ -364,7 +364,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
                   <select
                     value={form.rol}
                     onChange={e => setForm(f => ({ ...f, rol: e.target.value as 'admin' | 'usuario' }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                   >
                     <option value="usuario">Usuario</option>
                     <option value="admin">Administrador</option>
@@ -404,7 +404,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
               </div>
 
               {formError && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">
                   {formError}
                 </div>
               )}
@@ -412,7 +412,7 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60"
               >
                 <Check className="w-4 h-4" />
                 {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear usuario'}

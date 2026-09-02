@@ -389,86 +389,107 @@ export default function App() {
 
   return (
     <div
-      className="min-h-screen bg-slate-50 font-sans flex flex-col antialiased"
+      className="h-screen bg-slate-50 font-sans flex antialiased overflow-hidden print:h-auto print:overflow-visible print:block"
       style={{ '--brand': brandColor, '--brand-text': brandText } as React.CSSProperties}
     >
 
-      {/* PROFESSIONAL UPPER BAR */}
-      <header
-        className="shadow-md print:hidden shrink-0"
-        style={{
-          backgroundColor: brandColor,
-          backgroundImage: `
-            radial-gradient(ellipse at 20% 50%, ${brandText === '#ffffff' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'} 0%, transparent 60%),
-            radial-gradient(ellipse at 80% 20%, ${brandText === '#ffffff' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'} 0%, transparent 50%),
-            repeating-linear-gradient(
-              -45deg,
-              transparent,
-              transparent 6px,
-              ${brandText === '#ffffff' ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.025)'} 6px,
-              ${brandText === '#ffffff' ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.025)'} 7px
-            )
-          `,
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* RIEL LATERAL — navegación por iconos (solo escritorio) */}
+      <aside className="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-white border-r border-slate-200/80 py-4 print:hidden">
+        <div className="flex flex-col gap-1.5 items-center">
+          {tabDefs.map(tab => (
+            <div key={tab.id} className="group relative">
+              <button
+                onClick={() => setActiveTab(tab.id)}
+                title={tab.label}
+                className="relative w-11 h-11 rounded-2xl flex items-center justify-center transition cursor-pointer text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                style={activeTab === tab.id ? { backgroundColor: brandColor, color: brandText, boxShadow: `0 8px 16px -6px ${brandColor}99` } : undefined}
+              >
+                {tab.icon}
+                {tab.id === 'alertas' && activeAlertsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-extrabold flex items-center justify-center border-2 border-white">
+                    {activeAlertsCount}
+                  </span>
+                )}
+              </button>
+              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition z-50">
+                {tab.label}
+              </span>
+            </div>
+          ))}
+        </div>
 
-          {/* Logo + Brand */}
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center font-black tracking-tighter text-lg shadow-md shrink-0 overflow-hidden"
-              style={{ backgroundColor: `${brandColor}33`, color: brandText }}
+        <div className="flex-1" />
+
+        <div className="flex flex-col gap-1.5 items-center pt-3 mt-1 border-t border-slate-100 w-full">
+          {currentUser.rol === 'admin' && (
+            <div className="group relative">
+              <button
+                onClick={() => setAdminPanelOpen(true)}
+                title="Panel de administración"
+                className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
+              >
+                <Shield className="w-[19px] h-[19px]" />
+              </button>
+              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition z-50">
+                Panel de administración
+              </span>
+            </div>
+          )}
+          <div className="group relative">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              title="Configuración de empresa"
+              className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
             >
-              {empresa.logoBase64 ? (
-                <img src={empresa.logoBase64} alt="logo" className="w-full h-full object-contain" />
-              ) : (
-                empresa.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'E'
-              )}
-            </div>
-            <div>
-              <h1 className="text-md sm:text-lg font-display font-bold tracking-tight flex items-center gap-2" style={{ color: brandText }}>
-                {empresa.nombre}
-                <span
-                  className="text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest"
-                  style={{ backgroundColor: `${brandText === '#ffffff' ? '#ffffff' : '#000000'}22`, color: brandText, border: `1px solid ${brandText}44` }}
-                >
-                  FLOTAS Y CRM
-                </span>
-              </h1>
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${brandText}99` }}>{empresa.tagline}</p>
-            </div>
+              <Settings className="w-[19px] h-[19px]" />
+            </button>
+            <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition z-50">
+              Configuración de empresa
+            </span>
           </div>
+        </div>
+      </aside>
 
-          {/* Contact info + user/logout */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div
-              className="flex flex-wrap items-center gap-x-6 gap-y-1.5 text-xs p-2.5 px-4 rounded-xl font-medium"
-              style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
-            >
-              {empresa.correo && (
-                <div className="flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5" style={{ color: brandText }} />
-                  <span>{empresa.correo}</span>
-                </div>
-              )}
-              {empresa.telefono && (
-                <div className="flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5" style={{ color: brandText }} />
-                  <span>{empresa.telefono}</span>
-                </div>
-              )}
-              {empresa.web && (
-                <div className="flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5" style={{ color: brandText }} />
-                  <span>{empresa.web}</span>
-                </div>
-              )}
+      {/* COLUMNA PRINCIPAL */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
+
+        {/* CABECERA */}
+        <header
+          className="shadow-md print:hidden shrink-0"
+          style={{ backgroundImage: `linear-gradient(135deg, ${brandColor}, color-mix(in srgb, ${brandColor} 78%, black))` }}
+        >
+          <div className="px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
+
+            {/* Logo + Brand */}
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-2xl flex items-center justify-center font-black tracking-tighter text-lg shadow-md shrink-0 overflow-hidden"
+                style={{ backgroundColor: `${brandColor}33`, color: brandText }}
+              >
+                {empresa.logoBase64 ? (
+                  <img src={empresa.logoBase64} alt="logo" className="w-full h-full object-contain" />
+                ) : (
+                  empresa.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'E'
+                )}
+              </div>
+              <div>
+                <h1 className="text-md sm:text-lg font-display font-bold tracking-tight flex items-center gap-2" style={{ color: brandText }}>
+                  {empresa.nombre}
+                  <span
+                    className="hidden sm:inline text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-widest"
+                    style={{ backgroundColor: `${brandText === '#ffffff' ? '#ffffff' : '#000000'}22`, color: brandText, border: `1px solid ${brandText}44` }}
+                  >
+                    FLOTAS Y CRM
+                  </span>
+                </h1>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${brandText}99` }}>{empresa.tagline}</p>
+              </div>
             </div>
 
             {/* User pill + logout */}
             <div className="flex items-center gap-2">
               <div
-                className="flex items-center gap-2 rounded-xl px-3 py-2"
+                className="flex items-center gap-2 rounded-full px-3 py-2"
                 style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
               >
                 <div
@@ -485,111 +506,65 @@ export default function App() {
               <button
                 onClick={handleLogout}
                 title="Cerrar sesión"
-                className="p-2 rounded-xl transition cursor-pointer"
+                className="p-2 rounded-full transition cursor-pointer"
                 style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
               >
                 <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* NAVIGATION TABS SUBBAR */}
-      <nav className="bg-white border-b border-slate-200/80 shadow-3xs print:hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14">
-
-            {/* Nav Links Desktop */}
-            <div className="hidden md:flex space-x-1 py-1.5 overflow-x-auto w-full">
-              {tabDefs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false); }}
-                  className={`px-4 py-2 text-xs font-bold rounded-xl transition duration-150 flex items-center gap-1.5 cursor-pointer relative shrink-0 ${
-                    activeTab === tab.id ? 'bg-blue-50 text-blue-700 border border-blue-200/40 shadow-3xs' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {tab.icon} {tab.label}
-                  {tab.id === 'alertas' && activeAlertsCount > 0 && (
-                    <span className="absolute top-1 right-2 px-1.5 py-0.5 text-[8px] bg-rose-500 text-white font-extrabold rounded-full leading-none animate-pulse">
-                      {activeAlertsCount}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
-            {/* Mobile menu triggers */}
-            <div className="flex md:hidden items-center justify-between w-full">
+        {/* Barra móvil: módulo activo + menú (la navegación por iconos solo existe en escritorio) */}
+        <nav className="md:hidden bg-white border-b border-slate-200/80 shadow-3xs print:hidden shrink-0">
+          <div className="px-4 sm:px-6">
+            <div className="flex justify-between items-center h-14">
               <span className="text-xs font-bold text-slate-700 capitalize">
                 Módulo: <span className="text-blue-700 font-extrabold">{activeTab.replace('_', ' ')}</span>
               </span>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 hover:bg-slate-50 text-slate-600 rounded-lg"
+                className="p-2 hover:bg-slate-50 text-slate-600 rounded-xl"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
+          </div>
 
-            {/* Actions right */}
-            <div className="hidden md:flex items-center gap-2 shrink-0">
-              {currentUser.rol === 'admin' && (
+          {/* Mobile dropdown */}
+          {mobileMenuOpen && (
+            <div className="border-t border-slate-100 bg-white px-4 py-2 space-y-1 block">
+              {tabDefs.map(tab => (
                 <button
-                  onClick={() => setAdminPanelOpen(true)}
-                  title="Panel de administración"
-                  className="p-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-black transition flex items-center gap-1 cursor-pointer border border-blue-200"
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false); }}
+                  className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-slate-700 block hover:bg-slate-50 flex justify-between"
                 >
-                  <Shield className="w-3.5 h-3.5" /> Admin
+                  <span>{tab.emoji} {tab.label}</span>
+                  {tab.id === 'alertas' && activeAlertsCount > 0 && (
+                    <span className="px-2 py-0.5 bg-rose-500 text-white font-bold text-[9px] rounded-full">{activeAlertsCount}</span>
+                  )}
                 </button>
-              )}
-              <button
-                onClick={() => setSettingsOpen(true)}
-                title="Configuración de empresa"
-                className="p-2 py-1 bg-slate-50 hover:bg-slate-100 text-slate-600 hover:text-slate-800 rounded-lg text-[10px] font-black transition flex items-center gap-1 cursor-pointer border border-slate-200"
-              >
-                <Settings className="w-3.5 h-3.5" /> Empresa
-              </button>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Mobile dropdown */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-2 space-y-1 block shrink-0">
-            {tabDefs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false); }}
-                className="w-full text-left px-3 py-2 text-xs font-bold rounded-lg text-slate-700 block hover:bg-slate-50 flex justify-between"
-              >
-                <span>{tab.emoji} {tab.label}</span>
-                {tab.id === 'alertas' && activeAlertsCount > 0 && (
-                  <span className="px-2 py-0.5 bg-rose-500 text-white font-bold text-[9px] rounded-full">{activeAlertsCount}</span>
+              ))}
+              <div className="pt-2 border-t border-slate-100 space-y-1">
+                {currentUser.rol === 'admin' && (
+                  <button onClick={() => { setAdminPanelOpen(true); setMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-blue-700 block hover:bg-blue-50">
+                    🛡️ Panel de Administración
+                  </button>
                 )}
-              </button>
-            ))}
-            <div className="pt-2 border-t border-slate-100 space-y-1">
-              {currentUser.rol === 'admin' && (
-                <button onClick={() => { setAdminPanelOpen(true); setMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs font-bold rounded-lg text-blue-700 block hover:bg-blue-50">
-                  🛡️ Panel de Administración
+                <button onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-slate-700 block hover:bg-slate-50">
+                  ⚙️ Configuración de empresa
                 </button>
-              )}
-              <button onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs font-bold rounded-lg text-slate-700 block hover:bg-slate-50">
-                ⚙️ Configuración de empresa
-              </button>
-              <button onClick={handleLogout} className="w-full text-left px-3 py-2 text-xs font-bold rounded-lg text-slate-600 block hover:bg-slate-50">
-                🚪 Cerrar sesión
-              </button>
+                <button onClick={handleLogout} className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-slate-600 block hover:bg-slate-50">
+                  🚪 Cerrar sesión
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-      </nav>
+          )}
+        </nav>
 
-      {/* CORE WORKSPACE */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto">
+        {/* CORE WORKSPACE */}
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto print:overflow-visible print:h-auto">
         {activeTab === 'citas' && (
           <AgendaTab
             citas={citas}
@@ -686,6 +661,42 @@ export default function App() {
         )}
       </main>
 
+        {/* PIE — contacto de la empresa + copyright (antes vivía en la cabecera) */}
+        <footer className="bg-slate-900 border-t border-slate-800 py-3.5 text-xs text-slate-400 print:hidden shrink-0">
+          <div className="px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-2.5">
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
+              {empresa.correo && (
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <Mail className="w-3.5 h-3.5 text-slate-500" /> {empresa.correo}
+                </span>
+              )}
+              {empresa.telefono && (
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <Phone className="w-3.5 h-3.5 text-slate-500" /> {empresa.telefono}
+                </span>
+              )}
+              {empresa.web && (
+                <span className="flex items-center gap-1.5 text-slate-300">
+                  <Globe className="w-3.5 h-3.5 text-slate-500" /> {empresa.web}
+                </span>
+              )}
+            </div>
+            <p className="text-slate-500 text-center">
+              © 2026 Tibox — Desarrollado por{' '}
+              <a
+                href="https://www.somosingenio.net"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-slate-300 underline underline-offset-2 transition"
+              >
+                InGenio
+              </a>
+              . Reservados todos los derechos.
+            </p>
+          </div>
+        </footer>
+      </div>
+
       {settingsOpen && (
         <CompanySettingsPanel
           config={empresa}
@@ -700,24 +711,6 @@ export default function App() {
           onClose={() => setAdminPanelOpen(false)}
         />
       )}
-
-      {/* FOOTER */}
-      <footer className="bg-slate-900 border-t border-slate-800 text-center py-4 text-xs text-slate-500 print:hidden shrink-0 mt-auto">
-        <div className="max-w-7xl mx-auto px-4">
-          <p>
-            © 2026 Tibox — Desarrollado por{' '}
-            <a
-              href="https://www.somosingenio.net"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-slate-300 underline underline-offset-2 transition"
-            >
-              InGenio
-            </a>
-            . Reservados todos los derechos.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
