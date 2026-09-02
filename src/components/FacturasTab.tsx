@@ -173,9 +173,10 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-modal-pop">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
           <div className="flex items-center gap-2.5">
             <Receipt className="w-4 h-4 text-slate-300" />
             <span className="font-bold text-sm">
@@ -183,21 +184,21 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
             </span>
             {!factura && <span className="text-[10px] text-slate-400 font-medium">— el número se asigna al guardar</span>}
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-xl"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Cliente *</label>
-              <select value={clienteId} onChange={e => { setClienteId(e.target.value); setVehiculoId(''); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+              <select value={clienteId} onChange={e => { setClienteId(e.target.value); setVehiculoId(''); }} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">— Seleccionar —</option>
                 {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellidos}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Vehículo (opcional)</label>
-              <select value={vehiculoId} onChange={e => setVehiculoId(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" disabled={!clienteId}>
+              <select value={vehiculoId} onChange={e => setVehiculoId(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" disabled={!clienteId}>
                 <option value="">— Ninguno —</option>
                 {clienteVehiculos.map(v => <option key={v.id} value={v.id}>{v.marca} {v.modelo} — {v.matricula}</option>)}
               </select>
@@ -207,11 +208,11 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha emisión</label>
-              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha vencimiento</label>
-              <input type="date" value={fechaVencimiento} onChange={e => setFechaVencimiento(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <input type="date" value={fechaVencimiento} onChange={e => setFechaVencimiento(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
           </div>
 
@@ -232,7 +233,7 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
             </div>
 
             {importarOpen && (
-              <div className="mb-3 bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+              <div className="mb-3 bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
                 <p className="text-[11px] font-bold text-slate-600 uppercase">Selecciona órdenes de trabajo a importar</p>
                 {vehOTs.length === 0 ? (
                   <p className="text-[11px] text-slate-400 italic">Este vehículo no tiene órdenes de trabajo finalizadas (listo/entregado) con líneas facturables.</p>
@@ -248,7 +249,7 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
                         <span>{ot.numero} · {ot.lineas.length} línea{ot.lineas.length !== 1 ? 's' : ''} — {fmt(ot.total)} €</span>
                       </label>
                     ))}
-                    <button onClick={importarDesdetaller} disabled={selectedOts.size === 0} className="mt-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg disabled:opacity-40">
+                    <button onClick={importarDesdetaller} disabled={selectedOts.size === 0} className="mt-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-xl disabled:opacity-40">
                       Importar seleccionadas
                     </button>
                   </>
@@ -259,9 +260,9 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
             <div className="space-y-2">
               {lineas.map(l => (
                 <div key={l.id} className="grid grid-cols-12 gap-1.5 items-center">
-                  <input className="col-span-5 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Descripción" value={l.descripcion} onChange={e => updateLine(l.id, 'descripcion', e.target.value)} />
-                  <input type="number" min="1" className="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Cant." value={l.cantidad} onChange={e => updateLine(l.id, 'cantidad', parseFloat(e.target.value) || 0)} />
-                  <input type="number" min="0" step="0.01" className="col-span-2 border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Precio" value={l.precioUnitario} onChange={e => updateLine(l.id, 'precioUnitario', parseFloat(e.target.value) || 0)} />
+                  <input className="col-span-5 border border-slate-200 rounded-xl px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Descripción" value={l.descripcion} onChange={e => updateLine(l.id, 'descripcion', e.target.value)} />
+                  <input type="number" min="1" className="col-span-2 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Cant." value={l.cantidad} onChange={e => updateLine(l.id, 'cantidad', parseFloat(e.target.value) || 0)} />
+                  <input type="number" min="0" step="0.01" className="col-span-2 border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Precio" value={l.precioUnitario} onChange={e => updateLine(l.id, 'precioUnitario', parseFloat(e.target.value) || 0)} />
                   <div className="col-span-2 text-right text-xs font-semibold text-slate-700 px-1">{fmt(l.subtotal)} €</div>
                   <button onClick={() => removeLine(l.id)} className="col-span-1 p-1 text-slate-300 hover:text-rose-500 transition"><X className="w-3.5 h-3.5" /></button>
                 </div>
@@ -274,25 +275,25 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
           <div className="space-y-2">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Notas (opcional)</label>
-              <textarea rows={2} value={notas} onChange={e => setNotas(e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <textarea rows={2} value={notas} onChange={e => setNotas(e.target.value)} className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-slate-600">IVA %</label>
-              <input type="number" min="0" max="100" value={ivaPct} onChange={e => setIvaPct(parseFloat(e.target.value) || 0)} className="w-16 border border-slate-200 rounded-lg px-2 py-1 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <input type="number" min="0" max="100" value={ivaPct} onChange={e => setIvaPct(parseFloat(e.target.value) || 0)} className="w-16 border border-slate-200 rounded-xl px-2 py-1 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
-            <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 border border-slate-100">
+            <div className="bg-slate-50 rounded-2xl p-3 space-y-1.5 border border-slate-100">
               <div className="flex justify-between text-xs text-slate-600"><span>Subtotal</span><span className="font-semibold">{fmt(totals.subtotal)} €</span></div>
               <div className="flex justify-between text-xs text-slate-600"><span>IVA ({ivaPct}%)</span><span className="font-semibold">{fmt(totals.totalIva)} €</span></div>
               <div className="flex justify-between text-sm font-bold text-slate-800 border-t border-slate-200 pt-1.5"><span>Total</span><span>{fmt(totals.total)} €</span></div>
             </div>
           </div>
 
-          {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{error}</div>}
+          {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
         </div>
 
-        <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50">
-          <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 transition cursor-pointer">Cancelar</button>
-          <button onClick={handleSave} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer">
+        <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2 bg-slate-50 shrink-0">
+          <button onClick={onClose} className="px-4 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-100 transition cursor-pointer">Cancelar</button>
+          <button onClick={handleSave} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition flex items-center gap-1.5 cursor-pointer">
             <Check className="w-3.5 h-3.5" /> Guardar factura
           </button>
         </div>
@@ -347,19 +348,19 @@ export default function FacturasTab({
     <div className="space-y-5">
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-1">Total Facturas</p>
           <p className="text-2xl font-black text-slate-800">{totalFacturas}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-1">Facturas pagadas</p>
           <p className="text-2xl font-black text-green-600">{facturasPagadas}</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-1">Pendiente de cobro</p>
           <p className="text-2xl font-black text-amber-600">{fmt(importePendiente)} €</p>
         </div>
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-1">Importe cobrado</p>
           <p className="text-2xl font-black text-green-600">{fmt(importeCobrado)} €</p>
         </div>
@@ -371,7 +372,7 @@ export default function FacturasTab({
           <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
             <Receipt className="w-4 h-4 text-blue-500" /> Facturas
           </div>
-          <button onClick={() => setFacturaModal({ open: true, factura: null })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition cursor-pointer">
+          <button onClick={() => setFacturaModal({ open: true, factura: null })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer">
             <Plus className="w-3.5 h-3.5" /> Nueva Factura
           </button>
         </div>
@@ -422,18 +423,18 @@ export default function FacturasTab({
                       <td className="px-4 py-3 text-xs font-bold text-slate-700">{fmt(f.total)} €</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
-                          <button onClick={() => setViewingDoc(f)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition cursor-pointer" title="Ver / Descargar">
+                          <button onClick={() => setViewingDoc(f)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition cursor-pointer" title="Ver / Descargar">
                             <Receipt className="w-3.5 h-3.5" />
                           </button>
                           {esBorrador && (
-                            <button onClick={() => setConfirmEmitir(f)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer" title="Emitir factura">
+                            <button onClick={() => setConfirmEmitir(f)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer" title="Emitir factura">
                               <Send className="w-3.5 h-3.5" />
                             </button>
                           )}
                           <button
                             onClick={() => esBorrador && setFacturaModal({ open: true, factura: f })}
                             disabled={!esBorrador}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
                             title={esBorrador ? 'Editar' : 'Las facturas emitidas no se pueden editar (VeriFactu)'}
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -441,7 +442,7 @@ export default function FacturasTab({
                           <button
                             onClick={() => esBorrador && onDeleteFactura(f.id)}
                             disabled={!esBorrador}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
                             title={esBorrador ? 'Eliminar' : 'Las facturas emitidas no se pueden eliminar (VeriFactu)'}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -497,27 +498,27 @@ export default function FacturasTab({
                 <span className="font-bold text-sm">Factura {f.numero}</span>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition cursor-pointer">
+                <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition cursor-pointer">
                   <Printer className="w-3.5 h-3.5" /> Descargar / Imprimir
                 </button>
                 {cli?.telefono && (
-                  <a href={waUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-lg transition">
+                  <a href={waUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-xl transition">
                     <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                   </a>
                 )}
                 {cli?.correo && (
-                  <a href={mailUrl} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg transition">
+                  <a href={mailUrl} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition">
                     <MailIcon className="w-3.5 h-3.5" /> Email
                   </a>
                 )}
-                <button onClick={() => setViewingDoc(null)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-lg transition cursor-pointer">
+                <button onClick={() => setViewingDoc(null)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl transition cursor-pointer">
                   <X className="w-3.5 h-3.5" /> Cerrar
                 </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto bg-slate-100 print:bg-white">
-              <div className="max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-xl print:shadow-none print:rounded-none print:my-0 print:max-w-none" id="doc-printable-area">
+              <div className="max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-2xl print:shadow-none print:rounded-none print:my-0 print:max-w-none" id="doc-printable-area">
                 <div className="p-10 space-y-6 text-slate-800 font-sans">
                   <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
                     <div className="flex items-center gap-4">
@@ -570,7 +571,7 @@ export default function FacturasTab({
                   </div>
 
                   {veh && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-1">
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-1">
                       <p className="text-[10px] font-extrabold uppercase text-slate-400 pb-1 border-b border-slate-200">Vehículo</p>
                       <p className="font-bold text-slate-800">{veh.marca} {veh.modelo}</p>
                       <p className="text-slate-500 font-mono">Matrícula: {veh.matricula} · Bastidor: {veh.bastidor}</p>
@@ -609,7 +610,7 @@ export default function FacturasTab({
                   </div>
 
                   {f.notas && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-slate-700">
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-slate-700">
                       <p className="font-bold text-amber-700 mb-1 uppercase text-[10px]">Notas</p>
                       <p>{f.notas}</p>
                     </div>

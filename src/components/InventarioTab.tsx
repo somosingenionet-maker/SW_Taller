@@ -156,12 +156,12 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por nombre o SKU..."
-            className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
         <button
           onClick={() => setSoloStockBajo((v) => !v)}
-          className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold rounded-xl border transition cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-bold rounded-2xl border transition cursor-pointer ${
             soloStockBajo ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
           }`}
         >
@@ -169,7 +169,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
         </button>
         <button
           onClick={openCreate}
-          className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl transition cursor-pointer"
         >
           <Plus className="w-4 h-4" /> Nuevo producto
         </button>
@@ -216,16 +216,16 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => setHistorialProducto(p)} title="Historial de movimientos" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer">
+                      <button onClick={() => setHistorialProducto(p)} title="Historial de movimientos" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer">
                         <History className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => setMovimientoProducto(p)} title="Registrar entrada / ajustar stock" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer">
+                      <button onClick={() => setMovimientoProducto(p)} title="Registrar entrada / ajustar stock" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer">
                         <PackagePlus className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => openEdit(p)} title="Editar" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer">
+                      <button onClick={() => openEdit(p)} title="Editar" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer">
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => { setConfirmDelete(p); setDeleteError(''); }} title="Eliminar" className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer">
+                      <button onClick={() => { setConfirmDelete(p); setDeleteError(''); }} title="Eliminar" className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -239,15 +239,15 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
 
       {/* Crear / editar producto */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)} />
-          <div className="w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-hidden border-l border-slate-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setShowForm(false)} />
+          <div className="relative w-full max-w-lg bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
               <div className="flex items-center gap-2.5">
                 <Package className="w-4 h-4 text-blue-400" />
                 <span className="font-bold text-sm tracking-tight">{editingId ? 'Editar producto' : 'Nuevo producto'}</span>
               </div>
-              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-slate-800 rounded-lg transition">
+              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-slate-800 rounded-2xl transition">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -256,40 +256,40 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre *</label>
                 <input type="text" value={form.nombre} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Filtro de aceite" />
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Filtro de aceite" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Descripción</label>
                 <input type="text" value={form.descripcion} onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">SKU / referencia</label>
                 <input type="text" value={form.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Precio venta €</label>
                   <input type="number" min="0" step="0.01" value={form.precioVenta} onChange={(e) => setForm((f) => ({ ...f, precioVenta: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Costo €</label>
                   <input type="number" min="0" step="0.01" value={form.costo} onChange={(e) => setForm((f) => ({ ...f, costo: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Stock mínimo</label>
                   <input type="number" min="0" step="1" value={form.stockMinimo} onChange={(e) => setForm((f) => ({ ...f, stockMinimo: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Unidad</label>
                   <select value={form.unidad} onChange={(e) => setForm((f) => ({ ...f, unidad: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                     {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
@@ -299,7 +299,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Stock inicial</label>
                   <input type="number" min="0" step="1" value={form.stockInicial} onChange={(e) => setForm((f) => ({ ...f, stockInicial: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                   <p className="text-[10px] text-slate-400 mt-1">Se registra como movimiento de "Alta inicial de inventario".</p>
                 </div>
               )}
@@ -313,11 +313,11 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
               </div>
 
               {formError && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{formError}</div>
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{formError}</div>
               )}
 
               <button onClick={handleSave} disabled={saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60">
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
                 <Check className="w-4 h-4" />
                 {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear producto'}
               </button>
@@ -380,9 +380,9 @@ function MovimientoModal({ producto, onClose, onRegistrar }: MovimientoModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm animate-modal-pop p-6 space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-slate-800">Ajustar stock — {producto.nombre}</p>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer"><X className="w-4 h-4" /></button>
@@ -391,11 +391,11 @@ function MovimientoModal({ producto, onClose, onRegistrar }: MovimientoModalProp
 
         <div className="flex gap-2">
           <button onClick={() => setTipo('entrada')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${tipo === 'entrada' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${tipo === 'entrada' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-white text-slate-500 border-slate-200'}`}>
             <ArrowUpCircle className="w-3.5 h-3.5" /> Entrada
           </button>
           <button onClick={() => setTipo('ajuste')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${tipo === 'ajuste' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${tipo === 'ajuste' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-white text-slate-500 border-slate-200'}`}>
             <SlidersHorizontal className="w-3.5 h-3.5" /> Ajuste
           </button>
         </div>
@@ -405,18 +405,18 @@ function MovimientoModal({ producto, onClose, onRegistrar }: MovimientoModalProp
             Cantidad {tipo === 'ajuste' && '(negativa para restar)'}
           </label>
           <input type="number" step="1" value={cantidad} onChange={(e) => setCantidad(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder={tipo === 'entrada' ? 'ej. 10' : 'ej. -2'} />
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder={tipo === 'entrada' ? 'ej. 10' : 'ej. -2'} />
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo</label>
           <input type="text" value={motivo} onChange={(e) => setMotivo(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Compra a proveedor, recuento físico..." />
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Compra a proveedor, recuento físico..." />
         </div>
 
-        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{error}</div>}
+        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
 
         <button onClick={handleSave} disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60">
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
           <Check className="w-4 h-4" /> {saving ? 'Guardando…' : 'Registrar movimiento'}
         </button>
       </div>
@@ -440,22 +440,22 @@ function HistorialModal({ producto, onClose }: { producto: Producto; onClose: ()
   }, [producto.id]);
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-hidden border-l border-slate-200">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
           <div className="flex items-center gap-2.5">
             <History className="w-4 h-4 text-blue-400" />
             <span className="font-bold text-sm tracking-tight">Historial — {producto.nombre}</span>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg transition"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-2xl transition"><X className="w-4 h-4" /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-2">
-          {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{error}</div>}
+          {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
           {movimientos === null && !error && <p className="text-xs text-slate-400 text-center py-6">Cargando…</p>}
           {movimientos?.length === 0 && <p className="text-xs text-slate-400 text-center py-6">Sin movimientos todavía.</p>}
           {movimientos?.map((m) => (
-            <div key={m.id} className="border border-slate-200 rounded-xl px-4 py-3 flex items-start justify-between gap-2">
+            <div key={m.id} className="border border-slate-200 rounded-2xl px-4 py-3 flex items-start justify-between gap-2">
               <div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${MOVIMIENTO_COLOR[m.tipo]}`}>{MOVIMIENTO_LABEL[m.tipo]}</span>
                 {m.motivo && <p className="text-xs text-slate-600 mt-1">{m.motivo}</p>}

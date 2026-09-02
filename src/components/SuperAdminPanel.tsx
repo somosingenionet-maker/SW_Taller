@@ -124,7 +124,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
             <button
               onClick={() => setLogoModalOpen(true)}
               title="Cambiar logo de la plataforma"
-              className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-400 transition"
+              className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-400 transition"
             >
               {logo ? (
                 <img src={logo} alt="Tibox" className="w-full h-full object-contain" />
@@ -146,7 +146,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
             <button
               onClick={() => setMiCuentaOpen(true)}
               title="Mi cuenta"
-              className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+              className="flex items-center gap-2 rounded-2xl px-3 py-2 bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
             >
               <div className="w-6 h-6 rounded-full bg-white text-slate-900 flex items-center justify-center text-[10px] font-black">
                 {currentUser.nombre[0].toUpperCase()}
@@ -157,7 +157,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
             <button
               onClick={onLogout}
               title="Cerrar sesión"
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+              className="p-2 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />
             </button>
@@ -168,7 +168,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
       {/* BODY */}
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
         {listError && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium px-4 py-2.5 rounded-lg">
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm font-medium px-4 py-2.5 rounded-xl">
             {listError}
           </div>
         )}
@@ -182,7 +182,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
               </div>
               <button
                 onClick={openCreate}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> Nueva Empresa
               </button>
@@ -200,7 +200,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                 {empresas.map((e) => (
                   <div key={e.id} className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-4">
                     <div
-                      className="w-11 h-11 rounded-xl flex items-center justify-center font-black text-sm shrink-0"
+                      className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0"
                       style={{ backgroundColor: `${e.brandColor}22`, color: e.brandColor }}
                     >
                       {e.nombre.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() || 'E'}
@@ -218,7 +218,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                       <button
                         onClick={() => setManageEmpresa(e)}
                         title="Ver usuarios"
-                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"
                       >
                         <Users className="w-3.5 h-3.5" />
                       </button>
@@ -231,7 +231,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                       </button>
                       <button
                         onClick={() => setConfirmDelete(e)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                         title="Eliminar empresa"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -259,7 +259,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                 type="text"
                 value={form.nombre}
                 onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 placeholder="Taller Ejemplo S.L."
               />
             </div>
@@ -270,7 +270,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                 type="text"
                 value={form.nif}
                 onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                 placeholder="B-00000000"
               />
             </div>
@@ -285,7 +285,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                     type="text"
                     value={form.adminNombre}
                     onChange={(e) => setForm((f) => ({ ...f, adminNombre: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="Juan Pérez"
                   />
                 </div>
@@ -295,7 +295,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                     type="email"
                     value={form.adminEmail}
                     onChange={(e) => setForm((f) => ({ ...f, adminEmail: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="admin@empresa.net"
                   />
                 </div>
@@ -305,7 +305,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                     type="password"
                     value={form.adminPassword}
                     onChange={(e) => setForm((f) => ({ ...f, adminPassword: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder="••••••••"
                     autoComplete="new-password"
                   />
@@ -315,7 +315,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
             </div>
 
             {formError && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+              <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">
                 {formError}
               </div>
             )}
@@ -323,7 +323,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60"
             >
               <Check className="w-4 h-4" />
               {saving ? 'Creando…' : 'Crear empresa'}
@@ -411,9 +411,9 @@ function LogoPlataformaModal({ logoActual, onClose, onSaved }: LogoPlataformaMod
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm animate-modal-pop p-6 space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-slate-800">Logo de la plataforma</p>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer">
@@ -425,7 +425,7 @@ function LogoPlataformaModal({ logoActual, onClose, onSaved }: LogoPlataformaMod
         </p>
 
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-xl bg-blue-600 flex items-center justify-center overflow-hidden shrink-0 shadow-md border border-slate-200">
+          <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center overflow-hidden shrink-0 shadow-md border border-slate-200">
             {draft ? (
               <img src={draft} alt="logo" className="w-full h-full object-contain" />
             ) : (
@@ -435,7 +435,7 @@ function LogoPlataformaModal({ logoActual, onClose, onSaved }: LogoPlataformaMod
           <div className="flex flex-col gap-2">
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold rounded-lg border border-blue-200 transition cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold rounded-xl border border-blue-200 transition cursor-pointer"
             >
               <Upload className="w-3.5 h-3.5" /> Subir imagen
             </button>
@@ -450,7 +450,7 @@ function LogoPlataformaModal({ logoActual, onClose, onSaved }: LogoPlataformaMod
         </div>
 
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">
             {error}
           </div>
         )}
@@ -458,7 +458,7 @@ function LogoPlataformaModal({ logoActual, onClose, onSaved }: LogoPlataformaMod
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60"
         >
           <Check className="w-4 h-4" />
           {saving ? 'Guardando…' : 'Guardar cambios'}
@@ -510,9 +510,9 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm animate-modal-pop p-6 space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-slate-800">Mi cuenta</p>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer">
@@ -526,7 +526,7 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
             type="text"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
 
@@ -536,7 +536,7 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
           <p className="text-[10px] text-slate-400 mt-1">Es también tu usuario de acceso — al cambiarlo, inicia sesión con el nuevo email.</p>
         </div>
@@ -547,7 +547,7 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
             placeholder="••••••••"
             autoComplete="new-password"
           />
@@ -555,7 +555,7 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
         </div>
 
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">
             {error}
           </div>
         )}
@@ -563,7 +563,7 @@ function MiCuentaModal({ currentUser, onClose, onSaved }: MiCuentaModalProps) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60"
         >
           <Check className="w-4 h-4" />
           {saving ? 'Guardando…' : 'Guardar cambios'}

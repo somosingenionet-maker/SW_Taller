@@ -265,33 +265,33 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrev}
-            className="p-2 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 transition cursor-pointer"
+            className="p-2 border border-slate-200 rounded-2xl text-slate-500 hover:bg-slate-50 transition cursor-pointer"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={() => setSelectedDay(new Date())}
-            className="px-3 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer"
+            className="px-3 py-2 text-xs font-bold text-slate-600 border border-slate-200 rounded-2xl hover:bg-slate-50 transition cursor-pointer"
           >
             Hoy
           </button>
           <button
             onClick={handleNext}
-            className="p-2 border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 transition cursor-pointer"
+            className="p-2 border border-slate-200 rounded-2xl text-slate-500 hover:bg-slate-50 transition cursor-pointer"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer"
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl transition cursor-pointer"
         >
           <Plus className="w-4 h-4" /> Nueva cita
         </button>
       </div>
 
       {/* Selector de vista */}
-      <div className="flex gap-1 p-1 bg-slate-50 border border-slate-100 rounded-lg w-fit">
+      <div className="flex gap-1 p-1 bg-slate-50 border border-slate-100 rounded-xl w-fit">
         {VISTAS.map((v) => (
           <button
             key={v.id}
@@ -318,7 +318,7 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
             <button
               key={key}
               onClick={() => setSelectedDay(d)}
-              className={`flex flex-col items-center py-3 rounded-xl border transition cursor-pointer ${
+              className={`flex flex-col items-center py-3 rounded-2xl border transition cursor-pointer ${
                 activo ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -387,24 +387,24 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
 
                   <div className="flex items-center gap-1 shrink-0">
                     {(c.estado === 'pendiente' || c.estado === 'confirmada') && (
-                      <button onClick={() => setConvertirCita(c)} title="Convertir en OT" className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition cursor-pointer">
+                      <button onClick={() => setConvertirCita(c)} title="Convertir en OT" className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition cursor-pointer">
                         <ArrowRightCircle className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {c.estado === 'pendiente' && (
-                      <button onClick={() => handleCambiarEstado(c, 'confirmada')} title="Confirmar cita" className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition cursor-pointer">
+                      <button onClick={() => handleCambiarEstado(c, 'confirmada')} title="Confirmar cita" className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition cursor-pointer">
                         <ClipboardCheck className="w-3.5 h-3.5" />
                       </button>
                     )}
                     {(c.estado === 'pendiente' || c.estado === 'confirmada') && (
-                      <button onClick={() => handleCambiarEstado(c, 'cancelada')} title="Cancelar cita" className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer">
+                      <button onClick={() => handleCambiarEstado(c, 'cancelada')} title="Cancelar cita" className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition cursor-pointer">
                         <Ban className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    <button onClick={() => openEdit(c)} title="Editar" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer">
+                    <button onClick={() => openEdit(c)} title="Editar" className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => setConfirmDelete(c)} title="Eliminar" className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer">
+                    <button onClick={() => setConfirmDelete(c)} title="Eliminar" className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -444,15 +444,15 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
 
       {/* Crear / editar cita */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)} />
-          <div className="w-full max-w-md bg-white shadow-2xl flex flex-col h-full overflow-hidden border-l border-slate-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setShowForm(false)} />
+          <div className="relative w-full max-w-lg bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
               <div className="flex items-center gap-2.5">
                 <CalendarClock className="w-4 h-4 text-blue-400" />
                 <span className="font-bold text-sm tracking-tight">{editingId ? 'Editar cita' : 'Nueva cita'}</span>
               </div>
-              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-slate-800 rounded-lg transition">
+              <button onClick={() => setShowForm(false)} className="p-1.5 hover:bg-slate-800 rounded-2xl transition">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -462,28 +462,28 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha *</label>
                   <input type="date" value={form.fecha} onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Hora *</label>
                   <input type="time" value={form.hora} onChange={(e) => setForm((f) => ({ ...f, hora: e.target.value }))}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Duración (minutos) *</label>
                 <input type="number" min="5" step="5" value={form.duracionMinutos}
                   onChange={(e) => setForm((f) => ({ ...f, duracionMinutos: e.target.value === '' ? '' : Number(e.target.value) }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
 
               <div className="flex gap-2">
                 <button onClick={() => setForm((f) => ({ ...f, modo: 'registrado' }))}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${form.modo === 'registrado' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${form.modo === 'registrado' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-500 border-slate-200'}`}>
                   Cliente registrado
                 </button>
                 <button onClick={() => setForm((f) => ({ ...f, modo: 'nuevo' }))}
-                  className={`flex-1 py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${form.modo === 'nuevo' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${form.modo === 'nuevo' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-slate-500 border-slate-200'}`}>
                   Cliente nuevo
                 </button>
               </div>
@@ -498,7 +498,7 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
                         const dueno = clientes.find((c) => c.vehiculosAsociados?.includes(vehId));
                         setForm((f) => ({ ...f, vehiculoId: vehId, clienteId: dueno?.id ?? f.clienteId }));
                       }}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                       <option value="">Sin vehículo concreto</option>
                       {vehiculos.map((v) => (
                         <option key={v.id} value={v.id}>{v.marca} {v.modelo} · {v.matricula}</option>
@@ -508,7 +508,7 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Cliente *</label>
                     <select value={form.clienteId} onChange={(e) => setForm((f) => ({ ...f, clienteId: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                       <option value="">Seleccionar cliente...</option>
                       {clientes.map((c) => (
                         <option key={c.id} value={c.id}>{c.nombre} {c.apellidos}</option>
@@ -521,17 +521,17 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre de contacto *</label>
                     <input type="text" value={form.contactoNombre} onChange={(e) => setForm((f) => ({ ...f, contactoNombre: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Nombre y apellidos" />
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Nombre y apellidos" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Teléfono</label>
                     <input type="text" value={form.contactoTelefono} onChange={(e) => setForm((f) => ({ ...f, contactoTelefono: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 mb-1">Vehículo (descripción libre)</label>
                     <input type="text" value={form.vehiculoDescripcion} onChange={(e) => setForm((f) => ({ ...f, vehiculoDescripcion: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Marca, modelo, color..." />
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Marca, modelo, color..." />
                   </div>
                 </>
               )}
@@ -539,12 +539,12 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Motivo *</label>
                 <input type="text" value={form.motivo} onChange={(e) => setForm((f) => ({ ...f, motivo: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Revisión de frenos, cambio de aceite..." />
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Revisión de frenos, cambio de aceite..." />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Técnico (opcional)</label>
                 <select value={form.tecnicoId} onChange={(e) => setForm((f) => ({ ...f, tecnicoId: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
                   <option value="">Sin asignar</option>
                   {tecnicos.filter((t) => t.activo).map((t) => <option key={t.id} value={t.id}>{t.nombre}{t.especialidad ? ` · ${t.especialidad}` : ''}</option>)}
                 </select>
@@ -552,11 +552,11 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Notas</label>
                 <textarea value={form.notas} onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))} rows={2}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
 
               {solapamiento && (
-                <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-4 py-2.5 rounded-lg flex items-start gap-2">
+                <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-4 py-2.5 rounded-xl flex items-start gap-2">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
                   <span>
                     {solapamiento.mismoTecnico.length > 0
@@ -568,11 +568,11 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
               )}
 
               {formError && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{formError}</div>
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{formError}</div>
               )}
 
               <button onClick={handleSave} disabled={saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60">
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
                 <Check className="w-4 h-4" />
                 {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear cita'}
               </button>
@@ -666,9 +666,9 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, on
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm animate-modal-pop p-6 space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-slate-800">Convertir en OT</p>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer"><X className="w-4 h-4" /></button>
@@ -676,7 +676,7 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, on
         <p className="text-xs text-slate-500">{cita.motivo}</p>
 
         {!datosCompletos && (
-          <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-4 py-2.5 rounded-lg">
+          <div className="bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium px-4 py-2.5 rounded-xl">
             Esta cita no tiene cliente/vehículo registrados. Complétalos para poder crear la OT.
           </div>
         )}
@@ -690,7 +690,7 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, on
               setVehiculoId(vehId);
               setClienteId(dueno?.id ?? '');
             }}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
             <option value="">Seleccionar vehículo...</option>
             {vehiculos.map((v) => <option key={v.id} value={v.id}>{v.marca} {v.modelo} · {v.matricula}</option>)}
           </select>
@@ -698,7 +698,7 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, on
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">Cliente *</label>
           <select value={clienteId} onChange={(e) => setClienteId(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
             <option value="">Seleccionar cliente...</option>
             {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre} {c.apellidos}</option>)}
           </select>
@@ -706,11 +706,11 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, on
 
         <div className="flex gap-2">
           <button onClick={() => setCreateTipo('presupuesto')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${createTipo === 'presupuesto' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+            className={`flex-1 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${createTipo === 'presupuesto' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-white text-slate-500 border-slate-200'}`}>
             Presupuesto
           </button>
           <button onClick={() => setCreateTipo('recibido')}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg border transition cursor-pointer ${createTipo === 'recibido' ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-white text-slate-500 border-slate-200'}`}>
+            className={`flex-1 py-2 text-xs font-bold rounded-xl border transition cursor-pointer ${createTipo === 'recibido' ? 'bg-teal-50 text-teal-700 border-teal-200' : 'bg-white text-slate-500 border-slate-200'}`}>
             Vehículo recibido
           </button>
         </div>
@@ -719,14 +719,14 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, on
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Kilometraje de entrada *</label>
             <input type="number" min="0" value={kilometraje} onChange={(e) => setKilometraje(e.target.value === '' ? '' : Number(e.target.value))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
         )}
 
-        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{error}</div>}
+        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
 
         <button onClick={handleConfirmar} disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60">
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
           <Check className="w-4 h-4" /> {saving ? 'Creando…' : 'Crear orden de trabajo'}
         </button>
       </div>
@@ -762,7 +762,7 @@ function VistaSemanal({ weekDays, citas, tecnicos, hoy, clienteLabel, onSelectCi
               .filter((c) => localKey(new Date(c.fechaHora)) === key)
               .sort((a, b) => a.fechaHora.localeCompare(b.fechaHora));
             return (
-              <div key={key} className="flex flex-col bg-slate-50/60 border border-slate-100 rounded-xl overflow-hidden">
+              <div key={key} className="flex flex-col bg-slate-50/60 border border-slate-100 rounded-2xl overflow-hidden">
                 <button
                   onClick={() => onSelectDay(d)}
                   title="Ver el día"
@@ -785,7 +785,7 @@ function VistaSemanal({ weekDays, citas, tecnicos, hoy, clienteLabel, onSelectCi
                         <button
                           key={c.id}
                           onClick={() => onSelectCita(c)}
-                          className={`w-full text-left px-2 py-1.5 rounded-lg text-[10px] leading-tight transition hover:opacity-80 cursor-pointer ${meta.bg} ${meta.color}`}
+                          className={`w-full text-left px-2 py-1.5 rounded-xl text-[10px] leading-tight transition hover:opacity-80 cursor-pointer ${meta.bg} ${meta.color}`}
                         >
                           <p className="font-extrabold">
                             {new Date(c.fechaHora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
@@ -850,7 +850,7 @@ function VistaMensual({ mesAncla, citas, hoy, clienteLabel, onSelectCita, onSele
               <div
                 key={key}
                 onClick={() => onSelectDay(d)}
-                className={`min-h-[92px] p-1.5 rounded-lg border transition cursor-pointer ${
+                className={`min-h-[92px] p-1.5 rounded-xl border transition cursor-pointer ${
                   esHoy ? 'border-blue-400 ring-1 ring-blue-200' : 'border-slate-100'
                 } ${enMes ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/50 hover:bg-slate-50'}`}
               >
