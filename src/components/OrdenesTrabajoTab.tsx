@@ -8,6 +8,7 @@ import {
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
 import SearchableSelect from './SearchableSelect';
+import ConfirmDialog from './ConfirmDialog';
 
 interface Props {
   ordenes: OrdenTrabajo[];
@@ -90,13 +91,13 @@ function LineaTipoYProducto({
         value={form.tipo}
         disabled={bloquearTipo}
         onChange={(e) => setForm((f) => ({ ...EMPTY_LINEA, tipo: e.target.value as LineaOTTipo, cantidad: f.cantidad }))}
-        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none bg-white disabled:bg-slate-100 disabled:text-slate-400"
+        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none bg-white disabled:bg-slate-100 disabled:text-slate-400"
       >
         {(Object.keys(TIPO_META) as LineaOTTipo[]).map((t) => <option key={t} value={t}>{TIPO_META[t].label}</option>)}
       </select>
       {form.tipo === 'producto' ? (
         bloquearTipo ? (
-          <div className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-100 text-slate-500 truncate flex items-center" title={form.descripcion}>
+          <div className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs bg-slate-100 text-slate-500 truncate flex items-center" title={form.descripcion}>
             {form.descripcion || '—'}
           </div>
         ) : (
@@ -119,7 +120,7 @@ function LineaTipoYProducto({
           placeholder="Descripción *"
           value={form.descripcion}
           onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
-          className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none"
+          className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none"
         />
       )}
     </div>
@@ -440,7 +441,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
         >
           <Plus size={15} /> Nueva OT
         </button>
@@ -455,7 +456,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
             placeholder="Buscar por número, matrícula o cliente..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -463,7 +464,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
             <button
               key={e}
               onClick={() => setFilterEstado(e)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${filterEstado === e ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${filterEstado === e ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >
               {e === 'todas' ? 'Todas' : ESTADO_META[e as OTEstado].label}
             </button>
@@ -557,18 +558,18 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => openEdit(selected)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                    className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
                     title="Editar OT"
                   >
                     <Pencil size={15} />
                   </button>
                   <button
                     onClick={() => setConfirmDelete(selected.id)}
-                    className="p-2 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition"
+                    className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition"
                   >
                     <Trash2 size={15} />
                   </button>
-                  <button onClick={() => setSelected(null)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition">
+                  <button onClick={() => setSelected(null)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition">
                     <X size={16} />
                   </button>
                 </div>
@@ -577,7 +578,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
                 {/* Vehicle + Client */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-50 rounded-xl p-3 flex items-start gap-2">
+                  <div className="bg-slate-50 rounded-2xl p-3 flex items-start gap-2">
                     <Car size={14} className="text-blue-500 mt-0.5 shrink-0" />
                     <div>
                       <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Vehículo</p>
@@ -589,7 +590,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       )}
                     </div>
                   </div>
-                  <div className="bg-slate-50 rounded-xl p-3 flex items-start gap-2">
+                  <div className="bg-slate-50 rounded-2xl p-3 flex items-start gap-2">
                     <User size={14} className="text-blue-500 mt-0.5 shrink-0" />
                     <div>
                       <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Cliente</p>
@@ -609,24 +610,24 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 {/* Problem + Diagnosis */}
                 <div className="space-y-3">
                   <div>
-                    <p className="text-xs font-bold text-slate-500 uppercase mb-1">Problema descrito por el cliente</p>
-                    <p className="text-sm text-slate-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">{selected.descripcionProblema}</p>
+                    <p className="text-xs font-semibold text-slate-600 mb-1">Problema descrito por el cliente</p>
+                    <p className="text-sm text-slate-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">{selected.descripcionProblema}</p>
                   </div>
                   {selected.diagnostico && (
                     <div>
-                      <p className="text-xs font-bold text-slate-500 uppercase mb-1">Diagnóstico del taller</p>
-                      <p className="text-sm text-slate-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">{selected.diagnostico}</p>
+                      <p className="text-xs font-semibold text-slate-600 mb-1">Diagnóstico del taller</p>
+                      <p className="text-sm text-slate-700 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">{selected.diagnostico}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Lines */}
                 <div>
-                  <p className="text-xs font-bold text-slate-500 uppercase mb-2">Líneas de trabajo</p>
+                  <p className="text-xs font-semibold text-slate-600 mb-2">Líneas de trabajo</p>
                   {selected.lineas.length === 0 ? (
                     <p className="text-xs text-slate-400 italic">Sin líneas añadidas aún.</p>
                   ) : (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden">
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden">
                       <table className="w-full text-xs">
                         <thead className="bg-slate-50 text-slate-400 uppercase text-[10px]">
                           <tr>
@@ -659,7 +660,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Totals */}
                 {totalesSelected && selected.lineas.length > 0 && (
-                  <div className="bg-slate-50 rounded-xl p-4 space-y-1.5 text-sm">
+                  <div className="bg-slate-50 rounded-2xl p-4 space-y-1.5 text-sm">
                     <div className="flex justify-between text-slate-500">
                       <span>Subtotal</span>
                       <span className="font-mono">{totalesSelected.subtotal.toFixed(2)} €</span>
@@ -677,8 +678,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {selected.notas && (
                   <div>
-                    <p className="text-xs font-bold text-slate-500 uppercase mb-1">Notas</p>
-                    <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">{selected.notas}</p>
+                    <p className="text-xs font-semibold text-slate-600 mb-1">Notas</p>
+                    <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">{selected.notas}</p>
                   </div>
                 )}
 
@@ -687,7 +688,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 {selected.estado === 'presupuesto' && (() => {
                   const enviado = selected.presupuestoEstado === 'enviado';
                   return (
-                    <div className={`rounded-xl border p-4 space-y-3 ${enviado ? 'bg-green-50 border-green-200' : 'bg-violet-50 border-violet-200'}`}>
+                    <div className={`rounded-2xl border p-4 space-y-3 ${enviado ? 'bg-green-50 border-green-200' : 'bg-violet-50 border-violet-200'}`}>
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold uppercase text-slate-500">Presupuesto</p>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${enviado ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -700,14 +701,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       <div className="flex gap-2">
                         <button
                           onClick={() => setPresupuestoPDF(selected)}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
+                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
                         >
                           <FileText size={13} /> Ver / Descargar PDF
                         </button>
                         {!enviado && (
                           <button
                             onClick={() => handleEnviarPresupuesto(selected)}
-                            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
+                            className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
                           >
                             <Check size={13} /> Marcar enviado
                           </button>
@@ -732,7 +733,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     ? `mailto:${cli.correo}?subject=${encodeURIComponent(`Su vehículo está listo - ${empresa.nombre}`)}&body=${encodeURIComponent(mensaje)}`
                     : null;
                   return (
-                    <div className={`rounded-xl border p-4 space-y-3 ${notificado ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+                    <div className={`rounded-2xl border p-4 space-y-3 ${notificado ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><Bell size={11} /> Notificación al cliente</p>
                         {notificado && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Notificado</span>}
@@ -746,31 +747,31 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             href={waHref}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition"
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition"
                           >
                             <MessageCircle size={13} /> WhatsApp
                           </a>
                         ) : (
-                          <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
+                          <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
                             <MessageCircle size={13} /> WhatsApp
                           </span>
                         )}
                         {mailHref ? (
                           <a
                             href={mailHref}
-                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
                           >
                             <Mail size={13} /> Email
                           </a>
                         ) : (
-                          <span className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
+                          <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
                             <Mail size={13} /> Email
                           </span>
                         )}
                         {!notificado && (
                           <button
                             onClick={() => handleNotificarListo(selected)}
-                            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
+                            className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
                           >
                             <Check size={13} /> Marcar notificado
                           </button>
@@ -802,7 +803,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   };
                   return (
                     <div>
-                      <p className="text-xs font-bold text-slate-500 uppercase mb-3">Historial</p>
+                      <p className="text-xs font-semibold text-slate-600 mb-3">Historial</p>
                       <div className="relative">
                         <div className="absolute left-[7px] top-2 bottom-2 w-px bg-slate-200" />
                         <div className="space-y-4">
@@ -831,13 +832,13 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 {/* Estado flow */}
                 {selected.estado !== 'cancelado' && selected.estado !== 'entregado' && (
                   <div>
-                    <p className="text-xs font-bold text-slate-500 uppercase mb-2">Avanzar estado</p>
+                    <p className="text-xs font-semibold text-slate-600 mb-2">Avanzar estado</p>
                     <div className="flex flex-wrap gap-2">
                       {/* Camino B: recibido sin presupuesto aprobado → puede generar presupuesto */}
                       {selected.estado === 'recibido' && !selected.presupuestoAprobado && (
                         <button
                           onClick={() => handleEstadoChange(selected, 'presupuesto')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border ${ESTADO_META['presupuesto'].bg} ${ESTADO_META['presupuesto'].color} border-current/20 hover:opacity-80`}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border ${ESTADO_META['presupuesto'].bg} ${ESTADO_META['presupuesto'].color} border-current/20 hover:opacity-80`}
                         >
                           → {ESTADO_META['presupuesto'].label}
                         </button>
@@ -851,14 +852,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                         <button
                           key={e}
                           onClick={() => handleEstadoChange(selected, e)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition border ${ESTADO_META[e].bg} ${ESTADO_META[e].color} border-current/20 hover:opacity-80`}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border ${ESTADO_META[e].bg} ${ESTADO_META[e].color} border-current/20 hover:opacity-80`}
                         >
                           {selected.estado === 'presupuesto' && e === 'recibido' ? '🔑 Recibir vehículo' : `→ ${ESTADO_META[e].label}`}
                         </button>
                       ))}
                       <button
                         onClick={() => handleEstadoChange(selected, 'cancelado')}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold transition border bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
+                        className="px-3 py-1.5 rounded-xl text-xs font-semibold transition border bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100"
                       >
                         Cancelar OT
                       </button>
@@ -889,20 +890,20 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                   <Pencil size={15} className="text-blue-600" /> Editar {selected.numero}
                 </h3>
-                <button onClick={() => setIsEditing(false)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition"><X size={16} /></button>
+                <button onClick={() => setIsEditing(false)} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition"><X size={16} /></button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
                 {/* Vehículo */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Vehículo *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Vehículo *</label>
                   <select value={editForm.vehiculoId}
                     onChange={e => {
                       const vehId = e.target.value;
                       const dueno = clientes.find(c => c.vehiculosAsociados?.includes(vehId));
                       setEditForm(f => ({ ...f, vehiculoId: vehId, clienteId: dueno?.id ?? '' }));
                     }}
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     {vehiculos.map(v => (
                       <option key={v.id} value={v.id}>{v.marca} {v.modelo} · {v.matricula}</option>
                     ))}
@@ -911,11 +912,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Cliente */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Cliente *</label>
                   {(() => {
                     const dueno = clientes.find(c => c.vehiculosAsociados?.includes(editForm.vehiculoId));
                     if (dueno) return (
-                      <div className="mt-1 px-3 py-2 border border-blue-200 bg-blue-50 rounded-lg text-sm text-blue-800 font-medium flex items-center justify-between">
+                      <div className="mt-1 px-3 py-2 border border-blue-200 bg-blue-50 rounded-xl text-sm text-blue-800 font-medium flex items-center justify-between">
                         <span>{dueno.nombre} {dueno.apellidos}</span>
                         <span className="text-[10px] text-blue-400">Asignado al vehículo</span>
                       </div>
@@ -923,7 +924,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     return (
                       <select value={editForm.clienteId}
                         onChange={e => setEditForm(f => ({ ...f, clienteId: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                         <option value="">Seleccionar cliente...</option>
                         {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellidos}</option>)}
                       </select>
@@ -933,12 +934,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Fecha */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
                     {selected.estado === 'presupuesto' ? 'Fecha solicitud *' : 'Fecha recepción *'}
                   </label>
                   <input type="date" value={editForm.fechaRecepcion}
                     onChange={e => setEditForm(f => ({ ...f, fechaRecepcion: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
 
                 {/* Campos solo disponibles una vez el vehículo está en el taller */}
@@ -946,23 +947,23 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   <>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Entrega estimada</label>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1">Entrega estimada</label>
                         <input type="date" value={editForm.fechaEstimadaEntrega}
                           onChange={e => setEditForm(f => ({ ...f, fechaEstimadaEntrega: e.target.value }))}
-                          className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1"><Gauge size={10} /> Km entrada *</label>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1"><Gauge size={10} /> Km entrada *</label>
                         <input type="number" min="0" value={editForm.kilometrajeEntrada}
                           onChange={e => setEditForm(f => ({ ...f, kilometrajeEntrada: e.target.value === '' ? '' : Number(e.target.value) }))}
-                          className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono" />
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono" />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Técnico asignado</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Técnico asignado</label>
                       <select value={editForm.tecnicoAsignado}
                         onChange={e => setEditForm(f => ({ ...f, tecnicoAsignado: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
                         <option value="">— Sin asignar —</option>
                         {tecnicos.filter(t => t.activo).map(t => <option key={t.id} value={t.nombre}>{t.nombre}{t.especialidad ? ` · ${t.especialidad}` : ''}</option>)}
                       </select>
@@ -972,25 +973,25 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Problema */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Problema descrito por el cliente *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Problema descrito por el cliente *</label>
                   <textarea rows={2} value={editForm.descripcionProblema}
                     onChange={e => setEditForm(f => ({ ...f, descripcionProblema: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
                 </div>
 
                 {/* Diagnóstico */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Diagnóstico técnico</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Diagnóstico técnico</label>
                   <textarea rows={2} value={editForm.diagnostico}
                     onChange={e => setEditForm(f => ({ ...f, diagnostico: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
                 </div>
 
                 {/* Líneas de trabajo */}
                 <div>
-                  <p className="text-xs font-bold text-slate-500 uppercase mb-2">Líneas de trabajo</p>
+                  <p className="text-xs font-semibold text-slate-600 mb-2">Líneas de trabajo</p>
                   {editOTLineas.length > 0 && (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden mb-3">
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden mb-3">
                       <table className="w-full text-xs">
                         <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase">
                           <tr>
@@ -1016,18 +1017,18 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                   <div className="grid grid-cols-3 gap-2">
                                     <input type="number" min="1" step="1" value={editOTEditLineaForm.cantidad}
                                       onChange={e => setEditOTEditLineaForm(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs font-mono focus:outline-none"
+                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none"
                                       placeholder={editOTEditLineaForm.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'} />
                                     <input type="number" min="0" step="0.01" value={editOTEditLineaForm.precioUnitario}
                                       onChange={e => setEditOTEditLineaForm(f => ({ ...f, precioUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs font-mono focus:outline-none" placeholder="Precio venta € *" />
+                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none" placeholder="Precio venta € *" />
                                     <input type="number" min="0" step="0.01" value={editOTEditLineaForm.costoUnitario}
                                       onChange={e => setEditOTEditLineaForm(f => ({ ...f, costoUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs font-mono focus:outline-none" placeholder="Coste taller €" />
+                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none" placeholder="Coste taller €" />
                                   </div>
                                   <div className="flex gap-2 justify-end">
                                     <button type="button" onClick={() => setEditOTEditingLineaId(null)}
-                                      className="px-2 py-1 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-50">Cancelar</button>
+                                      className="px-2 py-1 rounded-xl border border-slate-200 text-xs text-slate-500 hover:bg-slate-50">Cancelar</button>
                                     <button type="button" onClick={() => {
                                       if (!editOTEditLineaForm.descripcion || editOTEditLineaForm.cantidad === '' || editOTEditLineaForm.precioUnitario === '') return;
                                       setEditOTLineas(prev => prev.map(x => x.id !== l.id ? x : {
@@ -1038,7 +1039,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                         subtotal: Number(editOTEditLineaForm.cantidad) * Number(editOTEditLineaForm.precioUnitario),
                                       }));
                                       setEditOTEditingLineaId(null);
-                                    }} className="px-2 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 flex items-center gap-1">
+                                    }} className="px-2 py-1 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 flex items-center gap-1">
                                       <Check size={11} /> Guardar
                                     </button>
                                   </div>
@@ -1068,7 +1069,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     </div>
                   )}
                   {/* Nueva línea */}
-                  <div className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
+                  <div className="bg-slate-50 rounded-2xl p-3 space-y-2 border border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">Añadir línea</p>
                     <LineaTipoYProducto
                       form={editOTNewLinea}
@@ -1080,15 +1081,15 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       <input type="number" min="1" step="1" value={editOTNewLinea.cantidad}
                         onChange={e => setEditOTNewLinea(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
                         placeholder={editOTNewLinea.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none" />
+                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
                       <input type="number" min="0" step="0.01" value={editOTNewLinea.precioUnitario}
                         onChange={e => setEditOTNewLinea(f => ({ ...f, precioUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
                         placeholder="Precio venta € *"
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none" />
+                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
                       <input type="number" min="0" step="0.01" value={editOTNewLinea.costoUnitario}
                         onChange={e => setEditOTNewLinea(f => ({ ...f, costoUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
                         placeholder="Coste taller €"
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none" />
+                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
                     </div>
                     <button type="button" onClick={() => {
                       if (!editOTNewLinea.descripcion || editOTNewLinea.cantidad === '' || editOTNewLinea.precioUnitario === '') return;
@@ -1105,7 +1106,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       };
                       setEditOTLineas(prev => [...prev, linea]);
                       setEditOTNewLinea(EMPTY_LINEA);
-                    }} className="w-full py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1">
+                    }} className="w-full py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1">
                       <Plus size={11} /> Añadir línea
                     </button>
                   </div>
@@ -1113,10 +1114,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* IVA */}
                 <div className="flex items-center gap-3">
-                  <label className="text-xs font-bold text-slate-500 uppercase">IVA (%)</label>
+                  <label className="text-xs font-semibold text-slate-600">IVA (%)</label>
                   <input type="number" min="0" max="100" value={editForm.ivaPct}
                     onChange={e => setEditForm(f => ({ ...f, ivaPct: Number(e.target.value) }))}
-                    className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    className="w-20 px-2 py-1.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
                   {editOTLineas.length > 0 && (() => {
                     const t = calcTotals(editOTLineas, editForm.ivaPct);
                     return <div className="flex-1 text-right text-sm"><span className="text-slate-400">Base: {t.subtotal.toFixed(2)} € · IVA: {t.totalIva.toFixed(2)} € · </span><strong className="text-slate-800 font-mono">{t.total.toFixed(2)} €</strong></div>;
@@ -1125,19 +1126,19 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Notas */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Notas internas</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Notas internas</label>
                   <textarea rows={2} value={editForm.notas}
                     onChange={e => setEditForm(f => ({ ...f, notas: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
                 </div>
 
                 <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 pb-4">
                   <button type="button" onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
+                    className="px-4 py-2 rounded-2xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
                     Cancelar
                   </button>
                   <button type="button" onClick={() => handleEditSave(selected)}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition shadow-sm flex items-center gap-2">
+                    className="px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition shadow-sm flex items-center gap-2">
                     <Check size={14} /> Guardar cambios
                   </button>
                 </div>
@@ -1148,38 +1149,32 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       </AnimatePresence>
 
       {/* Create Panel */}
-      <AnimatePresence>
-        {isCreating && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/30 z-30"
-              onClick={() => setIsCreating(false)}
-            />
-            <motion.div
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-              className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl z-40 flex flex-col overflow-hidden"
-            >
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                <h3 className="font-bold text-slate-800 flex items-center gap-2"><Plus size={15} className="text-blue-600" /> Nueva Orden de Trabajo</h3>
-                <button onClick={() => setIsCreating(false)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 transition"><X size={16} /></button>
+      {isCreating && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setIsCreating(false)} />
+            <div className="relative w-full max-w-2xl bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <Plus className="w-4 h-4 text-blue-400" />
+                  <span className="font-bold text-sm tracking-tight">Nueva Orden de Trabajo</span>
+                </div>
+                <button onClick={() => setIsCreating(false)} className="p-1.5 hover:bg-slate-800 rounded-2xl transition"><X className="w-4 h-4" /></button>
               </div>
 
-              <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+              <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
 
                 {/* Tipo de ingreso */}
                 <div className="grid grid-cols-2 gap-2">
                   <button type="button"
                     onClick={() => setCreateTipo('presupuesto')}
-                    className={`py-3 px-4 rounded-xl border-2 text-sm font-semibold transition text-left ${createTipo === 'presupuesto' ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                    className={`py-3 px-4 rounded-2xl border-2 text-sm font-semibold transition text-left ${createTipo === 'presupuesto' ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
                   >
                     <div className="font-bold mb-0.5">📋 Nuevo presupuesto</div>
                     <div className="text-xs font-normal opacity-70">El vehículo aún no entra al taller</div>
                   </button>
                   <button type="button"
                     onClick={() => setCreateTipo('recibido')}
-                    className={`py-3 px-4 rounded-xl border-2 text-sm font-semibold transition text-left ${createTipo === 'recibido' ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                    className={`py-3 px-4 rounded-2xl border-2 text-sm font-semibold transition text-left ${createTipo === 'recibido' ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
                   >
                     <div className="font-bold mb-0.5">🔑 Recepción de vehículo</div>
                     <div className="text-xs font-normal opacity-70">El vehículo entra físicamente al taller</div>
@@ -1188,7 +1183,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Vehículo */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Vehículo *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Vehículo *</label>
                   <select
                     value={otForm.vehiculoId}
                     onChange={e => {
@@ -1196,7 +1191,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       const dueno = clientes.find(c => c.vehiculosAsociados?.includes(vehId));
                       setOTForm(f => ({ ...f, vehiculoId: vehId, clienteId: dueno?.id ?? '' }));
                     }}
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     required
                   >
                     <option value="">Seleccionar vehículo...</option>
@@ -1213,12 +1208,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Cliente */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Cliente *</label>
                   {(() => {
                     const dueno = clientes.find(c => c.vehiculosAsociados?.includes(otForm.vehiculoId));
                     if (dueno) {
                       return (
-                        <div className="mt-1 px-3 py-2 border border-blue-200 bg-blue-50 rounded-lg text-sm text-blue-800 font-medium flex items-center justify-between">
+                        <div className="mt-1 px-3 py-2 border border-blue-200 bg-blue-50 rounded-xl text-sm text-blue-800 font-medium flex items-center justify-between">
                           <span>{dueno.nombre} {dueno.apellidos}</span>
                           <span className="text-[10px] text-blue-400 font-normal">Asignado al vehículo</span>
                         </div>
@@ -1228,7 +1223,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       <select
                         value={otForm.clienteId}
                         onChange={e => setOTForm(f => ({ ...f, clienteId: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                         required
                       >
                         <option value="">Seleccionar cliente...</option>
@@ -1243,27 +1238,27 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 {/* Dates + km */}
                 {createTipo === 'presupuesto' ? (
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha solicitud *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha solicitud *</label>
                     <input type="date" value={otForm.fechaRecepcion} onChange={e => setOTForm(f => ({ ...f, fechaRecepcion: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" required />
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required />
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha recepción *</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Fecha recepción *</label>
                       <input type="date" value={otForm.fechaRecepcion} onChange={e => setOTForm(f => ({ ...f, fechaRecepcion: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" required />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Entrega estimada</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Entrega estimada</label>
                       <input type="date" value={otForm.fechaEstimadaEntrega} onChange={e => setOTForm(f => ({ ...f, fechaEstimadaEntrega: e.target.value }))}
-                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1"><Gauge size={10} /> Km entrada *</label>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1"><Gauge size={10} /> Km entrada *</label>
                       <input type="number" min="0" placeholder="0" value={otForm.kilometrajeEntrada}
                         onChange={e => setOTForm(f => ({ ...f, kilometrajeEntrada: e.target.value === '' ? '' : Number(e.target.value) }))}
-                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono" required />
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono" required />
                     </div>
                   </div>
                 )}
@@ -1271,10 +1266,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 {/* Técnico — solo en recepción */}
                 {createTipo === 'recibido' && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1 ">Técnico asignado</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 ">Técnico asignado</label>
                     <select value={otForm.tecnicoAsignado}
                       onChange={e => setOTForm(f => ({ ...f, tecnicoAsignado: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white">
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
                       <option value="">— Sin asignar —</option>
                       {tecnicos.filter(t => t.activo).map(t => <option key={t.id} value={t.nombre}>{t.nombre}{t.especialidad ? ` · ${t.especialidad}` : ''}</option>)}
                     </select>
@@ -1283,27 +1278,27 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Problema */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Problema descrito por el cliente *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Problema descrito por el cliente *</label>
                   <textarea rows={2} placeholder="Describe el problema que reporta el cliente..." value={otForm.descripcionProblema}
                     onChange={e => setOTForm(f => ({ ...f, descripcionProblema: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" required />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" required />
                 </div>
 
                 {/* Diagnóstico — solo al recibir el vehículo */}
                 {createTipo === 'recibido' && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Diagnóstico inicial (opcional)</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Diagnóstico inicial (opcional)</label>
                     <textarea rows={2} placeholder="Observaciones técnicas del mecánico..." value={otForm.diagnostico}
                       onChange={e => setOTForm(f => ({ ...f, diagnostico: e.target.value }))}
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
                   </div>
                 )}
 
                 {/* Líneas */}
                 <div>
-                  <p className="text-xs font-bold text-slate-500 uppercase mb-2">Líneas de trabajo</p>
+                  <p className="text-xs font-semibold text-slate-600 mb-2">Líneas de trabajo</p>
                   {formLineas.length > 0 && (
-                    <div className="border border-slate-100 rounded-xl overflow-hidden mb-3">
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden mb-3">
                       <table className="w-full text-xs">
                         <thead className="bg-slate-50 text-slate-400 text-[10px] uppercase">
                           <tr>
@@ -1329,20 +1324,20 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                   <div className="grid grid-cols-3 gap-2">
                                     <input type="number" min="1" step="1" value={editLineaForm.cantidad}
                                       onChange={e => setEditLineaForm(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs font-mono focus:outline-none"
+                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none"
                                       placeholder={editLineaForm.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'} />
                                     <input type="number" min="0" step="0.01" value={editLineaForm.precioUnitario}
                                       onChange={e => setEditLineaForm(f => ({ ...f, precioUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs font-mono focus:outline-none" placeholder="Precio venta € *" />
+                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none" placeholder="Precio venta € *" />
                                     <input type="number" min="0" step="0.01" value={editLineaForm.costoUnitario}
                                       onChange={e => setEditLineaForm(f => ({ ...f, costoUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-lg text-xs font-mono focus:outline-none" placeholder="Coste taller €" />
+                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none" placeholder="Coste taller €" />
                                   </div>
                                   <div className="flex gap-2 justify-end">
                                     <button type="button" onClick={() => setEditingLineaId(null)}
-                                      className="px-2 py-1 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-50">Cancelar</button>
+                                      className="px-2 py-1 rounded-xl border border-slate-200 text-xs text-slate-500 hover:bg-slate-50">Cancelar</button>
                                     <button type="button" onClick={() => handleSaveEditLinea(l.id)}
-                                      className="px-2 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 flex items-center gap-1">
+                                      className="px-2 py-1 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 flex items-center gap-1">
                                       <Check size={11} /> Guardar
                                     </button>
                                   </div>
@@ -1368,7 +1363,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     </div>
                   )}
                   {/* Add line form */}
-                  <div className="bg-slate-50 rounded-xl p-3 space-y-2 border border-slate-100">
+                  <div className="bg-slate-50 rounded-2xl p-3 space-y-2 border border-slate-100">
                     <p className="text-[10px] font-bold text-slate-400 uppercase">Añadir línea</p>
                     <LineaTipoYProducto
                       form={newLinea}
@@ -1379,16 +1374,16 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     <div className="grid grid-cols-3 gap-2">
                       <input type="number" min="1" step="1" placeholder={newLinea.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'} value={newLinea.cantidad}
                         onChange={e => setNewLinea(l => ({ ...l, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none" />
+                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
                       <input type="number" min="0" step="0.01" placeholder="Precio venta € *" value={newLinea.precioUnitario}
                         onChange={e => setNewLinea(l => ({ ...l, precioUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none" />
+                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
                       <input type="number" min="0" step="0.01" placeholder="Coste taller €" value={newLinea.costoUnitario}
                         onChange={e => setNewLinea(l => ({ ...l, costoUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none" />
+                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
                     </div>
                     <button type="button" onClick={handleAddLinea}
-                      className="w-full py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1">
+                      className="w-full py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1">
                       <Plus size={11} /> Añadir línea
                     </button>
                   </div>
@@ -1396,10 +1391,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* IVA */}
                 <div className="flex items-center gap-3">
-                  <label className="text-xs font-bold text-slate-500 uppercase">IVA (%)</label>
+                  <label className="text-xs font-semibold text-slate-600">IVA (%)</label>
                   <input type="number" min="0" max="100" value={otForm.ivaPct}
                     onChange={e => setOTForm(f => ({ ...f, ivaPct: Number(e.target.value) }))}
-                    className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    className="w-20 px-2 py-1.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
                   {formLineas.length > 0 && (() => {
                     const t = calcTotals(formLineas, otForm.ivaPct);
                     return (
@@ -1413,70 +1408,65 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Notas */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Notas internas</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Notas internas</label>
                   <textarea rows={2} placeholder="Observaciones adicionales..." value={otForm.notas}
                     onChange={e => setOTForm(f => ({ ...f, notas: e.target.value }))}
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
                 </div>
 
                 {formError && (
-                  <div className="flex items-start gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                  <div className="flex items-start gap-2 text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
                     <AlertCircle size={13} className="mt-0.5 shrink-0" /> {formError}
                   </div>
                 )}
 
                 <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 pb-4">
                   <button type="button" onClick={() => setIsCreating(false)}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
+                    className="px-4 py-2 rounded-2xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
                     Cancelar
                   </button>
                   <button type="submit"
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition shadow-sm flex items-center gap-2">
+                    className="px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition shadow-sm flex items-center gap-2">
                     <FileText size={14} /> {createTipo === 'presupuesto' ? 'Crear presupuesto' : 'Crear OT'}
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            </div>
+          </div>
+      )}
 
       {/* Modal recepción de vehículo (presupuesto aprobado → recibido) */}
-      <AnimatePresence>
-        {recepcionModal && selected && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 z-60" onClick={() => setRecepcionModal(null)} />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-60 flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+      {recepcionModal && selected && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setRecepcionModal(null)} />
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md animate-modal-pop p-6 space-y-5">
                 <div>
                   <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">🔑 Recibir vehículo en taller</h3>
                   <p className="text-xs text-slate-400 mt-1">El presupuesto {selected.numero} fue aprobado. Completa los datos de entrada del vehículo.</p>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1"><Gauge size={10} /> Km entrada *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1"><Gauge size={10} /> Km entrada *</label>
                     <input
                       type="number" min="0" autoFocus placeholder="Kilometraje actual del vehículo"
                       value={recepcionModal.km}
                       onChange={e => setRecepcionModal(r => r ? { ...r, km: e.target.value === '' ? '' : Number(e.target.value) } : r)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1"><Calendar size={10} /> Entrega estimada</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1"><Calendar size={10} /> Entrega estimada</label>
                     <input
                       type="date" value={recepcionModal.fechaEst}
                       onChange={e => setRecepcionModal(r => r ? { ...r, fechaEst: e.target.value } : r)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1"><Wrench size={10} /> Técnico asignado</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center gap-1"><Wrench size={10} /> Técnico asignado</label>
                     <select value={recepcionModal.tecnico}
                       onChange={e => setRecepcionModal(r => r ? { ...r, tecnico: e.target.value } : r)}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
                       <option value="">— Sin asignar —</option>
                       {tecnicos.filter(t => t.activo).map(t => <option key={t.id} value={t.nombre}>{t.nombre}{t.especialidad ? ` · ${t.especialidad}` : ''}</option>)}
                     </select>
@@ -1484,40 +1474,30 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button onClick={() => setRecepcionModal(null)}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
+                    className="px-4 py-2 rounded-2xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
                     Cancelar
                   </button>
                   <button
                     onClick={() => handleConfirmarRecepcion(selected)}
                     disabled={recepcionModal.km === ''}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition shadow-sm flex items-center gap-2">
+                    className="px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition shadow-sm flex items-center gap-2">
                     <Check size={14} /> Confirmar recepción
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+            </div>
+      )}
 
       {/* Confirm delete dialog */}
-      <AnimatePresence>
-        {confirmDelete && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/40 z-50" onClick={() => setConfirmDelete(null)} />
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl p-6 w-80">
-              <h4 className="font-bold text-slate-800 mb-2">¿Eliminar esta OT?</h4>
-              <p className="text-sm text-slate-500 mb-4">Esta acción no se puede deshacer.</p>
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setConfirmDelete(null)} className="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancelar</button>
-                <button onClick={handleDeleteConfirmed} className="px-3 py-2 rounded-lg bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700">Eliminar</button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <ConfirmDialog
+        isOpen={!!confirmDelete}
+        title="Eliminar esta OT"
+        message="Esta acción no se puede deshacer."
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setConfirmDelete(null)}
+      />
 
       {/* PDF Presupuesto Modal */}
       <AnimatePresence>
@@ -1540,11 +1520,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => window.print()}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 rounded-lg text-xs font-semibold transition"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 rounded-xl text-xs font-semibold transition"
                     >
                       <Printer size={13} /> Imprimir / Guardar PDF
                     </button>
-                    <button onClick={() => setPresupuestoPDF(null)} className="p-1.5 rounded-lg hover:bg-slate-700 transition">
+                    <button onClick={() => setPresupuestoPDF(null)} className="p-1.5 rounded-xl hover:bg-slate-700 transition">
                       <X size={15} />
                     </button>
                   </div>
@@ -1552,7 +1532,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Printable content */}
                 <div className="flex-1 overflow-y-auto bg-slate-100 print:bg-white print:overflow-visible">
-                  <div className="max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-xl print:shadow-none print:rounded-none print:my-0 print:max-w-none">
+                  <div className="max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-2xl print:shadow-none print:rounded-none print:my-0 print:max-w-none">
                     <div className="p-10 space-y-6 text-slate-800 font-sans">
 
                     {/* Header empresa — misma línea gráfica que facturas */}
@@ -1609,12 +1589,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     <div className="space-y-3">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Descripción del problema</p>
-                        <p className="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">{ot.descripcionProblema}</p>
+                        <p className="text-sm text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">{ot.descripcionProblema}</p>
                       </div>
                       {ot.diagnostico && (
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Diagnóstico técnico</p>
-                          <p className="text-sm text-slate-700 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">{ot.diagnostico}</p>
+                          <p className="text-sm text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">{ot.diagnostico}</p>
                         </div>
                       )}
                     </div>
@@ -1742,28 +1722,28 @@ function CrearProductoRapidoModal({ nombreInicial, onClose, onCreado, onCreatePr
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre *</label>
           <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Precio venta €</label>
             <input type="number" min="0" step="0.01" value={precioVenta} onChange={(e) => setPrecioVenta(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Costo €</label>
             <input type="number" min="0" step="0.01" value={costo} onChange={(e) => setCosto(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           </div>
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-600 mb-1">Stock inicial</label>
           <input type="number" min="0" step="1" value={stockInicial} onChange={(e) => setStockInicial(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
-        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-lg">{error}</div>}
+        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
         <button onClick={handleSave} disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition cursor-pointer disabled:opacity-60">
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
           <Check size={15} /> {saving ? 'Creando…' : 'Crear y usar en la línea'}
         </button>
       </div>

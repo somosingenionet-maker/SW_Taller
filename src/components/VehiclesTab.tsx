@@ -3,7 +3,6 @@ import { Vehiculo, OrdenTrabajo, OTEstado } from '../types';
 import {
   Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, ClipboardList
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
@@ -165,7 +164,7 @@ export default function VehiclesTab({
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="vehicles-metrics-banner">
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4" id="metric-vehiculos">
-          <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+          <div className="p-3 bg-blue-50 rounded-2xl text-blue-600">
             <Car className="w-6 h-6" />
           </div>
           <div>
@@ -175,7 +174,7 @@ export default function VehiclesTab({
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4" id="metric-itv">
-          <div className={`p-3 rounded-xl ${itvAlerta > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+          <div className={`p-3 rounded-2xl ${itvAlerta > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
             <Calendar className="w-6 h-6" />
           </div>
           <div>
@@ -186,7 +185,7 @@ export default function VehiclesTab({
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4" id="metric-seguro">
-          <div className={`p-3 rounded-xl ${seguroAlerta > 0 ? 'bg-rose-50 text-rose-500' : 'bg-slate-50 text-slate-400'}`}>
+          <div className={`p-3 rounded-2xl ${seguroAlerta > 0 ? 'bg-rose-50 text-rose-500' : 'bg-slate-50 text-slate-400'}`}>
             <Shield className="w-6 h-6" />
           </div>
           <div>
@@ -213,7 +212,7 @@ export default function VehiclesTab({
             <div className="flex gap-2">
               <button
                 onClick={handleExportCsv}
-                className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm rounded-2xl transition flex items-center gap-1.5 cursor-pointer"
                 title="Exportar flota a CSV"
               >
                 <Download className="w-4 h-4" /> CSV
@@ -221,7 +220,7 @@ export default function VehiclesTab({
               <button
                 onClick={handleOpenAdd}
                 id="btn-add-vehiculo"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition duration-150 flex items-center gap-1.5 focus:outline-none cursor-pointer"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-2xl transition duration-150 flex items-center gap-1.5 focus:outline-none cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Alta Vehículo
@@ -240,7 +239,7 @@ export default function VehiclesTab({
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
               id="search-vehiculos"
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white transition"
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-slate-50 focus:bg-white transition"
             />
           </div>
 
@@ -281,7 +280,7 @@ export default function VehiclesTab({
                         </div>
                       </td>
                       <td className="py-3.5 px-2">
-                        <span className="inline-block px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 font-mono text-xs font-semibold rounded-md">
+                        <span className="inline-block px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 font-mono text-xs font-semibold rounded-xl">
                           {veh.matricula}
                         </span>
                       </td>
@@ -293,7 +292,7 @@ export default function VehiclesTab({
                           onClick={() => handleEditClick(veh)}
                           id={`btn-edit-${veh.id}`}
                           title="Editar"
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-md transition"
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition"
                         >
                           <PenTool className="w-3.5 h-3.5" />
                         </button>
@@ -301,7 +300,7 @@ export default function VehiclesTab({
                           onClick={() => handleDeleteClick(veh.id)}
                           id={`btn-delete-${veh.id}`}
                           title="Eliminar"
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-md transition"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xl transition"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -335,7 +334,7 @@ export default function VehiclesTab({
                 <button
                   onClick={() => setSelectedVehiculo(null)}
                   title="Cerrar panel"
-                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition"
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -343,21 +342,21 @@ export default function VehiclesTab({
 
               {/* Specs Grid */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1">
                     <Car className="w-3 h-3 text-blue-500" /> Matrícula
                   </div>
                   <div className="font-mono font-bold text-slate-700 mt-1">{selectedVehiculo.matricula}</div>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1">
                     <Wrench className="w-3 h-3 text-blue-500" /> Kilometraje
                   </div>
                   <div className="font-mono font-bold text-slate-700 mt-1">{selectedVehiculo.kilometraje.toLocaleString()} km</div>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1">
                     <Calendar className="w-3 h-3 text-amber-500" /> Vencimiento ITV
                   </div>
@@ -367,7 +366,7 @@ export default function VehiclesTab({
                   </div>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1">
                     <Shield className="w-3 h-3 text-red-500" /> Seguro
                   </div>
@@ -377,7 +376,7 @@ export default function VehiclesTab({
                   </div>
                 </div>
 
-                <div className="col-span-2 p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
+                <div className="col-span-2 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex justify-between items-center">
                   <div>
                     <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1">
                       <CreditCard className="w-3 h-3 text-teal-500" /> Impuesto de Circulación
@@ -394,7 +393,7 @@ export default function VehiclesTab({
                   .filter(ot => ot.vehiculoId === selectedVehiculo.id)
                   .sort((a, b) => b.fechaActualizacion.localeCompare(a.fechaActualizacion));
                 return (
-                  <div className="bg-slate-50/60 rounded-xl border border-slate-100 p-4">
+                  <div className="bg-slate-50/60 rounded-2xl border border-slate-100 p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <ClipboardList className="w-4 h-4 text-slate-500" />
@@ -409,7 +408,7 @@ export default function VehiclesTab({
                         {otsVehiculo.map(ot => {
                           const isOpen = expandedOtId === ot.id;
                           return (
-                            <div key={ot.id} className="bg-white rounded-lg border border-slate-100 overflow-hidden">
+                            <div key={ot.id} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
                               {/* Cabecera clicable */}
                               <button
                                 onClick={() => setExpandedOtId(isOpen ? null : ot.id)}
@@ -497,36 +496,33 @@ export default function VehiclesTab({
       </div>
 
       {/* MODAL: ADD VEHICLE */}
-      <AnimatePresence>
-        {isAddingOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden"
+      {isAddingOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setIsAddingOpen(false)} />
+            <div
+              className="relative w-full max-w-lg bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop"
               id="add-vehicle-modal"
             >
-              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-extrabold text-slate-800 flex items-center gap-2 font-display">
-                  <Car className="w-5 h-5 text-blue-600" />
-                  Alta de Nuevo Vehículo
-                </h3>
-                <button 
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <Car className="w-4 h-4 text-blue-400" />
+                  <span className="font-bold text-sm tracking-tight">Alta de Nuevo Vehículo</span>
+                </div>
+                <button
                   onClick={() => setIsAddingOpen(false)}
-                  className="p-1 hover:bg-slate-200 rounded-md transition text-slate-400"
+                  className="p-1.5 hover:bg-slate-800 rounded-2xl transition"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
+              <form onSubmit={handleAddSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Marca *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Marca *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.marca}
                       onChange={e => setFormData({ ...formData, marca: e.target.value })}
                       placeholder="e.g. Toyota"
@@ -534,10 +530,10 @@ export default function VehiclesTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Modelo *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Modelo *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.modelo}
                       onChange={e => setFormData({ ...formData, modelo: e.target.value })}
                       placeholder="e.g. Auris"
@@ -548,10 +544,10 @@ export default function VehiclesTab({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Matrícula *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Matrícula *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.matricula}
                       onChange={e => setFormData({ ...formData, matricula: e.target.value.toUpperCase() })}
                       placeholder="e.g. 1234-XYZ"
@@ -559,10 +555,10 @@ export default function VehiclesTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Número de Bastidor (VIN)</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Número de Bastidor (VIN)</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.bastidor}
                       onChange={e => setFormData({ ...formData, bastidor: e.target.value.toUpperCase() })}
                       placeholder="17 caracteres alfanuméricos"
@@ -571,10 +567,10 @@ export default function VehiclesTab({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Kilometraje actual (km)</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Kilometraje actual (km)</label>
                   <input
                     type="number"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={formData.kilometraje === ('' as unknown as number) ? '' : formData.kilometraje}
                     onChange={e => setFormData({ ...formData, kilometraje: e.target.value === '' ? '' as unknown as number : Number(e.target.value) })}
                     placeholder="0"
@@ -588,30 +584,30 @@ export default function VehiclesTab({
                   
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Vto. ITV</label>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-1">Vto. ITV</label>
                       <input
                         type="date"
-                        className="w-full mt-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={formData.itvVencimiento}
                         onChange={e => setFormData({ ...formData, itvVencimiento: e.target.value })}
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Vto. Seguro</label>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-1">Vto. Seguro</label>
                       <input
                         type="date"
-                        className="w-full mt-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={formData.seguroVencimiento}
                         onChange={e => setFormData({ ...formData, seguroVencimiento: e.target.value })}
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Vto. Impuestos</label>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-1">Vto. Impuestos</label>
                       <input
                         type="date"
-                        className="w-full mt-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={formData.impuestoVencimiento}
                         onChange={e => setFormData({ ...formData, impuestoVencimiento: e.target.value })}
                         required
@@ -621,28 +617,27 @@ export default function VehiclesTab({
                 </div>
 
                 {addFormError && (
-                  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 font-medium">{addFormError}</p>
+                  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 font-medium">{addFormError}</p>
                 )}
                 <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 text-sm font-medium">
                   <button
                     type="button"
                     onClick={() => { setIsAddingOpen(false); setAddFormError(''); }}
-                    className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition text-slate-500"
+                    className="px-4 py-2 border border-slate-200 rounded-2xl hover:bg-slate-50 transition text-slate-500"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition flex items-center gap-1 cursor-pointer"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition flex items-center gap-1 cursor-pointer"
                   >
                     <Check className="w-4 h-4" /> Guardar Nuevo
                   </button>
                 </div>
               </form>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
@@ -655,46 +650,43 @@ export default function VehiclesTab({
       />
 
       {/* MODAL: EDIT VEHICLE */}
-      <AnimatePresence>
-        {isEditing && editFormData && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden"
+      {isEditing && editFormData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setIsEditing(false)} />
+            <div
+              className="relative w-full max-w-lg bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop"
               id="edit-vehicle-modal"
             >
-              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center text-slate-800">
-                <h3 className="font-extrabold flex items-center gap-2 font-display">
-                  <PenTool className="w-5 h-5 text-blue-600" />
-                  Editar Vehículo
-                </h3>
-                <button 
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <PenTool className="w-4 h-4 text-blue-400" />
+                  <span className="font-bold text-sm tracking-tight">Editar Vehículo</span>
+                </div>
+                <button
                   onClick={() => setIsEditing(false)}
-                  className="p-1 hover:bg-slate-200 rounded-md transition text-slate-400"
+                  className="p-1.5 hover:bg-slate-800 rounded-2xl transition"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+              <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Marca *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Marca *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editFormData.marca}
                       onChange={e => setEditFormData({ ...editFormData, marca: e.target.value })}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Modelo *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Modelo *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editFormData.modelo}
                       onChange={e => setEditFormData({ ...editFormData, modelo: e.target.value })}
                       required
@@ -704,20 +696,20 @@ export default function VehiclesTab({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Matrícula *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Matrícula *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editFormData.matricula}
                       onChange={e => setEditFormData({ ...editFormData, matricula: e.target.value.toUpperCase() })}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Número de Bastidor (VIN)</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Número de Bastidor (VIN)</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editFormData.bastidor || ''}
                       onChange={e => setEditFormData({ ...editFormData, bastidor: e.target.value.toUpperCase() })}
                     />
@@ -725,10 +717,10 @@ export default function VehiclesTab({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Kilometraje actual (km)</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Kilometraje actual (km)</label>
                   <input
                     type="number"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={editFormData.kilometraje}
                     onChange={e => setEditFormData({ ...editFormData, kilometraje: Number(e.target.value) })}
                     required
@@ -741,30 +733,30 @@ export default function VehiclesTab({
                   
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Vto. ITV</label>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-1">Vto. ITV</label>
                       <input
                         type="date"
-                        className="w-full mt-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={editFormData.itvVencimiento}
                         onChange={e => setEditFormData({ ...editFormData, itvVencimiento: e.target.value })}
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Vto. Seguro</label>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-1">Vto. Seguro</label>
                       <input
                         type="date"
-                        className="w-full mt-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={editFormData.seguroVencimiento}
                         onChange={e => setEditFormData({ ...editFormData, seguroVencimiento: e.target.value })}
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase">Vto. Impuesto</label>
+                      <label className="block text-[10px] font-semibold text-slate-600 mb-1">Vto. Impuesto</label>
                       <input
                         type="date"
-                        className="w-full mt-1 px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={editFormData.impuestoVencimiento}
                         onChange={e => setEditFormData({ ...editFormData, impuestoVencimiento: e.target.value })}
                         required
@@ -777,22 +769,21 @@ export default function VehiclesTab({
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition text-slate-500"
+                    className="px-4 py-2 border border-slate-200 rounded-2xl hover:bg-slate-50 transition text-slate-500"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition flex items-center gap-1 cursor-pointer"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition flex items-center gap-1 cursor-pointer"
                   >
                     <Save className="w-4 h-4" /> Guardar Cambios
                   </button>
                 </div>
               </form>
-            </motion.div>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
     </div>
   );
 }

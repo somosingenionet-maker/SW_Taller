@@ -3,7 +3,6 @@ import { Cliente, InteraccionCliente, Vehiculo, OrdenTrabajo, Empresa } from '..
 import {
   Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, PenTool, Car
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
@@ -178,7 +177,7 @@ export default function CrmTab({
         return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+          <div className="p-3 bg-blue-50 rounded-2xl text-blue-600">
             <Users className="w-6 h-6" />
           </div>
           <div>
@@ -188,7 +187,7 @@ export default function CrmTab({
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
+          <div className="p-3 bg-amber-50 rounded-2xl text-amber-600">
             <Clock className="w-6 h-6" />
           </div>
           <div>
@@ -199,7 +198,7 @@ export default function CrmTab({
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-green-50 rounded-xl text-green-600">
+          <div className="p-3 bg-green-50 rounded-2xl text-green-600">
             <UserPlus className="w-6 h-6" />
           </div>
           <div>
@@ -228,7 +227,7 @@ export default function CrmTab({
             <div className="flex gap-2">
               <button
                 onClick={handleExportCsv}
-                className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm rounded-2xl transition flex items-center gap-1.5 cursor-pointer"
                 title="Exportar clientes a CSV"
               >
                 <Download className="w-4 h-4" /> CSV
@@ -236,7 +235,7 @@ export default function CrmTab({
               <button
                 onClick={handleOpenAdd}
                 id="btn-add-cliente"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-xl transition duration-150 flex items-center gap-1.5 focus:outline-none cursor-pointer font-sans"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-2xl transition duration-150 flex items-center gap-1.5 focus:outline-none cursor-pointer font-sans"
               >
               <UserPlus className="w-4 h-4" />
               Nuevo Cliente
@@ -254,7 +253,7 @@ export default function CrmTab({
               placeholder="Buscar por nombre, documento (NIF/NIE) o email..."
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 focus:bg-white transition font-sans"
+              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-slate-50 focus:bg-white transition font-sans"
             />
           </div>
 
@@ -302,14 +301,14 @@ export default function CrmTab({
                         <button
                           onClick={() => handleEditClick(cli)}
                           title="Editar ficha"
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-md transition"
+                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition"
                         >
                           <PenTool className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(cli.id)}
                           title="Borrar ficha"
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-md transition"
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xl transition"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -342,14 +341,14 @@ export default function CrmTab({
                   <button
                     onClick={() => handleEditClick(selectedCliente)}
                     title="Editar ficha"
-                    className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition"
+                    className="p-1.5 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl transition"
                   >
                     <PenTool className="w-4 h-4" />
                   </button>
                   <button
                   onClick={() => setSelectedCliente(null)}
                   title="Cerrar panel"
-                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition"
+                  className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-xl transition"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -406,7 +405,7 @@ export default function CrmTab({
                       const v = vehiculos.find(vv => vv.id === vid);
                       if (!v) return null;
                       return (
-                        <div key={vid} className="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-xs">
+                        <div key={vid} className="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs">
                           <Car className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                           <span className="font-semibold text-slate-700">{v.marca} {v.modelo}</span>
                           <span className="font-mono text-slate-400 ml-auto">{v.matricula}</span>
@@ -426,7 +425,7 @@ export default function CrmTab({
                   </h4>
                   <button
                     onClick={() => setIsAddingInteraction(!isAddingInteraction)}
-                    className="p-1 px-2 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-bold hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
+                    className="p-1 px-2 bg-blue-50 text-blue-700 rounded-xl text-[10px] font-bold hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3 h-3" /> Añadir Nota
                   </button>
@@ -434,7 +433,7 @@ export default function CrmTab({
 
                 {/* Interaction log input form */}
                 {isAddingInteraction && (
-                  <form onSubmit={handleAddInteractionSubmit} className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl space-y-3" id="add-interaction-form">
+                  <form onSubmit={handleAddInteractionSubmit} className="p-3 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3" id="add-interaction-form">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-blue-800 uppercase">Registrar conversación</span>
                       <button 
@@ -468,14 +467,14 @@ export default function CrmTab({
                         value={newInteractionNotes}
                         onChange={e => setNewInteractionNotes(e.target.value)}
                         placeholder="Detalles sobre lo tratado con el cliente..."
-                        className="w-full p-2 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none bg-white font-medium text-slate-700"
+                        className="w-full p-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-blue-400 focus:outline-none bg-white font-medium text-slate-700"
                       />
                     </div>
 
                     <div className="flex justify-end">
                       <button
                         type="submit"
-                        className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-bold hover:bg-blue-700 flex items-center gap-1"
+                        className="px-2.5 py-1 bg-blue-600 text-white rounded-xl text-[10px] font-bold hover:bg-blue-700 flex items-center gap-1"
                       >
                         <Check className="w-3 h-3" /> Guardar Interacción
                       </button>
@@ -524,37 +523,33 @@ export default function CrmTab({
       </div>
 
       {/* MODAL: ADD CLIENT */}
-      <AnimatePresence>
-        {isAddingOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full flex flex-col overflow-hidden max-h-[90vh]"
+      {isAddingOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setIsAddingOpen(false)} />
+            <div
+              className="relative w-full max-w-lg bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop"
               id="add-client-modal"
             >
-              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-extrabold text-slate-800 flex items-center gap-2 font-display">
-                  <UserPlus className="w-5 h-5 text-blue-600" />
-                  Alta de Ficha de Cliente
-                </h3>
-                <button 
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <UserPlus className="w-4 h-4 text-blue-400" />
+                  <span className="font-bold text-sm tracking-tight">Alta de Ficha de Cliente</span>
+                </div>
+                <button
                   onClick={() => setIsAddingOpen(false)}
-                  className="p-1 hover:bg-slate-200 rounded-md transition text-slate-400"
+                  className="p-1.5 hover:bg-slate-800 rounded-2xl transition"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddSubmit} className="p-6 space-y-4 font-sans overflow-y-auto flex-1">
+              <form onSubmit={handleAddSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4 font-sans">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Nombre *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.nombre}
                       onChange={e => setFormData({ ...formData, nombre: e.target.value })}
                       placeholder="e.g. Pilar"
@@ -562,10 +557,10 @@ export default function CrmTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Apellidos *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Apellidos *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.apellidos}
                       onChange={e => setFormData({ ...formData, apellidos: e.target.value })}
                       placeholder="e.g. Ramos Ortiz"
@@ -576,10 +571,10 @@ export default function CrmTab({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">DNI/NIE/Pasaporte *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">DNI/NIE/Pasaporte *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.nifNiePasaporte}
                       onChange={e => setFormData({ ...formData, nifNiePasaporte: e.target.value.toUpperCase() })}
                       placeholder="e.g. 12345678W o NIE"
@@ -587,10 +582,10 @@ export default function CrmTab({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Teléfono Móvil *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Teléfono Móvil *</label>
                     <input
                       type="tel"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.telefono}
                       onChange={e => setFormData({ ...formData, telefono: e.target.value })}
                       placeholder="e.g. +34 600 000 000"
@@ -600,10 +595,10 @@ export default function CrmTab({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Correo Electrónico</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Correo Electrónico</label>
                   <input
                     type="email"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={formData.correo}
                     onChange={e => setFormData({ ...formData, correo: e.target.value })}
                     placeholder="e.g. pilar.ramos@gmail.com"
@@ -611,30 +606,30 @@ export default function CrmTab({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Domicilio Fiscal</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Domicilio Fiscal</label>
                   <input
                     type="text"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={formData.direccion}
                     onChange={e => setFormData({ ...formData, direccion: e.target.value })}
                     placeholder="Calle, número, piso, código postal"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Ciudad</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Ciudad</label>
                   <input
                     type="text"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={formData.ciudad ?? ''}
                     onChange={e => setFormData({ ...formData, ciudad: e.target.value })}
                     placeholder="Madrid, Barcelona..."
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">País</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">País</label>
                   <input
                     type="text"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={formData.pais ?? 'España'}
                     onChange={e => setFormData({ ...formData, pais: e.target.value })}
                     placeholder="España, Francia..."
@@ -644,7 +639,7 @@ export default function CrmTab({
                 {/* Vehículos asociados */}
                 {vehiculos.length > 0 && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Vehículos asociados</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 mb-2">Vehículos asociados</label>
                     <div className="relative mb-2">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                       <input
@@ -652,7 +647,7 @@ export default function CrmTab({
                         placeholder="Buscar por matrícula, marca o modelo..."
                         value={vehiculoSearch}
                         onChange={e => setVehiculoSearch(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     </div>
                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
@@ -662,7 +657,7 @@ export default function CrmTab({
                         .map(v => {
                           const checked = (formData.vehiculosAsociados ?? []).includes(v.id);
                           return (
-                            <label key={v.id} className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition ${checked ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
+                            <label key={v.id} className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer transition ${checked ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -683,29 +678,27 @@ export default function CrmTab({
                 )}
 
                 {addFormError && (
-                  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 font-medium">{addFormError}</p>
+                  <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 font-medium">{addFormError}</p>
                 )}
                 <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 text-sm font-medium">
                   <button
                     type="button"
                     onClick={() => { setIsAddingOpen(false); setAddFormError(''); }}
-                    className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition text-slate-500"
+                    className="px-4 py-2 border border-slate-200 rounded-2xl hover:bg-slate-50 transition text-slate-500"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition flex items-center gap-1 cursor-pointer"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition flex items-center gap-1 cursor-pointer"
                   >
                     <Check className="w-4 h-4" /> Crear Ficha CRM
                   </button>
                 </div>
               </form>
-            </motion.div>
             </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
 
       <ConfirmDialog
         isOpen={confirmDelete.isOpen}
@@ -718,47 +711,43 @@ export default function CrmTab({
       />
 
       {/* MODAL: EDIT CLIENT */}
-      <AnimatePresence>
-        {isEditing && editFormData && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full flex flex-col overflow-hidden max-h-[90vh]"
+      {isEditing && editFormData && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setIsEditing(false)} />
+            <div
+              className="relative w-full max-w-lg bg-white shadow-2xl rounded-3xl flex flex-col max-h-[88vh] overflow-hidden animate-modal-pop"
               id="edit-client-modal"
             >
-              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-                <h3 className="font-extrabold text-slate-800 flex items-center gap-2 font-display">
-                  <Save className="w-5 h-5 text-blue-600" />
-                  Editar Información de Ficha
-                </h3>
-                <button 
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-950 text-white shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <Save className="w-4 h-4 text-blue-400" />
+                  <span className="font-bold text-sm tracking-tight">Editar Información de Ficha</span>
+                </div>
+                <button
                   onClick={() => setIsEditing(false)}
-                  className="p-1 hover:bg-slate-200 rounded-md transition text-slate-400"
+                  className="p-1.5 hover:bg-slate-800 rounded-2xl transition"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <form onSubmit={handleEditSubmit} className="p-6 space-y-4 font-sans overflow-y-auto flex-1">
+              <form onSubmit={handleEditSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4 font-sans">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Nombre *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editFormData.nombre}
                       onChange={e => setEditFormData({ ...editFormData, nombre: e.target.value })}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Apellidos *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Apellidos *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editFormData.apellidos}
                       onChange={e => setEditFormData({ ...editFormData, apellidos: e.target.value })}
                       required
@@ -768,20 +757,20 @@ export default function CrmTab({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">DNI/NIE/Pasaporte *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">DNI/NIE/Pasaporte *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editFormData.nifNiePasaporte}
                       onChange={e => setEditFormData({ ...editFormData, nifNiePasaporte: e.target.value.toUpperCase() })}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase">Teléfono Móvil *</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Teléfono Móvil *</label>
                     <input
                       type="text"
-                      className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={editFormData.telefono}
                       onChange={e => setEditFormData({ ...editFormData, telefono: e.target.value })}
                       required
@@ -790,39 +779,39 @@ export default function CrmTab({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Correo Electrónico</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Correo Electrónico</label>
                   <input
                     type="email"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={editFormData.correo}
                     onChange={e => setEditFormData({ ...editFormData, correo: e.target.value })}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Domicilio Fiscal</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Domicilio Fiscal</label>
                   <input
                     type="text"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={editFormData.direccion}
                     onChange={e => setEditFormData({ ...editFormData, direccion: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">Ciudad</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Ciudad</label>
                   <input
                     type="text"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={editFormData.ciudad ?? ''}
                     onChange={e => setEditFormData({ ...editFormData, ciudad: e.target.value })}
                     placeholder="Madrid, Barcelona..."
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase">País</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">País</label>
                   <input
                     type="text"
-                    className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={editFormData.pais ?? 'España'}
                     onChange={e => setEditFormData({ ...editFormData, pais: e.target.value })}
                     placeholder="España, Francia..."
@@ -831,7 +820,7 @@ export default function CrmTab({
 
                 {vehiculos.length > 0 && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Vehículos asociados</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1 mb-2">Vehículos asociados</label>
                     <div className="relative mb-2">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                       <input
@@ -839,7 +828,7 @@ export default function CrmTab({
                         placeholder="Buscar por matrícula, marca o modelo..."
                         value={vehiculoSearchEdit}
                         onChange={e => setVehiculoSearchEdit(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     </div>
                     <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
@@ -853,7 +842,7 @@ export default function CrmTab({
                         .map(v => {
                           const checked = (editFormData.vehiculosAsociados ?? []).includes(v.id);
                           return (
-                            <label key={v.id} className={`flex items-center gap-3 p-2.5 rounded-lg border cursor-pointer transition ${checked ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
+                            <label key={v.id} className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer transition ${checked ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100 hover:border-slate-200'}`}>
                               <input
                                 type="checkbox"
                                 checked={checked}
@@ -880,23 +869,21 @@ export default function CrmTab({
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}
-                    className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition text-slate-500"
+                    className="px-4 py-2 border border-slate-200 rounded-2xl hover:bg-slate-50 transition text-slate-500"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition flex items-center gap-1 cursor-pointer"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl transition flex items-center gap-1 cursor-pointer"
                   >
                     <Save className="w-4 h-4" /> Guardar Ficha
                   </button>
                 </div>
               </form>
-            </motion.div>
             </div>
           </div>
-        )}
-      </AnimatePresence>
+      )}
     </div>
   );
 }
