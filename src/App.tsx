@@ -21,6 +21,7 @@ import FacturasTab from './components/FacturasTab';
 import InventarioTab from './components/InventarioTab';
 import AgendaTab from './components/AgendaTab';
 import LoginScreen from './components/LoginScreen';
+import ResetPasswordScreen from './components/ResetPasswordScreen';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminPanel from './components/SuperAdminPanel';
 import {
@@ -35,6 +36,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<Perfil | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  // true mientras dura el flujo de "restablecer contraseña" (enlace del email de recuperación).
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   // Navigation
   const [activeTab, setActiveTab] = useState<TabId>('citas');
@@ -94,7 +97,12 @@ export default function App() {
       });
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      // El enlace del email de recuperación abre una sesión temporal y
+      // dispara este evento — hay que mostrar la pantalla de "nueva
+      // contraseña" en vez de entrar directo al panel con la contraseña
+      // antigua todavía activa.
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
       aplicarSesion(session?.user.id);
     });
 
@@ -360,6 +368,12 @@ export default function App() {
 
   // Wait until auth is checked
   if (!authChecked) return null;
+
+  // Enlace de recuperación de contraseña: pedir la nueva antes de entrar,
+  // aunque la sesión temporal ya esté activa.
+  if (passwordRecovery) {
+    return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
+  }
 
   // Show login if no user
   if (!currentUser) {

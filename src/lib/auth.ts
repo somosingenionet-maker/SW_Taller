@@ -20,6 +20,26 @@ export async function signOut(): Promise<void> {
 }
 
 /**
+ * Envía el email de recuperación de contraseña. Nunca revela si el email
+ * existe o no en el sistema (mismo mensaje de éxito en ambos casos, para no
+ * filtrar cuentas registradas) — solo se reporta un error de red/servidor.
+ */
+export async function sendPasswordReset(email: string): Promise<string | null> {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: window.location.origin,
+  });
+  if (error) return 'No se pudo enviar el correo. Inténtalo de nuevo en unos minutos.';
+  return null;
+}
+
+/** Establece una nueva contraseña durante el flujo de recuperación (sesión de recuperación ya activa). */
+export async function updatePassword(password: string): Promise<string | null> {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return error.message;
+  return null;
+}
+
+/**
  * Carga el perfil de negocio (rol, módulos, activo) del usuario autenticado.
  * Devuelve null si no hay sesión o el perfil no existe.
  */
