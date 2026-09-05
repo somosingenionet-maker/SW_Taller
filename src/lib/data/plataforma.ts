@@ -11,7 +11,7 @@ export async function getPlataformaLogo(): Promise<string | null> {
     .select('logo_base64')
     .eq('id', 'global')
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data as { logo_base64: string | null }).logo_base64;
 }
 
@@ -20,5 +20,5 @@ export async function setPlataformaLogo(logoBase64: string | null): Promise<void
     .from('plataforma_config')
     .update({ logo_base64: logoBase64 })
     .eq('id', 'global');
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }

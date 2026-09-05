@@ -60,23 +60,23 @@ export async function listVehiculos(): Promise<Vehiculo[]> {
     .from('vehiculos')
     .select(COLS)
     .order('fecha_registro', { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapVehiculo(r as VehiculoRow));
 }
 
 export async function createVehiculo(input: NuevoVehiculo): Promise<Vehiculo> {
   const { data, error } = await supabase.from('vehiculos').insert(toRow(input) as VehiculoInsert).select(COLS).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapVehiculo(data as VehiculoRow);
 }
 
 export async function updateVehiculo(v: Vehiculo): Promise<Vehiculo> {
   const { data, error } = await supabase.from('vehiculos').update(toRow(v)).eq('id', v.id).select(COLS).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapVehiculo(data as VehiculoRow);
 }
 
 export async function deleteVehiculo(id: string): Promise<void> {
   const { error } = await supabase.from('vehiculos').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }

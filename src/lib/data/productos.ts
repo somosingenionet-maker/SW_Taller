@@ -46,7 +46,7 @@ function toRow(p: Producto) {
 
 export async function listProductos(): Promise<Producto[]> {
   const { data, error } = await supabase.from('productos').select(SELECT).order('nombre');
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapProducto(r as ProductoRow));
 }
 
@@ -54,7 +54,7 @@ export async function listProductos(): Promise<Producto[]> {
  * (así el stock siempre queda registrado en el libro, incluso el primero). */
 export async function createProducto(p: Producto, stockInicial = 0): Promise<Producto> {
   const { data, error } = await supabase.from('productos').insert(toRow(p) as ProductoInsert).select('id').single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const id = (data as { id: string }).id;
 
   if (stockInicial > 0) {
@@ -62,13 +62,13 @@ export async function createProducto(p: Producto, stockInicial = 0): Promise<Pro
   }
 
   const { data: creado, error: eGet } = await supabase.from('productos').select(SELECT).eq('id', id).single();
-  if (eGet) throw eGet;
+  if (eGet) throw new Error(eGet.message);
   return mapProducto(creado as ProductoRow);
 }
 
 export async function updateProducto(p: Producto): Promise<Producto> {
   const { data, error } = await supabase.from('productos').update(toRow(p)).eq('id', p.id).select(SELECT).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapProducto(data as ProductoRow);
 }
 
@@ -76,7 +76,7 @@ export async function updateProducto(p: Producto): Promise<Producto> {
  * si falla, la UI debe sugerir desactivarlo en vez de borrarlo. */
 export async function deleteProducto(id: string): Promise<void> {
   const { error } = await supabase.from('productos').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 const MOVIMIENTO_SELECT = 'id, producto_id, tipo, cantidad, motivo, ot_id, created_at';
@@ -104,7 +104,7 @@ export async function listMovimientos(productoId: string): Promise<MovimientoSto
     .select(MOVIMIENTO_SELECT)
     .eq('producto_id', productoId)
     .order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapMovimiento(r as MovimientoRow));
 }
 
@@ -125,5 +125,5 @@ export async function registrarMovimiento(m: NuevoMovimiento): Promise<void> {
     motivo: m.motivo || null,
   };
   const { error } = await supabase.from('movimientos_stock').insert(row);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }

@@ -64,13 +64,13 @@ export async function listCitas(desde?: string, hasta?: string): Promise<Cita[]>
   if (desde) query = query.gte('fecha_hora', desde);
   if (hasta) query = query.lte('fecha_hora', hasta);
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapCita(r as CitaRow));
 }
 
 export async function createCita(c: Omit<Cita, 'id'>): Promise<Cita> {
   const { data, error } = await supabase.from('citas').insert(toRow(c) as CitaInsert).select(SELECT).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapCita(data as CitaRow);
 }
 
@@ -90,11 +90,11 @@ export async function updateCita(id: string, cambios: Partial<Omit<Cita, 'id'>>)
   if (cambios.otId !== undefined) row.ot_id = cambios.otId || null;
 
   const { data, error } = await supabase.from('citas').update(row).eq('id', id).select(SELECT).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapCita(data as CitaRow);
 }
 
 export async function deleteCita(id: string): Promise<void> {
   const { error } = await supabase.from('citas').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }

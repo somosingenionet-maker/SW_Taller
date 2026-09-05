@@ -26,11 +26,11 @@ function mapNotificacion(r: NotificacionRow): NotificacionCliente {
 
 export async function listNotificaciones(): Promise<NotificacionCliente[]> {
   const { data, error } = await supabase.from('notificaciones_cliente').select(COLS).order('fecha_envio', { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapNotificacion(r as NotificacionRow));
 }
 
 export async function deleteNotificacion(id: string): Promise<void> {
   const { error } = await supabase.from('notificaciones_cliente').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }

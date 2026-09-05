@@ -45,6 +45,9 @@ const TRANSICIONES_VALIDAS: Partial<Record<Factura['estado'], Factura['estado'][
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+/** Un borrador todavía no tiene número real (se asigna al emitir) — no mostrar el marcador interno. */
+const numeroMostrado = (f: Pick<Factura, 'numero' | 'estado'>) => f.estado === 'borrador' ? 'Borrador' : f.numero;
+
 const calcLineTotals = (lines: LineaDocumento[], ivaPct: number) => {
   const subtotal = lines.reduce((s, l) => s + l.subtotal, 0);
   const totalIva = subtotal * (ivaPct / 100);
@@ -151,11 +154,13 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
     const { subtotal, totalIva, total } = totals;
     // Este modal solo crea o edita borradores — emitir es una acción aparte
     // (botón "Emitir factura" en la tabla) porque a partir de ahí la
-    // factura queda inmutable. `numero` es un valor local sin efecto: el
-    // servidor asigna el real al crear y nunca se reenvía al editar.
+    // factura queda inmutable. `numero` y `createdAt` son valores locales
+    // sin efecto: el servidor los asigna al crear y nunca se reenvían al
+    // editar (ver toRow() en lib/data/facturas.ts).
     const saved: Factura = {
       id: factura?.id ?? genId('fac'),
       numero: factura?.numero ?? '',
+      createdAt: factura?.createdAt ?? new Date().toISOString(),
       clienteId,
       vehiculoId: vehiculoId || undefined,
       otIds,
@@ -180,7 +185,7 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
           <div className="flex items-center gap-2.5">
             <Receipt className="w-4 h-4 text-slate-300" />
             <span className="font-bold text-sm">
-              {factura ? `Editar Factura ${factura.numero}` : 'Nueva Factura'}
+              {factura ? `Editar Factura ${numeroMostrado(factura)}` : 'Nueva Factura'}
             </span>
             {!factura && <span className="text-[10px] text-slate-400 font-medium">— el número se asigna al guardar</span>}
           </div>
@@ -331,7 +336,9 @@ export default function FacturasTab({
   const totalFacturas = facturas.length;
   const facturasPagadas = facturas.filter(f => f.estado === 'pagada').length;
 
-  const sortedFacturas = [...facturas].sort((a, b) => b.numero.localeCompare(a.numero));
+  // Por fecha de creación, no por `numero` — los borradores todavía no tienen
+  // un número real (se asigna al emitir), así que no sirve para ordenar.
+  const sortedFacturas = [...facturas].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const handleSaveFactura = (f: Factura) => {
     if (facturas.find(x => x.id === f.id)) onUpdateFactura(f);
@@ -399,7 +406,7 @@ export default function FacturasTab({
                   const transiciones = TRANSICIONES_VALIDAS[f.estado] ?? [];
                   return (
                     <tr key={f.id} className="hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 font-bold text-slate-700 text-xs">{f.numero}</td>
+                      <td className="px-4 py-3 font-bold text-slate-700 text-xs">{numeroMostrado(f)}</td>
                       <td className="px-4 py-3 text-xs text-slate-600">{nombreCliente(f.clienteId)}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{nombreVehiculo(f.vehiculoId)}</td>
                       <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fecha)}</td>
@@ -472,7 +479,7 @@ export default function FacturasTab({
       <ConfirmDialog
         isOpen={!!confirmEmitir}
         title="Emitir factura"
-        message={`La factura ${confirmEmitir?.numero ?? ''} quedará emitida de forma definitiva: no podrá editarse ni eliminarse (solo se anula con una factura rectificativa). ¿Confirmas la emisión?`}
+        message="Esta factura quedará emitida de forma definitiva con el siguiente número correlativo de la empresa: no podrá editarse ni eliminarse (solo se anula con una factura rectificativa). ¿Confirmas la emisión?"
         confirmLabel="Emitir"
         variant="warning"
         onConfirm={handleEmitirConfirmado}
@@ -485,17 +492,17 @@ export default function FacturasTab({
         const cli = clientes.find(c => c.id === f.clienteId);
         const veh = vehiculos.find(v => v.id === f.vehiculoId);
 
-        const textoWA = `Hola ${cli?.nombre ?? ''},\n\nAdjuntamos la Factura ${f.numero} por importe de ${fmt(f.total)} €.\n\nPor favor, revísala y confírmanos la recepción.\n\nUn saludo,\n${empresa.nombre}`;
+        const textoWA = `Hola ${cli?.nombre ?? ''},\n\nAdjuntamos la Factura ${numeroMostrado(f)} por importe de ${fmt(f.total)} €.\n\nPor favor, revísala y confírmanos la recepción.\n\nUn saludo,\n${empresa.nombre}`;
         const telefonoWA = cli?.telefono?.replace(/\D/g, '') ?? '';
         const waUrl = `https://wa.me/${telefonoWA}?text=${encodeURIComponent(textoWA)}`;
-        const mailUrl = `mailto:${cli?.correo ?? ''}?subject=${encodeURIComponent(`Factura ${f.numero} - ${empresa.nombre}`)}&body=${encodeURIComponent(textoWA)}`;
+        const mailUrl = `mailto:${cli?.correo ?? ''}?subject=${encodeURIComponent(`Factura ${numeroMostrado(f)} - ${empresa.nombre}`)}&body=${encodeURIComponent(textoWA)}`;
 
         return (
           <div className="fixed inset-0 z-50 bg-black/60 flex flex-col print:bg-white print:relative print:inset-auto">
             <div className="flex items-center justify-between px-6 py-3 bg-slate-800 text-white shrink-0 print:hidden">
               <div className="flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-blue-400" />
-                <span className="font-bold text-sm">Factura {f.numero}</span>
+                <span className="font-bold text-sm">Factura {numeroMostrado(f)}</span>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition cursor-pointer">
@@ -533,7 +540,7 @@ export default function FacturasTab({
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">FACTURA</p>
-                      <p className="text-2xl font-black font-mono text-blue-600">{f.numero}</p>
+                      <p className="text-2xl font-black font-mono text-blue-600">{numeroMostrado(f)}</p>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADO_FACTURA_COLORS[f.estado]}`}>{ESTADO_FACTURA_LABELS[f.estado]}</span>
                     </div>
                   </div>

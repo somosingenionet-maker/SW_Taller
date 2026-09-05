@@ -22,7 +22,7 @@ function mapTecnico(r: TecnicoRow): Tecnico {
 
 export async function listTecnicos(): Promise<Tecnico[]> {
   const { data, error } = await supabase.from('tecnicos').select(COLS).order('nombre');
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapTecnico(r as TecnicoRow));
 }
 
@@ -32,7 +32,7 @@ export async function createTecnico(input: NuevoTecnico): Promise<Tecnico> {
     .insert({ nombre: input.nombre, especialidad: input.especialidad || null, activo: input.activo } as TecnicoInsert)
     .select(COLS)
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapTecnico(data as TecnicoRow);
 }
 
@@ -43,11 +43,11 @@ export async function updateTecnico(t: Tecnico): Promise<Tecnico> {
     .eq('id', t.id)
     .select(COLS)
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapTecnico(data as TecnicoRow);
 }
 
 export async function deleteTecnico(id: string): Promise<void> {
   const { error } = await supabase.from('tecnicos').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }

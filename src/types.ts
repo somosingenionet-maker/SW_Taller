@@ -176,6 +176,10 @@ export interface Empresa {
   recordatoriosAutomaticosActivos: boolean;
   /** Texto personalizado por tipo de alerta para los recordatorios automáticos; ausente = usa el texto por defecto. */
   plantillasRecordatorios: Partial<Record<AlertaTipo, string>>;
+  /** Prefijo de la numeración de facturas (p.ej. "FAC-"). Editable solo antes de emitir la primera factura. */
+  facturaPrefijo: string;
+  /** Próximo número de factura a asignar al emitir. Editable solo antes de emitir la primera factura (permite continuar una numeración previa). */
+  siguienteNumeroFactura: number;
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
@@ -207,6 +211,8 @@ export interface LineaDocumento {
 export interface Factura {
   id: string;
   numero: string;
+  /** Fecha/hora de creación (ISO) — usada para ordenar la lista independientemente de `numero` (los borradores no tienen un número real todavía). */
+  createdAt: string;
   clienteId: string;
   vehiculoId?: string;
   /** IDs de las Órdenes de Trabajo cuyas líneas se importaron a esta factura. */

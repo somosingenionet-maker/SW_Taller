@@ -28,8 +28,8 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'tecnicos', label: 'Técnicos', icon: <Wrench className="w-3.5 h-3.5" /> },
 ];
 
-/** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo/recordatorios se conservan). */
-const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios'> = {
+/** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo/recordatorios/numeración de facturas se conservan). */
+const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura'> = {
   nombre: 'Mi Empresa',
   tagline: '',
   razonSocial: '',
@@ -61,6 +61,7 @@ const BRAND_COLORS = [
 export default function CompanySettingsPanel({ config, onSave, onClose }: Props) {
   const [draft, setDraft] = useState<Empresa>({ ...config });
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [activeTab, setActiveTab] = useState<TabId>('identidad');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -109,9 +110,14 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
   };
 
   const handleSave = async () => {
-    await onSave(draft);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError('');
+    try {
+      await onSave(draft);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'No se pudieron guardar los cambios.');
+    }
   };
 
   const handleReset = () => setDraft(prev => ({ ...prev, ...DEFAULT_BRAND_FIELDS }));
@@ -265,6 +271,40 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                     placeholder="Calle Mayor 45, Planta 2, Madrid"
                   />
                 </div>
+              </section>
+
+              {/* Numeración de facturas */}
+              <section className="space-y-3">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Numeración de Facturas</p>
+                <p className="text-[10px] text-slate-400 -mt-2">
+                  Solo se puede cambiar antes de emitir la primera factura — útil para continuar la numeración de un sistema anterior. Una vez emitida la primera, queda bloqueada por ley (numeración correlativa sin huecos).
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Prefijo</label>
+                    <input
+                      type="text"
+                      value={draft.facturaPrefijo}
+                      onChange={e => set('facturaPrefijo', e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      placeholder="FAC-"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Próximo número</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={draft.siguienteNumeroFactura}
+                      onChange={e => setDraft(prev => ({ ...prev, siguienteNumeroFactura: Math.max(1, Number(e.target.value) || 1) }))}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Próxima factura: <span className="font-mono font-semibold text-slate-600">{draft.facturaPrefijo}{String(draft.siguienteNumeroFactura).padStart(4, '0')}</span>
+                </p>
               </section>
 
               {/* Contacto */}
@@ -483,6 +523,12 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
             </section>
           )}
         </div>
+
+        {saveError && (
+          <div className="px-5 py-2.5 border-t border-rose-100 bg-rose-50 text-rose-700 text-xs font-medium shrink-0">
+            {saveError}
+          </div>
+        )}
 
         {/* Footer actions */}
         <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50 shrink-0">

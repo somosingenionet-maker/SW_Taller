@@ -8,7 +8,7 @@ type FacturaInsert = Database['public']['Tables']['facturas']['Insert'];
 
 const SELECT =
   'id, numero, cliente_id, vehiculo_id, fecha, fecha_vencimiento, estado, notas, ' +
-  'subtotal, iva_pct, total_iva, total, hash, hash_anterior, qr_url, fecha_emision_hash, ' +
+  'subtotal, iva_pct, total_iva, total, hash, hash_anterior, qr_url, fecha_emision_hash, created_at, ' +
   'lineas_factura ( id, descripcion, cantidad, precio_unitario, subtotal, posicion ), ' +
   'factura_ot ( ot_id )';
 
@@ -21,7 +21,7 @@ type FacturaRow = {
   fecha: string; fecha_vencimiento: string; estado: string; notas: string;
   subtotal: number; iva_pct: number; total_iva: number; total: number;
   hash: string | null; hash_anterior: string | null; qr_url: string | null;
-  fecha_emision_hash: string | null;
+  fecha_emision_hash: string | null; created_at: string;
   lineas_factura: LineaRow[] | null; factura_ot: { ot_id: string }[] | null;
 };
 
@@ -39,6 +39,7 @@ function mapFactura(r: FacturaRow): Factura {
   return {
     id: r.id,
     numero: r.numero,
+    createdAt: r.created_at,
     clienteId: r.cliente_id,
     vehiculoId: r.vehiculo_id ?? undefined,
     otIds: (r.factura_ot ?? []).map((fo) => fo.ot_id),
@@ -88,7 +89,7 @@ function lineasToRows(facturaId: string, lineas: LineaDocumento[]) {
 
 async function getFactura(id: string): Promise<Factura> {
   const { data, error } = await supabase.from('facturas').select(SELECT).eq('id', id).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapFactura(data as unknown as FacturaRow);
 }
 
@@ -97,23 +98,23 @@ export async function listFacturas(): Promise<Factura[]> {
     .from('facturas')
     .select(SELECT)
     .order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapFactura(r as unknown as FacturaRow));
 }
 
 /** Crea una factura nueva, siempre en estado 'borrador'. El número lo asigna el servidor. */
 export async function createFactura(f: Factura): Promise<Factura> {
   const { data, error } = await supabase.from('facturas').insert(toRow(f) as FacturaInsert).select('id').single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const id = (data as { id: string }).id;
 
   if (f.lineas.length) {
     const { error: eL } = await supabase.from('lineas_factura').insert(lineasToRows(id, f.lineas));
-    if (eL) throw eL;
+    if (eL) throw new Error(eL.message);
   }
   if (f.otIds.length) {
     const { error: eO } = await supabase.from('factura_ot').insert(f.otIds.map((otId) => ({ factura_id: id, ot_id: otId })));
-    if (eO) throw eO;
+    if (eO) throw new Error(eO.message);
   }
   return getFactura(id);
 }
@@ -129,20 +130,20 @@ export async function createFactura(f: Factura): Promise<Factura> {
  */
 export async function updateFactura(f: Factura): Promise<Factura> {
   const { error } = await supabase.from('facturas').update(toRow(f)).eq('id', f.id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 
   const { error: eDelL } = await supabase.from('lineas_factura').delete().eq('factura_id', f.id);
-  if (eDelL) throw eDelL;
+  if (eDelL) throw new Error(eDelL.message);
   if (f.lineas.length) {
     const { error: eL } = await supabase.from('lineas_factura').insert(lineasToRows(f.id, f.lineas));
-    if (eL) throw eL;
+    if (eL) throw new Error(eL.message);
   }
 
   const { error: eDelO } = await supabase.from('factura_ot').delete().eq('factura_id', f.id);
-  if (eDelO) throw eDelO;
+  if (eDelO) throw new Error(eDelO.message);
   if (f.otIds.length) {
     const { error: eO } = await supabase.from('factura_ot').insert(f.otIds.map((otId) => ({ factura_id: f.id, ot_id: otId })));
-    if (eO) throw eO;
+    if (eO) throw new Error(eO.message);
   }
 
   return getFactura(f.id);
@@ -156,7 +157,7 @@ export async function updateFactura(f: Factura): Promise<Factura> {
  */
 export async function emitirFactura(id: string): Promise<Factura> {
   const { error } = await supabase.from('facturas').update({ estado: 'emitida' }).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return getFactura(id);
 }
 
@@ -171,12 +172,12 @@ export async function emitirFactura(id: string): Promise<Factura> {
  */
 export async function cambiarEstadoFactura(id: string, estado: Factura['estado']): Promise<Factura> {
   const { error } = await supabase.from('facturas').update({ estado }).eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return getFactura(id);
 }
 
 /** Solo permitido mientras la factura siga en 'borrador' (bloqueado en servidor si no). */
 export async function deleteFactura(id: string): Promise<void> {
   const { error } = await supabase.from('facturas').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }

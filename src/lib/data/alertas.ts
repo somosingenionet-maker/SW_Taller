@@ -24,7 +24,7 @@ function mapAlerta(r: AlertaRow): Alerta {
 
 export async function listAlertas(): Promise<Alerta[]> {
   const { data, error } = await supabase.from('alertas').select(COLS).order('created_at', { ascending: true });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapAlerta(r as AlertaRow));
 }
 
@@ -34,7 +34,7 @@ export async function renovarAlertaMantenimiento(id: string, nuevoKilometrajeLim
     .from('alertas')
     .update({ kilometraje_limite: nuevoKilometrajeLimite, estado: 'activa' })
     .eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 /** Fuerza el envío inmediato del recordatorio automático de una alerta (Edge Function, cualquier miembro de la empresa). */

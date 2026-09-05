@@ -29,7 +29,7 @@ export async function listUsuarios(empresaId?: string): Promise<Perfil[]> {
   let query = supabase.from('perfiles').select(SELECT).order('nombre');
   if (empresaId) query = query.eq('empresa_id', empresaId);
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapPerfil(r as PerfilRow));
 }
 
@@ -42,7 +42,7 @@ export interface PerfilPatch {
 
 export async function updateUsuario(id: string, patch: PerfilPatch): Promise<Perfil> {
   const { data, error } = await supabase.from('perfiles').update(patch).eq('id', id).select(SELECT).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapPerfil(data as PerfilRow);
 }
 

@@ -613,23 +613,18 @@ create trigger trg_facturas_updated before update on public.facturas
 create trigger trg_facturas_empresa before insert on public.facturas
   for each row execute function public.set_empresa_id();
 
--- Numeración correlativa atómica: si el cliente no envía `numero` (el caso
--- normal — igual que empresa_id, el cliente no gestiona este campo), se
--- asigna incrementando el contador de la propia empresa. `for update`
--- serializa la asignación entre creaciones concurrentes.
+-- El borrador NO consume numeración real todavía (eso rompería la
+-- correlatividad legal si el borrador se descarta sin emitir): se le pone
+-- un marcador temporal único, solo para satisfacer NOT NULL/UNIQUE hasta
+-- que se emita. El número real (prefijo + contador de la empresa) se
+-- asigna en emitir_y_proteger_factura(), en el momento de emitir.
 create or replace function public.set_numero_factura()
 returns trigger
 language plpgsql security definer set search_path = public
 as $$
-declare
-  v_siguiente int;
 begin
   if new.numero is null then
-    update public.empresas
-      set siguiente_numero_factura = siguiente_numero_factura + 1
-      where id = new.empresa_id
-      returning siguiente_numero_factura - 1 into v_siguiente;
-    new.numero := 'FAC-' || lpad(v_siguiente::text, 4, '0');
+    new.numero := 'BORRADOR-' || new.id;
   end if;
   return new;
 end;
@@ -656,17 +651,23 @@ as $$
 declare
   v_hash_anterior text;
   v_nif           text;
+  v_prefijo       text;
+  v_siguiente     int;
   v_cadena        text;
 begin
   if old.estado = 'borrador' and new.estado = 'emitida' then
-    select nif into v_nif from public.empresas where id = new.empresa_id;
-
     -- `for update` bloquea la fila de la empresa hasta el commit, así dos
-    -- emisiones concurrentes de la misma empresa se serializan y ninguna
-    -- lee la huella "anterior" que la otra está a punto de sobrescribir.
-    select ultimo_hash_factura into v_hash_anterior
+    -- emisiones concurrentes de la misma empresa se serializan: ni se
+    -- pisan el número correlativo, ni lee ninguna la huella "anterior" que
+    -- la otra está a punto de sobrescribir.
+    select nif, factura_prefijo, siguiente_numero_factura, ultimo_hash_factura
+      into v_nif, v_prefijo, v_siguiente, v_hash_anterior
       from public.empresas where id = new.empresa_id for update;
 
+    -- El número correlativo real se asigna AQUÍ (al emitir), nunca al crear
+    -- el borrador — así un borrador descartado nunca deja un hueco en la
+    -- numeración (obligatoria por ley que sea correlativa y sin saltos).
+    new.numero := v_prefijo || lpad(v_siguiente::text, 4, '0');
     new.fecha_emision_hash := now();
     -- Cadena a verificar contra la especificación oficial antes de producción.
     v_cadena := coalesce(v_hash_anterior, '') || '|' || coalesce(v_nif, '') || '|' || new.numero
@@ -682,7 +683,9 @@ begin
       || '&fecha=' || to_char(new.fecha, 'DD-MM-YYYY')
       || '&importe=' || new.total::text;
 
-    update public.empresas set ultimo_hash_factura = new.hash where id = new.empresa_id;
+    update public.empresas
+      set ultimo_hash_factura = new.hash, siguiente_numero_factura = siguiente_numero_factura + 1
+      where id = new.empresa_id;
 
   elsif old.estado <> 'borrador' then
     if new.numero <> old.numero or new.cliente_id <> old.cliente_id
@@ -1110,6 +1113,41 @@ $$;
 create trigger trg_vehiculos_sync_alertas
   after update of itv_vencimiento, seguro_vencimiento, impuesto_vencimiento on public.vehiculos
   for each row execute function public.sincronizar_alertas_vencimiento();
+
+-- Prefijo de numeración de facturas, personalizable por empresa (p.ej.
+-- para continuar la numeración de un sistema anterior con un prefijo
+-- propio). Junto con `siguiente_numero_factura` forma el número real, que
+-- se asigna solo al emitir (ver emitir_y_proteger_factura más arriba).
+alter table public.empresas
+  add column factura_prefijo text not null default 'FAC-';
+
+comment on column public.empresas.factura_prefijo is
+  'Prefijo de la numeración de facturas (p.ej. "FAC-"). Editable por la propia empresa solo antes de emitir su primera factura — después queda bloqueado (ver trg_empresas_bloquear_numeracion).';
+comment on column public.empresas.siguiente_numero_factura is
+  'Próximo número de factura a asignar, AL EMITIR (no al crear el borrador). Editable por la propia empresa solo antes de emitir su primera factura, para poder continuar una numeración previa.';
+
+-- Evita que se cambie el prefijo o el contador de numeración en cuanto la
+-- empresa ya tiene alguna factura emitida — así no se puede romper a
+-- mitad de camino la correlatividad de una serie ya empezada.
+create or replace function public.bloquear_cambio_numeracion_factura()
+returns trigger
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if (new.factura_prefijo is distinct from old.factura_prefijo
+      or new.siguiente_numero_factura is distinct from old.siguiente_numero_factura)
+     and exists (
+       select 1 from public.facturas f
+       where f.empresa_id = new.id and f.estado <> 'borrador'
+     )
+  then
+    raise exception 'No se puede cambiar la numeración de facturas: esta empresa ya tiene facturas emitidas.';
+  end if;
+  return new;
+end;
+$$;
+create trigger trg_empresas_bloquear_numeracion before update on public.empresas
+  for each row execute function public.bloquear_cambio_numeracion_factura();
 
 -- Cron diario que llama a la Edge Function enviar-recordatorios. Los
 -- secretos se leen de Vault por nombre (nunca en texto plano en este

@@ -124,7 +124,7 @@ function eventosToRows(otId: string, historial: EventoOT[]) {
 
 async function getOrden(id: string): Promise<OrdenTrabajo> {
   const { data, error } = await supabase.from('ordenes_trabajo').select(SELECT).eq('id', id).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapOrden(data as unknown as OrdenRow);
 }
 
@@ -133,22 +133,22 @@ export async function listOrdenes(): Promise<OrdenTrabajo[]> {
     .from('ordenes_trabajo')
     .select(SELECT)
     .order('updated_at', { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapOrden(r as unknown as OrdenRow));
 }
 
 export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   const { data, error } = await supabase.from('ordenes_trabajo').insert(toRow(ot) as OrdenInsert).select('id').single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const id = (data as { id: string }).id;
 
   if (ot.lineas.length) {
     const { error: eL } = await supabase.from('lineas_ot').insert(lineasToRows(id, ot.lineas));
-    if (eL) throw eL;
+    if (eL) throw new Error(eL.message);
   }
   if (ot.historial.length) {
     const { error: eE } = await supabase.from('eventos_ot').insert(eventosToRows(id, ot.historial));
-    if (eE) throw eE;
+    if (eE) throw new Error(eE.message);
   }
   return getOrden(id);
 }
@@ -170,39 +170,39 @@ export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
  */
 export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   const { error } = await supabase.from('ordenes_trabajo').update(toRow(ot)).eq('id', ot.id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 
   const { data: existentes, error: eExist } = await supabase
     .from('lineas_ot').select('id').eq('ot_id', ot.id);
-  if (eExist) throw eExist;
+  if (eExist) throw new Error(eExist.message);
   const idsExistentes = new Set((existentes ?? []).map((r) => (r as { id: string }).id));
   const idsEntrantes = new Set(ot.lineas.map((l) => l.id));
 
   const aBorrar = [...idsExistentes].filter((id) => !idsEntrantes.has(id));
   if (aBorrar.length) {
     const { error: eDel } = await supabase.from('lineas_ot').delete().in('id', aBorrar);
-    if (eDel) throw eDel;
+    if (eDel) throw new Error(eDel.message);
   }
 
   const aInsertar: ReturnType<typeof lineaToRow>[] = [];
   for (const [i, l] of ot.lineas.entries()) {
     if (idsExistentes.has(l.id)) {
       const { error: eUpd } = await supabase.from('lineas_ot').update(lineaToRow(l, ot.id, i)).eq('id', l.id);
-      if (eUpd) throw eUpd;
+      if (eUpd) throw new Error(eUpd.message);
     } else {
       aInsertar.push(lineaToRow(l, ot.id, i));
     }
   }
   if (aInsertar.length) {
     const { error: eIns } = await supabase.from('lineas_ot').insert(aInsertar);
-    if (eIns) throw eIns;
+    if (eIns) throw new Error(eIns.message);
   }
 
   const { error: eDelE } = await supabase.from('eventos_ot').delete().eq('ot_id', ot.id);
-  if (eDelE) throw eDelE;
+  if (eDelE) throw new Error(eDelE.message);
   if (ot.historial.length) {
     const { error: eE } = await supabase.from('eventos_ot').insert(eventosToRows(ot.id, ot.historial));
-    if (eE) throw eE;
+    if (eE) throw new Error(eE.message);
   }
 
   return getOrden(ot.id);
@@ -210,5 +210,5 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
 
 export async function deleteOrden(id: string): Promise<void> {
   const { error } = await supabase.from('ordenes_trabajo').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }

@@ -54,7 +54,7 @@ function toRow(c: NuevoCliente) {
 
 async function getCliente(id: string): Promise<Cliente> {
   const { data, error } = await supabase.from('clientes').select(SELECT).eq('id', id).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapCliente(data as unknown as ClienteRow);
 }
 
@@ -63,13 +63,13 @@ export async function listClientes(): Promise<Cliente[]> {
     .from('clientes')
     .select(SELECT)
     .order('fecha_registro', { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapCliente(r as unknown as ClienteRow));
 }
 
 export async function createCliente(input: NuevoCliente): Promise<Cliente> {
   const { data, error } = await supabase.from('clientes').insert(toRow(input) as ClienteInsert).select('id').single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const id = (data as { id: string }).id;
 
   const vids = input.vehiculosAsociados ?? [];
@@ -77,7 +77,7 @@ export async function createCliente(input: NuevoCliente): Promise<Cliente> {
     const { error: e2 } = await supabase
       .from('cliente_vehiculo')
       .insert(vids.map((v) => ({ cliente_id: id, vehiculo_id: v })));
-    if (e2) throw e2;
+    if (e2) throw new Error(e2.message);
   }
 
   // Interacción inicial de registro de ficha.
@@ -92,17 +92,17 @@ export async function createCliente(input: NuevoCliente): Promise<Cliente> {
 
 export async function updateCliente(c: Cliente): Promise<Cliente> {
   const { error } = await supabase.from('clientes').update(toRow(c)).eq('id', c.id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 
   // Sincroniza asociaciones de vehículos (borra y reinserta: simple y correcto).
   const { error: eDel } = await supabase.from('cliente_vehiculo').delete().eq('cliente_id', c.id);
-  if (eDel) throw eDel;
+  if (eDel) throw new Error(eDel.message);
   const vids = c.vehiculosAsociados ?? [];
   if (vids.length) {
     const { error: eIns } = await supabase
       .from('cliente_vehiculo')
       .insert(vids.map((v) => ({ cliente_id: c.id, vehiculo_id: v })));
-    if (eIns) throw eIns;
+    if (eIns) throw new Error(eIns.message);
   }
 
   return getCliente(c.id);
@@ -110,7 +110,7 @@ export async function updateCliente(c: Cliente): Promise<Cliente> {
 
 export async function deleteCliente(id: string): Promise<void> {
   const { error } = await supabase.from('clientes').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message);
 }
 
 export async function addInteraccion(
@@ -122,7 +122,7 @@ export async function addInteraccion(
     .insert({ cliente_id: clienteId, tipo: input.tipo, notas: input.notas, ...(input.fecha ? { fecha: input.fecha } : {}) })
     .select('id, fecha, tipo, notas')
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   const r = data as { id: string; fecha: string; tipo: string; notas: string };
   return { id: r.id, fecha: r.fecha, tipo: r.tipo as InteraccionCliente['tipo'], notas: r.notas };
 }

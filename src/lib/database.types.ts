@@ -278,6 +278,7 @@ export type Database = {
           correo: string
           created_at: string
           direccion_fiscal: string
+          factura_prefijo: string
           id: string
           logo_base64: string
           nif: string
@@ -299,6 +300,7 @@ export type Database = {
           correo?: string
           created_at?: string
           direccion_fiscal?: string
+          factura_prefijo?: string
           id?: string
           logo_base64?: string
           nif?: string
@@ -320,6 +322,7 @@ export type Database = {
           correo?: string
           created_at?: string
           direccion_fiscal?: string
+          factura_prefijo?: string
           id?: string
           logo_base64?: string
           nif?: string

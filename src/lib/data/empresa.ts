@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import type { AlertaTipo, Empresa } from '../../types';
 
 const SELECT =
-  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, activo, recordatorios_automaticos_activos, plantillas_recordatorios';
+  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura';
 
 type EmpresaRow = {
   id: string; nombre: string; tagline: string; razon_social: string; nif: string;
@@ -10,6 +10,8 @@ type EmpresaRow = {
   ciudad: string; brand_color: string; logo_base64: string; activo: boolean;
   recordatorios_automaticos_activos: boolean;
   plantillas_recordatorios: Partial<Record<AlertaTipo, string>> | null;
+  factura_prefijo: string;
+  siguiente_numero_factura: number;
 };
 
 function mapEmpresa(r: EmpresaRow): Empresa {
@@ -29,6 +31,8 @@ function mapEmpresa(r: EmpresaRow): Empresa {
     activo: r.activo,
     recordatoriosAutomaticosActivos: r.recordatorios_automaticos_activos,
     plantillasRecordatorios: r.plantillas_recordatorios ?? {},
+    facturaPrefijo: r.factura_prefijo,
+    siguienteNumeroFactura: r.siguiente_numero_factura,
   };
 }
 
@@ -48,13 +52,15 @@ function toRow(c: Partial<Empresa>) {
   if (c.activo !== undefined) row.activo = c.activo;
   if (c.recordatoriosAutomaticosActivos !== undefined) row.recordatorios_automaticos_activos = c.recordatoriosAutomaticosActivos;
   if (c.plantillasRecordatorios !== undefined) row.plantillas_recordatorios = c.plantillasRecordatorios;
+  if (c.facturaPrefijo !== undefined) row.factura_prefijo = c.facturaPrefijo;
+  if (c.siguienteNumeroFactura !== undefined) row.siguiente_numero_factura = c.siguienteNumeroFactura;
   return row;
 }
 
 /** Carga la empresa del usuario autenticado (o cualquiera, si es super admin). */
 export async function getEmpresa(id: string): Promise<Empresa> {
   const { data, error } = await supabase.from('empresas').select(SELECT).eq('id', id).single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapEmpresa(data as EmpresaRow);
 }
 
@@ -66,14 +72,14 @@ export async function updateEmpresa(id: string, patch: Partial<Empresa>): Promis
     .eq('id', id)
     .select(SELECT)
     .single();
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return mapEmpresa(data as EmpresaRow);
 }
 
 /** Lista todas las empresas — solo devuelve resultados si quien llama es super admin (RLS). */
 export async function listEmpresas(): Promise<Empresa[]> {
   const { data, error } = await supabase.from('empresas').select(SELECT).order('nombre');
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapEmpresa(r as EmpresaRow));
 }
 
