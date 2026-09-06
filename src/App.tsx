@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { contrastText } from './utils/color';
 import { supabase } from './lib/supabase';
+import { Sentry } from './lib/sentry';
 import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, addInteraccion, NuevoCliente } from './lib/data/clientes';
@@ -120,6 +121,13 @@ export default function App() {
     } else {
       setEmpresa(null);
     }
+  }, [currentUser]);
+
+  // Contexto de usuario para Sentry — así un error reportado dice quién y de
+  // qué empresa lo sufrió, en vez de ser un evento anónimo. No-op si no hay
+  // VITE_SENTRY_DSN configurado (ver src/lib/sentry.ts).
+  useEffect(() => {
+    Sentry.setUser(currentUser ? { id: currentUser.id, email: currentUser.email, empresa_id: currentUser.empresaId ?? undefined } : null);
   }, [currentUser]);
 
   // Refresca el perfil del usuario logueado (p.ej. tras editar su propio nombre desde "Mi cuenta").
