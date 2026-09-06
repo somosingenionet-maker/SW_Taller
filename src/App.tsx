@@ -188,11 +188,13 @@ export default function App() {
     }
   }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarFacturas, recargarProductos, recargarCitas]);
 
-  // Set default tab based on user modules
+  // Corrige la pestaña activa si el usuario no tiene permiso sobre ella —
+  // 'inicio' queda fuera de esta comprobación: no es un módulo con permiso
+  // propio, es la pantalla de aterrizaje válida para cualquier usuario.
   useEffect(() => {
     if (currentUser) {
       const mods = currentUser.modulos;
-      if (mods.length > 0 && !mods.includes(activeTab as ModuloId)) {
+      if (activeTab !== 'inicio' && mods.length > 0 && !mods.includes(activeTab as ModuloId)) {
         setActiveTab(mods[0]);
       }
     }
