@@ -491,7 +491,7 @@ export default function App() {
     <div className="flex-1 flex min-h-0 pl-3.5 pt-3.5 pb-3.5 overflow-hidden print:overflow-visible print:block print:p-0">
 
       {/* RIEL LATERAL — navegación por iconos, panel flotante (solo escritorio) */}
-      <aside className="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-white rounded-3xl shadow-md py-4 mr-3.5 print:hidden">
+      <aside className="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-white rounded-3xl shadow-lg border border-slate-200 py-4 mr-3.5 print:hidden">
         <div className="flex flex-col gap-1.5 items-center">
           {tabDefs.map(tab => (
             <div key={tab.id} className="group relative">
@@ -712,7 +712,7 @@ export default function App() {
       </main>
 
         {/* PIE — contacto de la empresa + copyright (antes vivía en la cabecera) */}
-        <footer className="bg-slate-900 border-t border-slate-800 py-3.5 text-xs text-slate-400 print:hidden shrink-0">
+        <footer className="bg-slate-900 rounded-2xl shadow-md mr-3.5 mt-3.5 py-3.5 text-xs text-slate-400 print:hidden shrink-0">
           <div className="px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-2.5">
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
               {empresa.correo && (
