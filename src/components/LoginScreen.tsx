@@ -91,12 +91,12 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30 overflow-hidden">
               {logo ? (
-                <img src={logo} alt="Tibox" className="w-full h-full object-contain" />
+                <img src={logo} alt="Doonty" className="w-full h-full object-contain" />
               ) : (
-                <span className="text-white font-black text-xl tracking-tighter">T</span>
+                <span className="text-white font-black text-xl tracking-tighter">D</span>
               )}
             </div>
-            <span className="text-white font-bold text-lg tracking-tight">Tibox Motor</span>
+            <span className="text-white font-bold text-lg tracking-tight">Doonty Motor</span>
           </div>
         </div>
 
@@ -123,7 +123,7 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
         </div>
 
         <p className="relative z-10 text-slate-600 text-xs">
-          © 2026 Tibox — Desarrollado por{' '}
+          © 2026 Doonty — Desarrollado por{' '}
           <a
             href="https://www.somosingenio.net"
             target="_blank"
@@ -145,12 +145,12 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
         <div className="md:hidden relative z-10 flex flex-col items-center gap-3 mb-8">
           <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/30 overflow-hidden">
             {logo ? (
-              <img src={logo} alt="Tibox" className="w-full h-full object-contain" />
+              <img src={logo} alt="Doonty" className="w-full h-full object-contain" />
             ) : (
-              <span className="text-white font-black text-2xl tracking-tighter">T</span>
+              <span className="text-white font-black text-2xl tracking-tighter">D</span>
             )}
           </div>
-          <span className="text-white font-bold text-lg tracking-tight">Tibox Motor</span>
+          <span className="text-white font-bold text-lg tracking-tight">Doonty Motor</span>
         </div>
 
         <div className="relative z-10 w-full max-w-sm md:bg-white/90 md:backdrop-blur-xl md:border md:border-white md:rounded-3xl md:shadow-2xl md:shadow-slate-400/20 md:p-8">
@@ -313,7 +313,7 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           )}
 
           <p className="md:hidden text-slate-600 text-xs mt-8 text-center">
-            © 2026 Tibox — Desarrollado por{' '}
+            © 2026 Doonty — Desarrollado por{' '}
             <a
               href="https://www.somosingenio.net"
               target="_blank"

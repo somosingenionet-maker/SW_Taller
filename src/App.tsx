@@ -696,7 +696,7 @@ export default function App() {
               )}
             </div>
             <p className="text-slate-500 text-center">
-              © 2026 Tibox — Desarrollado por{' '}
+              © 2026 Doonty — Desarrollado por{' '}
               <a
                 href="https://www.somosingenio.net"
                 target="_blank"

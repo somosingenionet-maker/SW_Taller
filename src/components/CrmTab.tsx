@@ -159,7 +159,7 @@ export default function CrmTab({
   const handleExportCsv = () => {
     const headers = ['Nombre', 'Apellidos', 'NIF/NIE/Pasaporte', 'Correo', 'Teléfono', 'Dirección', 'Fecha Registro'];
     const rows = clientes.map(c => [c.nombre, c.apellidos, c.nifNiePasaporte, c.correo, c.telefono, c.direccion, c.fechaRegistro]);
-    downloadCsv(`tibox_clientes_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
+    downloadCsv(`doonty_clientes_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
   };
 
   return (

@@ -127,14 +127,14 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
               className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shrink-0 overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-400 transition"
             >
               {logo ? (
-                <img src={logo} alt="Tibox" className="w-full h-full object-contain" />
+                <img src={logo} alt="Doonty" className="w-full h-full object-contain" />
               ) : (
                 <Shield className="w-5 h-5 text-white" />
               )}
             </button>
             <div>
               <h1 className="text-md sm:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                Tibox Motor
+                Doonty Motor
                 <span className="text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest bg-white/10 text-white border border-white/20">
                   Super Admin
                 </span>

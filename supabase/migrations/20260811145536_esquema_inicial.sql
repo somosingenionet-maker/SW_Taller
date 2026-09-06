@@ -942,7 +942,7 @@ update public.perfiles
   set modulos = array_append(modulos, 'citas')
   where not ('citas' = any(modulos));
 
--- Configuración de plataforma: fila única (branding global — logo de Tibox).
+-- Configuración de plataforma: fila única (branding global — logo de Doonty).
 -- Se lee en la pantalla de login (antes de autenticar), por eso el select es
 -- público; solo el super admin puede modificarla.
 create table public.plataforma_config (

@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 
 /**
- * Logo global de la plataforma (branding de Tibox), independiente del logo
+ * Logo global de la plataforma (branding de Doonty), independiente del logo
  * de cada empresa. Se muestra en el login y en el panel de Super Admin.
  * Lectura pública (se necesita antes de autenticar); escritura solo super admin.
  */
