@@ -170,6 +170,8 @@ export interface Empresa {
   ciudad: string;
   brandColor: string;
   logoBase64: string;
+  /** URL pública (Supabase Storage) del logo — usada solo en el <img> de los emails de recordatorio (un base64 incrustado dispara filtros de spam). Vacía hasta que se suba un logo tras añadir este campo. */
+  logoUrl: string;
   /** Si es false, la empresa está suspendida (impago, baja, etc.). */
   activo: boolean;
   /** Activa el envío automático diario de recordatorios por email (opt-in). */

@@ -2,12 +2,12 @@ import { supabase } from '../supabase';
 import type { AlertaTipo, Empresa } from '../../types';
 
 const SELECT =
-  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura';
+  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura';
 
 type EmpresaRow = {
   id: string; nombre: string; tagline: string; razon_social: string; nif: string;
   direccion_fiscal: string; correo: string; telefono: string; web: string;
-  ciudad: string; brand_color: string; logo_base64: string; activo: boolean;
+  ciudad: string; brand_color: string; logo_base64: string; logo_url: string | null; activo: boolean;
   recordatorios_automaticos_activos: boolean;
   plantillas_recordatorios: Partial<Record<AlertaTipo, string>> | null;
   factura_prefijo: string;
@@ -28,6 +28,7 @@ function mapEmpresa(r: EmpresaRow): Empresa {
     ciudad: r.ciudad,
     brandColor: r.brand_color,
     logoBase64: r.logo_base64,
+    logoUrl: r.logo_url ?? '',
     activo: r.activo,
     recordatoriosAutomaticosActivos: r.recordatorios_automaticos_activos,
     plantillasRecordatorios: r.plantillas_recordatorios ?? {},
@@ -49,6 +50,7 @@ function toRow(c: Partial<Empresa>) {
   if (c.ciudad !== undefined) row.ciudad = c.ciudad;
   if (c.brandColor !== undefined) row.brand_color = c.brandColor;
   if (c.logoBase64 !== undefined) row.logo_base64 = c.logoBase64;
+  if (c.logoUrl !== undefined) row.logo_url = c.logoUrl;
   if (c.activo !== undefined) row.activo = c.activo;
   if (c.recordatoriosAutomaticosActivos !== undefined) row.recordatorios_automaticos_activos = c.recordatoriosAutomaticosActivos;
   if (c.plantillasRecordatorios !== undefined) row.plantillas_recordatorios = c.plantillasRecordatorios;

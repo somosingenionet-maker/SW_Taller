@@ -281,6 +281,7 @@ export type Database = {
           factura_prefijo: string
           id: string
           logo_base64: string
+          logo_url: string | null
           nif: string
           nombre: string
           plantillas_recordatorios: Json
@@ -303,6 +304,7 @@ export type Database = {
           factura_prefijo?: string
           id?: string
           logo_base64?: string
+          logo_url?: string | null
           nif?: string
           nombre: string
           plantillas_recordatorios?: Json
@@ -325,6 +327,7 @@ export type Database = {
           factura_prefijo?: string
           id?: string
           logo_base64?: string
+          logo_url?: string | null
           nif?: string
           nombre?: string
           plantillas_recordatorios?: Json

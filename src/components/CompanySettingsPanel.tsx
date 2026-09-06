@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell } from 'lucide-react';
 import { AlertaTipo, Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico } from '../lib/data/tecnicos';
+import { supabase } from '../lib/supabase';
 import { contrastText } from '../utils/color';
 import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioTemplates';
 
@@ -41,6 +42,7 @@ const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutoma
   ciudad: '',
   brandColor: '#2563eb',
   logoBase64: '',
+  logoUrl: '',
 };
 
 const BRAND_COLORS = [
@@ -101,12 +103,43 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
   const set = (field: keyof Empresa, value: string) =>
     setDraft(prev => ({ ...prev, [field]: value }));
 
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState('');
+
+  const MIME_EXT: Record<string, string> = {
+    'image/png': 'png', 'image/jpeg': 'jpg', 'image/svg+xml': 'svg', 'image/webp': 'webp', 'image/gif': 'gif',
+  };
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setLogoError('');
+
+    // Base64 — se usa dentro de la app (header, PDF de factura, impresión de OT).
     const reader = new FileReader();
     reader.onload = ev => set('logoBase64', ev.target?.result as string);
     reader.readAsDataURL(file);
+
+    // Además se sube a Storage: los emails de recordatorio necesitan una URL
+    // real (un logo en base64 incrustado en el HTML del correo dispara los
+    // filtros de spam), así que referencian este archivo en vez del base64.
+    void (async () => {
+      setLogoUploading(true);
+      try {
+        const ext = MIME_EXT[file.type] || file.name.split('.').pop() || 'png';
+        const path = `${config.id}/logo.${ext}`;
+        const { error } = await supabase.storage
+          .from('logos-empresas')
+          .upload(path, file, { upsert: true, cacheControl: '3600' });
+        if (error) throw error;
+        const { data } = supabase.storage.from('logos-empresas').getPublicUrl(path);
+        set('logoUrl', `${data.publicUrl}?v=${Date.now()}`);
+      } catch {
+        setLogoError('No se pudo subir el logo para los emails — se guardará igualmente el de la app.');
+      } finally {
+        setLogoUploading(false);
+      }
+    })();
   };
 
   const handleSave = async () => {
@@ -173,13 +206,15 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                 </button>
                 {draft.logoBase64 && (
                   <button
-                    onClick={() => set('logoBase64', '')}
+                    onClick={() => { set('logoBase64', ''); set('logoUrl', ''); }}
                     className="text-xs text-slate-400 hover:text-rose-500 transition text-left"
                   >
                     Eliminar logo
                   </button>
                 )}
-                <p className="text-[10px] text-slate-400">PNG, JPG o SVG — máx. 2 MB</p>
+                {logoUploading && <p className="text-[10px] text-blue-500">Subiendo logo para los emails…</p>}
+                {logoError && <p className="text-[10px] text-rose-500">{logoError}</p>}
+                {!logoUploading && !logoError && <p className="text-[10px] text-slate-400">PNG, JPG o SVG — máx. 2 MB</p>}
               </div>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
             </div>

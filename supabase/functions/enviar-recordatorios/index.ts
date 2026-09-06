@@ -48,6 +48,39 @@ const ASUNTO: Record<TipoAlerta, string> = {
   mantenimiento: 'Recordatorio: mantenimiento preventivo recomendado',
 };
 
+const ICONO_TIPO: Record<TipoAlerta, string> = {
+  itv: '📋',
+  seguro: '🛡️',
+  impuesto: '🚗',
+  mantenimiento: '🔧',
+};
+
+const ETIQUETA_TIPO: Record<TipoAlerta, string> = {
+  itv: 'ITV',
+  seguro: 'Seguro',
+  impuesto: 'Impuesto de circulación',
+  mantenimiento: 'Mantenimiento',
+};
+
+const BRAND_COLOR_DEFAULT = '#2563eb';
+
+/** Duplicado de src/utils/color.ts — Deno no puede importar código del frontend. */
+function contrastText(hex: string): string {
+  try {
+    const c = hex.replace('#', '');
+    const r = parseInt(c.slice(0, 2), 16) / 255;
+    const g = parseInt(c.slice(2, 4), 16) / 255;
+    const b = parseInt(c.slice(4, 6), 16) / 255;
+    const toLinear = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+    const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    const onWhite = 1.05 / (lum + 0.05);
+    const onBlack = (lum + 0.05) / 0.05;
+    return onWhite > onBlack ? '#ffffff' : '#000000';
+  } catch {
+    return '#ffffff';
+  }
+}
+
 // Textos por defecto — duplicado en src/utils/recordatorioTemplates.ts
 // (Deno no puede importar código del frontend). Mantener ambos en sincronía.
 const PLANTILLA_DEFAULT: Record<TipoAlerta, string> = {
@@ -61,7 +94,19 @@ function sustituirVariables(texto: string, valores: Record<string, string>): str
   return texto.replace(/\{\{(\w+)\}\}/g, (match, key) => valores[key] ?? match);
 }
 
-type Empresa = { id: string; nombre: string; plantillas_recordatorios: Partial<Record<TipoAlerta, string>> | null };
+type Empresa = {
+  id: string;
+  nombre: string;
+  plantillas_recordatorios: Partial<Record<TipoAlerta, string>> | null;
+  // Nunca se usa logo_base64 aquí: incrustar un logo en base64 en el HTML del
+  // correo es una señal clásica de spam para Gmail y similares — se usa la
+  // URL pública de Storage (logo_url) en su lugar, o directamente sin logo.
+  logo_url: string | null;
+  brand_color: string | null;
+  correo: string | null;
+  telefono: string | null;
+  web: string | null;
+};
 type Vehiculo = { id: string; marca: string; modelo: string; matricula: string; kilometraje: number };
 type Cliente = { id: string; nombre: string; apellidos: string; correo: string | null };
 type Alerta = { id: string; tipo: string; fecha_limite: string | null; kilometraje_limite: number | null };
@@ -84,13 +129,62 @@ function construirEmail(
     km: alerta.kilometraje_limite != null ? alerta.kilometraje_limite.toLocaleString('es-ES') : '',
   });
 
+  const color = empresa.brand_color?.trim() || BRAND_COLOR_DEFAULT;
+  const textoSobreColor = contrastText(color);
+  const detalle = tipo === 'mantenimiento'
+    ? (alerta.kilometraje_limite != null ? `${alerta.kilometraje_limite.toLocaleString('es-ES')} km` : '')
+    : (alerta.fecha_limite ? new Date(alerta.fecha_limite).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
+
+  const contacto = [empresa.correo, empresa.telefono, empresa.web].filter(Boolean).join(' · ');
+
   const html = `
-    <div style="font-family: sans-serif; color: #1e293b; max-width: 480px; margin: 0 auto; white-space: pre-line;">
-      ${cuerpo}
-      <p style="color:#64748b; font-size: 12px; margin-top: 24px; white-space: normal;">
-        Este es un recordatorio automático de ${empresa.nombre}.
-      </p>
-    </div>
+<div style="background-color:#f1f5f9; padding:32px 16px; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; margin:0 auto; background-color:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #e2e8f0;">
+    <tr>
+      <td style="background-color:${color}; padding:24px 28px;">
+        <table role="presentation" cellpadding="0" cellspacing="0">
+          <tr>
+            ${empresa.logo_url ? `<td style="padding-right:12px;"><img src="${empresa.logo_url}" alt="${empresa.nombre}" height="36" style="height:36px; width:auto; display:block; border-radius:8px;" /></td>` : ''}
+            <td style="color:${textoSobreColor}; font-size:17px; font-weight:700; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+              ${empresa.nombre}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px 28px 8px;">
+        <span style="display:inline-block; background-color:${color}1a; color:${color}; font-size:12px; font-weight:700; letter-spacing:0.02em; padding:4px 12px; border-radius:999px;">
+          ${ICONO_TIPO[tipo]}&nbsp; ${ETIQUETA_TIPO[tipo].toUpperCase()}
+        </span>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 28px 0; color:#1e293b; font-size:15px; line-height:1.6; white-space:pre-line;">
+        ${cuerpo}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:24px 28px 28px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
+          <tr>
+            <td style="padding:16px 18px;">
+              <div style="font-size:14px; font-weight:700; color:#1e293b;">${vehiculoDesc}</div>
+              ${detalle ? `<div style="font-size:13px; color:#64748b; margin-top:2px;">${tipo === 'mantenimiento' ? 'Kilometraje de aviso' : 'Vencimiento'}: ${detalle}</div>` : ''}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 28px 28px; border-top:1px solid #f1f5f9;">
+        <p style="color:#94a3b8; font-size:12px; margin:20px 0 0;">
+          Este es un recordatorio automático de ${empresa.nombre}.${contacto ? ` ${contacto}` : ''}
+        </p>
+      </td>
+    </tr>
+  </table>
+</div>
   `.trim();
 
   return { asunto: `${ASUNTO[tipo]} — ${vehiculoDesc}`, html };
@@ -162,7 +256,7 @@ async function manejarForzado(admin: SupabaseClient, req: Request, alertaId: str
 
   const { data: empresa, error: empresaErr } = await admin
     .from('empresas')
-    .select('id, nombre, plantillas_recordatorios')
+    .select('id, nombre, plantillas_recordatorios, logo_url, brand_color, correo, telefono, web')
     .eq('id', alerta.empresa_id)
     .single();
   if (empresaErr || !empresa) return json({ error: 'Empresa no encontrada.' }, 404);
@@ -203,7 +297,7 @@ async function manejarLote(admin: SupabaseClient) {
   try {
     const { data: empresas, error: empresasErr } = await admin
       .from('empresas')
-      .select('id, nombre, plantillas_recordatorios')
+      .select('id, nombre, plantillas_recordatorios, logo_url, brand_color, correo, telefono, web')
       .eq('activo', true)
       .eq('recordatorios_automaticos_activos', true);
     if (empresasErr) throw empresasErr;
