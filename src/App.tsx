@@ -21,12 +21,13 @@ import AlertsNotificationsTab from './components/AlertsNotificationsTab';
 import FacturasTab from './components/FacturasTab';
 import InventarioTab from './components/InventarioTab';
 import AgendaTab from './components/AgendaTab';
+import HomeTab from './components/HomeTab';
 import LoginScreen from './components/LoginScreen';
 import ResetPasswordScreen from './components/ResetPasswordScreen';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminPanel from './components/SuperAdminPanel';
 import {
-  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock
+  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home
 } from 'lucide-react';
 import CompanySettingsPanel from './components/CompanySettingsPanel';
 
@@ -41,7 +42,7 @@ export default function App() {
   const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<TabId>('citas');
+  const [activeTab, setActiveTab] = useState<TabId>('inicio');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
@@ -396,27 +397,99 @@ export default function App() {
   // Datos de la propia empresa aún cargando.
   if (!empresa) return null;
 
-  const tabDefs: { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[] = (
-    [
-      { id: 'citas' as ModuloId, label: 'Agenda', icon: <CalendarClock className="w-4 h-4" />, emoji: '📅' },
-      { id: 'inventario' as ModuloId, label: 'Inventario', icon: <Package className="w-4 h-4" />, emoji: '📦' },
-      { id: 'vehiculos' as ModuloId, label: 'Vehículos', icon: <Car className="w-4 h-4" />, emoji: '🚗' },
-      { id: 'clientes' as ModuloId, label: 'Clientes', icon: <Users className="w-4 h-4" />, emoji: '👥' },
-      { id: 'taller' as ModuloId, label: 'Taller', icon: <Wrench className="w-4 h-4" />, emoji: '🔧' },
-      { id: 'alertas' as ModuloId, label: 'Alertas', icon: <Bell className="w-4 h-4" />, emoji: '🔔' },
-      { id: 'rentabilidad' as ModuloId, label: 'Rentabilidad', icon: <BarChart2 className="w-4 h-4" />, emoji: '📈' },
-      { id: 'facturas' as ModuloId, label: 'Facturas', icon: <FileText className="w-4 h-4" />, emoji: '🧾' },
-    ] as { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[]
-  ).filter(t => activeModulos.includes(t.id));
+  // "Inicio" no es un módulo con permiso propio — es la pantalla de aterrizaje
+  // de todo el mundo, así que va siempre primero sin pasar por el filtro de activeModulos.
+  const tabDefs: { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[] = [
+    { id: 'inicio' as ModuloId, label: 'Inicio', icon: <Home className="w-4 h-4" />, emoji: '🏠' },
+    ...(
+      [
+        { id: 'citas' as ModuloId, label: 'Agenda', icon: <CalendarClock className="w-4 h-4" />, emoji: '📅' },
+        { id: 'inventario' as ModuloId, label: 'Inventario', icon: <Package className="w-4 h-4" />, emoji: '📦' },
+        { id: 'vehiculos' as ModuloId, label: 'Vehículos', icon: <Car className="w-4 h-4" />, emoji: '🚗' },
+        { id: 'clientes' as ModuloId, label: 'Clientes', icon: <Users className="w-4 h-4" />, emoji: '👥' },
+        { id: 'taller' as ModuloId, label: 'Taller', icon: <Wrench className="w-4 h-4" />, emoji: '🔧' },
+        { id: 'alertas' as ModuloId, label: 'Alertas', icon: <Bell className="w-4 h-4" />, emoji: '🔔' },
+        { id: 'rentabilidad' as ModuloId, label: 'Rentabilidad', icon: <BarChart2 className="w-4 h-4" />, emoji: '📈' },
+        { id: 'facturas' as ModuloId, label: 'Facturas', icon: <FileText className="w-4 h-4" />, emoji: '🧾' },
+      ] as { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[]
+    ).filter(t => activeModulos.includes(t.id)),
+  ];
 
   return (
     <div
-      className="h-screen bg-slate-50 font-sans flex antialiased overflow-hidden print:h-auto print:overflow-visible print:block"
+      className="h-screen bg-slate-50 font-sans flex flex-col antialiased overflow-hidden print:h-auto print:overflow-visible print:block"
       style={{ '--brand': brandColor, '--brand-text': brandText } as React.CSSProperties}
     >
 
-      {/* RIEL LATERAL — navegación por iconos (solo escritorio) */}
-      <aside className="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-white border-r border-slate-200/80 py-4 print:hidden">
+    {/* CABECERA — panel flotante centrado, separado del borde superior */}
+    <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
+      <header
+        className="w-[82%] max-w-4xl rounded-2xl shadow-md"
+        style={{ backgroundImage: `linear-gradient(135deg, ${brandColor}, color-mix(in srgb, ${brandColor} 78%, black))` }}
+      >
+        <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+
+          {/* Logo + Brand */}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center font-black tracking-tighter text-lg shadow-md shrink-0 overflow-hidden"
+              style={{ backgroundColor: `${brandColor}33`, color: brandText }}
+            >
+              {empresa.logoBase64 ? (
+                <img src={empresa.logoBase64} alt="logo" className="w-full h-full object-contain" />
+              ) : (
+                empresa.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'E'
+              )}
+            </div>
+            <div>
+              <h1 className="text-md sm:text-lg font-display font-bold tracking-tight flex items-center gap-2" style={{ color: brandText }}>
+                {empresa.nombre}
+                <span
+                  className="hidden sm:inline text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-widest"
+                  style={{ backgroundColor: `${brandText === '#ffffff' ? '#ffffff' : '#000000'}22`, color: brandText, border: `1px solid ${brandText}44` }}
+                >
+                  FLOTAS Y CRM
+                </span>
+              </h1>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${brandText}99` }}>{empresa.tagline}</p>
+            </div>
+          </div>
+
+          {/* User pill + logout */}
+          <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-2 rounded-full px-3 py-2"
+              style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
+            >
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black"
+                style={{ backgroundColor: brandText, color: brandColor }}
+              >
+                {currentUser.nombre[0].toUpperCase()}
+              </div>
+              <span className="text-xs font-semibold hidden sm:block">{currentUser.nombre}</span>
+              {currentUser.rol === 'admin' && (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${brandText}22`, color: brandText }}>ADMIN</span>
+              )}
+            </div>
+            <button
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              className="p-2 rounded-full transition cursor-pointer"
+              style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </header>
+    </div>
+
+    {/* Fila: riel lateral (flotante) + columna principal */}
+    <div className="flex-1 flex min-h-0 pl-3.5 pt-3.5 pb-3.5 overflow-hidden print:overflow-visible print:block print:p-0">
+
+      {/* RIEL LATERAL — navegación por iconos, panel flotante (solo escritorio) */}
+      <aside className="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-white rounded-3xl shadow-md py-4 mr-3.5 print:hidden">
         <div className="flex flex-col gap-1.5 items-center">
           {tabDefs.map(tab => (
             <div key={tab.id} className="group relative">
@@ -475,68 +548,6 @@ export default function App() {
       {/* COLUMNA PRINCIPAL */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
 
-        {/* CABECERA */}
-        <header
-          className="shadow-md print:hidden shrink-0"
-          style={{ backgroundImage: `linear-gradient(135deg, ${brandColor}, color-mix(in srgb, ${brandColor} 78%, black))` }}
-        >
-          <div className="px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between gap-4">
-
-            {/* Logo + Brand */}
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center font-black tracking-tighter text-lg shadow-md shrink-0 overflow-hidden"
-                style={{ backgroundColor: `${brandColor}33`, color: brandText }}
-              >
-                {empresa.logoBase64 ? (
-                  <img src={empresa.logoBase64} alt="logo" className="w-full h-full object-contain" />
-                ) : (
-                  empresa.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'E'
-                )}
-              </div>
-              <div>
-                <h1 className="text-md sm:text-lg font-display font-bold tracking-tight flex items-center gap-2" style={{ color: brandText }}>
-                  {empresa.nombre}
-                  <span
-                    className="hidden sm:inline text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-widest"
-                    style={{ backgroundColor: `${brandText === '#ffffff' ? '#ffffff' : '#000000'}22`, color: brandText, border: `1px solid ${brandText}44` }}
-                  >
-                    FLOTAS Y CRM
-                  </span>
-                </h1>
-                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${brandText}99` }}>{empresa.tagline}</p>
-              </div>
-            </div>
-
-            {/* User pill + logout */}
-            <div className="flex items-center gap-2">
-              <div
-                className="flex items-center gap-2 rounded-full px-3 py-2"
-                style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
-              >
-                <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black"
-                  style={{ backgroundColor: brandText, color: brandColor }}
-                >
-                  {currentUser.nombre[0].toUpperCase()}
-                </div>
-                <span className="text-xs font-semibold hidden sm:block">{currentUser.nombre}</span>
-                {currentUser.rol === 'admin' && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${brandText}22`, color: brandText }}>ADMIN</span>
-                )}
-              </div>
-              <button
-                onClick={handleLogout}
-                title="Cerrar sesión"
-                className="p-2 rounded-full transition cursor-pointer"
-                style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        </header>
-
         {/* Barra móvil: módulo activo + menú (la navegación por iconos solo existe en escritorio) */}
         <nav className="md:hidden bg-white border-b border-slate-200/80 shadow-3xs print:hidden shrink-0">
           <div className="px-4 sm:px-6">
@@ -587,6 +598,21 @@ export default function App() {
 
         {/* CORE WORKSPACE */}
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 overflow-y-auto print:overflow-visible print:h-auto">
+        {activeTab === 'inicio' && (
+          <HomeTab
+            currentUser={currentUser}
+            citas={citas}
+            clientes={clientes}
+            vehiculos={vehiculos}
+            ordenesTrabajo={ordenesTrabajo}
+            alertas={alertas}
+            facturas={facturas}
+            modulos={activeModulos}
+            brandColor={brandColor}
+            onNavigate={setActiveTab}
+          />
+        )}
+
         {activeTab === 'citas' && (
           <AgendaTab
             citas={citas}
@@ -718,6 +744,7 @@ export default function App() {
           </div>
         </footer>
       </div>
+    </div>
 
       {settingsOpen && (
         <CompanySettingsPanel

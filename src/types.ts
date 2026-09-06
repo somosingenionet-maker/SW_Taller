@@ -185,7 +185,7 @@ export interface Empresa {
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
-export type ModuloId = 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas' | 'inventario' | 'citas';
+export type ModuloId = 'inicio' | 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas' | 'inventario' | 'citas';
 
 /**
  * Perfil del usuario autenticado (tabla `perfiles`, ligada a Supabase Auth).
