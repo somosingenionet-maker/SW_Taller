@@ -37,10 +37,10 @@ export default function HomeTab({
   const puede = (m: ModuloId) => modulos.includes(m);
 
   const hoyStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const fechaLarga = useMemo(
-    () => new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
-    []
-  );
+  const fechaLarga = useMemo(() => {
+    const s = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }, []);
 
   const clientePorId = useMemo(() => new Map(clientes.map(c => [c.id, c])), [clientes]);
   const vehiculoPorId = useMemo(() => new Map(vehiculos.map(v => [v.id, v])), [vehiculos]);
@@ -91,7 +91,7 @@ export default function HomeTab({
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
             {saludo()}, {currentUser.nombre.split(' ')[0]} 👋
           </h1>
-          <p className="text-sm text-slate-500 capitalize">{fechaLarga}</p>
+          <p className="text-sm text-slate-500">{fechaLarga}</p>
         </div>
       </div>
 
