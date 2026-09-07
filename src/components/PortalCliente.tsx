@@ -77,7 +77,7 @@ function VehiculoStatus({ v, color }: { v: PortalData['vehiculos'][number]; colo
   );
 }
 
-function PresupuestoCard({ p, color, token, onResponder }: { p: PortalData['presupuestosPendientes'][number]; color: string; token: string; onResponder: (otId: string, aprobado: boolean) => void }) {
+function PresupuestoCard({ p, color, token }: { p: PortalData['presupuestosPendientes'][number]; color: string; token: string }) {
   const [enviando, setEnviando] = useState<'aprobar' | 'rechazar' | null>(null);
   const [respondido, setRespondido] = useState<'aprobado' | 'rechazado' | null>(null);
   const [error, setError] = useState('');
@@ -87,8 +87,10 @@ function PresupuestoCard({ p, color, token, onResponder }: { p: PortalData['pres
     setError('');
     try {
       await responderPresupuesto(token, p.otId, aprobado);
+      // Deliberadamente no se quita de la lista del padre: así la tarjeta se
+      // queda mostrando la confirmación en vez de desaparecer sin que el
+      // cliente llegue a verla.
       setRespondido(aprobado ? 'aprobado' : 'rechazado');
-      onResponder(p.otId, aprobado);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo enviar tu respuesta.');
     } finally {
@@ -163,10 +165,6 @@ export default function PortalCliente({ token }: Props) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const marcarRespondido = (otId: string) => {
-    setData(prev => prev ? { ...prev, presupuestosPendientes: prev.presupuestosPendientes.filter(p => p.otId !== otId) } : prev);
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -210,7 +208,7 @@ export default function PortalCliente({ token }: Props) {
         {data.vehiculos.map(v => <VehiculoStatus key={v.id} v={v} color={color} />)}
 
         {data.presupuestosPendientes.map(p => (
-          <PresupuestoCard key={p.otId} p={p} color={color} token={token} onResponder={marcarRespondido} />
+          <PresupuestoCard key={p.otId} p={p} color={color} token={token} />
         ))}
 
         {data.alertas.length > 0 && (
