@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon, Send } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon, Send, Download } from 'lucide-react';
 import { Factura, LineaDocumento, Cliente, Vehiculo, OrdenTrabajo, Empresa } from '../types';
 import { formatDate } from '../utils/dateFormat';
+import { downloadCsv } from '../utils/csvExport';
 import ConfirmDialog from './ConfirmDialog';
 import QRCode from 'qrcode';
 
@@ -340,6 +341,15 @@ export default function FacturasTab({
   // un número real (se asigna al emitir), así que no sirve para ordenar.
   const sortedFacturas = [...facturas].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
+  const handleExportCsv = () => {
+    const headers = ['Número', 'Cliente', 'Vehículo', 'Fecha', 'Vencimiento', 'Estado', 'Subtotal', 'IVA', 'Total'];
+    const rows = sortedFacturas.map(f => [
+      numeroMostrado(f), nombreCliente(f.clienteId), nombreVehiculo(f.vehiculoId), f.fecha, f.fechaVencimiento,
+      ESTADO_FACTURA_LABELS[f.estado], fmt(f.subtotal), fmt(f.totalIva), fmt(f.total),
+    ]);
+    downloadCsv(`doonty_facturas_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
+  };
+
   const handleSaveFactura = (f: Factura) => {
     if (facturas.find(x => x.id === f.id)) onUpdateFactura(f);
     else onAddFactura(f);
@@ -379,9 +389,18 @@ export default function FacturasTab({
           <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
             <Receipt className="w-4 h-4 text-blue-500" /> Facturas
           </div>
-          <button onClick={() => setFacturaModal({ open: true, factura: null })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer">
-            <Plus className="w-3.5 h-3.5" /> Nueva Factura
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer"
+              title="Exportar facturas a CSV"
+            >
+              <Download className="w-3.5 h-3.5" /> CSV
+            </button>
+            <button onClick={() => setFacturaModal({ open: true, factura: null })} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition cursor-pointer">
+              <Plus className="w-3.5 h-3.5" /> Nueva Factura
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

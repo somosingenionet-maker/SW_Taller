@@ -2,9 +2,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { Producto, MovimientoStock } from '../types';
 import { listMovimientos, NuevoMovimiento } from '../lib/data/productos';
 import {
-  Package, Search, Plus, Edit2, Trash2, X, Check, AlertTriangle, History, PackagePlus, ArrowUpCircle, SlidersHorizontal
+  Package, Search, Plus, Edit2, Trash2, X, Check, AlertTriangle, History, PackagePlus, ArrowUpCircle, SlidersHorizontal, Download
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
+import { downloadCsv } from '../utils/csvExport';
 
 interface InventarioTabProps {
   productos: Producto[];
@@ -57,6 +58,15 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
 
   const totalStockBajo = useMemo(() => productos.filter(bajoStock).length, [productos]);
   const valorInventario = useMemo(() => productos.reduce((sum, p) => sum + p.stockActual * p.costo, 0), [productos]);
+
+  const handleExportCsv = () => {
+    const headers = ['Nombre', 'SKU', 'Descripción', 'Unidad', 'Precio Venta', 'Costo', 'Stock Actual', 'Stock Mínimo', 'Activo'];
+    const rows = productos.map(p => [
+      p.nombre, p.sku ?? '', p.descripcion ?? '', p.unidad, String(p.precioVenta), String(p.costo),
+      String(p.stockActual), String(p.stockMinimo), p.activo ? 'Sí' : 'No',
+    ]);
+    downloadCsv(`doonty_inventario_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
+  };
 
   const openCreate = () => {
     setForm(EMPTY_FORM);
@@ -166,6 +176,13 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
           }`}
         >
           <AlertTriangle className="w-3.5 h-3.5" /> Solo stock bajo
+        </button>
+        <button
+          onClick={handleExportCsv}
+          className="flex items-center gap-1.5 px-3.5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition cursor-pointer"
+          title="Exportar catálogo a CSV"
+        >
+          <Download className="w-3.5 h-3.5" /> CSV
         </button>
         <button
           onClick={openCreate}
