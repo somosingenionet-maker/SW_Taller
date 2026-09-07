@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   ClipboardList, Plus, Search, ChevronRight, X, Check, Trash2,
   Car, User, Calendar, Gauge, Wrench, Package, AlertCircle, FileText,
-  Bell, Printer, Pencil, MessageCircle, Mail
+  Bell, Printer, Pencil, MessageCircle, Mail, List, LayoutGrid
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
@@ -23,13 +23,13 @@ interface Props {
   onCreateProducto: (p: Producto, stockInicial: number) => Promise<Producto>;
 }
 
-const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string }> = {
-  presupuesto:   { label: 'Presupuesto',   color: 'text-violet-700', bg: 'bg-violet-50' },
-  recibido:      { label: 'Recibido',      color: 'text-slate-600',  bg: 'bg-slate-100' },
-  en_reparacion: { label: 'En reparación', color: 'text-orange-700', bg: 'bg-orange-50' },
-  listo:         { label: 'Listo',         color: 'text-cyan-700',   bg: 'bg-cyan-50' },
-  entregado:     { label: 'Entregado',     color: 'text-teal-700',   bg: 'bg-teal-100' },
-  cancelado:     { label: 'Cancelado',     color: 'text-rose-600',   bg: 'bg-rose-50' },
+const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string; dot: string }> = {
+  presupuesto:   { label: 'Presupuesto',   color: 'text-violet-700', bg: 'bg-violet-50', dot: 'bg-violet-500' },
+  recibido:      { label: 'Recibido',      color: 'text-slate-600',  bg: 'bg-slate-100', dot: 'bg-slate-500' },
+  en_reparacion: { label: 'En reparación', color: 'text-orange-700', bg: 'bg-orange-50', dot: 'bg-orange-500' },
+  listo:         { label: 'Listo',         color: 'text-cyan-700',   bg: 'bg-cyan-50', dot: 'bg-cyan-500' },
+  entregado:     { label: 'Entregado',     color: 'text-teal-700',   bg: 'bg-teal-100', dot: 'bg-teal-500' },
+  cancelado:     { label: 'Cancelado',     color: 'text-rose-600',   bg: 'bg-rose-50', dot: 'bg-rose-500' },
 };
 
 const ESTADO_FLOW: OTEstado[] = [
@@ -177,11 +177,125 @@ function evento(descripcion: string): EventoOT {
   return { fecha: new Date().toISOString(), descripcion };
 }
 
+/** Iniciales para el avatar circular del cliente en cada tarjeta Kanban. */
+function iniciales(nombre: string, apellidos: string): string {
+  return `${nombre[0] ?? ''}${apellidos[0] ?? ''}`.toUpperCase();
+}
+
+function diasDesde(fechaISO: string): { texto: string; aviso: boolean } {
+  const dias = Math.floor((Date.now() - new Date(fechaISO).getTime()) / 86400000);
+  if (dias <= 0) return { texto: 'hoy', aviso: false };
+  return { texto: `${dias} día${dias !== 1 ? 's' : ''}`, aviso: dias > 5 };
+}
+
+/** Vista alternativa a la tabla: una columna por estado (sin 'cancelado' — ese
+ * se sigue viendo desde la lista con su filtro), arrastrar una tarjeta a otra
+ * columna dispara el mismo cambio de estado que el desplegable "Avanzar
+ * estado" del detalle (incluida la apertura del modal de recepción si
+ * corresponde — ver handleEstadoChange). */
+function KanbanBoard({
+  ordenes, vehiculos, clientes, onSelect, onDrop, dragOtId, setDragOtId, dragOverEstado, setDragOverEstado,
+}: {
+  ordenes: OrdenTrabajo[];
+  vehiculos: Vehiculo[];
+  clientes: Cliente[];
+  onSelect: (ot: OrdenTrabajo) => void;
+  onDrop: (ot: OrdenTrabajo, estado: OTEstado) => void;
+  dragOtId: string | null;
+  setDragOtId: React.Dispatch<React.SetStateAction<string | null>>;
+  dragOverEstado: OTEstado | null;
+  setDragOverEstado: React.Dispatch<React.SetStateAction<OTEstado | null>>;
+}) {
+  const columnas = ESTADO_FLOW.map(estado => ({
+    estado,
+    items: ordenes.filter(o => o.estado === estado),
+  }));
+
+  return (
+    <div className="flex gap-3.5 overflow-x-auto pb-2 items-start">
+      {columnas.map(({ estado, items }) => {
+        const meta = ESTADO_META[estado];
+        const esDestino = dragOverEstado === estado;
+        return (
+          <div
+            key={estado}
+            onDragOver={e => { e.preventDefault(); setDragOverEstado(estado); }}
+            onDragLeave={() => setDragOverEstado(prev => (prev === estado ? null : prev))}
+            onDrop={e => {
+              e.preventDefault();
+              setDragOverEstado(null);
+              const ot = ordenes.find(o => o.id === dragOtId);
+              setDragOtId(null);
+              if (ot && ot.estado !== estado) onDrop(ot, estado);
+            }}
+            className={`shrink-0 w-64 bg-slate-50 border rounded-2xl p-2.5 flex flex-col gap-2 max-h-[70vh] transition ${esDestino ? 'border-blue-400 bg-blue-50/40' : 'border-slate-100'}`}
+          >
+            <div className="flex items-center gap-2 px-1 pb-1">
+              <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
+              <span className={`text-xs font-extrabold uppercase tracking-wide ${meta.color}`}>{meta.label}</span>
+              <span className={`ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>{items.length}</span>
+            </div>
+
+            <div className="flex flex-col gap-2 overflow-y-auto px-0.5">
+              {items.length === 0 && (
+                <div className="border-2 border-dashed border-slate-200 rounded-xl h-14 flex items-center justify-center text-[11px] text-slate-400 font-medium">
+                  sin órdenes
+                </div>
+              )}
+              {items.map(ot => {
+                const veh = vehiculos.find(v => v.id === ot.vehiculoId);
+                const cli = clientes.find(c => c.id === ot.clienteId);
+                const { texto, aviso } = diasDesde(ot.fechaRecepcion);
+                return (
+                  <div
+                    key={ot.id}
+                    draggable
+                    onDragStart={() => setDragOtId(ot.id)}
+                    onDragEnd={() => { setDragOtId(null); setDragOverEstado(null); }}
+                    onClick={() => onSelect(ot)}
+                    className={`bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-300 transition ${dragOtId === ot.id ? 'opacity-40' : ''}`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 font-mono">{ot.numero}</span>
+                      <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full ${aviso ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{texto}</span>
+                    </div>
+                    <div className="text-xs font-extrabold text-slate-800">{veh ? `${veh.marca} ${veh.modelo}` : '—'}</div>
+                    <div className="text-[10px] text-slate-400 font-mono mb-1.5">{veh?.matricula}</div>
+                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mb-1.5">
+                      {cli && (
+                        <span className="w-4 h-4 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[8px] font-extrabold shrink-0">
+                          {iniciales(cli.nombre, cli.apellidos)}
+                        </span>
+                      )}
+                      <span className="truncate">{cli ? `${cli.nombre} ${cli.apellidos}` : '—'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-extrabold text-slate-700">
+                        {ot.total > 0 ? `${ot.total.toFixed(2)} €` : <span className="text-slate-300 font-normal">Por definir</span>}
+                      </span>
+                      {estado === 'presupuesto' && ot.presupuestoEstado === 'enviado' && (
+                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Enviado</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onCreateProducto }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<OTEstado | 'todas'>('todas');
+  const [vista, setVista] = useState<'lista' | 'kanban'>('lista');
+  const [dragOtId, setDragOtId] = useState<string | null>(null);
+  const [dragOverEstado, setDragOverEstado] = useState<OTEstado | null>(null);
   const [selected, setSelected] = useState<OrdenTrabajo | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
@@ -439,12 +553,34 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">{ordenes.length} órdenes en total</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
-        >
-          <Plus size={15} /> Nueva OT
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 p-1 bg-slate-50 border border-slate-100 rounded-xl w-fit">
+            <button
+              onClick={() => setVista('lista')}
+              title="Vista de lista"
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer flex items-center gap-1.5 ${
+                vista === 'lista' ? 'bg-white text-slate-800 shadow-3xs' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <List size={13} /> Lista
+            </button>
+            <button
+              onClick={() => setVista('kanban')}
+              title="Vista Kanban"
+              className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer flex items-center gap-1.5 ${
+                vista === 'kanban' ? 'bg-white text-slate-800 shadow-3xs' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <LayoutGrid size={13} /> Kanban
+            </button>
+          </div>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
+          >
+            <Plus size={15} /> Nueva OT
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -459,20 +595,37 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {(['todas', ...ESTADO_FLOW, 'cancelado'] as (OTEstado | 'todas')[]).map(e => (
-            <button
-              key={e}
-              onClick={() => setFilterEstado(e)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${filterEstado === e ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-            >
-              {e === 'todas' ? 'Todas' : ESTADO_META[e as OTEstado].label}
-            </button>
-          ))}
-        </div>
+        {vista === 'lista' && (
+          <div className="flex flex-wrap gap-1.5">
+            {(['todas', ...ESTADO_FLOW, 'cancelado'] as (OTEstado | 'todas')[]).map(e => (
+              <button
+                key={e}
+                onClick={() => setFilterEstado(e)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${filterEstado === e ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {e === 'todas' ? 'Todas' : ESTADO_META[e as OTEstado].label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
+      {vista === 'kanban' && (
+        <KanbanBoard
+          ordenes={filtered}
+          vehiculos={vehiculos}
+          clientes={clientes}
+          onSelect={setSelected}
+          onDrop={(ot, estado) => handleEstadoChange(ot, estado)}
+          dragOtId={dragOtId}
+          setDragOtId={setDragOtId}
+          dragOverEstado={dragOverEstado}
+          setDragOverEstado={setDragOverEstado}
+        />
+      )}
+
       {/* Table */}
+      {vista === 'lista' && (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-16 text-center text-slate-400 text-sm">
@@ -525,6 +678,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
           </div>
         )}
       </div>
+      )}
 
       {/* Detail Panel */}
       <AnimatePresence>
