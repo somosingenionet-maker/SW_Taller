@@ -9,13 +9,13 @@ type ClienteInsert = Database['public']['Tables']['clientes']['Insert'];
 export type NuevoCliente = Omit<Cliente, 'id' | 'fechaRegistro' | 'interacciones'>;
 
 const SELECT =
-  'id, nombre, apellidos, nif_nie_pasaporte, correo, telefono, direccion, ciudad, pais, fecha_registro, ' +
+  'id, nombre, apellidos, nif_nie_pasaporte, correo, telefono, direccion, ciudad, pais, fecha_registro, portal_token, ' +
   'interacciones_cliente ( id, fecha, tipo, notas ), cliente_vehiculo ( vehiculo_id )';
 
 type ClienteRow = {
   id: string; nombre: string; apellidos: string; nif_nie_pasaporte: string;
   correo: string | null; telefono: string | null; direccion: string | null;
-  ciudad: string | null; pais: string | null; fecha_registro: string;
+  ciudad: string | null; pais: string | null; fecha_registro: string; portal_token: string | null;
   interacciones_cliente: { id: string; fecha: string; tipo: string; notas: string }[] | null;
   cliente_vehiculo: { vehiculo_id: string }[] | null;
 };
@@ -32,6 +32,7 @@ function mapCliente(r: ClienteRow): Cliente {
     ciudad: r.ciudad ?? undefined,
     pais: r.pais ?? undefined,
     fechaRegistro: r.fecha_registro,
+    portalToken: r.portal_token,
     vehiculosAsociados: (r.cliente_vehiculo ?? []).map((cv) => cv.vehiculo_id),
     interacciones: (r.interacciones_cliente ?? [])
       .map((i) => ({ id: i.id, fecha: i.fecha, tipo: i.tipo as InteraccionCliente['tipo'], notas: i.notas }))
@@ -39,8 +40,8 @@ function mapCliente(r: ClienteRow): Cliente {
   };
 }
 
-function toRow(c: NuevoCliente) {
-  return {
+function toRow(c: NuevoCliente | Cliente): Partial<Database['public']['Tables']['clientes']['Update']> {
+  const row: Partial<Database['public']['Tables']['clientes']['Update']> = {
     nombre: c.nombre,
     apellidos: c.apellidos,
     nif_nie_pasaporte: c.nifNiePasaporte,
@@ -50,6 +51,8 @@ function toRow(c: NuevoCliente) {
     ciudad: c.ciudad || null,
     pais: c.pais || null,
   };
+  if (c.portalToken !== undefined) row.portal_token = c.portalToken;
+  return row;
 }
 
 async function getCliente(id: string): Promise<Cliente> {
@@ -106,6 +109,13 @@ export async function updateCliente(c: Cliente): Promise<Cliente> {
   }
 
   return getCliente(c.id);
+}
+
+/** Genera (o revoca, pasando null) el token del enlace del Portal del Cliente. */
+export async function setPortalToken(clienteId: string, token: string | null): Promise<Cliente> {
+  const { error } = await supabase.from('clientes').update({ portal_token: token }).eq('id', clienteId);
+  if (error) throw new Error(error.message);
+  return getCliente(clienteId);
 }
 
 export async function deleteCliente(id: string): Promise<void> {

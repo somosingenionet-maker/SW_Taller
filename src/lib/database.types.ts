@@ -227,6 +227,7 @@ export type Database = {
           nif_nie_pasaporte: string
           nombre: string
           pais: string | null
+          portal_token: string | null
           telefono: string | null
           updated_at: string
         }
@@ -242,6 +243,7 @@ export type Database = {
           nif_nie_pasaporte: string
           nombre: string
           pais?: string | null
+          portal_token?: string | null
           telefono?: string | null
           updated_at?: string
         }
@@ -257,6 +259,7 @@ export type Database = {
           nif_nie_pasaporte?: string
           nombre?: string
           pais?: string | null
+          portal_token?: string | null
           telefono?: string | null
           updated_at?: string
         }

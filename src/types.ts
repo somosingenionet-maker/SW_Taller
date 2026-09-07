@@ -101,6 +101,8 @@ export interface Cliente {
   fechaRegistro: string;
   /** IDs de los vehículos de flota (taller) asociados a este cliente. */
   vehiculosAsociados?: string[];
+  /** Token del enlace del Portal del Cliente (sin login). Null hasta generarlo desde su ficha. */
+  portalToken?: string | null;
 }
 
 export type AlertaTipo = 'itv' | 'mantenimiento' | 'seguro' | 'impuesto';

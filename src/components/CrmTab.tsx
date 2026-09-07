@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Cliente, InteraccionCliente, Vehiculo, OrdenTrabajo, Empresa } from '../types';
 import {
-  Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, PenTool, Car
+  Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, PenTool, Car, Link2, Copy, RefreshCw, ShieldOff
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
@@ -17,6 +17,7 @@ interface CrmTabProps {
   onUpdateCliente: (cliente: Cliente) => Promise<Cliente>;
   onDeleteCliente: (id: string) => void | Promise<void>;
   onAddInteraccion: (clienteId: string, input: { tipo: InteraccionCliente['tipo']; notas: string }) => Promise<InteraccionCliente>;
+  onSetPortalToken: (clienteId: string, token: string | null) => Promise<Cliente>;
 }
 
 export default function CrmTab({
@@ -27,10 +28,43 @@ export default function CrmTab({
   onAddCliente,
   onUpdateCliente,
   onDeleteCliente,
-  onAddInteraccion
+  onAddInteraccion,
+  onSetPortalToken
 }: CrmTabProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
+  const [portalBusy, setPortalBusy] = useState(false);
+  const [portalCopiado, setPortalCopiado] = useState(false);
+
+  const handleGenerarPortal = async () => {
+    if (!selectedCliente) return;
+    setPortalBusy(true);
+    try {
+      const token = crypto.randomUUID();
+      const actualizado = await onSetPortalToken(selectedCliente.id, token);
+      setSelectedCliente(actualizado);
+    } finally {
+      setPortalBusy(false);
+    }
+  };
+
+  const handleRevocarPortal = async () => {
+    if (!selectedCliente) return;
+    setPortalBusy(true);
+    try {
+      const actualizado = await onSetPortalToken(selectedCliente.id, null);
+      setSelectedCliente(actualizado);
+    } finally {
+      setPortalBusy(false);
+    }
+  };
+
+  const handleCopiarPortal = () => {
+    if (!selectedCliente?.portalToken) return;
+    navigator.clipboard.writeText(`${window.location.origin}/portal/${selectedCliente.portalToken}`);
+    setPortalCopiado(true);
+    setTimeout(() => setPortalCopiado(false), 2000);
+  };
 
   // IDs de vehículos ya asignados a algún cliente
   const vehiculosAsignadosGlobal = useMemo(
@@ -415,6 +449,57 @@ export default function CrmTab({
                   </div>
                 </div>
               )}
+
+              {/* Portal del Cliente */}
+              <div className="pt-4 border-t border-slate-50">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                  <Link2 className="w-4 h-4 text-blue-600" />
+                  Portal del Cliente
+                </h4>
+                {selectedCliente.portalToken ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                      <span className="text-xs font-mono text-slate-500 truncate flex-1">
+                        {window.location.origin}/portal/{selectedCliente.portalToken}
+                      </span>
+                      <button
+                        onClick={handleCopiarPortal}
+                        title="Copiar enlace"
+                        className="p-1.5 hover:bg-white text-slate-400 hover:text-blue-600 rounded-lg transition cursor-pointer shrink-0"
+                      >
+                        {portalCopiado ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleGenerarPortal}
+                        disabled={portalBusy}
+                        className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 hover:text-blue-600 transition cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Regenerar enlace
+                      </button>
+                      <button
+                        onClick={handleRevocarPortal}
+                        disabled={portalBusy}
+                        className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-rose-600 transition cursor-pointer disabled:opacity-50"
+                      >
+                        <ShieldOff className="w-3 h-3" /> Revocar acceso
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleGenerarPortal}
+                    disabled={portalBusy}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold rounded-xl border border-blue-200 transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Link2 className="w-3.5 h-3.5" /> {portalBusy ? 'Generando…' : 'Generar enlace del portal'}
+                  </button>
+                )}
+                <p className="text-[10.5px] text-slate-400 mt-1.5">
+                  Enlace personal sin contraseña: el cliente ve el estado de su vehículo, aprueba presupuestos y consulta sus facturas.
+                </p>
+              </div>
 
               {/* Interactions Timeline */}
               <div className="space-y-4 pt-4 border-t border-slate-50">
