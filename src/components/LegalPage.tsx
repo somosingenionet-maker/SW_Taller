@@ -21,7 +21,7 @@ function Privacidad() {
     <>
       <Section title="1. Responsable del tratamiento">
         <p>
-          <b>Oscar Daniel Sánchez Saenz</b> (marca comercial "InGenio"), con NIF <b>Y5483982Z</b> y
+          <b>Oscar Daniel Sánchez Saenz</b> (marca comercial "Somos InGenio", en adelante "InGenio"), con NIF <b>Y5483982Z</b> y
           domicilio en Calle Doctor Sapena 68, Elche (Alicante), es el responsable del tratamiento de
           los datos descritos en esta política. Puedes contactarnos en{' '}
           <a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a>.
@@ -156,7 +156,7 @@ function Terminos() {
       <Section title="1. Quiénes somos">
         <p>
           Doonty Motor es un servicio operado por <b>Oscar Daniel Sánchez Saenz</b> (NIF Y5483982Z,
-          marca comercial "InGenio"), con domicilio en Calle Doctor Sapena 68, Elche (Alicante).
+          marca comercial "Somos InGenio", en adelante "InGenio"), con domicilio en Calle Doctor Sapena 68, Elche (Alicante).
           Contacto: <a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a>.
         </p>
       </Section>
