@@ -33,37 +33,43 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
     .from('cliente_vehiculo')
     .select('vehiculo_id')
     .eq('cliente_id', cliente.id);
-  const vehiculoIds = (relaciones ?? []).map(r => r.vehiculo_id as string);
+  const asociadosIds = (relaciones ?? []).map(r => r.vehiculo_id as string);
+
+  // Todas las OTs de este cliente — de aquí salen tanto el estado activo por
+  // vehículo como los presupuestos pendientes. Importante: un vehículo puede
+  // tener una OT a nombre de este cliente sin estar formalmente asociado en
+  // cliente_vehiculo (p. ej. un vehículo de flota que factura otro contacto),
+  // así que la lista de vehículos a mostrar sale de la UNIÓN de ambas fuentes
+  // — nunca solo de cliente_vehiculo, o ese caso se queda sin nombre de vehículo.
+  type OtCliente = {
+    id: string; vehiculo_id: string; estado: string; fecha_estimada_entrega: string | null; created_at: string;
+    total: number; presupuesto_estado: string | null; presupuesto_aprobado: boolean | null;
+  };
+  const { data: ordenesCliente } = await admin
+    .from('ordenes_trabajo')
+    .select('id, vehiculo_id, estado, fecha_estimada_entrega, created_at, total, presupuesto_estado, presupuesto_aprobado')
+    .eq('cliente_id', cliente.id)
+    .order('created_at', { ascending: false });
+  const ordenes = (ordenesCliente ?? []) as OtCliente[];
+
+  const activasEstados = new Set(['presupuesto', 'recibido', 'en_reparacion', 'listo']);
+  const activasVehiculoIds = ordenes.filter(o => activasEstados.has(o.estado)).map(o => o.vehiculo_id);
+  const vehiculoIds = [...new Set([...asociadosIds, ...activasVehiculoIds])];
 
   const { data: vehiculos } = vehiculoIds.length
     ? await admin.from('vehiculos').select('id, marca, modelo, matricula').in('id', vehiculoIds)
     : { data: [] };
 
-  type OtActiva = { id: string; vehiculo_id: string; estado: string; fecha_estimada_entrega: string | null; created_at: string };
-  const { data: ordenesActivas } = vehiculoIds.length
-    ? await admin
-        .from('ordenes_trabajo')
-        .select('id, vehiculo_id, estado, fecha_estimada_entrega, created_at')
-        .in('vehiculo_id', vehiculoIds)
-        .in('estado', ['presupuesto', 'recibido', 'en_reparacion', 'listo'])
-        .order('created_at', { ascending: false })
-    : { data: [] as OtActiva[] };
-
-  // Solo la OT activa más reciente por vehículo.
-  const otPorVehiculo = new Map<string, OtActiva>();
-  for (const ot of (ordenesActivas ?? []) as OtActiva[]) {
-    if (!otPorVehiculo.has(ot.vehiculo_id)) otPorVehiculo.set(ot.vehiculo_id, ot);
+  // Solo la OT activa más reciente por vehículo (ordenes ya viene ordenado desc).
+  const otPorVehiculo = new Map<string, OtCliente>();
+  for (const ot of ordenes) {
+    if (activasEstados.has(ot.estado) && !otPorVehiculo.has(ot.vehiculo_id)) otPorVehiculo.set(ot.vehiculo_id, ot);
   }
 
-  const { data: presupuestosOt } = await admin
-    .from('ordenes_trabajo')
-    .select('id, vehiculo_id, total, fecha_estimada_entrega')
-    .eq('cliente_id', cliente.id)
-    .eq('presupuesto_estado', 'enviado')
-    .is('presupuesto_aprobado', null);
+  const presupuestosOt = ordenes.filter(o => o.presupuesto_estado === 'enviado' && o.presupuesto_aprobado == null);
 
   const presupuestos = [];
-  for (const ot of presupuestosOt ?? []) {
+  for (const ot of presupuestosOt) {
     const { data: lineas } = await admin
       .from('lineas_ot')
       .select('descripcion, cantidad, precio_unitario, subtotal')
