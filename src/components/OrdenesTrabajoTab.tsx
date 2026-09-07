@@ -224,7 +224,11 @@ function KanbanBoard({
             onDrop={e => {
               e.preventDefault();
               setDragOverEstado(null);
-              const ot = ordenes.find(o => o.id === dragOtId);
+              // El id viaja en el propio dataTransfer nativo (no en el estado
+              // de React): entre el dragstart y este drop puede no haber dado
+              // tiempo a que el setState de dragOtId se confirme todavía.
+              const id = e.dataTransfer.getData('text/plain');
+              const ot = ordenes.find(o => o.id === id);
               setDragOtId(null);
               if (ot && ot.estado !== estado) onDrop(ot, estado);
             }}
@@ -250,7 +254,7 @@ function KanbanBoard({
                   <div
                     key={ot.id}
                     draggable
-                    onDragStart={() => setDragOtId(ot.id)}
+                    onDragStart={e => { e.dataTransfer.setData('text/plain', ot.id); setDragOtId(ot.id); }}
                     onDragEnd={() => { setDragOtId(null); setDragOverEstado(null); }}
                     onClick={() => onSelect(ot)}
                     className={`bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-300 transition ${dragOtId === ot.id ? 'opacity-40' : ''}`}
