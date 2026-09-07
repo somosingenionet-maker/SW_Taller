@@ -132,6 +132,10 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
           >
             InGenio
           </a>
+          {' · '}
+          <a href="/privacidad" className="hover:text-slate-400 underline underline-offset-2 transition">Privacidad</a>
+          {' · '}
+          <a href="/terminos" className="hover:text-slate-400 underline underline-offset-2 transition">Términos</a>
         </p>
       </div>
 
@@ -322,6 +326,10 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
             >
               InGenio
             </a>
+            {' · '}
+            <a href="/privacidad" className="hover:text-slate-400 underline underline-offset-2 transition">Privacidad</a>
+            {' · '}
+            <a href="/terminos" className="hover:text-slate-400 underline underline-offset-2 transition">Términos</a>
           </p>
         </div>
       </div>

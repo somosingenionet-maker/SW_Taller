@@ -746,6 +746,10 @@ export default function App() {
                 InGenio
               </a>
               . Reservados todos los derechos.
+              {' · '}
+              <a href="/privacidad" className="hover:text-slate-300 underline underline-offset-2 transition">Privacidad</a>
+              {' · '}
+              <a href="/terminos" className="hover:text-slate-300 underline underline-offset-2 transition">Términos</a>
             </p>
           </div>
         </footer>
