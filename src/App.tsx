@@ -332,22 +332,30 @@ export default function App() {
   }, [recargarProductos]);
 
   // OT handlers (Supabase)
+  // updateOrden/createOrden ya devuelven la OT completa tal como quedó en el
+  // servidor (con los ids reales de sus líneas) — un recargarOrdenes() detrás
+  // repetía esa misma consulta para TODAS las órdenes de la empresa (con sus
+  // líneas y su historial) solo para acabar usando el mismo dato que ya
+  // teníamos. Esa segunda vuelta completa era la lentitud al arrastrar
+  // tarjetas en el Kanban: se nota más cuanto más historial/líneas acumula
+  // cada OT, así que solo iba a empeorar con el uso real. Ahora se actualiza
+  // localmente solo la orden que cambió.
   const handleAddOT = useCallback(async (ot: OrdenTrabajo) => {
     const creada = await createOrden(ot);
-    await recargarOrdenes();
+    setOrdenesTrabajo(prev => [creada, ...prev]);
     return creada;
-  }, [recargarOrdenes]);
+  }, []);
 
   const handleUpdateOT = useCallback(async (ot: OrdenTrabajo) => {
     const actualizada = await updateOrden(ot);
-    await recargarOrdenes();
+    setOrdenesTrabajo(prev => prev.map(o => (o.id === actualizada.id ? actualizada : o)));
     return actualizada;
-  }, [recargarOrdenes]);
+  }, []);
 
   const handleDeleteOT = useCallback(async (id: string) => {
     await deleteOrden(id);
-    await recargarOrdenes();
-  }, [recargarOrdenes]);
+    setOrdenesTrabajo(prev => prev.filter(o => o.id !== id));
+  }, []);
 
   // Cita handlers (Supabase)
   const handleAddCita = useCallback(async (c: Omit<Cita, 'id'>) => {
