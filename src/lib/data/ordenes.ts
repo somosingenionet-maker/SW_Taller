@@ -184,24 +184,40 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
     if (eDel) throw new Error(eDel.message);
   }
 
+  // Antes cada línea existente se actualizaba con su propia consulta, una
+  // por una (N idas y vueltas para N líneas) — un upsert hace lo mismo en
+  // una sola consulta, sin importar cuántas líneas tenga la OT.
   const aInsertar: ReturnType<typeof lineaToRow>[] = [];
+  const aActualizar: (ReturnType<typeof lineaToRow> & { id: string })[] = [];
   for (const [i, l] of ot.lineas.entries()) {
     if (idsExistentes.has(l.id)) {
-      const { error: eUpd } = await supabase.from('lineas_ot').update(lineaToRow(l, ot.id, i)).eq('id', l.id);
-      if (eUpd) throw new Error(eUpd.message);
+      aActualizar.push({ id: l.id, ...lineaToRow(l, ot.id, i) });
     } else {
       aInsertar.push(lineaToRow(l, ot.id, i));
     }
+  }
+  if (aActualizar.length) {
+    const { error: eUpd } = await supabase.from('lineas_ot').upsert(aActualizar);
+    if (eUpd) throw new Error(eUpd.message);
   }
   if (aInsertar.length) {
     const { error: eIns } = await supabase.from('lineas_ot').insert(aInsertar);
     if (eIns) throw new Error(eIns.message);
   }
 
-  const { error: eDelE } = await supabase.from('eventos_ot').delete().eq('ot_id', ot.id);
-  if (eDelE) throw new Error(eDelE.message);
-  if (ot.historial.length) {
-    const { error: eE } = await supabase.from('eventos_ot').insert(eventosToRows(ot.id, ot.historial));
+  // El historial es de solo-añadir (ningún sitio de la app edita ni borra un
+  // evento pasado): en vez de borrar toda la tabla y reescribirla entera en
+  // cada guardado (cada vez más cara cuanta más historia acumula la OT),
+  // basta con insertar los eventos que todavía no están guardados — los que
+  // sobran al final de `ot.historial` respecto a lo que ya hay en la BD.
+  const { count, error: eCount } = await supabase
+    .from('eventos_ot')
+    .select('*', { count: 'exact', head: true })
+    .eq('ot_id', ot.id);
+  if (eCount) throw new Error(eCount.message);
+  const eventosNuevos = ot.historial.slice(count ?? 0);
+  if (eventosNuevos.length) {
+    const { error: eE } = await supabase.from('eventos_ot').insert(eventosToRows(ot.id, eventosNuevos));
     if (eE) throw new Error(eE.message);
   }
 
