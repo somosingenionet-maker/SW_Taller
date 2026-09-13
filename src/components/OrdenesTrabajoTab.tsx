@@ -194,13 +194,14 @@ function diasDesde(fechaISO: string): { texto: string; aviso: boolean } {
  * estado" del detalle (incluida la apertura del modal de recepción si
  * corresponde — ver handleEstadoChange). */
 function KanbanBoard({
-  ordenes, vehiculos, clientes, onSelect, onDrop, dragOtId, setDragOtId, dragOverEstado, setDragOverEstado,
+  ordenes, vehiculos, clientes, onSelect, onDrop, onRetrocesoBloqueado, dragOtId, setDragOtId, dragOverEstado, setDragOverEstado,
 }: {
   ordenes: OrdenTrabajo[];
   vehiculos: Vehiculo[];
   clientes: Cliente[];
   onSelect: (ot: OrdenTrabajo) => void;
   onDrop: (ot: OrdenTrabajo, estado: OTEstado) => void;
+  onRetrocesoBloqueado: (ot: OrdenTrabajo, estado: OTEstado) => void;
   dragOtId: string | null;
   setDragOtId: React.Dispatch<React.SetStateAction<string | null>>;
   dragOverEstado: OTEstado | null;
@@ -211,11 +212,18 @@ function KanbanBoard({
     items: ordenes.filter(o => o.estado === estado),
   }));
 
+  // Solo para el aviso visual mientras se arrastra (dragOtId sí puede fiarse
+  // aquí: por algo tan simple como resaltar en rojo un destino no hay
+  // problema si tarda un pelín en confirmarse) — la decisión real de si el
+  // drop es válido se hace en el propio onDrop, a partir del dataTransfer.
+  const otArrastrada = dragOtId ? ordenes.find(o => o.id === dragOtId) : null;
+
   return (
     <div className="flex gap-3.5 overflow-x-auto pb-2 items-start">
       {columnas.map(({ estado, items }) => {
         const meta = ESTADO_META[estado];
         const esDestino = dragOverEstado === estado;
+        const esRetroceso = !!otArrastrada && ESTADO_FLOW.indexOf(estado) < ESTADO_FLOW.indexOf(otArrastrada.estado);
         return (
           <div
             key={estado}
@@ -230,9 +238,18 @@ function KanbanBoard({
               const id = e.dataTransfer.getData('text/plain');
               const ot = ordenes.find(o => o.id === id);
               setDragOtId(null);
-              if (ot && ot.estado !== estado) onDrop(ot, estado);
+              if (!ot || ot.estado === estado) return;
+              if (ESTADO_FLOW.indexOf(estado) < ESTADO_FLOW.indexOf(ot.estado)) {
+                onRetrocesoBloqueado(ot, estado);
+                return;
+              }
+              onDrop(ot, estado);
             }}
-            className={`shrink-0 w-64 bg-slate-50 border rounded-2xl p-2.5 flex flex-col gap-2 max-h-[70vh] transition ${esDestino ? 'border-blue-400 bg-blue-50/40' : 'border-slate-100'}`}
+            className={`shrink-0 w-64 border rounded-2xl p-2.5 flex flex-col gap-2 max-h-[70vh] transition ${
+              esDestino && esRetroceso ? 'border-rose-400 bg-rose-50/60'
+              : esDestino ? 'border-blue-400 bg-blue-50/40'
+              : 'border-slate-100 bg-slate-50'
+            }`}
           >
             <div className="flex items-center gap-2 px-1 pb-1">
               <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
@@ -300,6 +317,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const [vista, setVista] = useState<'lista' | 'kanban'>('lista');
   const [dragOtId, setDragOtId] = useState<string | null>(null);
   const [dragOverEstado, setDragOverEstado] = useState<OTEstado | null>(null);
+  const [kanbanAviso, setKanbanAviso] = useState<string | null>(null);
+  useEffect(() => {
+    if (!kanbanAviso) return;
+    const t = setTimeout(() => setKanbanAviso(null), 4000);
+    return () => clearTimeout(t);
+  }, [kanbanAviso]);
   const [selected, setSelected] = useState<OrdenTrabajo | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
@@ -620,17 +643,27 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       </div>
 
       {vista === 'kanban' && (
-        <KanbanBoard
-          ordenes={filtered}
-          vehiculos={vehiculos}
-          clientes={clientes}
-          onSelect={setSelected}
-          onDrop={(ot, estado) => handleEstadoChange(ot, estado)}
-          dragOtId={dragOtId}
-          setDragOtId={setDragOtId}
-          dragOverEstado={dragOverEstado}
-          setDragOverEstado={setDragOverEstado}
-        />
+        <>
+          {kanbanAviso && (
+            <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold px-3.5 py-2.5 rounded-xl">
+              <AlertCircle size={14} className="shrink-0" /> {kanbanAviso}
+            </div>
+          )}
+          <KanbanBoard
+            ordenes={filtered}
+            vehiculos={vehiculos}
+            clientes={clientes}
+            onSelect={setSelected}
+            onDrop={(ot, estado) => handleEstadoChange(ot, estado)}
+            onRetrocesoBloqueado={(ot, estado) => setKanbanAviso(
+              `No puedes retroceder de "${ESTADO_META[ot.estado].label}" a "${ESTADO_META[estado].label}" — corrígelo desde el detalle de la OT si es necesario.`
+            )}
+            dragOtId={dragOtId}
+            setDragOtId={setDragOtId}
+            dragOverEstado={dragOverEstado}
+            setDragOverEstado={setDragOverEstado}
+          />
+        </>
       )}
 
       {/* Table */}
