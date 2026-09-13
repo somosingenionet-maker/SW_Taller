@@ -425,6 +425,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
   const handleEstadoChange = async (ot: OrdenTrabajo, estado: OTEstado) => {
     if (ot.estado === 'presupuesto' && estado === 'recibido') {
+      // El modal de recepción se renderiza condicionado a `selected` (lo
+      // rellena la ficha de detalle al abrirla) — al arrastrar la tarjeta
+      // desde el Kanban nunca se pasa por ahí, así que sin esto el modal
+      // preparaba su estado pero nunca llegaba a aparecer en pantalla.
+      setSelected(ot);
       setRecepcionModal({ km: '', fechaEst: '', tecnico: ot.tecnicoAsignado ?? '' });
       return;
     }
