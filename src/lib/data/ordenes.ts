@@ -10,6 +10,7 @@ const SELECT =
   'fecha_entrega, kilometraje_entrada, kilometraje_salida, descripcion_problema, diagnostico, ' +
   'tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, ' +
   'presupuesto_aprobado, notificacion_enviada, updated_at, ' +
+  'checklist_recepcion, checklist_observaciones, fotos_recepcion, ' +
   'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion ), ' +
   'eventos_ot ( fecha, descripcion )';
 
@@ -18,6 +19,7 @@ type LineaRow = {
   precio_unitario: number; costo_unitario: number | null; subtotal: number; posicion: number;
 };
 type EventoRow = { fecha: string; descripcion: string };
+type ChecklistItemRow = { item: string; ok: boolean };
 type OrdenRow = {
   id: string; numero: string; vehiculo_id: string; cliente_id: string; estado: string;
   fecha_recepcion: string; fecha_estimada_entrega: string | null; fecha_entrega: string | null;
@@ -26,6 +28,8 @@ type OrdenRow = {
   total_iva: number; total: number; notas: string | null;
   presupuesto_estado: string | null; presupuesto_aprobado: boolean | null;
   notificacion_enviada: boolean | null; updated_at: string;
+  checklist_recepcion: ChecklistItemRow[] | null; checklist_observaciones: string | null;
+  fotos_recepcion: string[] | null;
   lineas_ot: LineaRow[] | null; eventos_ot: EventoRow[] | null;
 };
 
@@ -70,6 +74,9 @@ function mapOrden(r: OrdenRow): OrdenTrabajo {
     presupuestoAprobado: r.presupuesto_aprobado ?? undefined,
     notificacionEnviada: r.notificacion_enviada ?? undefined,
     fechaActualizacion: r.updated_at,
+    checklistRecepcion: r.checklist_recepcion ?? undefined,
+    checklistObservaciones: r.checklist_observaciones ?? undefined,
+    fotosRecepcion: r.fotos_recepcion ?? undefined,
     lineas,
     historial,
   };
@@ -97,6 +104,9 @@ function toRow(ot: OrdenTrabajo) {
     presupuesto_estado: ot.presupuestoEstado ?? null,
     presupuesto_aprobado: ot.presupuestoAprobado ?? null,
     notificacion_enviada: ot.notificacionEnviada ?? null,
+    checklist_recepcion: ot.checklistRecepcion ?? null,
+    checklist_observaciones: ot.checklistObservaciones || null,
+    fotos_recepcion: ot.fotosRecepcion ?? [],
   };
 }
 
@@ -138,18 +148,20 @@ export async function listOrdenes(): Promise<OrdenTrabajo[]> {
 }
 
 export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
-  const { data, error } = await supabase.from('ordenes_trabajo').insert(toRow(ot) as OrdenInsert).select('id').single();
+  const { data, error } = await supabase.from('ordenes_trabajo').insert(toRow(ot) as unknown as OrdenInsert).select('id').single();
   if (error) throw new Error(error.message);
   const id = (data as { id: string }).id;
 
-  if (ot.lineas.length) {
-    const { error: eL } = await supabase.from('lineas_ot').insert(lineasToRows(id, ot.lineas));
-    if (eL) throw new Error(eL.message);
-  }
-  if (ot.historial.length) {
-    const { error: eE } = await supabase.from('eventos_ot').insert(eventosToRows(id, ot.historial));
-    if (eE) throw new Error(eE.message);
-  }
+  // Líneas y eventos no dependen entre sí — insertarlos en paralelo en vez de
+  // uno tras otro ahorra una ida y vuelta completa a la base de datos en cada
+  // creación de OT.
+  const [rLineas, rEventos] = await Promise.all([
+    ot.lineas.length ? supabase.from('lineas_ot').insert(lineasToRows(id, ot.lineas)) : null,
+    ot.historial.length ? supabase.from('eventos_ot').insert(eventosToRows(id, ot.historial)) : null,
+  ]);
+  if (rLineas?.error) throw new Error(rLineas.error.message);
+  if (rEventos?.error) throw new Error(rEventos.error.message);
+
   return getOrden(id);
 }
 

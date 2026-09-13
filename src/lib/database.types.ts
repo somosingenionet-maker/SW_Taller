@@ -733,6 +733,8 @@ export type Database = {
       }
       ordenes_trabajo: {
         Row: {
+          checklist_observaciones: string | null
+          checklist_recepcion: Json | null
           cliente_id: string
           created_at: string
           descripcion_problema: string
@@ -742,6 +744,7 @@ export type Database = {
           fecha_entrega: string | null
           fecha_estimada_entrega: string | null
           fecha_recepcion: string
+          fotos_recepcion: string[]
           id: string
           iva_pct: number
           kilometraje_entrada: number
@@ -759,6 +762,8 @@ export type Database = {
           vehiculo_id: string
         }
         Insert: {
+          checklist_observaciones?: string | null
+          checklist_recepcion?: Json | null
           cliente_id: string
           created_at?: string
           descripcion_problema?: string
@@ -768,6 +773,7 @@ export type Database = {
           fecha_entrega?: string | null
           fecha_estimada_entrega?: string | null
           fecha_recepcion?: string
+          fotos_recepcion?: string[]
           id?: string
           iva_pct?: number
           kilometraje_entrada?: number
@@ -785,6 +791,8 @@ export type Database = {
           vehiculo_id: string
         }
         Update: {
+          checklist_observaciones?: string | null
+          checklist_recepcion?: Json | null
           cliente_id?: string
           created_at?: string
           descripcion_problema?: string
@@ -794,6 +802,7 @@ export type Database = {
           fecha_entrega?: string | null
           fecha_estimada_entrega?: string | null
           fecha_recepcion?: string
+          fotos_recepcion?: string[]
           id?: string
           iva_pct?: number
           kilometraje_entrada?: number

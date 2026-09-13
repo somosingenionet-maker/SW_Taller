@@ -78,6 +78,12 @@ export interface OrdenTrabajo {
   historial: EventoOT[];
   /** Factura generada desde esta OT. */
   facturaId?: string;
+  /** Checklist de estado del vehículo al recibirlo — ausente en OTs anteriores a esta función. */
+  checklistRecepcion?: { item: string; ok: boolean }[];
+  /** Notas libres sobre el estado del vehículo al recibirlo (p. ej. daños ya existentes). */
+  checklistObservaciones?: string;
+  /** URLs públicas de las fotos tomadas al recibir el vehículo. */
+  fotosRecepcion?: string[];
 }
 
 export interface InteraccionCliente {

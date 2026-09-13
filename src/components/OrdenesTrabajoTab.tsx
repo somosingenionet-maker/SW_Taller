@@ -3,10 +3,11 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   ClipboardList, Plus, Search, ChevronRight, X, Check, Trash2,
   Car, User, Calendar, Gauge, Wrench, Package, AlertCircle, FileText,
-  Bell, Printer, Pencil, MessageCircle, Mail, List, LayoutGrid
+  Bell, Printer, Pencil, MessageCircle, Mail, List, LayoutGrid, Camera, ImageOff
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
+import { supabase } from '../lib/supabase';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -35,6 +36,21 @@ const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string; 
 const ESTADO_FLOW: OTEstado[] = [
   'presupuesto', 'recibido', 'en_reparacion', 'listo', 'entregado'
 ];
+
+/** Comprobación fija al recibir el vehículo — misma lista para todas las empresas. */
+const CHECKLIST_RECEPCION_ITEMS = [
+  'Neumáticos en buen estado',
+  'Luces funcionando correctamente',
+  'Sin daños visibles en la carrocería',
+  'Documentación entregada (permiso, ITV)',
+  'Objetos personales retirados',
+];
+
+const FOTO_MIME_EXT: Record<string, string> = {
+  'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic',
+};
+
+const MAX_FOTOS_RECEPCION = 4;
 
 const TIPO_META: Record<LineaOTTipo, { label: string; icon: React.ReactNode }> = {
   mano_de_obra: { label: 'Mano de obra', icon: <Wrench size={12} /> },
@@ -325,6 +341,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   }, [kanbanAviso]);
   const [selected, setSelected] = useState<OrdenTrabajo | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [guardandoOT, setGuardandoOT] = useState(false);
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
   const [otForm, setOTForm] = useState<OTForm>(EMPTY_OT_FORM);
   const [formLineas, setFormLineas] = useState<LineaOT[]>([]);
@@ -340,7 +357,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const [editOTEditingLineaId, setEditOTEditingLineaId] = useState<string | null>(null);
   const [editOTEditLineaForm, setEditOTEditLineaForm] = useState<LineaForm>(EMPTY_LINEA);
   const [editOTNewLinea, setEditOTNewLinea] = useState<LineaForm>(EMPTY_LINEA);
-  const [recepcionModal, setRecepcionModal] = useState<{ km: number | ''; fechaEst: string; tecnico: string } | null>(null);
+  const [recepcionModal, setRecepcionModal] = useState<{
+    km: number | ''; fechaEst: string; tecnico: string;
+    checklist: Record<string, boolean>; observaciones: string; fotos: string[];
+  } | null>(null);
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [fotoError, setFotoError] = useState('');
   const [crearProductoRapido, setCrearProductoRapido] = useState<{ nombreInicial: string; aplicar: (p: Producto) => void } | null>(null);
 
   const solicitarCrearProducto = (nombreBuscado: string, aplicar: (p: Producto) => void) => {
@@ -351,7 +373,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     const term = search.toLowerCase();
     return ordenes
       .filter(ot => {
-        if (filterEstado !== 'todas' && ot.estado !== filterEstado) return false;
+        // El filtro por estado (pills "Todas/Presupuesto/...") solo tiene
+        // sentido en la vista de lista — el Kanban ya organiza por estado en
+        // sus propias columnas, así que debe ver siempre todas las OTs.
+        if (vista === 'lista' && filterEstado !== 'todas' && ot.estado !== filterEstado) return false;
         const veh = vehiculos.find(v => v.id === ot.vehiculoId);
         const cli = clientes.find(c => c.id === ot.clienteId);
         return (
@@ -362,7 +387,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         );
       })
       .sort((a, b) => b.fechaActualizacion.localeCompare(a.fechaActualizacion));
-  }, [ordenes, vehiculos, clientes, search, filterEstado]);
+  }, [ordenes, vehiculos, clientes, search, filterEstado, vista]);
 
   const openCreate = () => {
     setCreateTipo('presupuesto');
@@ -409,7 +434,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setEditingLineaId(null);
   };
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const esPresupuesto = createTipo === 'presupuesto';
     const kmRequerido = !esPresupuesto && otForm.kilometrajeEntrada === '';
@@ -442,8 +467,18 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       totalIva,
       total,
     };
-    onAdd(ot);
-    setIsCreating(false);
+    setGuardandoOT(true);
+    try {
+      // Se espera a que el guardado termine antes de cerrar el modal: si se
+      // cierra de inmediato (como antes), la tarjeta no aparece en el Kanban
+      // ni en la lista hasta que algo más fuerce un re-render — parece un
+      // fallo de refresco cuando en realidad la orden simplemente no había
+      // terminado de guardarse todavía.
+      await onAdd(ot);
+      setIsCreating(false);
+    } finally {
+      setGuardandoOT(false);
+    }
   };
 
   const handleEstadoChange = async (ot: OrdenTrabajo, estado: OTEstado) => {
@@ -453,7 +488,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       // desde el Kanban nunca se pasa por ahí, así que sin esto el modal
       // preparaba su estado pero nunca llegaba a aparecer en pantalla.
       setSelected(ot);
-      setRecepcionModal({ km: '', fechaEst: '', tecnico: ot.tecnicoAsignado ?? '' });
+      setFotoError('');
+      setRecepcionModal({
+        km: '', fechaEst: '', tecnico: ot.tecnicoAsignado ?? '',
+        checklist: Object.fromEntries(CHECKLIST_RECEPCION_ITEMS.map(item => [item, false])),
+        observaciones: '', fotos: [],
+      });
       return;
     }
     const EVENTO_LABEL: Record<OTEstado, string> = {
@@ -490,9 +530,48 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       fechaRecepcion: new Date().toISOString().split('T')[0],
       fechaEstimadaEntrega: recepcionModal.fechaEst || ot.fechaEstimadaEntrega,
       tecnicoAsignado: recepcionModal.tecnico || ot.tecnicoAsignado,
+      checklistRecepcion: CHECKLIST_RECEPCION_ITEMS.map(item => ({ item, ok: !!recepcionModal.checklist[item] })),
+      checklistObservaciones: recepcionModal.observaciones || undefined,
+      fotosRecepcion: recepcionModal.fotos,
     };
     setSelected(await onUpdate(updated));
     setRecepcionModal(null);
+  };
+
+  const handleFotoRecepcionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const seleccionados = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!seleccionados.length || !recepcionModal) return;
+    setFotoError('');
+    const huecos = MAX_FOTOS_RECEPCION - recepcionModal.fotos.length;
+    const files = seleccionados.slice(0, huecos);
+    if (seleccionados.length > huecos) {
+      setFotoError(`Máximo ${MAX_FOTOS_RECEPCION} fotos — se subieron solo las primeras ${huecos > 0 ? huecos : 0}.`);
+    }
+    if (!files.length) return;
+    setSubiendoFoto(true);
+    void (async () => {
+      try {
+        for (const file of files) {
+          const ext = FOTO_MIME_EXT[file.type] || file.name.split('.').pop() || 'jpg';
+          const path = `${empresa.id}/${crypto.randomUUID()}.${ext}`;
+          const { error } = await supabase.storage
+            .from('fotos-recepcion')
+            .upload(path, file, { cacheControl: '3600' });
+          if (error) throw error;
+          const { data } = supabase.storage.from('fotos-recepcion').getPublicUrl(path);
+          setRecepcionModal(r => r ? { ...r, fotos: [...r.fotos, data.publicUrl] } : r);
+        }
+      } catch {
+        setFotoError('No se pudo subir alguna foto. Inténtalo de nuevo.');
+      } finally {
+        setSubiendoFoto(false);
+      }
+    })();
+  };
+
+  const handleQuitarFotoRecepcion = (url: string) => {
+    setRecepcionModal(r => r ? { ...r, fotos: r.fotos.filter(f => f !== url) } : r);
   };
 
   const handleEnviarPresupuesto = async (ot: OrdenTrabajo) => {
@@ -816,6 +895,35 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     </div>
                   )}
                 </div>
+
+                {/* Checklist de recepción */}
+                {selected.checklistRecepcion && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1"><ClipboardList size={12} /> Estado al recibir el vehículo</p>
+                    <div className="border border-slate-100 rounded-2xl px-3 py-2.5 space-y-1.5">
+                      {selected.checklistRecepcion.map(({ item, ok }) => (
+                        <div key={item} className="flex items-center gap-2 text-sm">
+                          {ok
+                            ? <Check size={14} className="text-teal-600 shrink-0" />
+                            : <X size={14} className="text-rose-400 shrink-0" />}
+                          <span className={ok ? 'text-slate-700' : 'text-slate-400'}>{item}</span>
+                        </div>
+                      ))}
+                      {selected.checklistObservaciones && (
+                        <p className="text-xs text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-2.5 py-1.5 mt-2">{selected.checklistObservaciones}</p>
+                      )}
+                      {!!selected.fotosRecepcion?.length && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {selected.fotosRecepcion.map(url => (
+                            <a key={url} href={url} target="_blank" rel="noreferrer" className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 block">
+                              <img src={url} alt="Foto de recepción" className="w-full h-full object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Lines */}
                 <div>
@@ -1617,13 +1725,16 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 )}
 
                 <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 pb-4">
-                  <button type="button" onClick={() => setIsCreating(false)}
-                    className="px-4 py-2 rounded-2xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
+                  <button type="button" onClick={() => setIsCreating(false)} disabled={guardandoOT}
+                    className="px-4 py-2 rounded-2xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition">
                     Cancelar
                   </button>
-                  <button type="submit"
-                    className="px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition shadow-sm flex items-center gap-2">
-                    <FileText size={14} /> {createTipo === 'presupuesto' ? 'Crear presupuesto' : 'Crear OT'}
+                  <button type="submit" disabled={guardandoOT}
+                    className="px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition shadow-sm flex items-center gap-2">
+                    {guardandoOT
+                      ? <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      : <FileText size={14} />}
+                    {guardandoOT ? 'Guardando…' : (createTipo === 'presupuesto' ? 'Crear presupuesto' : 'Crear OT')}
                   </button>
                 </div>
               </form>
@@ -1635,7 +1746,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       {recepcionModal && selected && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setRecepcionModal(null)} />
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md animate-modal-pop p-6 space-y-5">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-modal-pop p-6 space-y-5">
                 <div>
                   <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">🔑 Recibir vehículo en taller</h3>
                   <p className="text-xs text-slate-400 mt-1">El presupuesto {selected.numero} fue aprobado. Completa los datos de entrada del vehículo.</p>
@@ -1666,6 +1777,56 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       <option value="">— Sin asignar —</option>
                       {tecnicos.filter(t => t.activo).map(t => <option key={t.id} value={t.nombre}>{t.nombre}{t.especialidad ? ` · ${t.especialidad}` : ''}</option>)}
                     </select>
+                  </div>
+                  <div className="border-t border-slate-100 pt-4">
+                    <label className="block text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1"><ClipboardList size={10} /> Estado del vehículo</label>
+                    <div className="space-y-1.5">
+                      {CHECKLIST_RECEPCION_ITEMS.map(item => (
+                        <label key={item} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={!!recepcionModal.checklist[item]}
+                            onChange={e => setRecepcionModal(r => r ? { ...r, checklist: { ...r.checklist, [item]: e.target.checked } } : r)}
+                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
+                          />
+                          {item}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Observaciones</label>
+                    <textarea
+                      value={recepcionModal.observaciones}
+                      onChange={e => setRecepcionModal(r => r ? { ...r, observaciones: e.target.value } : r)}
+                      placeholder="Daños o detalles ya existentes al recibir el vehículo…"
+                      rows={2}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1"><Camera size={10} /> Fotos</label>
+                    <div className="flex flex-wrap gap-2">
+                      {recepcionModal.fotos.map(url => (
+                        <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 group">
+                          <img src={url} alt="Foto de recepción" className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => handleQuitarFotoRecepcion(url)}
+                            className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                            <X size={10} />
+                          </button>
+                        </div>
+                      ))}
+                      {recepcionModal.fotos.length < MAX_FOTOS_RECEPCION && (
+                        <label className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition">
+                          {subiendoFoto
+                            ? <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+                            : <Camera size={18} />}
+                          <input type="file" accept="image/*" multiple capture="environment" className="hidden" disabled={subiendoFoto} onChange={handleFotoRecepcionUpload} />
+                        </label>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">{recepcionModal.fotos.length}/{MAX_FOTOS_RECEPCION} fotos</p>
+                    {fotoError && <p className="text-xs text-rose-500 mt-1.5 flex items-center gap-1"><ImageOff size={12} /> {fotoError}</p>}
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
