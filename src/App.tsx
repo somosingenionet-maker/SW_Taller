@@ -662,7 +662,6 @@ export default function App() {
             citas={citas}
             clientes={clientes}
             vehiculos={vehiculos}
-            ordenesTrabajo={ordenesTrabajo}
             alertas={alertas}
             modulos={activeModulos}
             brandColor={brandColor}
@@ -724,7 +723,6 @@ export default function App() {
 
         {activeTab === 'rentabilidad' && (
           <AnalyticsTab
-            ordenesTrabajo={ordenesTrabajo}
             clientes={clientes}
           />
         )}

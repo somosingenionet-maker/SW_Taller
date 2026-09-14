@@ -158,6 +158,37 @@ export async function listOrdenes(): Promise<OrdenTrabajo[]> {
   return (data ?? []).map((r) => mapOrden(r as unknown as OrdenRow));
 }
 
+export interface OrdenActiva {
+  id: string;
+  numero: string;
+  estado: OTEstado;
+  fechaRecepcion: string;
+  vehiculoId: string;
+}
+
+/**
+ * Solo las OTs con trabajo activo (recibido/en_reparación/listo) — a
+ * diferencia de listOrdenes(), no crece con el histórico de la empresa: el
+ * número de vehículos físicamente en el taller a la vez está naturalmente
+ * acotado. Pensada para paneles como Inicio, que no necesitan líneas ni
+ * historial completos, solo lo mínimo para mostrar la lista.
+ */
+export async function listOrdenesActivas(): Promise<OrdenActiva[]> {
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .select('id, numero, estado, fecha_recepcion, vehiculo_id')
+    .in('estado', ['recibido', 'en_reparacion', 'listo'])
+    .order('fecha_recepcion', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    numero: r.numero as string,
+    estado: r.estado as OTEstado,
+    fechaRecepcion: r.fecha_recepcion as string,
+    vehiculoId: r.vehiculo_id as string,
+  }));
+}
+
 export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   const { data, error } = await supabase.from('ordenes_trabajo').insert(toRow(ot) as unknown as OrdenInsert).select('id').single();
   if (error) throw new Error(error.message);

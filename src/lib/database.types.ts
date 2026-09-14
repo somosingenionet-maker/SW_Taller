@@ -1101,6 +1101,34 @@ export type Database = {
         Args: { agrupacion: string }
         Returns: { clave: string; cantidad: number; total: number }[]
       }
+      rentabilidad_periodo: {
+        Args: { p_start: string; p_end: string }
+        Returns: {
+          facturacion: number
+          entregadas: number
+          tiempo_medio_dias: number | null
+          mano_obra_total: number
+          mano_obra_costo: number
+          producto_total: number
+          producto_costo: number
+          canceladas: number
+          ots_total: number
+          presupuestos_total: number
+          presupuestos_convertidos: number
+        }[]
+      }
+      rentabilidad_estado_actual: {
+        Args: never
+        Returns: { estado: string; cantidad: number }[]
+      }
+      rentabilidad_tecnicos: {
+        Args: { p_start: string; p_end: string }
+        Returns: { nombre: string; ots: number; facturado: number }[]
+      }
+      rentabilidad_top_clientes: {
+        Args: { p_limit?: number }
+        Returns: { cliente_id: string; visitas: number; facturado: number }[]
+      }
     }
     Enums: {
       [_ in never]: never

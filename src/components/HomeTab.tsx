@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Cita, Cliente, Vehiculo, OrdenTrabajo, Alerta, Perfil, ModuloId } from '../types';
+import { Cita, Cliente, Vehiculo, Alerta, Perfil, ModuloId } from '../types';
 import { getFacturasResumen, FacturasResumen } from '../lib/data/facturas';
+import { listOrdenesActivas, OrdenActiva } from '../lib/data/ordenes';
 import {
   CalendarClock, Wrench, Bell, Euro, AlertTriangle, Users, Car, ArrowRight, ClipboardList,
 } from 'lucide-react';
@@ -10,7 +11,6 @@ interface Props {
   citas: Cita[];
   clientes: Cliente[];
   vehiculos: Vehiculo[];
-  ordenesTrabajo: OrdenTrabajo[];
   alertas: Alerta[];
   modulos: ModuloId[];
   brandColor: string;
@@ -32,7 +32,7 @@ const OT_LABEL: Record<string, string> = {
 };
 
 export default function HomeTab({
-  currentUser, citas, clientes, vehiculos, ordenesTrabajo, alertas, modulos, brandColor, onNavigate,
+  currentUser, citas, clientes, vehiculos, alertas, modulos, brandColor, onNavigate,
 }: Props) {
   const puede = (m: ModuloId) => modulos.includes(m);
 
@@ -43,6 +43,15 @@ export default function HomeTab({
   useEffect(() => {
     if (!puede('facturas')) return;
     getFacturasResumen().then(setResumenFacturas).catch(() => setResumenFacturas(null));
+  }, []);
+
+  // Solo las OTs con trabajo activo — a diferencia del array completo de
+  // OTs, este conjunto está naturalmente acotado (cuántos vehículos caben a
+  // la vez en el taller), así que no hace falta paginarlo.
+  const [ordenesActivas, setOrdenesActivas] = useState<OrdenActiva[]>([]);
+  useEffect(() => {
+    if (!puede('taller')) return;
+    listOrdenesActivas().then(setOrdenesActivas).catch(() => setOrdenesActivas([]));
   }, []);
 
   const hoyStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -64,12 +73,12 @@ export default function HomeTab({
   const proximaCita = citasHoy.find(c => c.fechaHora >= ahoraIso) ?? citasHoy[0];
 
   const otsEnCurso = useMemo(
-    () => ordenesTrabajo
+    () => ordenesActivas
       .filter(o => o.estado === 'recibido' || o.estado === 'en_reparacion')
       .sort((a, b) => a.fechaRecepcion.localeCompare(b.fechaRecepcion)),
-    [ordenesTrabajo]
+    [ordenesActivas]
   );
-  const otsListas = useMemo(() => ordenesTrabajo.filter(o => o.estado === 'listo'), [ordenesTrabajo]);
+  const otsListas = useMemo(() => ordenesActivas.filter(o => o.estado === 'listo'), [ordenesActivas]);
 
   const alertasPendientes = useMemo(() => alertas.filter(a => a.estado !== 'atendida'), [alertas]);
   const alertasVencidas = useMemo(

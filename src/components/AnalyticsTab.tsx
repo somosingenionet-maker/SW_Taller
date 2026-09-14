@@ -1,12 +1,15 @@
-import { useState, useMemo } from 'react';
-import { OrdenTrabajo, Cliente, OTEstado } from '../types';
+import { useState, useEffect, useMemo } from 'react';
+import { Cliente, OTEstado } from '../types';
 import {
   TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, Users, Wrench, BarChart2, Target, Download
 } from 'lucide-react';
 import { downloadCsv } from '../utils/csvExport';
+import {
+  RentabilidadPeriodo, TecnicoStat, ClienteTop,
+  getRentabilidadPeriodo, getRentabilidadEstadoActual, getRentabilidadTecnicos, getRentabilidadTopClientes,
+} from '../lib/data/rentabilidad';
 
 interface AnalyticsTabProps {
-  ordenesTrabajo: OrdenTrabajo[];
   clientes: Cliente[];
 }
 
@@ -62,15 +65,6 @@ function periodoRange(periodo: Periodo): { start: Date; end: Date; prevStart: Da
   return { start, end, prevStart, prevEnd };
 }
 
-function inRange(fechaStr: string, start: Date, end: Date) {
-  const d = new Date(fechaStr);
-  return d >= start && d <= end;
-}
-
-function diffDias(a: string, b: string) {
-  return (new Date(b).getTime() - new Date(a).getTime()) / (1000 * 60 * 60 * 24);
-}
-
 interface KpiCardProps {
   label: string;
   value: string;
@@ -109,124 +103,73 @@ function KpiCard({ label, value, sub, delta, icon, accent = 'blue' }: KpiCardPro
   );
 }
 
-export default function AnalyticsTab({ ordenesTrabajo, clientes }: AnalyticsTabProps) {
+export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
   const [periodo, setPeriodo] = useState<Periodo>('mes');
 
   const { start, end, prevStart, prevEnd } = useMemo(() => periodoRange(periodo), [periodo]);
 
-  // OTs del período actual y anterior
-  const otsActual = useMemo(() =>
-    ordenesTrabajo.filter(ot => inRange(ot.fechaRecepcion, start, end)),
-    [ordenesTrabajo, start, end]
-  );
-  const otsAnterior = useMemo(() =>
-    ordenesTrabajo.filter(ot => inRange(ot.fechaRecepcion, prevStart, prevEnd)),
-    [ordenesTrabajo, prevStart, prevEnd]
+  // Todo lo que sigue se calculaba en el navegador a partir del array
+  // completo de OTs — se movió a agregados en el servidor (ver
+  // src/lib/data/rentabilidad.ts) para que el coste no crezca con el
+  // histórico acumulado de la empresa.
+  const [actual, setActual] = useState<RentabilidadPeriodo | null>(null);
+  const [anterior, setAnterior] = useState<RentabilidadPeriodo | null>(null);
+  const [tecnicoStats, setTecnicoStats] = useState<TecnicoStat[]>([]);
+  const [otsPorEstado, setOtsPorEstado] = useState<Record<string, number>>({});
+  const [topClientes, setTopClientes] = useState<ClienteTop[]>([]);
+
+  useEffect(() => {
+    getRentabilidadPeriodo(start, end).then(setActual).catch(() => setActual(null));
+    getRentabilidadPeriodo(prevStart, prevEnd).then(setAnterior).catch(() => setAnterior(null));
+    getRentabilidadTecnicos(start, end).then(setTecnicoStats).catch(() => setTecnicoStats([]));
+  }, [start, end, prevStart, prevEnd]);
+
+  // No dependen del período seleccionado.
+  useEffect(() => {
+    getRentabilidadEstadoActual().then(setOtsPorEstado).catch(() => {});
+    getRentabilidadTopClientes(5).then(setTopClientes).catch(() => setTopClientes([]));
+  }, []);
+
+  const clienteStats = useMemo(() =>
+    topClientes.map(c => {
+      const cliente = clientes.find(x => x.id === c.clienteId);
+      return { nombre: cliente ? `${cliente.nombre} ${cliente.apellidos}` : c.clienteId, visitas: c.visitas, facturado: c.facturado };
+    }),
+    [topClientes, clientes]
   );
 
-  // 1. Facturación del período (OTs entregadas)
-  const facturacionActual = useMemo(() =>
-    otsActual.filter(ot => ot.estado === 'entregado').reduce((s, ot) => s + ot.total, 0),
-    [otsActual]
-  );
-  const facturacionAnterior = useMemo(() =>
-    otsAnterior.filter(ot => ot.estado === 'entregado').reduce((s, ot) => s + ot.total, 0),
-    [otsAnterior]
-  );
+  const facturacionActual = actual?.facturacion ?? 0;
+  const facturacionAnterior = anterior?.facturacion ?? 0;
   const deltaFacturacion = facturacionAnterior > 0
     ? ((facturacionActual - facturacionAnterior) / facturacionAnterior) * 100
     : null;
 
-  // 2. Ticket medio
-  const entregadasActual = otsActual.filter(ot => ot.estado === 'entregado');
-  const ticketMedio = entregadasActual.length > 0
-    ? facturacionActual / entregadasActual.length
-    : 0;
-  const entregadasAnterior = otsAnterior.filter(ot => ot.estado === 'entregado');
-  const ticketMedioAnterior = entregadasAnterior.length > 0
-    ? facturacionAnterior / entregadasAnterior.length
-    : 0;
+  const entregadasActualCount = actual?.entregadas ?? 0;
+  const ticketMedio = entregadasActualCount > 0 ? facturacionActual / entregadasActualCount : 0;
+  const entregadasAnteriorCount = anterior?.entregadas ?? 0;
+  const ticketMedioAnterior = entregadasAnteriorCount > 0 ? facturacionAnterior / entregadasAnteriorCount : 0;
   const deltaTicket = ticketMedioAnterior > 0
     ? ((ticketMedio - ticketMedioAnterior) / ticketMedioAnterior) * 100
     : null;
 
-  // 3. OTs por estado (todas activas, sin filtro de período)
-  const otsPorEstado = useMemo(() => {
-    const counts: Partial<Record<OTEstado, number>> = {};
-    ordenesTrabajo.forEach(ot => {
-      counts[ot.estado] = (counts[ot.estado] ?? 0) + 1;
-    });
-    return counts;
-  }, [ordenesTrabajo]);
+  const tiempoMedio = actual?.tiempoMedioDias ?? null;
 
-  // 4. Tiempo medio de resolución (recibido → entregado)
-  const tiempoMedio = useMemo(() => {
-    const entregadas = ordenesTrabajo.filter(ot =>
-      ot.estado === 'entregado' && ot.fechaEntrega && inRange(ot.fechaRecepcion, start, end)
-    );
-    if (entregadas.length === 0) return null;
-    const total = entregadas.reduce((s, ot) => s + diffDias(ot.fechaRecepcion, ot.fechaEntrega!), 0);
-    return total / entregadas.length;
-  }, [ordenesTrabajo, start, end]);
-
-  // 5. Ingreso, costo y margen por tipo de línea
   const margenTipo = useMemo(() => {
-    const totals = { mano_de_obra: 0, producto: 0 };
-    const costos = { mano_de_obra: 0, producto: 0 };
-    otsActual.filter(ot => ot.estado === 'entregado').forEach(ot => {
-      ot.lineas.forEach(l => {
-        if (l.tipo in totals) {
-          totals[l.tipo as keyof typeof totals] += l.subtotal;
-          costos[l.tipo as keyof typeof costos] += (l.costoUnitario ?? 0) * l.cantidad;
-        }
-      });
-    });
+    const totals = { mano_de_obra: actual?.manoObraTotal ?? 0, producto: actual?.productoTotal ?? 0 };
+    const costos = { mano_de_obra: actual?.manoObraCosto ?? 0, producto: actual?.productoCosto ?? 0 };
     const total = totals.mano_de_obra + totals.producto;
     const totalCosto = costos.mano_de_obra + costos.producto;
     const margen = total - totalCosto;
     const margenPct = total > 0 ? (margen / total) * 100 : 0;
     return { totals, costos, total, totalCosto, margen, margenPct };
-  }, [otsActual]);
+  }, [actual]);
 
-  // 6. Técnicos más productivos
-  const tecnicoStats = useMemo(() => {
-    const map: Record<string, { ots: number; facturado: number }> = {};
-    otsActual.filter(ot => ot.estado === 'entregado' && ot.tecnicoAsignado).forEach(ot => {
-      const t = ot.tecnicoAsignado!;
-      if (!map[t]) map[t] = { ots: 0, facturado: 0 };
-      map[t].ots++;
-      map[t].facturado += ot.total;
-    });
-    return Object.entries(map)
-      .map(([nombre, data]) => ({ nombre, ...data }))
-      .sort((a, b) => b.facturado - a.facturado);
-  }, [otsActual]);
+  const canceladas = actual?.canceladas ?? 0;
+  const otsActualTotal = actual?.otsTotal ?? 0;
+  const tasaCancelacion = otsActualTotal > 0 ? (canceladas / otsActualTotal) * 100 : 0;
 
-  // 7. Clientes frecuentes (acumulado total)
-  const clienteStats = useMemo(() => {
-    const map: Record<string, { visitas: number; facturado: number }> = {};
-    ordenesTrabajo.filter(ot => ot.estado === 'entregado').forEach(ot => {
-      if (!map[ot.clienteId]) map[ot.clienteId] = { visitas: 0, facturado: 0 };
-      map[ot.clienteId].visitas++;
-      map[ot.clienteId].facturado += ot.total;
-    });
-    return Object.entries(map)
-      .map(([clienteId, data]) => {
-        const cliente = clientes.find(c => c.id === clienteId);
-        return { nombre: cliente ? `${cliente.nombre} ${cliente.apellidos}` : clienteId, ...data };
-      })
-      .sort((a, b) => b.facturado - a.facturado)
-      .slice(0, 5);
-  }, [ordenesTrabajo, clientes]);
-
-  // 8. Tasa de cancelación
-  const canceladas = otsActual.filter(ot => ot.estado === 'cancelado').length;
-  const tasaCancelacion = otsActual.length > 0 ? (canceladas / otsActual.length) * 100 : 0;
-
-  // 9. Conversión de presupuestos
-  const presupuestosTotal = otsActual.filter(ot => ot.estado !== 'cancelado' &&
-    (ot.estado === 'presupuesto' || ot.presupuestoAprobado || ot.presupuestoEstado === 'enviado')).length;
-  const presupuestosConvertidos = otsActual.filter(ot => ot.presupuestoAprobado).length;
+  const presupuestosTotal = actual?.presupuestosTotal ?? 0;
+  const presupuestosConvertidos = actual?.presupuestosConvertidos ?? 0;
   const tasaConversion = presupuestosTotal > 0 ? (presupuestosConvertidos / presupuestosTotal) * 100 : 0;
 
   const ESTADOS_ACTIVOS: OTEstado[] = ['presupuesto', 'recibido', 'en_reparacion', 'listo'];
@@ -239,7 +182,7 @@ export default function AnalyticsTab({ ordenesTrabajo, clientes }: AnalyticsTabP
         [
           periodo,
           facturacionActual.toFixed(2),
-          String(entregadasActual.length),
+          String(entregadasActualCount),
           ticketMedio.toFixed(2),
           tiempoMedio != null ? tiempoMedio.toFixed(1) : 'N/D',
           String(canceladas),
@@ -283,7 +226,7 @@ export default function AnalyticsTab({ ordenesTrabajo, clientes }: AnalyticsTabP
         <KpiCard
           label="Facturación"
           value={fmt(facturacionActual)}
-          sub={`${entregadasActual.length} OTs entregadas`}
+          sub={`${entregadasActualCount} OTs entregadas`}
           delta={deltaFacturacion}
           icon={<TrendingUp className="w-4 h-4" />}
           accent="blue"
@@ -398,7 +341,7 @@ export default function AnalyticsTab({ ordenesTrabajo, clientes }: AnalyticsTabP
                 </span>
                 <span className="text-lg font-black text-rose-700">{tasaCancelacion.toFixed(1)}%</span>
               </div>
-              <p className="text-[10px] text-rose-400">{canceladas} canceladas de {otsActual.length} OTs en el período</p>
+              <p className="text-[10px] text-rose-400">{canceladas} canceladas de {otsActualTotal} OTs en el período</p>
             </div>
 
             <div className="p-3 rounded-xl bg-teal-50 border border-teal-100">
