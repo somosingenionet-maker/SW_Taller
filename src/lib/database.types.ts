@@ -1084,6 +1084,23 @@ export type Database = {
       es_super_admin: { Args: never; Returns: boolean }
       estado_de_ot: { Args: { p_ot_id: string }; Returns: string }
       mi_empresa_id: { Args: never; Returns: string }
+      facturas_resumen: {
+        Args: { mes_actual?: string }
+        Returns: {
+          total_facturas: number
+          facturas_pagadas: number
+          importe_pendiente: number
+          importe_cobrado: number
+          facturas_mes_actual: number
+          importe_mes_actual: number
+          facturas_vencidas: number
+          importe_vencido: number
+        }[]
+      }
+      facturas_por_periodo: {
+        Args: { agrupacion: string }
+        Returns: { clave: string; cantidad: number; total: number }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -8,7 +8,7 @@ import { listClientes, createCliente, updateCliente, deleteCliente, addInteracci
 import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
 import { listAlertas, renovarAlertaMantenimiento, forzarRecordatorio } from './lib/data/alertas';
 import { listNotificaciones, deleteNotificacion } from './lib/data/notificaciones';
-import { listFacturas, createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
+import { createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
 import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
 import { listCitas, createCita, updateCita, deleteCita } from './lib/data/citas';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
@@ -53,7 +53,6 @@ export default function App() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [notificaciones, setNotificaciones] = useState<NotificacionCliente[]>([]);
-  const [facturas, setFacturas] = useState<Factura[]>([]);
   const [ordenesTrabajo, setOrdenesTrabajo] = useState<OrdenTrabajo[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
@@ -154,9 +153,6 @@ export default function App() {
   const recargarNotificaciones = useCallback(async () => {
     setNotificaciones(await listNotificaciones());
   }, []);
-  const recargarFacturas = useCallback(async () => {
-    setFacturas(await listFacturas());
-  }, []);
   const recargarProductos = useCallback(async () => {
     setProductos(await listProductos());
   }, []);
@@ -173,7 +169,6 @@ export default function App() {
       recargarOrdenes();
       recargarAlertas();
       recargarNotificaciones();
-      recargarFacturas();
       recargarProductos();
       recargarCitas();
     } else {
@@ -182,11 +177,10 @@ export default function App() {
       setOrdenesTrabajo([]);
       setAlertas([]);
       setNotificaciones([]);
-      setFacturas([]);
       setProductos([]);
       setCitas([]);
     }
-  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarFacturas, recargarProductos, recargarCitas]);
+  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarProductos, recargarCitas]);
 
   // Realtime: el mecánico marca tareas desde su Portal (sin pasar por esta
   // sesión ni por este usuario) — sin esto, el progreso solo se vería tras
@@ -321,31 +315,28 @@ export default function App() {
     await recargarAlertas();
   }, [vehiculos, handleUpdateVehiculo, recargarAlertas]);
 
-  // Factura handlers (Supabase)
+  // Factura handlers (Supabase) — FacturasTab gestiona su propia carga
+  // paginada; estos handlers solo escriben y dejan que el propio tab
+  // refresque lo que esté viendo en ese momento.
   const handleAddFactura = useCallback(async (f: Factura) => {
     await createFactura(f);
-    await recargarFacturas();
-  }, [recargarFacturas]);
+  }, []);
 
   const handleUpdateFactura = useCallback(async (f: Factura) => {
     await updateFactura(f);
-    await recargarFacturas();
-  }, [recargarFacturas]);
+  }, []);
 
   const handleDeleteFactura = useCallback(async (id: string) => {
     await deleteFactura(id);
-    await recargarFacturas();
-  }, [recargarFacturas]);
+  }, []);
 
   const handleEmitirFactura = useCallback(async (id: string) => {
     await emitirFactura(id);
-    await recargarFacturas();
-  }, [recargarFacturas]);
+  }, []);
 
   const handleCambiarEstadoFactura = useCallback(async (id: string, estado: Factura['estado']) => {
     await cambiarEstadoFactura(id, estado);
-    await recargarFacturas();
-  }, [recargarFacturas]);
+  }, []);
 
   // Producto / inventario handlers (Supabase)
   const handleAddProducto = useCallback(async (p: Producto, stockInicial: number) => {
@@ -673,7 +664,6 @@ export default function App() {
             vehiculos={vehiculos}
             ordenesTrabajo={ordenesTrabajo}
             alertas={alertas}
-            facturas={facturas}
             modulos={activeModulos}
             brandColor={brandColor}
             onNavigate={setActiveTab}
@@ -754,7 +744,6 @@ export default function App() {
 
         {activeTab === 'facturas' && (
           <FacturasTab
-            facturas={facturas}
             clientes={clientes}
             vehiculos={vehiculos}
             ordenesTrabajo={ordenesTrabajo}

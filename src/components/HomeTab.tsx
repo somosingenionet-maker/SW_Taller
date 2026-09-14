@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { Cita, Cliente, Vehiculo, OrdenTrabajo, Alerta, Factura, Perfil, ModuloId } from '../types';
+import { useEffect, useMemo, useState } from 'react';
+import { Cita, Cliente, Vehiculo, OrdenTrabajo, Alerta, Perfil, ModuloId } from '../types';
+import { getFacturasResumen, FacturasResumen } from '../lib/data/facturas';
 import {
   CalendarClock, Wrench, Bell, Euro, AlertTriangle, Users, Car, ArrowRight, ClipboardList,
 } from 'lucide-react';
@@ -11,7 +12,6 @@ interface Props {
   vehiculos: Vehiculo[];
   ordenesTrabajo: OrdenTrabajo[];
   alertas: Alerta[];
-  facturas: Factura[];
   modulos: ModuloId[];
   brandColor: string;
   onNavigate: (tab: ModuloId) => void;
@@ -32,9 +32,18 @@ const OT_LABEL: Record<string, string> = {
 };
 
 export default function HomeTab({
-  currentUser, citas, clientes, vehiculos, ordenesTrabajo, alertas, facturas, modulos, brandColor, onNavigate,
+  currentUser, citas, clientes, vehiculos, ordenesTrabajo, alertas, modulos, brandColor, onNavigate,
 }: Props) {
   const puede = (m: ModuloId) => modulos.includes(m);
+
+  // Los totales de facturación se calculan en el servidor (getFacturasResumen)
+  // en vez de traer la tabla completa de facturas solo para sumarla aquí —
+  // el resultado no cambia con el volumen histórico de la empresa.
+  const [resumenFacturas, setResumenFacturas] = useState<FacturasResumen | null>(null);
+  useEffect(() => {
+    if (!puede('facturas')) return;
+    getFacturasResumen().then(setResumenFacturas).catch(() => setResumenFacturas(null));
+  }, []);
 
   const hoyStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const fechaLarga = useMemo(() => {
@@ -68,15 +77,10 @@ export default function HomeTab({
     [alertasPendientes, hoyStr]
   );
 
-  const mesActual = hoyStr.slice(0, 7);
-  const facturasDelMes = useMemo(
-    () => facturas.filter(f => (f.estado === 'emitida' || f.estado === 'pagada') && f.fecha.slice(0, 7) === mesActual),
-    [facturas, mesActual]
-  );
-  const totalFacturadoMes = facturasDelMes.reduce((s, f) => s + f.total, 0);
-
-  const facturasVencidas = useMemo(() => facturas.filter(f => f.estado === 'vencida'), [facturas]);
-  const totalVencido = facturasVencidas.reduce((s, f) => s + f.total, 0);
+  const facturasDelMesCount = resumenFacturas?.facturasMesActual ?? 0;
+  const totalFacturadoMes = resumenFacturas?.importeMesActual ?? 0;
+  const facturasVencidasCount = resumenFacturas?.facturasVencidas ?? 0;
+  const totalVencido = resumenFacturas?.importeVencido ?? 0;
 
   const brandSoft = `${brandColor}17`;
 
@@ -95,12 +99,12 @@ export default function HomeTab({
         </div>
       </div>
 
-      {puede('facturas') && facturasVencidas.length > 0 && (
+      {puede('facturas') && facturasVencidasCount > 0 && (
         <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl px-4 py-3 mb-5 text-sm font-semibold">
           <AlertTriangle className="w-4 h-4 shrink-0" />
           <span>
-            Tienes {facturasVencidas.length} factura{facturasVencidas.length !== 1 ? 's' : ''} vencida
-            {facturasVencidas.length !== 1 ? 's' : ''} sin cobrar ({fmtMoney(totalVencido)} €)
+            Tienes {facturasVencidasCount} factura{facturasVencidasCount !== 1 ? 's' : ''} vencida
+            {facturasVencidasCount !== 1 ? 's' : ''} sin cobrar ({fmtMoney(totalVencido)} €)
           </span>
           <button onClick={() => onNavigate('facturas')} className="ml-auto font-extrabold underline underline-offset-2 whitespace-nowrap cursor-pointer">
             Ver facturas →
@@ -164,7 +168,7 @@ export default function HomeTab({
               </div>
               <div className="text-2xl font-black text-slate-900">{fmtMoney(totalFacturadoMes)} €</div>
               <p className="text-xs text-slate-500">
-                <b className="text-slate-700">{facturasDelMes.length}</b> factura{facturasDelMes.length !== 1 ? 's' : ''} emitida{facturasDelMes.length !== 1 ? 's' : ''}
+                <b className="text-slate-700">{facturasDelMesCount}</b> factura{facturasDelMesCount !== 1 ? 's' : ''} emitida{facturasDelMesCount !== 1 ? 's' : ''}
               </p>
             </div>
           )}

@@ -1,22 +1,26 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon, Send, Download } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { Factura, LineaDocumento, Cliente, Vehiculo, OrdenTrabajo, Empresa } from '../types';
+import {
+  FacturasResumen, FacturaPeriodo, AgrupacionFacturas,
+  getFacturasResumen, getFacturasPorPeriodo, listFacturasPaginado, rangoDeClavePeriodo, listFacturas,
+} from '../lib/data/facturas';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
 import ConfirmDialog from './ConfirmDialog';
+import Pagination from './Pagination';
 import QRCode from 'qrcode';
 
 interface FacturasTabProps {
-  facturas: Factura[];
   clientes: Cliente[];
   vehiculos: Vehiculo[];
   ordenesTrabajo: OrdenTrabajo[];
   empresa: Empresa;
-  onAddFactura: (f: Factura) => void;
-  onUpdateFactura: (f: Factura) => void;
-  onDeleteFactura: (id: string) => void;
-  onEmitirFactura: (id: string) => void;
-  onCambiarEstadoFactura: (id: string, estado: Factura['estado']) => void;
+  onAddFactura: (f: Factura) => Promise<void>;
+  onUpdateFactura: (f: Factura) => Promise<void>;
+  onDeleteFactura: (id: string) => Promise<void>;
+  onEmitirFactura: (id: string) => Promise<void>;
+  onCambiarEstadoFactura: (id: string, estado: Factura['estado']) => Promise<void>;
 }
 
 const ESTADO_FACTURA_LABELS: Record<Factura['estado'], string> = {
@@ -57,35 +61,22 @@ const calcLineTotals = (lines: LineaDocumento[], ivaPct: number) => {
 
 const genId = (prefix: string) => `${prefix}-${Date.now()}`;
 
-type Agrupacion = 'ninguna' | 'semana' | 'mes' | 'año';
+type Agrupacion = AgrupacionFacturas | 'ninguna';
 
 const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
-/** Lunes de la semana ISO que contiene esa fecha (YYYY-MM-DD, sin hora). */
-function inicioSemanaISO(fechaStr: string): Date {
-  const d = new Date(fechaStr + 'T00:00:00');
-  const diaSemana = (d.getDay() + 6) % 7; // 0 = lunes ... 6 = domingo
-  d.setDate(d.getDate() - diaSemana);
-  return d;
-}
-
-/** Agrupa por fecha de emisión (f.fecha), no por fecha de creación — "las facturas de agosto" se refiere a cuándo se emitieron. */
-function claveYLabelPeriodo(f: Factura, agrupacion: Exclude<Agrupacion, 'ninguna'>): { clave: string; label: string } {
-  if (agrupacion === 'año') {
-    const anio = f.fecha.slice(0, 4);
-    return { clave: anio, label: anio };
-  }
+/** Traduce la clave que devuelve getFacturasPorPeriodo (calculada en SQL) a una etiqueta legible. */
+function labelDePeriodo(agrupacion: AgrupacionFacturas, clave: string): string {
+  if (agrupacion === 'año') return clave;
   if (agrupacion === 'mes') {
-    const [anio, mes] = f.fecha.split('-');
-    return { clave: `${anio}-${mes}`, label: `${MESES_LARGO[Number(mes) - 1]} ${anio}` };
+    const [anio, mes] = clave.split('-');
+    return `${MESES_LARGO[Number(mes) - 1]} ${anio}`;
   }
-  const inicio = inicioSemanaISO(f.fecha);
+  const inicio = new Date(clave + 'T00:00:00');
   const fin = new Date(inicio);
   fin.setDate(fin.getDate() + 6);
-  const clave = inicio.toISOString().slice(0, 10);
-  const label = `${inicio.getDate()} ${MESES_CORTO[inicio.getMonth()]} – ${fin.getDate()} ${MESES_CORTO[fin.getMonth()]} ${fin.getFullYear()}`;
-  return { clave, label };
+  return `${inicio.getDate()} ${MESES_CORTO[inicio.getMonth()]} – ${fin.getDate()} ${MESES_CORTO[fin.getMonth()]} ${fin.getFullYear()}`;
 }
 
 /** Código QR de verificación VeriFactu, generado en el propio navegador (sin llamadas de red). */
@@ -471,9 +462,11 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
   );
 }
 
+const PAGE_SIZE = 20;
+
 // -------- Main FacturasTab --------
 export default function FacturasTab({
-  facturas, clientes, vehiculos, ordenesTrabajo, empresa,
+  clientes, vehiculos, ordenesTrabajo, empresa,
   onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura,
 }: FacturasTabProps) {
   const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null }>({ open: false, factura: null });
@@ -481,6 +474,65 @@ export default function FacturasTab({
   const [confirmEmitir, setConfirmEmitir] = useState<Factura | null>(null);
   const [agrupacion, setAgrupacion] = useState<Agrupacion>('ninguna');
   const [viewingGrupo, setViewingGrupo] = useState<{ label: string; facturas: Factura[] } | null>(null);
+  const [descargandoGrupo, setDescargandoGrupo] = useState<string | null>(null);
+
+  // Los totales (tarjetas KPI) y los grupos por período se calculan en el
+  // servidor (RPC) — no dependen de traer todas las facturas al navegador.
+  const [resumen, setResumen] = useState<FacturasResumen | null>(null);
+  const [grupos, setGrupos] = useState<FacturaPeriodo[] | null>(null);
+  // Vista agrupada: el grupo abierto es el único cuyas facturas se traen y
+  // muestran — los demás solo enseñan su recuento/total hasta que se abren.
+  const [grupoAbierto, setGrupoAbierto] = useState<string | null>(null);
+
+  const [pagina, setPagina] = useState(1);
+  const [filas, setFilas] = useState<Factura[]>([]);
+  const [totalFilas, setTotalFilas] = useState(0);
+  const [cargandoFilas, setCargandoFilas] = useState(true);
+
+  const cargarResumen = useCallback(() => {
+    getFacturasResumen().then(setResumen).catch(() => {});
+  }, []);
+
+  const cargarGrupos = useCallback((agr: Agrupacion) => {
+    if (agr === 'ninguna') { setGrupos(null); return; }
+    getFacturasPorPeriodo(agr).then(setGrupos).catch(() => setGrupos([]));
+  }, []);
+
+  const cargarFilas = useCallback((agr: Agrupacion, grupo: string | null, pag: number) => {
+    if (agr !== 'ninguna' && !grupo) {
+      setFilas([]);
+      setTotalFilas(0);
+      setCargandoFilas(false);
+      return;
+    }
+    setCargandoFilas(true);
+    const rangoFecha = agr !== 'ninguna' && grupo ? rangoDeClavePeriodo(agr, grupo) : undefined;
+    listFacturasPaginado({ limit: PAGE_SIZE, offset: (pag - 1) * PAGE_SIZE, rangoFecha })
+      .then(({ data, count }) => { setFilas(data); setTotalFilas(count); })
+      .catch(() => { setFilas([]); setTotalFilas(0); })
+      .finally(() => setCargandoFilas(false));
+  }, []);
+
+  useEffect(() => { cargarResumen(); }, [cargarResumen]);
+  useEffect(() => { cargarGrupos(agrupacion); }, [agrupacion, cargarGrupos]);
+  useEffect(() => { cargarFilas(agrupacion, grupoAbierto, pagina); }, [agrupacion, grupoAbierto, pagina, cargarFilas]);
+
+  const recargarTodo = () => {
+    cargarResumen();
+    cargarGrupos(agrupacion);
+    cargarFilas(agrupacion, grupoAbierto, pagina);
+  };
+
+  const cambiarAgrupacion = (a: Agrupacion) => {
+    setAgrupacion(a);
+    setGrupoAbierto(null);
+    setPagina(1);
+  };
+
+  const abrirGrupo = (clave: string) => {
+    setGrupoAbierto(prev => (prev === clave ? null : clave));
+    setPagina(1);
+  };
 
   const nombreCliente = (id: string) => {
     const c = clientes.find(c => c.id === id);
@@ -493,50 +545,51 @@ export default function FacturasTab({
     return v ? `${v.marca} ${v.modelo} (${v.matricula})` : id;
   };
 
-  const importePendiente = facturas
-    .filter(f => f.estado === 'emitida' || f.estado === 'vencida')
-    .reduce((s, f) => s + f.total, 0);
-  const importeCobrado = facturas
-    .filter(f => f.estado === 'pagada')
-    .reduce((s, f) => s + f.total, 0);
-  const totalFacturas = facturas.length;
-  const facturasPagadas = facturas.filter(f => f.estado === 'pagada').length;
-
-  // Por fecha de creación, no por `numero` — los borradores todavía no tienen
-  // un número real (se asigna al emitir), así que no sirve para ordenar.
-  const sortedFacturas = [...facturas].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-
-  const grupos = useMemo(() => {
-    if (agrupacion === 'ninguna') return null;
-    const mapa = new Map<string, { label: string; facturas: Factura[] }>();
-    for (const f of sortedFacturas) {
-      const { clave, label } = claveYLabelPeriodo(f, agrupacion);
-      if (!mapa.has(clave)) mapa.set(clave, { label, facturas: [] });
-      mapa.get(clave)!.facturas.push(f);
-    }
-    return [...mapa.entries()]
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([clave, v]) => ({ clave, ...v }));
-  }, [facturas, agrupacion]);
-
-  const handleExportCsv = () => {
+  const handleExportCsv = async () => {
+    const todas = await listFacturas();
+    const sorted = [...todas].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const headers = ['Número', 'Cliente', 'Vehículo', 'Fecha', 'Vencimiento', 'Estado', 'Subtotal', 'IVA', 'Total'];
-    const rows = sortedFacturas.map(f => [
+    const rows = sorted.map(f => [
       numeroMostrado(f), nombreCliente(f.clienteId), nombreVehiculo(f.vehiculoId), f.fecha, f.fechaVencimiento,
       ESTADO_FACTURA_LABELS[f.estado], fmt(f.subtotal), fmt(f.totalIva), fmt(f.total),
     ]);
     downloadCsv(`doonty_facturas_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
   };
 
-  const handleSaveFactura = (f: Factura) => {
-    if (facturas.find(x => x.id === f.id)) onUpdateFactura(f);
-    else onAddFactura(f);
-    setFacturaModal({ open: false, factura: null });
+  const handleDescargarGrupo = async (g: FacturaPeriodo) => {
+    setDescargandoGrupo(g.clave);
+    try {
+      const rango = rangoDeClavePeriodo(agrupacion as AgrupacionFacturas, g.clave);
+      const { data } = await listFacturasPaginado({ limit: g.cantidad, offset: 0, rangoFecha: rango });
+      setViewingGrupo({ label: labelDePeriodo(agrupacion as AgrupacionFacturas, g.clave), facturas: data });
+    } finally {
+      setDescargandoGrupo(null);
+    }
   };
 
-  const handleEmitirConfirmado = () => {
-    if (confirmEmitir) onEmitirFactura(confirmEmitir.id);
+  const handleSaveFactura = async (f: Factura) => {
+    if (facturaModal.factura) await onUpdateFactura(f);
+    else await onAddFactura(f);
+    setFacturaModal({ open: false, factura: null });
+    recargarTodo();
+  };
+
+  const handleEmitirConfirmado = async () => {
+    if (confirmEmitir) {
+      await onEmitirFactura(confirmEmitir.id);
+      recargarTodo();
+    }
     setConfirmEmitir(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    await onDeleteFactura(id);
+    recargarTodo();
+  };
+
+  const handleCambiarEstado = async (id: string, estado: Factura['estado']) => {
+    await onCambiarEstadoFactura(id, estado);
+    recargarTodo();
   };
 
   /** Misma tabla tanto para la vista sin agrupar como para cada grupo (semana/mes/año). */
@@ -564,7 +617,7 @@ export default function FacturasTab({
                 {transiciones.length > 0 ? (
                   <select
                     value={f.estado}
-                    onChange={e => onCambiarEstadoFactura(f.id, e.target.value as Factura['estado'])}
+                    onChange={e => handleCambiarEstado(f.id, e.target.value as Factura['estado'])}
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 ${ESTADO_FACTURA_COLORS[f.estado]}`}
                   >
                     <option value={f.estado}>{ESTADO_FACTURA_LABELS[f.estado]}</option>
@@ -596,7 +649,7 @@ export default function FacturasTab({
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
                   <button
-                    onClick={() => esBorrador && onDeleteFactura(f.id)}
+                    onClick={() => esBorrador && handleDelete(f.id)}
                     disabled={!esBorrador}
                     className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
                     title={esBorrador ? 'Eliminar' : 'Las facturas emitidas no se pueden eliminar (VeriFactu)'}
@@ -618,19 +671,19 @@ export default function FacturasTab({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-1">Total Facturas</p>
-          <p className="text-2xl font-black text-slate-800">{totalFacturas}</p>
+          <p className="text-2xl font-black text-slate-800">{resumen?.totalFacturas ?? '—'}</p>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-1">Facturas pagadas</p>
-          <p className="text-2xl font-black text-green-600">{facturasPagadas}</p>
+          <p className="text-2xl font-black text-green-600">{resumen?.facturasPagadas ?? '—'}</p>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-1">Pendiente de cobro</p>
-          <p className="text-2xl font-black text-amber-600">{fmt(importePendiente)} €</p>
+          <p className="text-2xl font-black text-amber-600">{resumen ? `${fmt(resumen.importePendiente)} €` : '—'}</p>
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
           <p className="text-xs font-semibold text-slate-500 mb-1">Importe cobrado</p>
-          <p className="text-2xl font-black text-green-600">{fmt(importeCobrado)} €</p>
+          <p className="text-2xl font-black text-green-600">{resumen ? `${fmt(resumen.importeCobrado)} €` : '—'}</p>
         </div>
       </div>
 
@@ -650,7 +703,7 @@ export default function FacturasTab({
               ] as const).map(op => (
                 <button
                   key={op.id}
-                  onClick={() => setAgrupacion(op.id)}
+                  onClick={() => cambiarAgrupacion(op.id)}
                   className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
                     agrupacion === op.id ? 'bg-white text-slate-800 shadow-3xs' : 'text-slate-500 hover:text-slate-700'
                   }`}
@@ -662,7 +715,7 @@ export default function FacturasTab({
             <button
               onClick={handleExportCsv}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer"
-              title="Exportar facturas a CSV"
+              title="Exportar todas las facturas a CSV"
             >
               <Download className="w-3.5 h-3.5" /> CSV
             </button>
@@ -672,43 +725,79 @@ export default function FacturasTab({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          {facturas.length === 0 ? (
-            <div className="text-center py-16 text-slate-400">
-              <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm font-semibold">No hay facturas registradas</p>
-              <p className="text-xs mt-1">Crea la primera pulsando "Nueva Factura"</p>
-            </div>
-          ) : agrupacion === 'ninguna' ? (
-            renderTablaFacturas(sortedFacturas)
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {grupos!.map(g => {
-                const totalGrupo = g.facturas.reduce((s, f) => s + f.total, 0);
+        {agrupacion === 'ninguna' ? (
+          <div className="overflow-x-auto">
+            {resumen?.totalFacturas === 0 ? (
+              <div className="text-center py-16 text-slate-400">
+                <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm font-semibold">No hay facturas registradas</p>
+                <p className="text-xs mt-1">Crea la primera pulsando "Nueva Factura"</p>
+              </div>
+            ) : cargandoFilas ? (
+              <p className="text-center py-16 text-xs text-slate-400">Cargando…</p>
+            ) : (
+              <>
+                {renderTablaFacturas(filas)}
+                <div className="px-5 py-3">
+                  <Pagination currentPage={pagina} totalItems={totalFilas} pageSize={PAGE_SIZE} onPageChange={setPagina} />
+                </div>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {grupos === null ? (
+              <p className="text-center py-16 text-xs text-slate-400">Cargando…</p>
+            ) : grupos.length === 0 ? (
+              <div className="text-center py-16 text-slate-400">
+                <Receipt className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm font-semibold">No hay facturas registradas</p>
+              </div>
+            ) : (
+              grupos.map(g => {
+                const abierto = grupoAbierto === g.clave;
                 return (
                   <div key={g.clave}>
                     <div className="flex items-center justify-between px-5 py-3 bg-slate-50/60 flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-extrabold text-slate-700">{g.label}</span>
-                        <span className="text-[10px] font-bold text-slate-400">
-                          {g.facturas.length} factura{g.facturas.length === 1 ? '' : 's'} · {fmt(totalGrupo)} €
-                        </span>
-                      </div>
                       <button
-                        onClick={() => setViewingGrupo({ label: g.label, facturas: g.facturas })}
-                        className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-white text-xs font-bold rounded-xl transition cursor-pointer"
-                        title={`Descargar las facturas de ${g.label}`}
+                        onClick={() => abrirGrupo(g.clave)}
+                        className="flex items-center gap-2 cursor-pointer text-left"
                       >
-                        <Download className="w-3.5 h-3.5" /> Descargar grupo
+                        {abierto ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRightIcon className="w-3.5 h-3.5 text-slate-400" />}
+                        <span className="text-xs font-extrabold text-slate-700">{labelDePeriodo(agrupacion, g.clave)}</span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {g.cantidad} factura{g.cantidad === 1 ? '' : 's'} · {fmt(g.total)} €
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => handleDescargarGrupo(g)}
+                        disabled={descargandoGrupo === g.clave}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-white text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50"
+                        title={`Descargar las facturas de ${labelDePeriodo(agrupacion, g.clave)}`}
+                      >
+                        <Download className="w-3.5 h-3.5" /> {descargandoGrupo === g.clave ? 'Preparando…' : 'Descargar grupo'}
                       </button>
                     </div>
-                    {renderTablaFacturas(g.facturas)}
+                    {abierto && (
+                      <div className="overflow-x-auto">
+                        {cargandoFilas ? (
+                          <p className="text-center py-8 text-xs text-slate-400">Cargando…</p>
+                        ) : (
+                          <>
+                            {renderTablaFacturas(filas)}
+                            <div className="px-5 py-3">
+                              <Pagination currentPage={pagina} totalItems={totalFilas} pageSize={PAGE_SIZE} onPageChange={setPagina} />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
-              })}
-            </div>
-          )}
-        </div>
+              })
+            )}
+          </div>
+        )}
       </div>
 
       {facturaModal.open && (

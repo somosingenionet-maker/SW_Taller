@@ -102,6 +102,95 @@ export async function listFacturas(): Promise<Factura[]> {
   return (data ?? []).map((r) => mapFactura(r as unknown as FacturaRow));
 }
 
+export interface FacturasResumen {
+  totalFacturas: number;
+  facturasPagadas: number;
+  importePendiente: number;
+  importeCobrado: number;
+  facturasMesActual: number;
+  importeMesActual: number;
+  facturasVencidas: number;
+  importeVencido: number;
+}
+
+type ResumenRow = {
+  total_facturas: number; facturas_pagadas: number; importe_pendiente: number; importe_cobrado: number;
+  facturas_mes_actual: number; importe_mes_actual: number; facturas_vencidas: number; importe_vencido: number;
+};
+
+/** Totales agregados (Home, tarjetas KPI de Facturas) calculados en el servidor — no requiere traer las filas completas. */
+export async function getFacturasResumen(): Promise<FacturasResumen> {
+  const mesActual = new Date().toISOString().slice(0, 7);
+  const { data, error } = await supabase.rpc('facturas_resumen', { mes_actual: mesActual });
+  if (error) throw new Error(error.message);
+  const r = (data as ResumenRow[])[0];
+  return {
+    totalFacturas: Number(r.total_facturas),
+    facturasPagadas: Number(r.facturas_pagadas),
+    importePendiente: Number(r.importe_pendiente),
+    importeCobrado: Number(r.importe_cobrado),
+    facturasMesActual: Number(r.facturas_mes_actual),
+    importeMesActual: Number(r.importe_mes_actual),
+    facturasVencidas: Number(r.facturas_vencidas),
+    importeVencido: Number(r.importe_vencido),
+  };
+}
+
+export type AgrupacionFacturas = 'semana' | 'mes' | 'año';
+
+export interface FacturaPeriodo {
+  clave: string;
+  cantidad: number;
+  total: number;
+}
+
+type PeriodoRow = { clave: string; cantidad: number; total: number };
+
+/** Un renglón por período (semana/mes/año) con su recuento y total — no una fila por factura. */
+export async function getFacturasPorPeriodo(agrupacion: AgrupacionFacturas): Promise<FacturaPeriodo[]> {
+  const { data, error } = await supabase.rpc('facturas_por_periodo', { agrupacion });
+  if (error) throw new Error(error.message);
+  return (data as PeriodoRow[] ?? []).map((r) => ({ clave: r.clave, cantidad: Number(r.cantidad), total: Number(r.total) }));
+}
+
+/** Rango [desde, hasta) de fecha para un período dado por su clave — para filtrar la página de filas de ese grupo. */
+export function rangoDeClavePeriodo(agrupacion: AgrupacionFacturas, clave: string): { desde: string; hasta: string } {
+  if (agrupacion === 'año') {
+    const anio = Number(clave);
+    return { desde: `${clave}-01-01`, hasta: `${anio + 1}-01-01` };
+  }
+  if (agrupacion === 'mes') {
+    const [anio, mes] = clave.split('-').map(Number);
+    const hastaMes = mes === 12 ? 1 : mes + 1;
+    const hastaAnio = mes === 12 ? anio + 1 : anio;
+    return { desde: `${clave}-01`, hasta: `${hastaAnio}-${String(hastaMes).padStart(2, '0')}-01` };
+  }
+  const inicio = new Date(clave + 'T00:00:00');
+  const fin = new Date(inicio);
+  fin.setDate(fin.getDate() + 7);
+  return { desde: clave, hasta: fin.toISOString().slice(0, 10) };
+}
+
+export interface ListFacturasParams {
+  limit: number;
+  offset: number;
+  /** Filtra por rango de fecha (típicamente el de un período de getFacturasPorPeriodo). */
+  rangoFecha?: { desde: string; hasta: string };
+}
+
+/** Página de facturas completas (con líneas) — para navegar, no para agregados. */
+export async function listFacturasPaginado(params: ListFacturasParams): Promise<{ data: Factura[]; count: number }> {
+  let query = supabase.from('facturas').select(SELECT, { count: 'exact' });
+  if (params.rangoFecha) {
+    query = query.gte('fecha', params.rangoFecha.desde).lt('fecha', params.rangoFecha.hasta);
+  }
+  const { data, error, count } = await query
+    .order('created_at', { ascending: false })
+    .range(params.offset, params.offset + params.limit - 1);
+  if (error) throw new Error(error.message);
+  return { data: (data ?? []).map((r) => mapFactura(r as unknown as FacturaRow)), count: count ?? 0 };
+}
+
 /** Crea una factura nueva, siempre en estado 'borrador'. El número lo asigna el servidor. */
 export async function createFactura(f: Factura): Promise<Factura> {
   const { data, error } = await supabase.from('facturas').insert(toRow(f) as FacturaInsert).select('id').single();
