@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Wrench, Car, ShieldAlert, ClipboardCheck } from 'lucide-react';
+import { Wrench, Car, ShieldAlert, ClipboardCheck, Check } from 'lucide-react';
 import { getPortalMecanicoData, marcarTareaMecanico, PortalMecanicoData, PortalMecanicoTarea } from '../lib/data/portalMecanico';
 
 interface Props {
@@ -52,19 +52,30 @@ function OrdenCard({ orden, color, token }: { orden: PortalMecanicoData['ordenes
       {tareas.length === 0 ? (
         <p className="text-xs text-slate-400 italic mt-3">Sin tareas de mano de obra registradas todavía.</p>
       ) : (
-        <div className="mt-3 space-y-1.5">
+        <div className="mt-3 space-y-2">
           {tareas.map(t => (
-            <label key={t.id} className="flex items-center gap-2.5 text-sm py-1 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={t.completado}
-                disabled={pendienteId === t.id}
-                onChange={() => toggle(t)}
-                className="w-4 h-4 rounded border-slate-300 shrink-0"
-                style={{ accentColor: color }}
-              />
-              <span className={t.completado ? 'line-through text-slate-400' : 'text-slate-700'}>{t.descripcion}</span>
-            </label>
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => toggle(t)}
+              disabled={pendienteId === t.id}
+              className={`w-full flex items-center gap-3 text-left px-3.5 py-3 rounded-2xl border transition disabled:opacity-60 cursor-pointer ${
+                t.completado ? 'bg-teal-50 border-teal-200' : 'bg-white border-slate-200 hover:border-slate-300 active:scale-[0.99]'
+              }`}
+            >
+              <span
+                className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 text-white"
+                style={t.completado ? { backgroundColor: color, borderColor: color } : { borderColor: '#cbd5e1' }}
+              >
+                {t.completado && <Check className="w-3.5 h-3.5" />}
+              </span>
+              <span className={`flex-1 text-sm ${t.completado ? 'line-through text-slate-400' : 'text-slate-700 font-medium'}`}>
+                {t.descripcion}
+              </span>
+              <span className="text-[10px] font-bold shrink-0" style={{ color: t.completado ? color : '#94a3b8' }}>
+                {pendienteId === t.id ? '…' : t.completado ? 'Hecho' : 'Marcar hecho'}
+              </span>
+            </button>
           ))}
           <p className="text-[10px] text-slate-400 pt-1">{hechas}/{tareas.length} completadas</p>
         </div>

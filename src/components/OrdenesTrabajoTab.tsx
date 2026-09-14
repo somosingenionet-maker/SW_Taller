@@ -206,6 +206,13 @@ function diasDesde(fechaISO: string): { texto: string; aviso: boolean } {
   return { texto: `${dias} día${dias !== 1 ? 's' : ''}`, aviso: dias > 5 };
 }
 
+/** Progreso de las tareas del mecánico (líneas de mano de obra) marcadas desde el Portal del Mecánico. */
+function progresoTareas(ot: OrdenTrabajo): { total: number; hechas: number; terminado: boolean } {
+  const tareas = ot.lineas.filter(l => l.tipo === 'mano_de_obra');
+  const hechas = tareas.filter(l => l.completado).length;
+  return { total: tareas.length, hechas, terminado: tareas.length > 0 && hechas === tareas.length };
+}
+
 /** Vista alternativa a la tabla: una columna por estado (sin 'cancelado' — ese
  * se sigue viendo desde la lista con su filtro), arrastrar una tarjeta a otra
  * columna dispara el mismo cambio de estado que el desplegable "Avanzar
@@ -308,6 +315,13 @@ function KanbanBoard({
                       )}
                       <span className="truncate">{cli ? `${cli.nombre} ${cli.apellidos}` : '—'}</span>
                     </div>
+                    {(estado === 'recibido' || estado === 'en_reparacion') && progresoTareas(ot).terminado && (
+                      <div className="mb-1.5">
+                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 flex items-center gap-1 w-fit">
+                          <Check size={9} /> Técnico terminó
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold text-slate-700">
                         {ot.total > 0 ? `${ot.total.toFixed(2)} €` : <span className="text-slate-300 font-normal">Por definir</span>}
@@ -346,6 +360,19 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     return () => clearTimeout(t);
   }, [kanbanAviso]);
   const [selected, setSelected] = useState<OrdenTrabajo | null>(null);
+
+  // Mantiene la ficha abierta al día con lo que llega por Realtime (el
+  // mecánico marcando tareas desde su Portal) — `ordenes` es la fuente de
+  // verdad que App.tsx ya actualiza en vivo; `selected` es solo una
+  // instantánea local que si no, se queda congelada hasta que algo más
+  // fuerce un re-render. Cuando ambos ya apuntan al mismo objeto esto no
+  // provoca renders de más: `setSelected` con la misma referencia no hace nada.
+  useEffect(() => {
+    if (!selected) return;
+    const actualizado = ordenes.find(o => o.id === selected.id);
+    if (actualizado) setSelected(actualizado);
+  }, [ordenes, selected]);
+
   const [isCreating, setIsCreating] = useState(false);
   const [guardandoOT, setGuardandoOT] = useState(false);
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
@@ -843,7 +870,16 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       </td>
                       <td className="px-4 py-3 text-slate-700">{cli ? `${cli.nombre} ${cli.apellidos}` : '—'}</td>
                       <td className="px-4 py-3 text-slate-500 text-xs">{ot.fechaRecepcion}</td>
-                      <td className="px-4 py-3"><BadgeEstado estado={ot.estado} presupuestoEstado={ot.presupuestoEstado} presupuestoAprobado={ot.presupuestoAprobado} notificacionEnviada={ot.notificacionEnviada} /></td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1 items-start">
+                          <BadgeEstado estado={ot.estado} presupuestoEstado={ot.presupuestoEstado} presupuestoAprobado={ot.presupuestoAprobado} notificacionEnviada={ot.notificacionEnviada} />
+                          {(ot.estado === 'recibido' || ot.estado === 'en_reparacion') && progresoTareas(ot).terminado && (
+                            <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 flex items-center gap-1">
+                              <Check size={9} /> Técnico terminó
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">
                         {ot.total > 0 ? `${ot.total.toFixed(2)} €` : <span className="text-slate-300 font-normal text-xs">Por definir</span>}
                       </td>
@@ -989,12 +1025,15 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-xs font-semibold text-slate-600">Líneas de trabajo</p>
                     {(() => {
-                      const tareas = selected.lineas.filter(l => l.tipo === 'mano_de_obra');
-                      if (tareas.length === 0) return null;
-                      const hechas = tareas.filter(l => l.completado).length;
-                      return (
+                      const { total, hechas, terminado } = progresoTareas(selected);
+                      if (total === 0) return null;
+                      return terminado ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700 flex items-center gap-1">
+                          <Check size={9} /> Técnico terminó todas las tareas
+                        </span>
+                      ) : (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 flex items-center gap-1">
-                          <Wrench size={9} /> {hechas}/{tareas.length} tareas del técnico
+                          <Wrench size={9} /> {hechas}/{total} tareas del técnico
                         </span>
                       );
                     })()}

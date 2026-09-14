@@ -188,6 +188,30 @@ export default function App() {
     }
   }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarFacturas, recargarProductos, recargarCitas]);
 
+  // Realtime: el mecánico marca tareas desde su Portal (sin pasar por esta
+  // sesión ni por este usuario) — sin esto, el progreso solo se vería tras
+  // recargar o reabrir la OT. Se actualiza en el sitio, sin refetch completo:
+  // solo la línea concreta que cambió, dentro de la OT que la contiene.
+  useEffect(() => {
+    if (!currentUser) return;
+    const canal = supabase
+      .channel('lineas_ot-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'lineas_ot' },
+        (payload) => {
+          const nueva = payload.new as { id: string; ot_id: string; completado: boolean };
+          setOrdenesTrabajo(prev => prev.map(ot =>
+            ot.id === nueva.ot_id
+              ? { ...ot, lineas: ot.lineas.map(l => (l.id === nueva.id ? { ...l, completado: nueva.completado } : l)) }
+              : ot
+          ));
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
+  }, [currentUser]);
+
   // Corrige la pestaña activa si el usuario no tiene permiso sobre ella —
   // 'inicio' queda fuera de esta comprobación: no es un módulo con permiso
   // propio, es la pantalla de aterrizaje válida para cualquier usuario.
