@@ -373,6 +373,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     if (actualizado) setSelected(actualizado);
   }, [ordenes, selected]);
 
+  // Líneas recién añadidas al editar una OT ya recibida, pendientes de que
+  // el taller le avise al cliente — se limpia solo al cambiar de OT, no al
+  // simple refresco por Realtime de arriba (mismo id, no dispara este efecto).
+  const [lineasNuevasAviso, setLineasNuevasAviso] = useState<LineaOT[] | null>(null);
+  useEffect(() => { setLineasNuevasAviso(null); }, [selected?.id]);
+
   const [isCreating, setIsCreating] = useState(false);
   const [guardandoOT, setGuardandoOT] = useState(false);
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
@@ -719,6 +725,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     };
     setSelected(await onUpdate(updated));
     setIsEditing(false);
+
+    // Aviso de líneas añadidas — solo tiene sentido una vez que el vehículo
+    // ya está recibido (en fase de presupuesto, añadir líneas es solo
+    // terminar de armar el propio presupuesto, no un extra que avisar aparte).
+    if (ot.estado !== 'presupuesto') {
+      const nuevas = editOTLineas.filter(l => !ot.lineas.some(orig => orig.id === l.id));
+      setLineasNuevasAviso(nuevas.length > 0 ? nuevas : null);
+    }
   };
 
   const handleDeleteConfirmed = () => {
@@ -1231,6 +1245,56 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                           {tec.nombre} no tiene teléfono guardado — añádelo en Configuración de empresa → Técnicos para poder avisarle.
                         </p>
                       )}
+                    </div>
+                  );
+                })()}
+
+                {/* Bloque: avisar al cliente de líneas añadidas tras la recepción */}
+                {lineasNuevasAviso && lineasNuevasAviso.length > 0 && (() => {
+                  const cli = clientes.find(c => c.id === selected.clienteId);
+                  const veh = vehiculos.find(v => v.id === selected.vehiculoId);
+                  const nombreCliente = cli ? `${cli.nombre} ${cli.apellidos}` : 'cliente';
+                  const descVeh = veh ? `${veh.marca} ${veh.modelo}${veh.matricula ? ` (${veh.matricula})` : ''}` : 'tu vehículo';
+                  const sumaAnadida = lineasNuevasAviso.reduce((s, l) => s + l.subtotal, 0);
+                  const detalle = lineasNuevasAviso.map(l => `• ${l.descripcion} (${l.subtotal.toFixed(2)} €)`).join('\n');
+                  const mensaje = `Hola ${nombreCliente}, durante el trabajo en ${descVeh} (OT ${selected.numero}) hemos añadido lo siguiente:\n${detalle}\nTotal añadido: ${sumaAnadida.toFixed(2)} €.\nCualquier duda, contáctanos.`;
+                  const waHref = cli?.telefono
+                    ? `https://wa.me/${cli.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`
+                    : null;
+                  const mailHref = cli?.correo
+                    ? `mailto:${cli.correo}?subject=${encodeURIComponent(`Trabajo adicional en tu vehículo - ${empresa.nombre}`)}&body=${encodeURIComponent(mensaje)}`
+                    : null;
+                  return (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><Bell size={11} /> Se añadieron {lineasNuevasAviso.length} línea{lineasNuevasAviso.length === 1 ? '' : 's'} nueva{lineasNuevasAviso.length === 1 ? '' : 's'}</p>
+                        <button onClick={() => setLineasNuevasAviso(null)} className="text-slate-400 hover:text-slate-600 transition" title="Descartar">
+                          <X size={13} />
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-600">¿Avisamos al cliente de este añadido ({sumaAnadida.toFixed(2)} €)?</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {waHref ? (
+                          <a href={waHref} target="_blank" rel="noopener noreferrer" onClick={() => setLineasNuevasAviso(null)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition">
+                            <MessageCircle size={13} /> WhatsApp
+                          </a>
+                        ) : (
+                          <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
+                            <MessageCircle size={13} /> WhatsApp
+                          </span>
+                        )}
+                        {mailHref ? (
+                          <a href={mailHref} onClick={() => setLineasNuevasAviso(null)}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition">
+                            <Mail size={13} /> Email
+                          </a>
+                        ) : (
+                          <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
+                            <Mail size={13} /> Email
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}
