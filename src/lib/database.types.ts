@@ -572,6 +572,7 @@ export type Database = {
           costo_unitario: number | null
           descripcion: string
           id: string
+          notificado_cliente: boolean
           ot_id: string
           posicion: number
           precio_unitario: number
@@ -585,6 +586,7 @@ export type Database = {
           costo_unitario?: number | null
           descripcion?: string
           id?: string
+          notificado_cliente?: boolean
           ot_id: string
           posicion?: number
           precio_unitario?: number
@@ -598,6 +600,7 @@ export type Database = {
           costo_unitario?: number | null
           descripcion?: string
           id?: string
+          notificado_cliente?: boolean
           ot_id?: string
           posicion?: number
           precio_unitario?: number

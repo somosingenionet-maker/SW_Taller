@@ -39,6 +39,17 @@ const ESTADO_FLOW: OTEstado[] = [
   'presupuesto', 'recibido', 'en_reparacion', 'listo', 'entregado'
 ];
 
+/** Estados donde añadir una línea no implica avisar de un extra al cliente. */
+const ESTADOS_SIN_AVISO_EXTRA: OTEstado[] = ['presupuesto', 'cancelado', 'entregado'];
+
+function waHref(telefono: string | undefined, mensaje: string): string | null {
+  return telefono ? `https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}` : null;
+}
+
+function mailHref(correo: string | undefined, asunto: string, mensaje: string): string | null {
+  return correo ? `mailto:${correo}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(mensaje)}` : null;
+}
+
 /** Comprobación fija al recibir el vehículo — misma lista para todas las empresas. */
 const CHECKLIST_RECEPCION_ITEMS = [
   'Neumáticos en buen estado',
@@ -373,11 +384,6 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     if (actualizado) setSelected(actualizado);
   }, [ordenes, selected]);
 
-  // Líneas recién añadidas al editar una OT ya recibida, pendientes de que
-  // el taller le avise al cliente — se limpia solo al cambiar de OT, no al
-  // simple refresco por Realtime de arriba (mismo id, no dispara este efecto).
-  const [lineasNuevasAviso, setLineasNuevasAviso] = useState<LineaOT[] | null>(null);
-  useEffect(() => { setLineasNuevasAviso(null); }, [selected?.id]);
 
   const [isCreating, setIsCreating] = useState(false);
   const [guardandoOT, setGuardandoOT] = useState(false);
@@ -707,6 +713,18 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
   const handleEditSave = async (ot: OrdenTrabajo) => {
     const { subtotal, totalIva, total } = calcTotals(editOTLineas, editForm.ivaPct);
+    // Las líneas realmente nuevas (no estaban ya en la OT) se marcan como
+    // pendientes de avisar al cliente — persistido en la propia línea, no en
+    // estado efímero de React: así sobrevive a recargar la página o cambiar
+    // de pestaña antes de enviar el aviso. Solo aplica a una OT que ya es un
+    // trabajo activo y cobrable — ni en fase de presupuesto (añadir líneas
+    // ahí es solo terminar de armar el propio presupuesto) ni en una ya
+    // cancelada o entregada (no tiene sentido avisar de un extra ahí).
+    const idsOriginales = new Set(ot.lineas.map(l => l.id));
+    const requiereAviso = !ESTADOS_SIN_AVISO_EXTRA.includes(ot.estado);
+    const lineasFinal = requiereAviso
+      ? editOTLineas.map(l => (idsOriginales.has(l.id) ? l : { ...l, notificadoCliente: false }))
+      : editOTLineas;
     const updated: OrdenTrabajo = {
       ...ot,
       fechaActualizacion: new Date().toISOString(),
@@ -720,19 +738,19 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       tecnicoAsignado: editForm.tecnicoAsignado || undefined,
       notas: editForm.notas || undefined,
       ivaPct: editForm.ivaPct,
-      lineas: editOTLineas,
+      lineas: lineasFinal,
       subtotal, totalIva, total,
     };
     setSelected(await onUpdate(updated));
     setIsEditing(false);
+  };
 
-    // Aviso de líneas añadidas — solo tiene sentido una vez que el vehículo
-    // ya está recibido (en fase de presupuesto, añadir líneas es solo
-    // terminar de armar el propio presupuesto, no un extra que avisar aparte).
-    if (ot.estado !== 'presupuesto') {
-      const nuevas = editOTLineas.filter(l => !ot.lineas.some(orig => orig.id === l.id));
-      setLineasNuevasAviso(nuevas.length > 0 ? nuevas : null);
-    }
+  const handleMarcarLineasAvisadas = async (ot: OrdenTrabajo) => {
+    const updated: OrdenTrabajo = {
+      ...ot,
+      lineas: ot.lineas.map(l => (l.notificadoCliente === false ? { ...l, notificadoCliente: true } : l)),
+    };
+    setSelected(await onUpdate(updated));
   };
 
   const handleDeleteConfirmed = () => {
@@ -1159,12 +1177,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   const nombreCliente = cli ? `${cli.nombre} ${cli.apellidos}` : 'cliente';
                   const descVeh = veh ? `${veh.marca} ${veh.modelo}${veh.matricula ? ` (${veh.matricula})` : ''}` : 'su vehículo';
                   const mensaje = `Hola ${nombreCliente}, le informamos que su vehículo ${descVeh} ya está listo para recoger en ${empresa.nombre}. Puede pasar cuando lo desee en nuestro horario de atención. ¡Gracias por confiar en nosotros!`;
-                  const waHref = cli?.telefono
-                    ? `https://wa.me/${cli.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`
-                    : null;
-                  const mailHref = cli?.correo
-                    ? `mailto:${cli.correo}?subject=${encodeURIComponent(`Su vehículo está listo - ${empresa.nombre}`)}&body=${encodeURIComponent(mensaje)}`
-                    : null;
+                  const waLink = waHref(cli?.telefono, mensaje);
+                  const mailLink = mailHref(cli?.correo, `Su vehículo está listo - ${empresa.nombre}`, mensaje);
                   return (
                     <div className={`rounded-2xl border p-4 space-y-3 ${notificado ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
                       <div className="flex items-center justify-between">
@@ -1175,9 +1189,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                         <p className="text-xs text-slate-500">Avisa al cliente de que su vehículo está listo para recoger.</p>
                       )}
                       <div className="flex gap-2 flex-wrap">
-                        {waHref ? (
+                        {waLink ? (
                           <a
-                            href={waHref}
+                            href={waLink}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition"
@@ -1189,9 +1203,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             <MessageCircle size={13} /> WhatsApp
                           </span>
                         )}
-                        {mailHref ? (
+                        {mailLink ? (
                           <a
-                            href={mailHref}
+                            href={mailLink}
                             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
                           >
                             <Mail size={13} /> Email
@@ -1225,7 +1239,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     const tecConToken = await asegurarPortalTecnico(tec);
                     const enlace = `${window.location.origin}/mecanico/${tecConToken.portalToken}`;
                     const mensaje = `Hola ${tec.nombre}, se te ha asignado ${descVeh} — OT ${selected.numero}. Aquí puedes ver y marcar las tareas: ${enlace}`;
-                    window.open(`https://wa.me/${(tec.telefono ?? '').replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener,noreferrer');
+                    const link = waHref(tec.telefono, mensaje);
+                    if (link) window.open(link, '_blank', 'noopener,noreferrer');
                   };
 
                   return (
@@ -1249,33 +1264,32 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   );
                 })()}
 
-                {/* Bloque: avisar al cliente de líneas añadidas tras la recepción */}
-                {lineasNuevasAviso && lineasNuevasAviso.length > 0 && (() => {
+                {/* Bloque: avisar al cliente de líneas añadidas tras la recepción — el
+                    pendiente vive en la propia línea (notificadoCliente=false), no en
+                    estado de React, así que sobrevive a recargar la página. */}
+                {(() => {
+                  const pendientes = selected.lineas.filter(l => l.notificadoCliente === false);
+                  if (pendientes.length === 0) return null;
                   const cli = clientes.find(c => c.id === selected.clienteId);
                   const veh = vehiculos.find(v => v.id === selected.vehiculoId);
                   const nombreCliente = cli ? `${cli.nombre} ${cli.apellidos}` : 'cliente';
                   const descVeh = veh ? `${veh.marca} ${veh.modelo}${veh.matricula ? ` (${veh.matricula})` : ''}` : 'tu vehículo';
-                  const sumaAnadida = lineasNuevasAviso.reduce((s, l) => s + l.subtotal, 0);
-                  const detalle = lineasNuevasAviso.map(l => `• ${l.descripcion} (${l.subtotal.toFixed(2)} €)`).join('\n');
-                  const mensaje = `Hola ${nombreCliente}, durante el trabajo en ${descVeh} (OT ${selected.numero}) hemos añadido lo siguiente:\n${detalle}\nTotal añadido: ${sumaAnadida.toFixed(2)} €.\nCualquier duda, contáctanos.`;
-                  const waHref = cli?.telefono
-                    ? `https://wa.me/${cli.telefono.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`
-                    : null;
-                  const mailHref = cli?.correo
-                    ? `mailto:${cli.correo}?subject=${encodeURIComponent(`Trabajo adicional en tu vehículo - ${empresa.nombre}`)}&body=${encodeURIComponent(mensaje)}`
-                    : null;
+                  // Importe con IVA incluido — es lo que realmente pagará el cliente,
+                  // no el subtotal de las líneas.
+                  const { total: totalAnadido } = calcTotals(pendientes, selected.ivaPct);
+                  const detalle = pendientes.map(l => `• ${l.descripcion} (${l.subtotal.toFixed(2)} €)`).join('\n');
+                  const mensaje = `Hola ${nombreCliente}, durante el trabajo en ${descVeh} (OT ${selected.numero}) hemos añadido lo siguiente:\n${detalle}\nTotal añadido (IVA incl.): ${totalAnadido.toFixed(2)} €.\nCualquier duda, contáctanos.`;
+                  const waLink = waHref(cli?.telefono, mensaje);
+                  const mailLink = mailHref(cli?.correo, `Trabajo adicional en tu vehículo - ${empresa.nombre}`, mensaje);
                   return (
                     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><Bell size={11} /> Se añadieron {lineasNuevasAviso.length} línea{lineasNuevasAviso.length === 1 ? '' : 's'} nueva{lineasNuevasAviso.length === 1 ? '' : 's'}</p>
-                        <button onClick={() => setLineasNuevasAviso(null)} className="text-slate-400 hover:text-slate-600 transition" title="Descartar">
-                          <X size={13} />
-                        </button>
-                      </div>
-                      <p className="text-xs text-slate-600">¿Avisamos al cliente de este añadido ({sumaAnadida.toFixed(2)} €)?</p>
+                      <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+                        <Bell size={11} /> Se añadieron {pendientes.length} línea{pendientes.length === 1 ? '' : 's'} nueva{pendientes.length === 1 ? '' : 's'}
+                      </p>
+                      <p className="text-xs text-slate-600">¿Avisamos al cliente de este añadido ({totalAnadido.toFixed(2)} € IVA incl.)?</p>
                       <div className="flex gap-2 flex-wrap">
-                        {waHref ? (
-                          <a href={waHref} target="_blank" rel="noopener noreferrer" onClick={() => setLineasNuevasAviso(null)}
+                        {waLink ? (
+                          <a href={waLink} target="_blank" rel="noopener noreferrer"
                             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition">
                             <MessageCircle size={13} /> WhatsApp
                           </a>
@@ -1284,8 +1298,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             <MessageCircle size={13} /> WhatsApp
                           </span>
                         )}
-                        {mailHref ? (
-                          <a href={mailHref} onClick={() => setLineasNuevasAviso(null)}
+                        {mailLink ? (
+                          <a href={mailLink}
                             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition">
                             <Mail size={13} /> Email
                           </a>
@@ -1294,6 +1308,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             <Mail size={13} /> Email
                           </span>
                         )}
+                        <button
+                          onClick={() => handleMarcarLineasAvisadas(selected)}
+                          className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
+                        >
+                          <Check size={13} /> Marcar avisado
+                        </button>
                       </div>
                     </div>
                   );

@@ -44,6 +44,8 @@ export interface LineaOT {
   subtotal: number;
   /** Marcado por el mecánico desde su Portal cuando termina esa tarea — solo relevante en líneas de tipo mano_de_obra. */
   completado?: boolean;
+  /** false cuando la línea se añadió tras la recepción y el taller todavía no le avisó al cliente del cargo extra. true por defecto (líneas originales del presupuesto/recepción). */
+  notificadoCliente?: boolean;
 }
 
 export interface OrdenTrabajo {

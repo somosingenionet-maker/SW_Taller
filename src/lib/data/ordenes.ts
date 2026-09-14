@@ -11,13 +11,13 @@ const SELECT =
   'tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, ' +
   'presupuesto_aprobado, notificacion_enviada, updated_at, ' +
   'checklist_recepcion, checklist_observaciones, fotos_recepcion, ' +
-  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado ), ' +
+  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, notificado_cliente ), ' +
   'eventos_ot ( fecha, descripcion )';
 
 type LineaRow = {
   id: string; tipo: string; producto_id: string | null; descripcion: string; cantidad: number;
   precio_unitario: number; costo_unitario: number | null; subtotal: number; posicion: number;
-  completado: boolean;
+  completado: boolean; notificado_cliente: boolean;
 };
 type EventoRow = { fecha: string; descripcion: string };
 type ChecklistItemRow = { item: string; ok: boolean };
@@ -45,6 +45,7 @@ function mapLinea(l: LineaRow): LineaOT {
     costoUnitario: l.costo_unitario ?? undefined,
     subtotal: l.subtotal,
     completado: l.completado,
+    notificadoCliente: l.notificado_cliente,
   };
 }
 
@@ -127,6 +128,10 @@ function lineaToRow(l: LineaOT, otId: string, posicion: number) {
     // venía (marcado por el mecánico desde su Portal), y solo es `false` de
     // entrada para una línea recién creada.
     completado: l.completado ?? false,
+    // `false` solo cuando OrdenesTrabajoTab marca explícitamente una línea
+    // recién añadida a una OT ya recibida como pendiente de avisar al
+    // cliente — cualquier otro caso (línea original, o ya avisada) es `true`.
+    notificado_cliente: l.notificadoCliente ?? true,
   };
 }
 
