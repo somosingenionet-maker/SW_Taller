@@ -57,6 +57,37 @@ const calcLineTotals = (lines: LineaDocumento[], ivaPct: number) => {
 
 const genId = (prefix: string) => `${prefix}-${Date.now()}`;
 
+type Agrupacion = 'ninguna' | 'semana' | 'mes' | 'año';
+
+const MESES_LARGO = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MESES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** Lunes de la semana ISO que contiene esa fecha (YYYY-MM-DD, sin hora). */
+function inicioSemanaISO(fechaStr: string): Date {
+  const d = new Date(fechaStr + 'T00:00:00');
+  const diaSemana = (d.getDay() + 6) % 7; // 0 = lunes ... 6 = domingo
+  d.setDate(d.getDate() - diaSemana);
+  return d;
+}
+
+/** Agrupa por fecha de emisión (f.fecha), no por fecha de creación — "las facturas de agosto" se refiere a cuándo se emitieron. */
+function claveYLabelPeriodo(f: Factura, agrupacion: Exclude<Agrupacion, 'ninguna'>): { clave: string; label: string } {
+  if (agrupacion === 'año') {
+    const anio = f.fecha.slice(0, 4);
+    return { clave: anio, label: anio };
+  }
+  if (agrupacion === 'mes') {
+    const [anio, mes] = f.fecha.split('-');
+    return { clave: `${anio}-${mes}`, label: `${MESES_LARGO[Number(mes) - 1]} ${anio}` };
+  }
+  const inicio = inicioSemanaISO(f.fecha);
+  const fin = new Date(inicio);
+  fin.setDate(fin.getDate() + 6);
+  const clave = inicio.toISOString().slice(0, 10);
+  const label = `${inicio.getDate()} ${MESES_CORTO[inicio.getMonth()]} – ${fin.getDate()} ${MESES_CORTO[fin.getMonth()]} ${fin.getFullYear()}`;
+  return { clave, label };
+}
+
 /** Código QR de verificación VeriFactu, generado en el propio navegador (sin llamadas de red). */
 function FacturaQR({ url }: { url: string }) {
   const [dataUrl, setDataUrl] = useState<string | null>(null);
@@ -71,6 +102,138 @@ function FacturaQR({ url }: { url: string }) {
 
   if (!dataUrl) return null;
   return <img src={dataUrl} alt="Código QR de verificación VeriFactu" className="w-[110px] h-[110px] shrink-0" />;
+}
+
+/**
+ * Contenido imprimible de una factura — extraído para reutilizarse tanto en
+ * el visor de una sola factura como en la descarga de un grupo entero
+ * (varias seguidas, cada una en su propia página al imprimir).
+ */
+function FacturaPrintable({
+  f, empresa, clientes, vehiculos, saltoDePagina,
+}: {
+  f: Factura; empresa: Empresa; clientes: Cliente[]; vehiculos: Vehiculo[];
+  /** true si debe forzar salto de página después (para que la siguiente factura del grupo empiece en hoja nueva). */
+  saltoDePagina?: boolean;
+}) {
+  const cli = clientes.find(c => c.id === f.clienteId);
+  const veh = vehiculos.find(v => v.id === f.vehiculoId);
+
+  return (
+    <div className={`max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-2xl print:shadow-none print:rounded-none print:my-0 print:max-w-none ${saltoDePagina ? 'print:break-after-page' : ''}`}>
+      <div className="p-10 space-y-6 text-slate-800 font-sans">
+        <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
+          <div className="flex items-center gap-4">
+            {empresa.logoBase64 && <img src={empresa.logoBase64} alt="Logo" className="h-14 object-contain" />}
+            <div>
+              <h1 className="text-lg font-extrabold text-slate-900 uppercase tracking-tight">{empresa.nombre}</h1>
+              {empresa.ciudad && <p className="text-xs text-slate-500">{empresa.ciudad}</p>}
+              {empresa.correo && <p className="text-xs text-slate-500">{empresa.correo}</p>}
+              {empresa.telefono && <p className="text-xs text-slate-500">{empresa.telefono}</p>}
+              {empresa.web && <p className="text-xs text-slate-500">{empresa.web}</p>}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">FACTURA</p>
+            <p className="text-2xl font-black font-mono text-blue-600">{numeroMostrado(f)}</p>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADO_FACTURA_COLORS[f.estado]}`}>{ESTADO_FACTURA_LABELS[f.estado]}</span>
+          </div>
+        </div>
+
+        <div className="flex justify-between text-xs text-slate-500 font-semibold border-b border-slate-100 pb-3">
+          <span>Fecha emisión: {formatDate(f.fecha)}</span>
+          <span>Fecha vencimiento: {formatDate(f.fechaVencimiento)}</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-1 text-xs">
+            <p className="text-[10px] font-extrabold uppercase text-slate-400 border-b border-slate-100 pb-1">Emisor</p>
+            <p className="font-bold text-slate-800">{empresa.nombre}</p>
+            {empresa.razonSocial && <p className="text-slate-500">{empresa.razonSocial}</p>}
+            {empresa.nif && <p className="text-slate-500 font-mono">NIF: {empresa.nif}</p>}
+            {empresa.ciudad && <p className="text-slate-500">{empresa.ciudad}</p>}
+            {empresa.correo && <p className="text-slate-500">{empresa.correo}</p>}
+            {empresa.telefono && <p className="text-slate-500">{empresa.telefono}</p>}
+          </div>
+          <div className="space-y-1 text-xs">
+            <p className="text-[10px] font-extrabold uppercase text-slate-400 border-b border-slate-100 pb-1">Cliente</p>
+            {cli ? (
+              <>
+                <p className="font-bold text-slate-800">{cli.nombre} {cli.apellidos}</p>
+                <p className="text-slate-500">DNI/NIE/Pasaporte: {cli.nifNiePasaporte}</p>
+                {cli.correo && <p className="text-slate-500">{cli.correo}</p>}
+                {cli.telefono && <p className="text-slate-500">{cli.telefono}</p>}
+                {cli.direccion && <p className="text-slate-500">{cli.direccion}</p>}
+                {(cli.ciudad || cli.pais) && <p className="text-slate-500">{[cli.ciudad, cli.pais].filter(Boolean).join(' · ')}</p>}
+              </>
+            ) : (
+              <p className="text-rose-500 italic">Cliente no encontrado</p>
+            )}
+          </div>
+        </div>
+
+        {veh && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-1">
+            <p className="text-[10px] font-extrabold uppercase text-slate-400 pb-1 border-b border-slate-200">Vehículo</p>
+            <p className="font-bold text-slate-800">{veh.marca} {veh.modelo}</p>
+            <p className="text-slate-500 font-mono">Matrícula: {veh.matricula} · Bastidor: {veh.bastidor}</p>
+          </div>
+        )}
+
+        <div>
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-slate-900 text-white">
+                <th className="text-left px-3 py-2 font-bold rounded-tl-lg">Descripción</th>
+                <th className="text-center px-3 py-2 font-bold w-16">Cant.</th>
+                <th className="text-right px-3 py-2 font-bold w-24">P. Unit.</th>
+                <th className="text-right px-3 py-2 font-bold w-24 rounded-tr-lg">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {f.lineas.map((l, i) => (
+                <tr key={l.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                  <td className="px-3 py-2 text-slate-700">{l.descripcion}</td>
+                  <td className="px-3 py-2 text-center text-slate-600">{l.cantidad}</td>
+                  <td className="px-3 py-2 text-right font-mono text-slate-600">{fmt(l.precioUnitario)} €</td>
+                  <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800">{fmt(l.subtotal)} €</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex justify-end">
+          <div className="w-56 space-y-1.5 text-xs">
+            <div className="flex justify-between text-slate-600"><span>Subtotal</span><span className="font-mono">{fmt(f.subtotal)} €</span></div>
+            <div className="flex justify-between text-slate-600"><span>IVA ({f.ivaPct}%)</span><span className="font-mono">{fmt(f.totalIva)} €</span></div>
+            <div className="flex justify-between font-extrabold text-slate-900 border-t border-slate-200 pt-1.5 text-sm"><span>TOTAL</span><span className="font-mono">{fmt(f.total)} €</span></div>
+          </div>
+        </div>
+
+        {f.notas && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-slate-700">
+            <p className="font-bold text-amber-700 mb-1 uppercase text-[10px]">Notas</p>
+            <p>{f.notas}</p>
+          </div>
+        )}
+
+        {f.qrUrl && (
+          <div className="flex items-center gap-4 border-t border-slate-200 pt-4">
+            <FacturaQR url={f.qrUrl} />
+            <div className="text-[10px] text-slate-400 space-y-1 min-w-0">
+              <p className="font-bold text-slate-500">Factura verificable — VeriFactu</p>
+              {f.hash && <p className="font-mono break-all">Huella: {f.hash}</p>}
+            </div>
+          </div>
+        )}
+
+        <div className="border-t border-slate-200 pt-4 text-[10px] text-slate-400 text-center">
+          {empresa.nombre} · {empresa.correo} · {empresa.telefono}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // -------- Factura Modal --------
@@ -316,6 +479,8 @@ export default function FacturasTab({
   const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null }>({ open: false, factura: null });
   const [viewingDoc, setViewingDoc] = useState<Factura | null>(null);
   const [confirmEmitir, setConfirmEmitir] = useState<Factura | null>(null);
+  const [agrupacion, setAgrupacion] = useState<Agrupacion>('ninguna');
+  const [viewingGrupo, setViewingGrupo] = useState<{ label: string; facturas: Factura[] } | null>(null);
 
   const nombreCliente = (id: string) => {
     const c = clientes.find(c => c.id === id);
@@ -341,6 +506,19 @@ export default function FacturasTab({
   // un número real (se asigna al emitir), así que no sirve para ordenar.
   const sortedFacturas = [...facturas].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
+  const grupos = useMemo(() => {
+    if (agrupacion === 'ninguna') return null;
+    const mapa = new Map<string, { label: string; facturas: Factura[] }>();
+    for (const f of sortedFacturas) {
+      const { clave, label } = claveYLabelPeriodo(f, agrupacion);
+      if (!mapa.has(clave)) mapa.set(clave, { label, facturas: [] });
+      mapa.get(clave)!.facturas.push(f);
+    }
+    return [...mapa.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([clave, v]) => ({ clave, ...v }));
+  }, [facturas, agrupacion]);
+
   const handleExportCsv = () => {
     const headers = ['Número', 'Cliente', 'Vehículo', 'Fecha', 'Vencimiento', 'Estado', 'Subtotal', 'IVA', 'Total'];
     const rows = sortedFacturas.map(f => [
@@ -360,6 +538,79 @@ export default function FacturasTab({
     if (confirmEmitir) onEmitirFactura(confirmEmitir.id);
     setConfirmEmitir(null);
   };
+
+  /** Misma tabla tanto para la vista sin agrupar como para cada grupo (semana/mes/año). */
+  const renderTablaFacturas = (lista: Factura[]) => (
+    <table className="w-full text-sm">
+      <thead className="bg-slate-50 border-b border-slate-100">
+        <tr>
+          {['Número', 'Cliente', 'Vehículo', 'Fecha', 'Vencimiento', 'Estado', 'Total', 'Acciones'].map(h => (
+            <th key={h} className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-4 py-3">{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-50">
+        {lista.map(f => {
+          const esBorrador = f.estado === 'borrador';
+          const transiciones = TRANSICIONES_VALIDAS[f.estado] ?? [];
+          return (
+            <tr key={f.id} className="hover:bg-slate-50 transition">
+              <td className="px-4 py-3 font-bold text-slate-700 text-xs">{numeroMostrado(f)}</td>
+              <td className="px-4 py-3 text-xs text-slate-600">{nombreCliente(f.clienteId)}</td>
+              <td className="px-4 py-3 text-xs text-slate-500">{nombreVehiculo(f.vehiculoId)}</td>
+              <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fecha)}</td>
+              <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fechaVencimiento)}</td>
+              <td className="px-4 py-3">
+                {transiciones.length > 0 ? (
+                  <select
+                    value={f.estado}
+                    onChange={e => onCambiarEstadoFactura(f.id, e.target.value as Factura['estado'])}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 ${ESTADO_FACTURA_COLORS[f.estado]}`}
+                  >
+                    <option value={f.estado}>{ESTADO_FACTURA_LABELS[f.estado]}</option>
+                    {transiciones.map(k => (
+                      <option key={k} value={k}>{ESTADO_FACTURA_LABELS[k]}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADO_FACTURA_COLORS[f.estado]}`}>{ESTADO_FACTURA_LABELS[f.estado]}</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-xs font-bold text-slate-700">{fmt(f.total)} €</td>
+              <td className="px-4 py-3">
+                <div className="flex gap-1">
+                  <button onClick={() => setViewingDoc(f)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition cursor-pointer" title="Ver / Descargar">
+                    <Receipt className="w-3.5 h-3.5" />
+                  </button>
+                  {esBorrador && (
+                    <button onClick={() => setConfirmEmitir(f)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer" title="Emitir factura">
+                      <Send className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => esBorrador && setFacturaModal({ open: true, factura: f })}
+                    disabled={!esBorrador}
+                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                    title={esBorrador ? 'Editar' : 'Las facturas emitidas no se pueden editar (VeriFactu)'}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => esBorrador && onDeleteFactura(f.id)}
+                    disabled={!esBorrador}
+                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                    title={esBorrador ? 'Eliminar' : 'Las facturas emitidas no se pueden eliminar (VeriFactu)'}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
 
   return (
     <div className="space-y-5">
@@ -385,11 +636,29 @@ export default function FacturasTab({
 
       {/* Facturas table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 flex-wrap gap-2">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
             <Receipt className="w-4 h-4 text-blue-500" /> Facturas
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 p-1 bg-slate-50 border border-slate-100 rounded-xl">
+              {([
+                { id: 'ninguna', label: 'Todas' },
+                { id: 'semana', label: 'Semana' },
+                { id: 'mes', label: 'Mes' },
+                { id: 'año', label: 'Año' },
+              ] as const).map(op => (
+                <button
+                  key={op.id}
+                  onClick={() => setAgrupacion(op.id)}
+                  className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition cursor-pointer ${
+                    agrupacion === op.id ? 'bg-white text-slate-800 shadow-3xs' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {op.label}
+                </button>
+              ))}
+            </div>
             <button
               onClick={handleExportCsv}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer"
@@ -410,76 +679,34 @@ export default function FacturasTab({
               <p className="text-sm font-semibold">No hay facturas registradas</p>
               <p className="text-xs mt-1">Crea la primera pulsando "Nueva Factura"</p>
             </div>
+          ) : agrupacion === 'ninguna' ? (
+            renderTablaFacturas(sortedFacturas)
           ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                <tr>
-                  {['Número', 'Cliente', 'Vehículo', 'Fecha', 'Vencimiento', 'Estado', 'Total', 'Acciones'].map(h => (
-                    <th key={h} className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-4 py-3">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {sortedFacturas.map(f => {
-                  const esBorrador = f.estado === 'borrador';
-                  const transiciones = TRANSICIONES_VALIDAS[f.estado] ?? [];
-                  return (
-                    <tr key={f.id} className="hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 font-bold text-slate-700 text-xs">{numeroMostrado(f)}</td>
-                      <td className="px-4 py-3 text-xs text-slate-600">{nombreCliente(f.clienteId)}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{nombreVehiculo(f.vehiculoId)}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fecha)}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fechaVencimiento)}</td>
-                      <td className="px-4 py-3">
-                        {transiciones.length > 0 ? (
-                          <select
-                            value={f.estado}
-                            onChange={e => onCambiarEstadoFactura(f.id, e.target.value as Factura['estado'])}
-                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400 ${ESTADO_FACTURA_COLORS[f.estado]}`}
-                          >
-                            <option value={f.estado}>{ESTADO_FACTURA_LABELS[f.estado]}</option>
-                            {transiciones.map(k => (
-                              <option key={k} value={k}>{ESTADO_FACTURA_LABELS[k]}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADO_FACTURA_COLORS[f.estado]}`}>{ESTADO_FACTURA_LABELS[f.estado]}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs font-bold text-slate-700">{fmt(f.total)} €</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
-                          <button onClick={() => setViewingDoc(f)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition cursor-pointer" title="Ver / Descargar">
-                            <Receipt className="w-3.5 h-3.5" />
-                          </button>
-                          {esBorrador && (
-                            <button onClick={() => setConfirmEmitir(f)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer" title="Emitir factura">
-                              <Send className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => esBorrador && setFacturaModal({ open: true, factura: f })}
-                            disabled={!esBorrador}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                            title={esBorrador ? 'Editar' : 'Las facturas emitidas no se pueden editar (VeriFactu)'}
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => esBorrador && onDeleteFactura(f.id)}
-                            disabled={!esBorrador}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                            title={esBorrador ? 'Eliminar' : 'Las facturas emitidas no se pueden eliminar (VeriFactu)'}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="divide-y divide-slate-100">
+              {grupos!.map(g => {
+                const totalGrupo = g.facturas.reduce((s, f) => s + f.total, 0);
+                return (
+                  <div key={g.clave}>
+                    <div className="flex items-center justify-between px-5 py-3 bg-slate-50/60 flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-extrabold text-slate-700">{g.label}</span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {g.facturas.length} factura{g.facturas.length === 1 ? '' : 's'} · {fmt(totalGrupo)} €
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setViewingGrupo({ label: g.label, facturas: g.facturas })}
+                        className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-white text-xs font-bold rounded-xl transition cursor-pointer"
+                        title={`Descargar las facturas de ${g.label}`}
+                      >
+                        <Download className="w-3.5 h-3.5" /> Descargar grupo
+                      </button>
+                    </div>
+                    {renderTablaFacturas(g.facturas)}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>
@@ -509,7 +736,6 @@ export default function FacturasTab({
       {viewingDoc && (() => {
         const f = viewingDoc;
         const cli = clientes.find(c => c.id === f.clienteId);
-        const veh = vehiculos.find(v => v.id === f.vehiculoId);
 
         const textoWA = `Hola ${cli?.nombre ?? ''},\n\nAdjuntamos la Factura ${numeroMostrado(f)} por importe de ${fmt(f.total)} €.\n\nPor favor, revísala y confírmanos la recepción.\n\nUn saludo,\n${empresa.nombre}`;
         const telefonoWA = cli?.telefono?.replace(/\D/g, '') ?? '';
@@ -544,123 +770,44 @@ export default function FacturasTab({
             </div>
 
             <div className="flex-1 overflow-y-auto bg-slate-100 print:bg-white">
-              <div className="max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-2xl print:shadow-none print:rounded-none print:my-0 print:max-w-none" id="doc-printable-area">
-                <div className="p-10 space-y-6 text-slate-800 font-sans">
-                  <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
-                    <div className="flex items-center gap-4">
-                      {empresa.logoBase64 && <img src={empresa.logoBase64} alt="Logo" className="h-14 object-contain" />}
-                      <div>
-                        <h1 className="text-lg font-extrabold text-slate-900 uppercase tracking-tight">{empresa.nombre}</h1>
-                        {empresa.ciudad && <p className="text-xs text-slate-500">{empresa.ciudad}</p>}
-                        {empresa.correo && <p className="text-xs text-slate-500">{empresa.correo}</p>}
-                        {empresa.telefono && <p className="text-xs text-slate-500">{empresa.telefono}</p>}
-                        {empresa.web && <p className="text-xs text-slate-500">{empresa.web}</p>}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">FACTURA</p>
-                      <p className="text-2xl font-black font-mono text-blue-600">{numeroMostrado(f)}</p>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADO_FACTURA_COLORS[f.estado]}`}>{ESTADO_FACTURA_LABELS[f.estado]}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between text-xs text-slate-500 font-semibold border-b border-slate-100 pb-3">
-                    <span>Fecha emisión: {formatDate(f.fecha)}</span>
-                    <span>Fecha vencimiento: {formatDate(f.fechaVencimiento)}</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-1 text-xs">
-                      <p className="text-[10px] font-extrabold uppercase text-slate-400 border-b border-slate-100 pb-1">Emisor</p>
-                      <p className="font-bold text-slate-800">{empresa.nombre}</p>
-                      {empresa.razonSocial && <p className="text-slate-500">{empresa.razonSocial}</p>}
-                      {empresa.nif && <p className="text-slate-500 font-mono">NIF: {empresa.nif}</p>}
-                      {empresa.ciudad && <p className="text-slate-500">{empresa.ciudad}</p>}
-                      {empresa.correo && <p className="text-slate-500">{empresa.correo}</p>}
-                      {empresa.telefono && <p className="text-slate-500">{empresa.telefono}</p>}
-                    </div>
-                    <div className="space-y-1 text-xs">
-                      <p className="text-[10px] font-extrabold uppercase text-slate-400 border-b border-slate-100 pb-1">Cliente</p>
-                      {cli ? (
-                        <>
-                          <p className="font-bold text-slate-800">{cli.nombre} {cli.apellidos}</p>
-                          <p className="text-slate-500">DNI/NIE/Pasaporte: {cli.nifNiePasaporte}</p>
-                          {cli.correo && <p className="text-slate-500">{cli.correo}</p>}
-                          {cli.telefono && <p className="text-slate-500">{cli.telefono}</p>}
-                          {cli.direccion && <p className="text-slate-500">{cli.direccion}</p>}
-                          {(cli.ciudad || cli.pais) && <p className="text-slate-500">{[cli.ciudad, cli.pais].filter(Boolean).join(' · ')}</p>}
-                        </>
-                      ) : (
-                        <p className="text-rose-500 italic">Cliente no encontrado</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {veh && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-1">
-                      <p className="text-[10px] font-extrabold uppercase text-slate-400 pb-1 border-b border-slate-200">Vehículo</p>
-                      <p className="font-bold text-slate-800">{veh.marca} {veh.modelo}</p>
-                      <p className="text-slate-500 font-mono">Matrícula: {veh.matricula} · Bastidor: {veh.bastidor}</p>
-                    </div>
-                  )}
-
-                  <div>
-                    <table className="w-full text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-900 text-white">
-                          <th className="text-left px-3 py-2 font-bold rounded-tl-lg">Descripción</th>
-                          <th className="text-center px-3 py-2 font-bold w-16">Cant.</th>
-                          <th className="text-right px-3 py-2 font-bold w-24">P. Unit.</th>
-                          <th className="text-right px-3 py-2 font-bold w-24 rounded-tr-lg">Subtotal</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {f.lineas.map((l, i) => (
-                          <tr key={l.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                            <td className="px-3 py-2 text-slate-700">{l.descripcion}</td>
-                            <td className="px-3 py-2 text-center text-slate-600">{l.cantidad}</td>
-                            <td className="px-3 py-2 text-right font-mono text-slate-600">{fmt(l.precioUnitario)} €</td>
-                            <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800">{fmt(l.subtotal)} €</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex justify-end">
-                    <div className="w-56 space-y-1.5 text-xs">
-                      <div className="flex justify-between text-slate-600"><span>Subtotal</span><span className="font-mono">{fmt(f.subtotal)} €</span></div>
-                      <div className="flex justify-between text-slate-600"><span>IVA ({f.ivaPct}%)</span><span className="font-mono">{fmt(f.totalIva)} €</span></div>
-                      <div className="flex justify-between font-extrabold text-slate-900 border-t border-slate-200 pt-1.5 text-sm"><span>TOTAL</span><span className="font-mono">{fmt(f.total)} €</span></div>
-                    </div>
-                  </div>
-
-                  {f.notas && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-slate-700">
-                      <p className="font-bold text-amber-700 mb-1 uppercase text-[10px]">Notas</p>
-                      <p>{f.notas}</p>
-                    </div>
-                  )}
-
-                  {f.qrUrl && (
-                    <div className="flex items-center gap-4 border-t border-slate-200 pt-4">
-                      <FacturaQR url={f.qrUrl} />
-                      <div className="text-[10px] text-slate-400 space-y-1 min-w-0">
-                        <p className="font-bold text-slate-500">Factura verificable — VeriFactu</p>
-                        {f.hash && <p className="font-mono break-all">Huella: {f.hash}</p>}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="border-t border-slate-200 pt-4 text-[10px] text-slate-400 text-center">
-                    {empresa.nombre} · {empresa.correo} · {empresa.telefono}
-                  </div>
-                </div>
-              </div>
+              <FacturaPrintable f={f} empresa={empresa} clientes={clientes} vehiculos={vehiculos} />
             </div>
           </div>
         );
       })()}
+
+      {/* Descarga de un grupo de facturas (semana/mes/año) — misma mecánica que el visor de una sola factura, pero repitiendo el contenido imprimible una vez por factura con salto de página entre ellas. */}
+      {viewingGrupo && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex flex-col print:bg-white print:relative print:inset-auto">
+          <div className="flex items-center justify-between px-6 py-3 bg-slate-800 text-white shrink-0 print:hidden">
+            <div className="flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-blue-400" />
+              <span className="font-bold text-sm">{viewingGrupo.facturas.length} factura{viewingGrupo.facturas.length === 1 ? '' : 's'} — {viewingGrupo.label}</span>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition cursor-pointer">
+                <Printer className="w-3.5 h-3.5" /> Descargar / Imprimir
+              </button>
+              <button onClick={() => setViewingGrupo(null)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl transition cursor-pointer">
+                <X className="w-3.5 h-3.5" /> Cerrar
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto bg-slate-100 print:bg-white">
+            {viewingGrupo.facturas.map((f, i) => (
+              <FacturaPrintable
+                key={f.id}
+                f={f}
+                empresa={empresa}
+                clientes={clientes}
+                vehiculos={vehiculos}
+                saltoDePagina={i < viewingGrupo.facturas.length - 1}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
