@@ -89,7 +89,7 @@ async function manejarMarcarTarea(admin: SupabaseClient, tecnico: Tecnico, linea
 
   const { data: ot, error: otErr } = await admin
     .from('ordenes_trabajo')
-    .select('id, empresa_id, tecnico_asignado')
+    .select('id, empresa_id, tecnico_asignado, estado')
     .eq('id', linea.ot_id)
     .maybeSingle();
   if (otErr || !ot) return json({ error: 'Orden no encontrada.' }, 404);
@@ -99,6 +99,21 @@ async function manejarMarcarTarea(admin: SupabaseClient, tecnico: Tecnico, linea
 
   const { error: updErr } = await admin.from('lineas_ot').update({ completado }).eq('id', lineaId);
   if (updErr) return json({ error: 'No se pudo guardar.' }, 500);
+
+  // El técnico marcando una tarea es la prueba de que el trabajo ya empezó
+  // — si la OT seguía en "recibido" (nadie la había avanzado a mano
+  // todavía), se adelanta sola a "en_reparacion" en cuanto llega la primera
+  // marca. El resto de transiciones (listo, entregado) las sigue haciendo
+  // el taller a mano, porque esas sí requieren su verificación.
+  if (completado && ot.estado === 'recibido') {
+    await admin.from('ordenes_trabajo').update({ estado: 'en_reparacion' }).eq('id', ot.id);
+    await admin.from('eventos_ot').insert({
+      ot_id: ot.id,
+      fecha: new Date().toISOString(),
+      descripcion: `Reparación iniciada — ${tecnico.nombre} marcó la primera tarea desde su Portal.`,
+    });
+  }
+
   return json({ ok: true });
 }
 

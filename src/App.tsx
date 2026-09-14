@@ -12,7 +12,7 @@ import { listFacturas, createFactura, updateFactura, deleteFactura, emitirFactur
 import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
 import { listCitas, createCita, updateCita, deleteCita } from './lib/data/citas';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, Empresa, Producto, Cita } from './types';
+import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, OTEstado, Empresa, Producto, Cita } from './types';
 import VehiclesTab from './components/VehiclesTab';
 import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
 import CrmTab from './components/CrmTab';
@@ -192,6 +192,10 @@ export default function App() {
   // sesión ni por este usuario) — sin esto, el progreso solo se vería tras
   // recargar o reabrir la OT. Se actualiza en el sitio, sin refetch completo:
   // solo la línea concreta que cambió, dentro de la OT que la contiene.
+  // También se escucha ordenes_trabajo porque la propia Edge Function
+  // portal-mecanico adelanta la OT de "recibido" a "en_reparacion" en
+  // cuanto el técnico marca su primera tarea — sin esto el tablero/lista
+  // se quedarían mostrando la columna/estado viejo hasta recargar.
   useEffect(() => {
     if (!currentUser) return;
     const canal = supabase
@@ -205,6 +209,16 @@ export default function App() {
             ot.id === nueva.ot_id
               ? { ...ot, lineas: ot.lineas.map(l => (l.id === nueva.id ? { ...l, completado: nueva.completado } : l)) }
               : ot
+          ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'ordenes_trabajo' },
+        (payload) => {
+          const nueva = payload.new as { id: string; estado: OTEstado; updated_at: string };
+          setOrdenesTrabajo(prev => prev.map(ot =>
+            ot.id === nueva.id ? { ...ot, estado: nueva.estado, fechaActualizacion: nueva.updated_at } : ot
           ));
         }
       )
