@@ -218,7 +218,7 @@ function FacturaPrintable({
           </div>
         )}
 
-        {f.qrUrl && (
+        {empresa.facturaMostrarQr && f.qrUrl && (
           <div className="flex items-center gap-4 border-t border-slate-200 pt-4">
             <FacturaQR url={f.qrUrl} />
             <div className="text-[10px] text-slate-400 space-y-1 min-w-0">

@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import type { AlertaTipo, Empresa } from '../../types';
 
 const SELECT =
-  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura';
+  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura, factura_mostrar_qr';
 
 type EmpresaRow = {
   id: string; nombre: string; tagline: string; razon_social: string; nif: string;
@@ -12,6 +12,7 @@ type EmpresaRow = {
   plantillas_recordatorios: Partial<Record<AlertaTipo, string>> | null;
   factura_prefijo: string;
   siguiente_numero_factura: number;
+  factura_mostrar_qr: boolean;
 };
 
 function mapEmpresa(r: EmpresaRow): Empresa {
@@ -34,6 +35,7 @@ function mapEmpresa(r: EmpresaRow): Empresa {
     plantillasRecordatorios: r.plantillas_recordatorios ?? {},
     facturaPrefijo: r.factura_prefijo,
     siguienteNumeroFactura: r.siguiente_numero_factura,
+    facturaMostrarQr: r.factura_mostrar_qr,
   };
 }
 
@@ -56,6 +58,7 @@ function toRow(c: Partial<Empresa>) {
   if (c.plantillasRecordatorios !== undefined) row.plantillas_recordatorios = c.plantillasRecordatorios;
   if (c.facturaPrefijo !== undefined) row.factura_prefijo = c.facturaPrefijo;
   if (c.siguienteNumeroFactura !== undefined) row.siguiente_numero_factura = c.siguienteNumeroFactura;
+  if (c.facturaMostrarQr !== undefined) row.factura_mostrar_qr = c.facturaMostrarQr;
   return row;
 }
 

@@ -198,6 +198,8 @@ export interface Empresa {
   facturaPrefijo: string;
   /** Próximo número de factura a asignar al emitir. Editable solo antes de emitir la primera factura (permite continuar una numeración previa). */
   siguienteNumeroFactura: number;
+  /** Muestra el QR de verificación VeriFactu en las facturas impresas/descargadas. Desactivado por defecto: VeriFactu no es obligatorio hasta 2027 y el formato del QR aún no está validado contra la especificación oficial de la AEAT. */
+  facturaMostrarQr: boolean;
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */

@@ -281,6 +281,7 @@ export type Database = {
           correo: string
           created_at: string
           direccion_fiscal: string
+          factura_mostrar_qr: boolean
           factura_prefijo: string
           id: string
           logo_base64: string
@@ -304,6 +305,7 @@ export type Database = {
           correo?: string
           created_at?: string
           direccion_fiscal?: string
+          factura_mostrar_qr?: boolean
           factura_prefijo?: string
           id?: string
           logo_base64?: string
@@ -327,6 +329,7 @@ export type Database = {
           correo?: string
           created_at?: string
           direccion_fiscal?: string
+          factura_mostrar_qr?: boolean
           factura_prefijo?: string
           id?: string
           logo_base64?: string

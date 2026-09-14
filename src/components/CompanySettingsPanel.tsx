@@ -30,7 +30,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 ];
 
 /** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo/recordatorios/numeración de facturas se conservan). */
-const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura'> = {
+const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura' | 'facturaMostrarQr'> = {
   nombre: 'Mi Empresa',
   tagline: '',
   razonSocial: '',
@@ -371,6 +371,23 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                 <p className="text-[10px] text-slate-400">
                   Próxima factura: <span className="font-mono font-semibold text-slate-600">{draft.facturaPrefijo}{String(draft.siguienteNumeroFactura).padStart(4, '0')}</span>
                 </p>
+              </section>
+
+              {/* Verificación VeriFactu */}
+              <section className="space-y-2">
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Verificación VeriFactu</p>
+                <p className="text-[10px] text-slate-400 -mt-1">
+                  VeriFactu es obligatorio desde el 1 ene 2027 (empresas) / 1 jul 2027 (autónomos). Mientras tanto, el QR queda oculto por defecto en las facturas — actívalo solo cuando tu asesor confirme que el formato ya está validado.
+                </p>
+                <label className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2.5 cursor-pointer">
+                  <span className="text-xs text-slate-600">Mostrar QR de verificación en las facturas</span>
+                  <input
+                    type="checkbox"
+                    checked={draft.facturaMostrarQr}
+                    onChange={e => setDraft(prev => ({ ...prev, facturaMostrarQr: e.target.checked }))}
+                    className="w-4 h-4 shrink-0 cursor-pointer"
+                  />
+                </label>
               </section>
 
               {/* Contacto */}
