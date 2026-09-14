@@ -143,7 +143,7 @@ function eventosToRows(otId: string, historial: EventoOT[]) {
   return historial.map((e) => ({ ot_id: otId, fecha: e.fecha, descripcion: e.descripcion }));
 }
 
-async function getOrden(id: string): Promise<OrdenTrabajo> {
+export async function getOrden(id: string): Promise<OrdenTrabajo> {
   const { data, error } = await supabase.from('ordenes_trabajo').select(SELECT).eq('id', id).single();
   if (error) throw new Error(error.message);
   return mapOrden(data as unknown as OrdenRow);
@@ -187,6 +187,71 @@ export async function listOrdenesActivas(): Promise<OrdenActiva[]> {
     fechaRecepcion: r.fecha_recepcion as string,
     vehiculoId: r.vehiculo_id as string,
   }));
+}
+
+export interface OrdenListaRow {
+  id: string;
+  numero: string;
+  estado: OTEstado;
+  fechaRecepcion: string;
+  presupuestoEstado?: 'pendiente' | 'enviado';
+  presupuestoAprobado?: boolean;
+  notificacionEnviada?: boolean;
+  total: number;
+  vehiculoMarca: string;
+  vehiculoModelo: string;
+  vehiculoMatricula: string;
+  clienteNombre: string;
+  clienteApellidos: string;
+  tareasTotal: number;
+  tareasHechas: number;
+}
+
+type BuscarOrdenesRow = {
+  id: string; numero: string; estado: string; fecha_recepcion: string;
+  presupuesto_estado: string | null; presupuesto_aprobado: boolean | null; notificacion_enviada: boolean | null;
+  total: number; vehiculo_marca: string; vehiculo_modelo: string; vehiculo_matricula: string;
+  cliente_nombre: string; cliente_apellidos: string;
+  tareas_total: number; tareas_hechas: number; total_count: number;
+};
+
+/**
+ * Búsqueda + paginación reales para la vista Lista — a diferencia de
+ * listOrdenes(), no trae toda la tabla ni las líneas/eventos de cada OT:
+ * solo la página visible con lo mínimo para mostrar la fila, filtrado y
+ * buscado en el propio Postgres (buscar_ordenes).
+ */
+export async function buscarOrdenes(params: {
+  termino?: string; estado?: OTEstado | null; limit: number; offset: number;
+}): Promise<{ data: OrdenListaRow[]; count: number }> {
+  const { data, error } = await supabase.rpc('buscar_ordenes', {
+    p_termino: params.termino ?? '',
+    p_estado: params.estado ?? null,
+    p_limit: params.limit,
+    p_offset: params.offset,
+  });
+  if (error) throw new Error(error.message);
+  const rows = (data as BuscarOrdenesRow[]) ?? [];
+  return {
+    data: rows.map((r) => ({
+      id: r.id,
+      numero: r.numero,
+      estado: r.estado as OTEstado,
+      fechaRecepcion: r.fecha_recepcion,
+      presupuestoEstado: (r.presupuesto_estado ?? undefined) as OrdenListaRow['presupuestoEstado'],
+      presupuestoAprobado: r.presupuesto_aprobado ?? undefined,
+      notificacionEnviada: r.notificacion_enviada ?? undefined,
+      total: Number(r.total),
+      vehiculoMarca: r.vehiculo_marca,
+      vehiculoModelo: r.vehiculo_modelo,
+      vehiculoMatricula: r.vehiculo_matricula,
+      clienteNombre: r.cliente_nombre,
+      clienteApellidos: r.cliente_apellidos,
+      tareasTotal: Number(r.tareas_total),
+      tareasHechas: Number(r.tareas_hechas),
+    })),
+    count: rows.length > 0 ? Number(rows[0].total_count) : 0,
+  };
 }
 
 export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {

@@ -1129,6 +1129,27 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: { cliente_id: string; visitas: number; facturado: number }[]
       }
+      buscar_ordenes: {
+        Args: { p_termino?: string; p_estado?: string | null; p_limit?: number; p_offset?: number }
+        Returns: {
+          id: string
+          numero: string
+          estado: string
+          fecha_recepcion: string
+          presupuesto_estado: string | null
+          presupuesto_aprobado: boolean | null
+          notificacion_enviada: boolean | null
+          total: number
+          vehiculo_marca: string
+          vehiculo_modelo: string
+          vehiculo_matricula: string
+          cliente_nombre: string
+          cliente_apellidos: string
+          tareas_total: number
+          tareas_hechas: number
+          total_count: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

@@ -7,9 +7,11 @@ import {
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos, setPortalTokenTecnico } from '../lib/data/tecnicos';
+import { getOrden, buscarOrdenes, OrdenListaRow } from '../lib/data/ordenes';
 import { supabase } from '../lib/supabase';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
+import Pagination from './Pagination';
 
 interface Props {
   ordenes: OrdenTrabajo[];
@@ -417,14 +419,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setCrearProductoRapido({ nombreInicial: nombreBuscado, aplicar });
   };
 
+  // Usado solo por el Tablero — la Lista tiene su propia búsqueda/paginación
+  // en servidor (ver listaFilas más abajo), así que aquí ya no hace falta
+  // el filtro por estado de los pills (que de todas formas nunca aplicaba
+  // al Tablero: cada columna ya es su propio estado).
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
     return ordenes
       .filter(ot => {
-        // El filtro por estado (pills "Todas/Presupuesto/...") solo tiene
-        // sentido en la vista de lista — el Kanban ya organiza por estado en
-        // sus propias columnas, así que debe ver siempre todas las OTs.
-        if (vista === 'lista' && filterEstado !== 'todas' && ot.estado !== filterEstado) return false;
         const veh = vehiculos.find(v => v.id === ot.vehiculoId);
         const cli = clientes.find(c => c.id === ot.clienteId);
         return (
@@ -435,7 +437,49 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         );
       })
       .sort((a, b) => b.fechaActualizacion.localeCompare(a.fechaActualizacion));
-  }, [ordenes, vehiculos, clientes, search, filterEstado, vista]);
+  }, [ordenes, vehiculos, clientes, search]);
+
+  // Búsqueda + paginación en servidor para la Lista — no depende del array
+  // completo de `ordenes` para su propio contenido, pero se refresca cuando
+  // ese array cambia de referencia (cualquier alta/edición/baja de OT en
+  // esta pestaña ya lo actualiza) para no quedarse con una página obsoleta.
+  const LISTA_PAGE_SIZE = 20;
+  const [searchDebounced, setSearchDebounced] = useState(search);
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const [listaPagina, setListaPagina] = useState(1);
+  const [listaFilas, setListaFilas] = useState<OrdenListaRow[]>([]);
+  const [listaTotal, setListaTotal] = useState(0);
+  const [listaCargando, setListaCargando] = useState(true);
+  const [cargandoDetalleId, setCargandoDetalleId] = useState<string | null>(null);
+
+  useEffect(() => { setListaPagina(1); }, [searchDebounced, filterEstado]);
+
+  useEffect(() => {
+    if (vista !== 'lista') return;
+    setListaCargando(true);
+    buscarOrdenes({
+      termino: searchDebounced,
+      estado: filterEstado === 'todas' ? null : filterEstado,
+      limit: LISTA_PAGE_SIZE,
+      offset: (listaPagina - 1) * LISTA_PAGE_SIZE,
+    })
+      .then(({ data, count }) => { setListaFilas(data); setListaTotal(count); })
+      .catch(() => { setListaFilas([]); setListaTotal(0); })
+      .finally(() => setListaCargando(false));
+  }, [vista, searchDebounced, filterEstado, listaPagina, ordenes]);
+
+  const abrirDetalleOT = async (id: string) => {
+    setCargandoDetalleId(id);
+    try {
+      setSelected(await getOrden(id));
+    } finally {
+      setCargandoDetalleId(null);
+    }
+  };
 
   const openCreate = () => {
     setCreateTipo('presupuesto');
@@ -866,46 +910,46 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       {/* Table */}
       {vista === 'lista' && (
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {filtered.length === 0 ? (
+        {listaCargando ? (
+          <div className="py-16 text-center text-slate-400 text-sm">Cargando…</div>
+        ) : listaFilas.length === 0 ? (
           <div className="py-16 text-center text-slate-400 text-sm">
             <ClipboardList size={36} className="mx-auto mb-3 opacity-20" />
             No hay órdenes de trabajo
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                  <th className="px-4 py-3 text-left font-semibold">Nº OT</th>
-                  <th className="px-4 py-3 text-left font-semibold">Vehículo</th>
-                  <th className="px-4 py-3 text-left font-semibold">Cliente</th>
-                  <th className="px-4 py-3 text-left font-semibold">Recepción</th>
-                  <th className="px-4 py-3 text-left font-semibold">Estado</th>
-                  <th className="px-4 py-3 text-right font-semibold">Total</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filtered.map(ot => {
-                  const veh = vehiculos.find(v => v.id === ot.vehiculoId);
-                  const cli = clientes.find(c => c.id === ot.clienteId);
-                  return (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left font-semibold">Nº OT</th>
+                    <th className="px-4 py-3 text-left font-semibold">Vehículo</th>
+                    <th className="px-4 py-3 text-left font-semibold">Cliente</th>
+                    <th className="px-4 py-3 text-left font-semibold">Recepción</th>
+                    <th className="px-4 py-3 text-left font-semibold">Estado</th>
+                    <th className="px-4 py-3 text-right font-semibold">Total</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {listaFilas.map(f => (
                     <tr
-                      key={ot.id}
-                      onClick={() => setSelected(ot)}
-                      className={`cursor-pointer hover:bg-blue-50/40 transition ${selected?.id === ot.id ? 'bg-blue-50/60' : ''}`}
+                      key={f.id}
+                      onClick={() => abrirDetalleOT(f.id)}
+                      className={`cursor-pointer hover:bg-blue-50/40 transition ${selected?.id === f.id ? 'bg-blue-50/60' : ''} ${cargandoDetalleId === f.id ? 'opacity-50' : ''}`}
                     >
-                      <td className="px-4 py-3 font-mono text-xs font-bold text-blue-700">{ot.numero}</td>
+                      <td className="px-4 py-3 font-mono text-xs font-bold text-blue-700">{f.numero}</td>
                       <td className="px-4 py-3">
-                        <div className="font-medium text-slate-800">{veh ? `${veh.marca} ${veh.modelo}` : '—'}</div>
-                        <div className="text-[11px] text-slate-400">{veh?.matricula}</div>
+                        <div className="font-medium text-slate-800">{f.vehiculoMarca} {f.vehiculoModelo}</div>
+                        <div className="text-[11px] text-slate-400">{f.vehiculoMatricula}</div>
                       </td>
-                      <td className="px-4 py-3 text-slate-700">{cli ? `${cli.nombre} ${cli.apellidos}` : '—'}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{ot.fechaRecepcion}</td>
+                      <td className="px-4 py-3 text-slate-700">{f.clienteNombre} {f.clienteApellidos}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs">{f.fechaRecepcion}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1 items-start">
-                          <BadgeEstado estado={ot.estado} presupuestoEstado={ot.presupuestoEstado} presupuestoAprobado={ot.presupuestoAprobado} notificacionEnviada={ot.notificacionEnviada} />
-                          {(ot.estado === 'recibido' || ot.estado === 'en_reparacion') && progresoTareas(ot).terminado && (
+                          <BadgeEstado estado={f.estado} presupuestoEstado={f.presupuestoEstado} presupuestoAprobado={f.presupuestoAprobado} notificacionEnviada={f.notificacionEnviada} />
+                          {(f.estado === 'recibido' || f.estado === 'en_reparacion') && f.tareasTotal > 0 && f.tareasHechas === f.tareasTotal && (
                             <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 flex items-center gap-1">
                               <Check size={9} /> Técnico terminó
                             </span>
@@ -913,17 +957,20 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">
-                        {ot.total > 0 ? `${ot.total.toFixed(2)} €` : <span className="text-slate-300 font-normal text-xs">Por definir</span>}
+                        {f.total > 0 ? `${f.total.toFixed(2)} €` : <span className="text-slate-300 font-normal text-xs">Por definir</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <ChevronRight size={14} className="text-slate-300 inline" />
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-4 py-3 border-t border-slate-100">
+              <Pagination currentPage={listaPagina} totalItems={listaTotal} pageSize={LISTA_PAGE_SIZE} onPageChange={setListaPagina} />
+            </div>
+          </>
         )}
       </div>
       )}
