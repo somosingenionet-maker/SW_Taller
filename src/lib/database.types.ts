@@ -568,6 +568,7 @@ export type Database = {
       lineas_ot: {
         Row: {
           cantidad: number
+          completado: boolean
           costo_unitario: number | null
           descripcion: string
           id: string
@@ -580,6 +581,7 @@ export type Database = {
         }
         Insert: {
           cantidad?: number
+          completado?: boolean
           costo_unitario?: number | null
           descripcion?: string
           id?: string
@@ -592,6 +594,7 @@ export type Database = {
         }
         Update: {
           cantidad?: number
+          completado?: boolean
           costo_unitario?: number | null
           descripcion?: string
           id?: string
@@ -966,6 +969,8 @@ export type Database = {
           especialidad: string | null
           id: string
           nombre: string
+          portal_token: string | null
+          telefono: string | null
           updated_at: string
         }
         Insert: {
@@ -975,6 +980,8 @@ export type Database = {
           especialidad?: string | null
           id?: string
           nombre: string
+          portal_token?: string | null
+          telefono?: string | null
           updated_at?: string
         }
         Update: {
@@ -984,6 +991,8 @@ export type Database = {
           especialidad?: string | null
           id?: string
           nombre?: string
+          portal_token?: string | null
+          telefono?: string | null
           updated_at?: string
         }
         Relationships: [

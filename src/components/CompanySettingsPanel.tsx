@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell } from 'lucide-react';
+import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw } from 'lucide-react';
 import { AlertaTipo, Tecnico, Empresa } from '../types';
-import { listTecnicos, createTecnico, updateTecnico, deleteTecnico } from '../lib/data/tecnicos';
+import { listTecnicos, createTecnico, updateTecnico, deleteTecnico, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { supabase } from '../lib/supabase';
 import { contrastText } from '../utils/color';
 import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioTemplates';
@@ -69,30 +69,61 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
 
   // Técnicos (desde Supabase)
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
-  const [tecnicoForm, setTecnicoForm] = useState<{ nombre: string; especialidad: string } | null>(null);
+  const [tecnicoForm, setTecnicoForm] = useState<{ nombre: string; especialidad: string; telefono: string } | null>(null);
   const [editingTecnicoId, setEditingTecnicoId] = useState<string | null>(null);
+  const [portalTecnicoBusy, setPortalTecnicoBusy] = useState(false);
+  const [portalTecnicoCopiado, setPortalTecnicoCopiado] = useState(false);
 
   const recargarTecnicos = () => listTecnicos().then(setTecnicos);
   useEffect(() => { recargarTecnicos(); }, []);
 
   const openTecnicoForm = (t?: Tecnico) => {
     setEditingTecnicoId(t?.id ?? null);
-    setTecnicoForm({ nombre: t?.nombre ?? '', especialidad: t?.especialidad ?? '' });
+    setTecnicoForm({ nombre: t?.nombre ?? '', especialidad: t?.especialidad ?? '', telefono: t?.telefono ?? '' });
   };
 
   const handleSaveTecnico = async () => {
     if (!tecnicoForm?.nombre.trim()) return;
     const nombre = tecnicoForm.nombre.trim();
     const especialidad = tecnicoForm.especialidad.trim();
+    const telefono = tecnicoForm.telefono.trim();
     if (editingTecnicoId) {
       const actual = tecnicos.find(t => t.id === editingTecnicoId);
-      await updateTecnico({ id: editingTecnicoId, nombre, especialidad, activo: actual?.activo ?? true });
+      await updateTecnico({ id: editingTecnicoId, nombre, especialidad, telefono, activo: actual?.activo ?? true });
     } else {
-      await createTecnico({ nombre, especialidad, activo: true });
+      await createTecnico({ nombre, especialidad, telefono, activo: true });
     }
     await recargarTecnicos();
     setTecnicoForm(null);
     setEditingTecnicoId(null);
+  };
+
+  const handleGenerarPortalTecnico = async () => {
+    if (!editingTecnicoId) return;
+    setPortalTecnicoBusy(true);
+    try {
+      await setPortalTokenTecnico(editingTecnicoId, crypto.randomUUID());
+      await recargarTecnicos();
+    } finally {
+      setPortalTecnicoBusy(false);
+    }
+  };
+
+  const handleRevocarPortalTecnico = async () => {
+    if (!editingTecnicoId) return;
+    setPortalTecnicoBusy(true);
+    try {
+      await setPortalTokenTecnico(editingTecnicoId, null);
+      await recargarTecnicos();
+    } finally {
+      setPortalTecnicoBusy(false);
+    }
+  };
+
+  const handleCopiarPortalTecnico = (token: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/mecanico/${token}`);
+    setPortalTecnicoCopiado(true);
+    setTimeout(() => setPortalTecnicoCopiado(false), 2000);
   };
 
   const handleDeleteTecnico = async (id: string) => {
@@ -528,12 +559,54 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                     placeholder="Especialidad (opcional)"
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                   />
+                  <input
+                    type="tel"
+                    value={tecnicoForm.telefono}
+                    onChange={e => setTecnicoForm(f => f ? { ...f, telefono: e.target.value } : f)}
+                    placeholder="Teléfono WhatsApp (opcional)"
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  />
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => { setTecnicoForm(null); setEditingTecnicoId(null); }} className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-100 transition cursor-pointer">Cancelar</button>
                     <button onClick={handleSaveTecnico} className="px-3 py-1.5 text-xs font-bold text-white bg-orange-500 hover:bg-orange-600 rounded-xl transition flex items-center gap-1 cursor-pointer">
                       <Check className="w-3 h-3" /> Guardar
                     </button>
                   </div>
+
+                  {editingTecnicoId && (() => {
+                    const actual = tecnicos.find(t => t.id === editingTecnicoId);
+                    return (
+                      <div className="border-t border-orange-200 pt-2.5 mt-1">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                          <Link2 className="w-3 h-3" /> Portal del Mecánico
+                        </p>
+                        {actual?.portalToken ? (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5">
+                              <span className="text-[11px] text-slate-500 truncate flex-1 font-mono">
+                                {window.location.origin}/mecanico/{actual.portalToken}
+                              </span>
+                              <button onClick={() => handleCopiarPortalTecnico(actual.portalToken!)} className="text-slate-400 hover:text-blue-600 shrink-0 cursor-pointer">
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            {portalTecnicoCopiado && <p className="text-[10px] text-green-600 font-semibold">Enlace copiado</p>}
+                            <button onClick={handleRevocarPortalTecnico} disabled={portalTecnicoBusy} className="text-[11px] text-rose-500 hover:text-rose-600 font-semibold flex items-center gap-1 disabled:opacity-50 cursor-pointer">
+                              <ShieldOff className="w-3 h-3" /> Revocar enlace
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleGenerarPortalTecnico}
+                            disabled={portalTecnicoBusy}
+                            className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer disabled:opacity-50"
+                          >
+                            <RefreshCw className="w-3.5 h-3.5" /> {portalTecnicoBusy ? 'Generando…' : 'Generar enlace'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -546,6 +619,7 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                       <div>
                         <p className="text-sm font-semibold text-slate-700">{t.nombre}</p>
                         {t.especialidad && <p className="text-xs text-slate-400">{t.especialidad}</p>}
+                        {t.telefono && <p className="text-xs text-slate-400">{t.telefono}</p>}
                       </div>
                       <div className="flex gap-1">
                         <button onClick={() => openTecnicoForm(t)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"><Edit2 className="w-3.5 h-3.5" /></button>

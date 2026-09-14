@@ -11,12 +11,13 @@ const SELECT =
   'tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, ' +
   'presupuesto_aprobado, notificacion_enviada, updated_at, ' +
   'checklist_recepcion, checklist_observaciones, fotos_recepcion, ' +
-  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion ), ' +
+  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado ), ' +
   'eventos_ot ( fecha, descripcion )';
 
 type LineaRow = {
   id: string; tipo: string; producto_id: string | null; descripcion: string; cantidad: number;
   precio_unitario: number; costo_unitario: number | null; subtotal: number; posicion: number;
+  completado: boolean;
 };
 type EventoRow = { fecha: string; descripcion: string };
 type ChecklistItemRow = { item: string; ok: boolean };
@@ -43,6 +44,7 @@ function mapLinea(l: LineaRow): LineaOT {
     precioUnitario: l.precio_unitario,
     costoUnitario: l.costo_unitario ?? undefined,
     subtotal: l.subtotal,
+    completado: l.completado,
   };
 }
 
@@ -121,6 +123,10 @@ function lineaToRow(l: LineaOT, otId: string, posicion: number) {
     costo_unitario: l.costoUnitario ?? null,
     subtotal: l.subtotal,
     posicion,
+    // El taller nunca edita esto desde su UI — se conserva el valor tal cual
+    // venía (marcado por el mecánico desde su Portal), y solo es `false` de
+    // entrada para una línea recién creada.
+    completado: l.completado ?? false,
   };
 }
 

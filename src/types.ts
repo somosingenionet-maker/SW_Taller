@@ -42,6 +42,8 @@ export interface LineaOT {
   /** Coste real para el taller. Usado en rentabilidad para calcular margen. */
   costoUnitario?: number;
   subtotal: number;
+  /** Marcado por el mecánico desde su Portal cuando termina esa tarea — solo relevante en líneas de tipo mano_de_obra. */
+  completado?: boolean;
 }
 
 export interface OrdenTrabajo {
@@ -146,6 +148,10 @@ export interface Tecnico {
   nombre: string;
   especialidad?: string;
   activo: boolean;
+  /** Para notificarle por WhatsApp cuando se le asigna un vehículo. */
+  telefono?: string;
+  /** Token del enlace del Portal del Mecánico (sin login). Null hasta generarlo. */
+  portalToken?: string | null;
 }
 
 export interface Cita {

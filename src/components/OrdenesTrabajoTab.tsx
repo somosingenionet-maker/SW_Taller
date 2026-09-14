@@ -6,7 +6,7 @@ import {
   Bell, Printer, Pencil, MessageCircle, Mail, List, LayoutGrid, Camera, ImageOff
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
-import { listTecnicos } from '../lib/data/tecnicos';
+import { listTecnicos, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { supabase } from '../lib/supabase';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
@@ -633,6 +633,26 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setSelected(await onUpdate(updated));
   };
 
+  const [generandoPortalTecnico, setGenerandoPortalTecnico] = useState(false);
+
+  /**
+   * El enlace del Portal del Mecánico se genera perezosamente aquí (al pulsar
+   * "Notificar por WhatsApp") en vez de exigir que se cree antes desde
+   * Configuración > Técnicos — así el flujo de asignar-y-avisar no depende
+   * de un paso previo aparte.
+   */
+  const asegurarPortalTecnico = async (tec: Tecnico): Promise<Tecnico> => {
+    if (tec.portalToken) return tec;
+    setGenerandoPortalTecnico(true);
+    try {
+      const actualizado = await setPortalTokenTecnico(tec.id, crypto.randomUUID());
+      setTecnicos(prev => prev.map(t => (t.id === actualizado.id ? actualizado : t)));
+      return actualizado;
+    } finally {
+      setGenerandoPortalTecnico(false);
+    }
+  };
+
   const openEdit = (ot: OrdenTrabajo) => {
     setEditForm({
       vehiculoId: ot.vehiculoId,
@@ -966,7 +986,19 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Lines */}
                 <div>
-                  <p className="text-xs font-semibold text-slate-600 mb-2">Líneas de trabajo</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-slate-600">Líneas de trabajo</p>
+                    {(() => {
+                      const tareas = selected.lineas.filter(l => l.tipo === 'mano_de_obra');
+                      if (tareas.length === 0) return null;
+                      const hechas = tareas.filter(l => l.completado).length;
+                      return (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 flex items-center gap-1">
+                          <Wrench size={9} /> {hechas}/{tareas.length} tareas del técnico
+                        </span>
+                      );
+                    })()}
+                  </div>
                   {selected.lineas.length === 0 ? (
                     <p className="text-xs text-slate-400 italic">Sin líneas añadidas aún.</p>
                   ) : (
@@ -984,7 +1016,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                         <tbody className="divide-y divide-slate-50">
                           {selected.lineas.map(l => (
                             <tr key={l.id} className="hover:bg-slate-50">
-                              <td className="px-3 py-2 text-slate-800">{l.descripcion}</td>
+                              <td className="px-3 py-2 text-slate-800">
+                                <span className="flex items-center gap-1.5">
+                                  {l.tipo === 'mano_de_obra' && l.completado && <Check size={12} className="text-teal-600 shrink-0" />}
+                                  {l.descripcion}
+                                </span>
+                              </td>
                               <td className="px-3 py-2 text-center">
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${l.tipo === 'mano_de_obra' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
                                   {TIPO_META[l.tipo].label}
@@ -1120,6 +1157,41 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                           </button>
                         )}
                       </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Bloque: Notificar al técnico asignado (checklist de tareas en su Portal) */}
+                {selected.tecnicoAsignado && (selected.estado === 'recibido' || selected.estado === 'en_reparacion') && (() => {
+                  const tec = tecnicos.find(t => t.nombre === selected.tecnicoAsignado);
+                  if (!tec) return null;
+                  const veh = vehiculos.find(v => v.id === selected.vehiculoId);
+                  const descVeh = veh ? `${veh.marca} ${veh.modelo}${veh.matricula ? ` (${veh.matricula})` : ''}` : 'un vehículo';
+
+                  const handleClick = async () => {
+                    const tecConToken = await asegurarPortalTecnico(tec);
+                    const enlace = `${window.location.origin}/mecanico/${tecConToken.portalToken}`;
+                    const mensaje = `Hola ${tec.nombre}, se te ha asignado ${descVeh} — OT ${selected.numero}. Aquí puedes ver y marcar las tareas: ${enlace}`;
+                    window.open(`https://wa.me/${(tec.telefono ?? '').replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener,noreferrer');
+                  };
+
+                  return (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                      <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><Wrench size={11} /> Notificación al técnico</p>
+                      <p className="text-xs text-slate-500">Avisa a {tec.nombre} del vehículo asignado y del enlace de su checklist de tareas.</p>
+                      {tec.telefono ? (
+                        <button
+                          onClick={handleClick}
+                          disabled={generandoPortalTecnico}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold transition cursor-pointer"
+                        >
+                          <MessageCircle size={13} /> {generandoPortalTecnico ? 'Preparando enlace…' : 'Notificar por WhatsApp'}
+                        </button>
+                      ) : (
+                        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                          {tec.nombre} no tiene teléfono guardado — añádelo en Configuración de empresa → Técnicos para poder avisarle.
+                        </p>
+                      )}
                     </div>
                   );
                 })()}
