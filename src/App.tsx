@@ -346,6 +346,12 @@ export default function App() {
     return creada;
   }, []);
 
+  // El tablero del taller (5 columnas de ancho fijo) no cabe en el máximo
+  // centrado normal y aparece con scroll horizontal aunque sobre espacio en
+  // pantalla — mientras esa vista está activa, <main> usa un máximo mayor
+  // (sigue centrado, solo más ancho) para que quepan las 5 columnas enteras.
+  const [tallerVistaAmplia, setTallerVistaAmplia] = useState(false);
+
   const handleUpdateOT = useCallback(async (ot: OrdenTrabajo) => {
     const actualizada = await updateOrden(ot);
     setOrdenesTrabajo(prev => prev.map(o => (o.id === actualizada.id ? actualizada : o)));
@@ -620,7 +626,7 @@ export default function App() {
         <div className="flex-1 overflow-y-auto print:overflow-visible print:h-auto flex flex-col">
 
         {/* CORE WORKSPACE */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 ${tallerVistaAmplia ? 'max-w-[1440px]' : 'max-w-7xl'}`}>
         {activeTab === 'inicio' && (
           <HomeTab
             currentUser={currentUser}
@@ -670,6 +676,7 @@ export default function App() {
             onUpdate={handleUpdateOT}
             onDelete={handleDeleteOT}
             onCreateProducto={handleAddProducto}
+            onVistaAmpliaChange={setTallerVistaAmplia}
           />
         )}
 

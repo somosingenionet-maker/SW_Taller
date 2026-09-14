@@ -22,6 +22,8 @@ interface Props {
   onUpdate: (ot: OrdenTrabajo) => Promise<OrdenTrabajo>;
   onDelete: (id: string) => void | Promise<void>;
   onCreateProducto: (p: Producto, stockInicial: number) => Promise<Producto>;
+  /** El tablero necesita más ancho del que da el layout centrado normal — App.tsx usa esto para ensanchar el <main> solo mientras esta vista está activa. */
+  onVistaAmpliaChange?: (amplia: boolean) => void;
 }
 
 const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string; dot: string }> = {
@@ -325,12 +327,16 @@ function KanbanBoard({
   );
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onCreateProducto }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onCreateProducto, onVistaAmpliaChange }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<OTEstado | 'todas'>('todas');
   const [vista, setVista] = useState<'lista' | 'kanban'>('lista');
+  useEffect(() => {
+    onVistaAmpliaChange?.(vista === 'kanban');
+    return () => onVistaAmpliaChange?.(false);
+  }, [vista, onVistaAmpliaChange]);
   const [dragOtId, setDragOtId] = useState<string | null>(null);
   const [dragOverEstado, setDragOverEstado] = useState<OTEstado | null>(null);
   const [kanbanAviso, setKanbanAviso] = useState<string | null>(null);
@@ -710,12 +716,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
             </button>
             <button
               onClick={() => setVista('kanban')}
-              title="Vista Kanban"
+              title="Vista de tablero"
               className={`px-3 py-1.5 text-xs font-bold rounded-md transition cursor-pointer flex items-center gap-1.5 ${
                 vista === 'kanban' ? 'bg-white text-slate-800 shadow-3xs' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              <LayoutGrid size={13} /> Kanban
+              <LayoutGrid size={13} /> Tablero
             </button>
           </div>
           <button
