@@ -613,11 +613,14 @@ export default function App() {
         </nav>
 
         {/* Envoltorio con scroll: agrupa el contenido y el footer, así el footer
-            se desplaza con la página en vez de quedar fijo siempre visible. */}
-        <div className="flex-1 overflow-y-auto print:overflow-visible print:h-auto">
+            se desplaza con la página en vez de quedar fijo siempre visible.
+            flex-col + flex-1 en <main> asegura que, cuando el contenido es
+            corto (pantallas grandes), el footer quede pegado abajo del todo
+            en vez de aparecer justo donde termina el contenido. */}
+        <div className="flex-1 overflow-y-auto print:overflow-visible print:h-auto flex flex-col">
 
         {/* CORE WORKSPACE */}
-        <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'inicio' && (
           <HomeTab
             currentUser={currentUser}

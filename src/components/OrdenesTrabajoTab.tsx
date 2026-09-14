@@ -363,6 +363,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   } | null>(null);
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const [fotoError, setFotoError] = useState('');
+  const [crearChecklist, setCrearChecklist] = useState<Record<string, boolean>>({});
+  const [crearObservaciones, setCrearObservaciones] = useState('');
+  const [crearFotos, setCrearFotos] = useState<string[]>([]);
   const [crearProductoRapido, setCrearProductoRapido] = useState<{ nombreInicial: string; aplicar: (p: Producto) => void } | null>(null);
 
   const solicitarCrearProducto = (nombreBuscado: string, aplicar: (p: Producto) => void) => {
@@ -395,6 +398,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setFormLineas([]);
     setNewLinea(EMPTY_LINEA);
     setFormError('');
+    setFotoError('');
+    setCrearChecklist(Object.fromEntries(CHECKLIST_RECEPCION_ITEMS.map(item => [item, false])));
+    setCrearObservaciones('');
+    setCrearFotos([]);
     setIsCreating(true);
   };
 
@@ -466,6 +473,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       ivaPct: otForm.ivaPct,
       totalIva,
       total,
+      ...(esPresupuesto ? {} : {
+        checklistRecepcion: CHECKLIST_RECEPCION_ITEMS.map(item => ({ item, ok: !!crearChecklist[item] })),
+        checklistObservaciones: crearObservaciones || undefined,
+        fotosRecepcion: crearFotos,
+      }),
     };
     setGuardandoOT(true);
     try {
@@ -538,12 +550,15 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setRecepcionModal(null);
   };
 
-  const handleFotoRecepcionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const seleccionados = Array.from(e.target.files ?? []);
-    e.target.value = '';
-    if (!seleccionados.length || !recepcionModal) return;
+  /** Compartido entre el modal de recepción y el alta directa como "recibido" — ambos suben a la misma carpeta/límite, solo cambia dónde se guarda el resultado. */
+  const subirFotosRecepcion = (
+    seleccionados: File[],
+    fotosActuales: string[],
+    onFotoSubida: (url: string) => void,
+  ) => {
+    if (!seleccionados.length) return;
     setFotoError('');
-    const huecos = MAX_FOTOS_RECEPCION - recepcionModal.fotos.length;
+    const huecos = MAX_FOTOS_RECEPCION - fotosActuales.length;
     const files = seleccionados.slice(0, huecos);
     if (seleccionados.length > huecos) {
       setFotoError(`Máximo ${MAX_FOTOS_RECEPCION} fotos — se subieron solo las primeras ${huecos > 0 ? huecos : 0}.`);
@@ -560,7 +575,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
             .upload(path, file, { cacheControl: '3600' });
           if (error) throw error;
           const { data } = supabase.storage.from('fotos-recepcion').getPublicUrl(path);
-          setRecepcionModal(r => r ? { ...r, fotos: [...r.fotos, data.publicUrl] } : r);
+          onFotoSubida(data.publicUrl);
         }
       } catch {
         setFotoError('No se pudo subir alguna foto. Inténtalo de nuevo.');
@@ -570,8 +585,26 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     })();
   };
 
+  const handleFotoRecepcionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const seleccionados = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!recepcionModal) return;
+    subirFotosRecepcion(seleccionados, recepcionModal.fotos, url =>
+      setRecepcionModal(r => r ? { ...r, fotos: [...r.fotos, url] } : r));
+  };
+
   const handleQuitarFotoRecepcion = (url: string) => {
     setRecepcionModal(r => r ? { ...r, fotos: r.fotos.filter(f => f !== url) } : r);
+  };
+
+  const handleFotoCreacionUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const seleccionados = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    subirFotosRecepcion(seleccionados, crearFotos, url => setCrearFotos(fotos => [...fotos, url]));
+  };
+
+  const handleQuitarFotoCreacion = (url: string) => {
+    setCrearFotos(fotos => fotos.filter(f => f !== url));
   };
 
   const handleEnviarPresupuesto = async (ot: OrdenTrabajo) => {
@@ -1595,6 +1628,62 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     <textarea rows={2} placeholder="Observaciones técnicas del mecánico..." value={otForm.diagnostico}
                       onChange={e => setOTForm(f => ({ ...f, diagnostico: e.target.value }))}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+                  </div>
+                )}
+
+                {/* Checklist de recepción — solo al recibir el vehículo directamente */}
+                {createTipo === 'recibido' && (
+                  <div className="border-t border-slate-100 pt-4 space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1"><ClipboardList size={10} /> Estado del vehículo</label>
+                      <div className="space-y-1.5">
+                        {CHECKLIST_RECEPCION_ITEMS.map(item => (
+                          <label key={item} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!crearChecklist[item]}
+                              onChange={e => setCrearChecklist(c => ({ ...c, [item]: e.target.checked }))}
+                              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-400"
+                            />
+                            {item}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">Observaciones</label>
+                      <textarea
+                        value={crearObservaciones}
+                        onChange={e => setCrearObservaciones(e.target.value)}
+                        placeholder="Daños o detalles ya existentes al recibir el vehículo…"
+                        rows={2}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1"><Camera size={10} /> Fotos</label>
+                      <div className="flex flex-wrap gap-2">
+                        {crearFotos.map(url => (
+                          <div key={url} className="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-200 group">
+                            <img src={url} alt="Foto de recepción" className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => handleQuitarFotoCreacion(url)}
+                              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                              <X size={10} />
+                            </button>
+                          </div>
+                        ))}
+                        {crearFotos.length < MAX_FOTOS_RECEPCION && (
+                          <label className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-300 flex items-center justify-center text-slate-400 hover:border-blue-400 hover:text-blue-500 cursor-pointer transition">
+                            {subiendoFoto
+                              ? <div className="w-4 h-4 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin" />
+                              : <Camera size={18} />}
+                            <input type="file" accept="image/*" multiple capture="environment" className="hidden" disabled={subiendoFoto} onChange={handleFotoCreacionUpload} />
+                          </label>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 mt-1">{crearFotos.length}/{MAX_FOTOS_RECEPCION} fotos</p>
+                      {fotoError && <p className="text-xs text-rose-500 mt-1.5 flex items-center gap-1"><ImageOff size={12} /> {fotoError}</p>}
+                    </div>
                   </div>
                 )}
 
