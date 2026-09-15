@@ -1015,6 +1015,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   <button
                     onClick={() => setConfirmDelete(selected.id)}
                     className="p-2 rounded-xl text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition"
+                    title="Eliminar OT"
                   >
                     <Trash2 size={15} />
                   </button>
