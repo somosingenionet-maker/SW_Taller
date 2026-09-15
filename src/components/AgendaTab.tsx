@@ -271,6 +271,14 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
 
   return (
     <div className="space-y-5">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <CalendarClock size={20} className="text-blue-600" /> Agenda
+        </h2>
+        <p className="text-xs text-slate-400 mt-0.5">{citas.length} citas registradas</p>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">

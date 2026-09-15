@@ -197,7 +197,9 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-lg font-black text-slate-800">Rentabilidad del Taller</h2>
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <BarChart2 size={20} className="text-blue-600" /> Rentabilidad
+          </h2>
           <p className="text-xs text-slate-400 mt-0.5">Indicadores clave de negocio</p>
         </div>
         <div className="flex items-center gap-2">

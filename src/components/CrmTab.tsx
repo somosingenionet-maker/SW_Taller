@@ -229,7 +229,14 @@ export default function CrmTab({
 
   return (
     <div className="space-y-6" id="crm-tab-root">
-      
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <Users size={20} className="text-blue-600" /> Clientes
+        </h2>
+        <p className="text-xs text-slate-400 mt-0.5">{clientes.length} clientes registrados</p>
+      </div>
+
       {/* Top Banner Stats */}
       {(() => {
         const hoy = new Date();

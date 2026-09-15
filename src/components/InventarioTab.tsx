@@ -141,6 +141,14 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
 
   return (
     <div className="space-y-5">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <Package size={20} className="text-blue-600" /> Inventario
+        </h2>
+        <p className="text-xs text-slate-400 mt-0.5">{productos.length} productos registrados</p>
+      </div>
+
       {/* Stat tiles */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-5">

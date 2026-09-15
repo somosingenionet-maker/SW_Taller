@@ -186,6 +186,14 @@ export default function VehiclesTab({
 
   return (
     <div className="space-y-6" id="vehicles-tab-root">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <Car size={20} className="text-blue-600" /> Vehículos
+        </h2>
+        <p className="text-xs text-slate-400 mt-0.5">{vehiculos.length} vehículos registrados</p>
+      </div>
+
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="vehicles-metrics-banner">
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4" id="metric-vehiculos">

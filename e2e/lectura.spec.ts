@@ -14,7 +14,7 @@ test('Facturas: la pestaña carga y muestra el listado sin errores', async ({ pa
 test('Rentabilidad: la pestaña carga los indicadores sin errores', async ({ page }) => {
   await login(page);
   await page.getByRole('button', { name: 'Rentabilidad', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Rentabilidad del Taller' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Rentabilidad', exact: true })).toBeVisible();
 });
 
 test('Inicio: el panel principal carga tras iniciar sesión', async ({ page }) => {

@@ -52,6 +52,5 @@ test('OT: crear un presupuesto lo añade a la lista, y se puede eliminar sin dej
   await page.getByRole('button', { name: 'Eliminar OT' }).click();
   await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
 
-  await page.waitForTimeout(400);
-  await expect(filas).toHaveCount(totalAntes);
+  await expect(filas).toHaveCount(totalAntes, { timeout: 8_000 });
 });

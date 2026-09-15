@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alerta, NotificacionCliente, Cliente, Vehiculo, AlertaTipo } from '../types';
 import {
-  Check, MessageSquare, AlertTriangle, Send, Mail, Phone, Calendar, RefreshCw, CheckCircle2, Clock
+  Check, MessageSquare, AlertTriangle, Send, Mail, Phone, Calendar, RefreshCw, CheckCircle2, Clock, Bell
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
 import { formatDate } from '../utils/dateFormat';
@@ -109,6 +109,13 @@ export default function AlertsNotificationsTab({
 
   return (
     <div className="space-y-6 text-slate-700" id="alerts-notifications-tab-root">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <Bell size={20} className="text-blue-600" /> Alertas
+        </h2>
+        <p className="text-xs text-slate-400 mt-0.5">{activas.length} alertas activas</p>
+      </div>
 
       {/* Resumen del monitor */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

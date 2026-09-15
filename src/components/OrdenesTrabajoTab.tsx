@@ -828,7 +828,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-            <ClipboardList size={20} className="text-blue-600" /> Órdenes de Trabajo
+            <Wrench size={20} className="text-blue-600" /> Órdenes de Trabajo
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">{ordenes.length} activas o entregadas hace poco</p>
         </div>

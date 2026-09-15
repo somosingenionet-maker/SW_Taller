@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText } from 'lucide-react';
 import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa } from '../types';
 import {
   FacturasResumen, FacturaPeriodo, AgrupacionFacturas,
@@ -674,6 +674,14 @@ export default function FacturasTab({
 
   return (
     <div className="space-y-5">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <FileText size={20} className="text-blue-600" /> Facturas
+        </h2>
+        <p className="text-xs text-slate-400 mt-0.5">{resumen?.totalFacturas ?? '—'} facturas registradas</p>
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="bg-white rounded-2xl border border-slate-200 p-4">
