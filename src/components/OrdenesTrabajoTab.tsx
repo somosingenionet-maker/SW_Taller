@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos, setPortalTokenTecnico } from '../lib/data/tecnicos';
-import { getOrden, buscarOrdenes, siguienteNumeroOT, OrdenListaRow } from '../lib/data/ordenes';
+import { getOrden, buscarOrdenes, OrdenListaRow } from '../lib/data/ordenes';
 import { supabase } from '../lib/supabase';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
@@ -294,6 +294,11 @@ function KanbanBoard({
               <span className={`text-xs font-extrabold uppercase tracking-wide ${meta.color}`}>{meta.label}</span>
               <span className={`ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>{items.length}</span>
             </div>
+            {estado === 'entregado' && (
+              <p className="text-[10px] text-slate-400 px-1 -mt-1 mb-1">
+                Solo las de los últimos 30 días — busca en Lista para ver entregas más antiguas.
+              </p>
+            )}
 
             <div className="flex flex-col gap-2 overflow-y-auto px-0.5">
               {items.length === 0 && (
@@ -541,18 +546,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       return;
     }
     const { subtotal, totalIva, total } = calcTotals(formLineas, otForm.ivaPct);
-    setGuardandoOT(true);
-    let nextNum: string;
-    try {
-      nextNum = await siguienteNumeroOT();
-    } catch {
-      setFormError('No se pudo generar el número de OT. Inténtalo de nuevo.');
-      setGuardandoOT(false);
-      return;
-    }
+    // El número real lo asigna createOrden (con reintento si choca con otra
+    // creación simultánea) — este valor nunca llega a guardarse.
     const ot: OrdenTrabajo = {
       id: 'ot-' + Date.now(),
-      numero: nextNum,
+      numero: '',
       fechaActualizacion: new Date().toISOString(),
       historial: [evento(esPresupuesto ? 'Presupuesto creado' : 'Vehículo recibido en taller')],
       vehiculoId: otForm.vehiculoId,
@@ -576,6 +574,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         fotosRecepcion: crearFotos,
       }),
     };
+    setGuardandoOT(true);
     try {
       // Se espera a que el guardado termine antes de cerrar el modal: si se
       // cierra de inmediato (como antes), la tarjeta no aparece en el Kanban

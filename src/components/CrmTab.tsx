@@ -39,7 +39,7 @@ export default function CrmTab({
 
   // Solo el conteo, calculado en el servidor — el KPI no necesita ninguna
   // fila de ordenes_trabajo en el cliente.
-  const [clientesConOTAbierta, setClientesConOTAbierta] = useState(0);
+  const [clientesConOTAbierta, setClientesConOTAbierta] = useState<number | null>(null);
   useEffect(() => {
     contarClientesConOTAbierta().then(setClientesConOTAbierta).catch(() => setClientesConOTAbierta(0));
   }, []);
@@ -253,7 +253,7 @@ export default function CrmTab({
           </div>
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Con OT Abierta</p>
-            <h3 className="text-2xl font-bold text-slate-800">{clientesConOTAbierta}</h3>
+            <h3 className="text-2xl font-bold text-slate-800">{clientesConOTAbierta === null ? '—' : clientesConOTAbierta}</h3>
             <p className="text-[10px] text-slate-400">vehículos en taller ahora</p>
           </div>
         </div>

@@ -278,22 +278,49 @@ export async function buscarOrdenes(params: {
   };
 }
 
+const CREATE_ORDEN_MAX_INTENTOS = 3;
+
+/**
+ * `ot.numero` que llega del llamador se ignora — el número real lo asigna
+ * esta función (siguienteNumeroOT), con reintento automático si dos
+ * creaciones a la vez leyeron el mismo conteo y chocan contra el `unique`
+ * de ordenes_trabajo.numero (código Postgres 23505). Sin esto, esa colisión
+ * — rara pero posible con más de un usuario a la vez — se le mostraría al
+ * usuario como un error genérico de guardado en vez de resolverse sola.
+ */
 export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
-  const { data, error } = await supabase.from('ordenes_trabajo').insert(toRow(ot) as unknown as OrdenInsert).select('id').single();
-  if (error) throw new Error(error.message);
-  const id = (data as { id: string }).id;
+  let ultimoError: string | null = null;
 
-  // Líneas y eventos no dependen entre sí — insertarlos en paralelo en vez de
-  // uno tras otro ahorra una ida y vuelta completa a la base de datos en cada
-  // creación de OT.
-  const [rLineas, rEventos] = await Promise.all([
-    ot.lineas.length ? supabase.from('lineas_ot').insert(lineasToRows(id, ot.lineas)) : null,
-    ot.historial.length ? supabase.from('eventos_ot').insert(eventosToRows(id, ot.historial)) : null,
-  ]);
-  if (rLineas?.error) throw new Error(rLineas.error.message);
-  if (rEventos?.error) throw new Error(rEventos.error.message);
+  for (let intento = 0; intento < CREATE_ORDEN_MAX_INTENTOS; intento++) {
+    const numero = await siguienteNumeroOT();
+    const { data, error } = await supabase
+      .from('ordenes_trabajo')
+      .insert({ ...toRow(ot), numero } as unknown as OrdenInsert)
+      .select('id')
+      .single();
 
-  return getOrden(id);
+    if (error) {
+      const esColisionDeNumero = error.code === '23505' && error.message.includes('numero');
+      if (esColisionDeNumero) { ultimoError = error.message; continue; }
+      throw new Error(error.message);
+    }
+
+    const id = (data as { id: string }).id;
+
+    // Líneas y eventos no dependen entre sí — insertarlos en paralelo en vez
+    // de uno tras otro ahorra una ida y vuelta completa a la base de datos
+    // en cada creación de OT.
+    const [rLineas, rEventos] = await Promise.all([
+      ot.lineas.length ? supabase.from('lineas_ot').insert(lineasToRows(id, ot.lineas)) : null,
+      ot.historial.length ? supabase.from('eventos_ot').insert(eventosToRows(id, ot.historial)) : null,
+    ]);
+    if (rLineas?.error) throw new Error(rLineas.error.message);
+    if (rEventos?.error) throw new Error(rEventos.error.message);
+
+    return getOrden(id);
+  }
+
+  throw new Error(ultimoError ?? 'No se pudo generar un número de OT único.');
 }
 
 /**

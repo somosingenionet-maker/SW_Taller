@@ -268,9 +268,11 @@ function FacturaModal({ factura, clientes, vehiculos, onSave, onClose }: Factura
   // líneas — se piden solo al elegir el vehículo, no hace falta el
   // histórico completo de OTs de la empresa para este modal.
   const [vehOTs, setVehOTs] = useState<OrdenFacturable[]>([]);
+  const [vehOTsCargando, setVehOTsCargando] = useState(false);
   useEffect(() => {
     if (!vehiculoId) { setVehOTs([]); return; }
-    listOrdenesFacturables(vehiculoId).then(setVehOTs).catch(() => setVehOTs([]));
+    setVehOTsCargando(true);
+    listOrdenesFacturables(vehiculoId).then(setVehOTs).catch(() => setVehOTs([])).finally(() => setVehOTsCargando(false));
   }, [vehiculoId]);
 
   const totals = useMemo(() => calcLineTotals(lineas, ivaPct), [lineas, ivaPct]);
@@ -398,7 +400,9 @@ function FacturaModal({ factura, clientes, vehiculos, onSave, onClose }: Factura
             {importarOpen && (
               <div className="mb-3 bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
                 <p className="text-[11px] font-bold text-slate-600 uppercase">Selecciona órdenes de trabajo a importar</p>
-                {vehOTs.length === 0 ? (
+                {vehOTsCargando ? (
+                  <p className="text-[11px] text-slate-400 italic">Cargando órdenes de trabajo…</p>
+                ) : vehOTs.length === 0 ? (
                   <p className="text-[11px] text-slate-400 italic">Este vehículo no tiene órdenes de trabajo finalizadas (listo/entregado) con líneas facturables.</p>
                 ) : (
                   <>

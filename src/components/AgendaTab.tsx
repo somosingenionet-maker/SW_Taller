@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Cita, Vehiculo, Cliente, Tecnico, OrdenTrabajo, OTEstado, EventoOT } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
-import { getNumerosOT, siguienteNumeroOT } from '../lib/data/ordenes';
+import { getNumerosOT } from '../lib/data/ordenes';
 import ConfirmDialog from './ConfirmDialog';
 
 interface Props {
@@ -645,10 +645,11 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, onCreateOT, onConvertid
 
     setSaving(true);
     try {
-      const nextNum = await siguienteNumeroOT();
+      // El número real lo asigna createOrden (con reintento si choca con
+      // otra creación simultánea) — este valor nunca llega a guardarse.
       const ot: OrdenTrabajo = {
         id: 'ot-' + Date.now(),
-        numero: nextNum,
+        numero: '',
         fechaActualizacion: new Date().toISOString(),
         historial: [evento(createTipo === 'presupuesto' ? 'Presupuesto creado desde cita' : 'Vehículo recibido en taller desde cita')],
         vehiculoId,
