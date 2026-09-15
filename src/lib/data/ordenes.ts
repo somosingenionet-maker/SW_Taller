@@ -34,7 +34,7 @@ type OrdenRow = {
   lineas_ot: LineaRow[] | null; eventos_ot: EventoRow[] | null;
 };
 
-function mapLinea(l: LineaRow): LineaOT {
+export function mapLinea(l: LineaRow): LineaOT {
   return {
     id: l.id,
     tipo: l.tipo as LineaOTTipo,
@@ -49,7 +49,7 @@ function mapLinea(l: LineaRow): LineaOT {
   };
 }
 
-function mapOrden(r: OrdenRow): OrdenTrabajo {
+export function mapOrden(r: OrdenRow): OrdenTrabajo {
   const lineas = (r.lineas_ot ?? []).slice().sort((a, b) => a.posicion - b.posicion).map(mapLinea);
   const historial: EventoOT[] = (r.eventos_ot ?? [])
     .map((e) => ({ fecha: e.fecha, descripcion: e.descripcion }))
@@ -85,7 +85,7 @@ function mapOrden(r: OrdenRow): OrdenTrabajo {
   };
 }
 
-function toRow(ot: OrdenTrabajo) {
+export function toRow(ot: OrdenTrabajo) {
   return {
     numero: ot.numero,
     vehiculo_id: ot.vehiculoId,
@@ -113,7 +113,7 @@ function toRow(ot: OrdenTrabajo) {
   };
 }
 
-function lineaToRow(l: LineaOT, otId: string, posicion: number) {
+export function lineaToRow(l: LineaOT, otId: string, posicion: number) {
   return {
     ot_id: otId,
     tipo: l.tipo,
@@ -287,6 +287,39 @@ export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
  * (ruido falso en el libro de movimientos). El historial no tiene ningún
  * efecto secundario ligado a su ciclo de vida, así que se deja igual.
  */
+/**
+ * Calcula qué hacer con cada línea al guardar una OT existente: borrar las
+ * que ya no están, actualizar las que siguen (por id), insertar las nuevas.
+ * Pura a propósito (sin llamadas a Supabase) para poder probarla sin una
+ * base de datos real — esta es exactamente la lógica que antes reescribía
+ * TODA la tabla en cada guardado (ver el historial de esta función).
+ */
+export function diffLineas(idsExistentes: Set<string>, lineas: LineaOT[], otId: string) {
+  const idsEntrantes = new Set(lineas.map((l) => l.id));
+  const aBorrar = [...idsExistentes].filter((id) => !idsEntrantes.has(id));
+
+  const aInsertar: ReturnType<typeof lineaToRow>[] = [];
+  const aActualizar: (ReturnType<typeof lineaToRow> & { id: string })[] = [];
+  for (const [i, l] of lineas.entries()) {
+    if (idsExistentes.has(l.id)) {
+      aActualizar.push({ id: l.id, ...lineaToRow(l, otId, i) });
+    } else {
+      aInsertar.push(lineaToRow(l, otId, i));
+    }
+  }
+  return { aBorrar, aActualizar, aInsertar };
+}
+
+/**
+ * Del historial completo que llega (`historial`), qué eventos todavía no
+ * están guardados — es de solo-añadir (ningún sitio de la app edita ni
+ * borra un evento pasado), así que son justo los que sobran al final
+ * respecto a cuántos ya hay en la base de datos.
+ */
+export function eventosPendientes(historial: EventoOT[], countGuardados: number): EventoOT[] {
+  return historial.slice(countGuardados);
+}
+
 export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   const { error } = await supabase.from('ordenes_trabajo').update(toRow(ot)).eq('id', ot.id);
   if (error) throw new Error(error.message);
@@ -295,9 +328,9 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
     .from('lineas_ot').select('id').eq('ot_id', ot.id);
   if (eExist) throw new Error(eExist.message);
   const idsExistentes = new Set((existentes ?? []).map((r) => (r as { id: string }).id));
-  const idsEntrantes = new Set(ot.lineas.map((l) => l.id));
 
-  const aBorrar = [...idsExistentes].filter((id) => !idsEntrantes.has(id));
+  const { aBorrar, aActualizar, aInsertar } = diffLineas(idsExistentes, ot.lineas, ot.id);
+
   if (aBorrar.length) {
     const { error: eDel } = await supabase.from('lineas_ot').delete().in('id', aBorrar);
     if (eDel) throw new Error(eDel.message);
@@ -306,15 +339,6 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   // Antes cada línea existente se actualizaba con su propia consulta, una
   // por una (N idas y vueltas para N líneas) — un upsert hace lo mismo en
   // una sola consulta, sin importar cuántas líneas tenga la OT.
-  const aInsertar: ReturnType<typeof lineaToRow>[] = [];
-  const aActualizar: (ReturnType<typeof lineaToRow> & { id: string })[] = [];
-  for (const [i, l] of ot.lineas.entries()) {
-    if (idsExistentes.has(l.id)) {
-      aActualizar.push({ id: l.id, ...lineaToRow(l, ot.id, i) });
-    } else {
-      aInsertar.push(lineaToRow(l, ot.id, i));
-    }
-  }
   if (aActualizar.length) {
     const { error: eUpd } = await supabase.from('lineas_ot').upsert(aActualizar);
     if (eUpd) throw new Error(eUpd.message);
@@ -324,17 +348,15 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
     if (eIns) throw new Error(eIns.message);
   }
 
-  // El historial es de solo-añadir (ningún sitio de la app edita ni borra un
-  // evento pasado): en vez de borrar toda la tabla y reescribirla entera en
-  // cada guardado (cada vez más cara cuanta más historia acumula la OT),
-  // basta con insertar los eventos que todavía no están guardados — los que
-  // sobran al final de `ot.historial` respecto a lo que ya hay en la BD.
+  // El historial es de solo-añadir: en vez de borrar toda la tabla y
+  // reescribirla entera en cada guardado (cada vez más cara cuanta más
+  // historia acumula la OT), basta con insertar los eventos pendientes.
   const { count, error: eCount } = await supabase
     .from('eventos_ot')
     .select('*', { count: 'exact', head: true })
     .eq('ot_id', ot.id);
   if (eCount) throw new Error(eCount.message);
-  const eventosNuevos = ot.historial.slice(count ?? 0);
+  const eventosNuevos = eventosPendientes(ot.historial, count ?? 0);
   if (eventosNuevos.length) {
     const { error: eE } = await supabase.from('eventos_ot').insert(eventosToRows(ot.id, eventosNuevos));
     if (eE) throw new Error(eE.message);

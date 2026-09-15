@@ -42,13 +42,13 @@ const ESTADO_FLOW: OTEstado[] = [
 ];
 
 /** Estados donde añadir una línea no implica avisar de un extra al cliente. */
-const ESTADOS_SIN_AVISO_EXTRA: OTEstado[] = ['presupuesto', 'cancelado', 'entregado'];
+export const ESTADOS_SIN_AVISO_EXTRA: OTEstado[] = ['presupuesto', 'cancelado', 'entregado'];
 
-function waHref(telefono: string | undefined, mensaje: string): string | null {
+export function waHref(telefono: string | undefined, mensaje: string): string | null {
   return telefono ? `https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}` : null;
 }
 
-function mailHref(correo: string | undefined, asunto: string, mensaje: string): string | null {
+export function mailHref(correo: string | undefined, asunto: string, mensaje: string): string | null {
   return correo ? `mailto:${correo}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(mensaje)}` : null;
 }
 
@@ -184,7 +184,7 @@ const EMPTY_OT_FORM: OTForm = {
   ivaPct: IVA_DEFAULT,
 };
 
-function calcTotals(lineas: LineaOT[], ivaPct: number) {
+export function calcTotals(lineas: LineaOT[], ivaPct: number) {
   const subtotal = lineas.reduce((s, l) => s + l.subtotal, 0);
   const totalIva = subtotal * (ivaPct / 100);
   return { subtotal, totalIva, total: subtotal + totalIva };
@@ -209,18 +209,18 @@ function evento(descripcion: string): EventoOT {
 }
 
 /** Iniciales para el avatar circular del cliente en cada tarjeta Kanban. */
-function iniciales(nombre: string, apellidos: string): string {
+export function iniciales(nombre: string, apellidos: string): string {
   return `${nombre[0] ?? ''}${apellidos[0] ?? ''}`.toUpperCase();
 }
 
-function diasDesde(fechaISO: string): { texto: string; aviso: boolean } {
+export function diasDesde(fechaISO: string): { texto: string; aviso: boolean } {
   const dias = Math.floor((Date.now() - new Date(fechaISO).getTime()) / 86400000);
   if (dias <= 0) return { texto: 'hoy', aviso: false };
   return { texto: `${dias} día${dias !== 1 ? 's' : ''}`, aviso: dias > 5 };
 }
 
 /** Progreso de las tareas del mecánico (líneas de mano de obra) marcadas desde el Portal del Mecánico. */
-function progresoTareas(ot: OrdenTrabajo): { total: number; hechas: number; terminado: boolean } {
+export function progresoTareas(ot: OrdenTrabajo): { total: number; hechas: number; terminado: boolean } {
   const tareas = ot.lineas.filter(l => l.tipo === 'mano_de_obra');
   const hechas = tareas.filter(l => l.completado).length;
   return { total: tareas.length, hechas, terminado: tareas.length > 0 && hechas === tareas.length };

@@ -31,7 +31,7 @@ type FacturaRow = {
   lineas_factura: LineaRow[] | null; factura_ot: { ot_id: string }[] | null;
 };
 
-function mapLinea(l: LineaRow): LineaDocumento {
+export function mapLinea(l: LineaRow): LineaDocumento {
   return {
     id: l.id,
     descripcion: l.descripcion,
@@ -41,7 +41,7 @@ function mapLinea(l: LineaRow): LineaDocumento {
   };
 }
 
-function mapFactura(r: FacturaRow): Factura {
+export function mapFactura(r: FacturaRow): Factura {
   return {
     id: r.id,
     numero: r.numero,
@@ -77,7 +77,7 @@ function mapFactura(r: FacturaRow): Factura {
 
 // `numero` nunca se envía: lo asigna el trigger set_numero_factura() al
 // crear, y una vez asignado no se vuelve a tocar (la UI no deja editarlo).
-function toRow(f: Factura) {
+export function toRow(f: Factura) {
   return {
     cliente_id: f.clienteId,
     vehiculo_id: f.vehiculoId || null,
@@ -181,9 +181,14 @@ export function rangoDeClavePeriodo(agrupacion: AgrupacionFacturas, clave: strin
     const hastaAnio = mes === 12 ? anio + 1 : anio;
     return { desde: `${clave}-01`, hasta: `${hastaAnio}-${String(hastaMes).padStart(2, '0')}-01` };
   }
-  const inicio = new Date(clave + 'T00:00:00');
+  // `clave` es una fecha pura de calendario (YYYY-MM-DD), no un instante —
+  // parsearla y operar en UTC evita que el resultado dependa de la zona
+  // horaria del servidor que ejecute esto (con hora local, sumar 7 días y
+  // volver a formatear podía cruzar la medianoche UTC y devolver un día de
+  // menos, dejando fuera de la descarga la última factura de la semana).
+  const inicio = new Date(clave + 'T00:00:00Z');
   const fin = new Date(inicio);
-  fin.setDate(fin.getDate() + 7);
+  fin.setUTCDate(fin.getUTCDate() + 7);
   return { desde: clave, hasta: fin.toISOString().slice(0, 10) };
 }
 
