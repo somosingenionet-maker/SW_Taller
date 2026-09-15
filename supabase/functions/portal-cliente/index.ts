@@ -12,9 +12,16 @@ import {
   presupuestosPendientes,
   type OtCliente,
 } from './logic.ts';
+import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+// Límite por IP: generoso para un uso normal (un cliente consultando su
+// estado o respondiendo un presupuesto), suficiente para frenar fuerza
+// bruta del token o abuso automatizado del endpoint.
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_VENTANA_SEGUNDOS = 60;
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -157,6 +164,13 @@ Deno.serve(async (req) => {
   if (!token) return json({ error: 'Falta el enlace.' }, 400);
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+  // Se limita ANTES de tocar la tabla clientes, para que ni la propia
+  // búsqueda del token se pueda machacar sin límite.
+  const ip = extraerIp(req.headers.get('x-forwarded-for'));
+  if (!(await permitirPeticion(admin, `portal-cliente:${ip}`, RATE_LIMIT_MAX, RATE_LIMIT_VENTANA_SEGUNDOS))) {
+    return json({ error: 'Demasiadas peticiones. Inténtalo de nuevo en un momento.' }, 429);
+  }
 
   const { data: cliente, error: clienteErr } = await admin
     .from('clientes')
