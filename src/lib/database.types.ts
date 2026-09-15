@@ -409,7 +409,15 @@ export type Database = {
       }
       facturas: {
         Row: {
+          cliente_apellidos_snapshot: string | null
+          cliente_ciudad_snapshot: string | null
+          cliente_correo_snapshot: string | null
+          cliente_direccion_snapshot: string | null
           cliente_id: string
+          cliente_nif_snapshot: string | null
+          cliente_nombre_snapshot: string | null
+          cliente_pais_snapshot: string | null
+          cliente_telefono_snapshot: string | null
           created_at: string
           empresa_id: string
           estado: string
@@ -430,7 +438,15 @@ export type Database = {
           vehiculo_id: string | null
         }
         Insert: {
+          cliente_apellidos_snapshot?: string | null
+          cliente_ciudad_snapshot?: string | null
+          cliente_correo_snapshot?: string | null
+          cliente_direccion_snapshot?: string | null
           cliente_id: string
+          cliente_nif_snapshot?: string | null
+          cliente_nombre_snapshot?: string | null
+          cliente_pais_snapshot?: string | null
+          cliente_telefono_snapshot?: string | null
           created_at?: string
           empresa_id: string
           estado: string
@@ -451,7 +467,15 @@ export type Database = {
           vehiculo_id?: string | null
         }
         Update: {
+          cliente_apellidos_snapshot?: string | null
+          cliente_ciudad_snapshot?: string | null
+          cliente_correo_snapshot?: string | null
+          cliente_direccion_snapshot?: string | null
           cliente_id?: string
+          cliente_nif_snapshot?: string | null
+          cliente_nombre_snapshot?: string | null
+          cliente_pais_snapshot?: string | null
+          cliente_telefono_snapshot?: string | null
           created_at?: string
           empresa_id?: string
           estado?: string

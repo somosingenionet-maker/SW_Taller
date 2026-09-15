@@ -107,7 +107,12 @@ function FacturaPrintable({
   /** true si debe forzar salto de página después (para que la siguiente factura del grupo empiece en hoja nueva). */
   saltoDePagina?: boolean;
 }) {
-  const cli = clientes.find(c => c.id === f.clienteId);
+  // Una factura ya emitida siempre muestra el cliente tal como estaba al
+  // emitirla (clienteSnapshot), no el registro actual — que puede haber
+  // cambiado de dirección o haberse anonimizado después. Un borrador
+  // todavía no tiene snapshot (se puede seguir editando, incluso cambiar
+  // de cliente), así que ese caso sigue resolviéndose en vivo.
+  const cli = f.clienteSnapshot ?? clientes.find(c => c.id === f.clienteId);
   const veh = vehiculos.find(v => v.id === f.vehiculoId);
 
   return (

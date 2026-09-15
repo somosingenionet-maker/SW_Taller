@@ -9,6 +9,8 @@ type FacturaInsert = Database['public']['Tables']['facturas']['Insert'];
 const SELECT =
   'id, numero, cliente_id, vehiculo_id, fecha, fecha_vencimiento, estado, notas, ' +
   'subtotal, iva_pct, total_iva, total, hash, hash_anterior, qr_url, fecha_emision_hash, created_at, ' +
+  'cliente_nombre_snapshot, cliente_apellidos_snapshot, cliente_nif_snapshot, cliente_correo_snapshot, ' +
+  'cliente_telefono_snapshot, cliente_direccion_snapshot, cliente_ciudad_snapshot, cliente_pais_snapshot, ' +
   'lineas_factura ( id, descripcion, cantidad, precio_unitario, subtotal, posicion ), ' +
   'factura_ot ( ot_id )';
 
@@ -22,6 +24,10 @@ type FacturaRow = {
   subtotal: number; iva_pct: number; total_iva: number; total: number;
   hash: string | null; hash_anterior: string | null; qr_url: string | null;
   fecha_emision_hash: string | null; created_at: string;
+  cliente_nombre_snapshot: string | null; cliente_apellidos_snapshot: string | null;
+  cliente_nif_snapshot: string | null; cliente_correo_snapshot: string | null;
+  cliente_telefono_snapshot: string | null; cliente_direccion_snapshot: string | null;
+  cliente_ciudad_snapshot: string | null; cliente_pais_snapshot: string | null;
   lineas_factura: LineaRow[] | null; factura_ot: { ot_id: string }[] | null;
 };
 
@@ -56,6 +62,16 @@ function mapFactura(r: FacturaRow): Factura {
     hashAnterior: r.hash_anterior ?? undefined,
     qrUrl: r.qr_url ?? undefined,
     fechaEmisionHash: r.fecha_emision_hash ?? undefined,
+    clienteSnapshot: r.cliente_nombre_snapshot != null ? {
+      nombre: r.cliente_nombre_snapshot,
+      apellidos: r.cliente_apellidos_snapshot ?? '',
+      nifNiePasaporte: r.cliente_nif_snapshot ?? '',
+      correo: r.cliente_correo_snapshot ?? '',
+      telefono: r.cliente_telefono_snapshot ?? '',
+      direccion: r.cliente_direccion_snapshot ?? '',
+      ciudad: r.cliente_ciudad_snapshot ?? undefined,
+      pais: r.cliente_pais_snapshot ?? undefined,
+    } : undefined,
   };
 }
 

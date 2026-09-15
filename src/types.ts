@@ -251,6 +251,23 @@ export interface Factura {
   hashAnterior?: string;
   qrUrl?: string;
   fechaEmisionHash?: string;
+  /**
+   * Copia congelada de los datos del cliente en el momento de emitir — solo
+   * presente tras emitir (nunca en un borrador, que sigue resolviendo el
+   * cliente en vivo porque todavía se puede editar). Una vez emitida, la
+   * factura debe mostrar siempre estos datos, no los actuales del cliente
+   * (que puede haber cambiado de dirección o haberse anonimizado después).
+   */
+  clienteSnapshot?: {
+    nombre: string;
+    apellidos: string;
+    nifNiePasaporte: string;
+    correo: string;
+    telefono: string;
+    direccion: string;
+    ciudad?: string;
+    pais?: string;
+  };
 }
 
 /** Producto del catálogo de inventario de una empresa. */
