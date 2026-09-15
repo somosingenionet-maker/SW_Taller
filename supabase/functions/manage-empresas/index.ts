@@ -10,6 +10,7 @@
 // Activar/desactivar una empresa y listarlas SÍ se hacen directamente desde
 // el cliente vía RLS (el super admin tiene acceso total a `empresas`).
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { errorPassword, esSuperAdmin } from './logic.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -18,16 +19,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Política mínima de contraseña — debe mantenerse igual que
-// src/utils/password.ts (no se puede importar entre proyectos Deno/Vite).
-function errorPassword(password: string): string | null {
-  if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-  if (!/[A-Z]/.test(password)) return 'La contraseña debe incluir al menos una mayúscula.';
-  if (!/[a-z]/.test(password)) return 'La contraseña debe incluir al menos una minúscula.';
-  if (!/[0-9]/.test(password)) return 'La contraseña debe incluir al menos un número.';
-  return null;
-}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -54,7 +45,7 @@ Deno.serve(async (req) => {
     .select('rol')
     .eq('id', callerId)
     .single();
-  if (perfilErr || callerPerfil?.rol !== 'super_admin') {
+  if (perfilErr || !esSuperAdmin(callerPerfil?.rol)) {
     return json({ error: 'Requiere permisos de super administrador' }, 403);
   }
 

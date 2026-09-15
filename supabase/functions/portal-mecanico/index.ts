@@ -8,6 +8,7 @@
 // (ordenes_trabajo.tecnico_asignado), no por id — se respeta ese mismo
 // criterio aquí para no introducir un segundo modelo de asignación.
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { Tecnico, puedeMarcarTarea, debeIniciarReparacion, formatearOrdenesPortal } from './logic.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -23,8 +24,6 @@ function json(body: unknown, status = 200) {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
 }
-
-type Tecnico = { id: string; empresa_id: string; nombre: string };
 
 async function manejarGet(admin: SupabaseClient, tecnico: Tecnico) {
   const { data: empresa } = await admin
@@ -63,19 +62,7 @@ async function manejarGet(admin: SupabaseClient, tecnico: Tecnico) {
   return json({
     empresa: empresa ? { nombre: empresa.nombre, brandColor: empresa.brand_color, logoUrl: empresa.logo_url } : null,
     tecnico: { nombre: tecnico.nombre },
-    ordenes: ordenes.map(o => {
-      const v = (vehiculos ?? []).find(x => x.id === o.vehiculo_id);
-      return {
-        id: o.id,
-        numero: o.numero,
-        estado: o.estado,
-        descripcionProblema: o.descripcion_problema,
-        vehiculo: v ? { marca: v.marca, modelo: v.modelo, matricula: v.matricula } : null,
-        tareas: (lineas ?? [])
-          .filter(l => l.ot_id === o.id)
-          .map(l => ({ id: l.id, descripcion: l.descripcion, completado: l.completado })),
-      };
-    }),
+    ordenes: formatearOrdenesPortal(ordenes, vehiculos ?? [], lineas ?? []),
   });
 }
 
@@ -93,7 +80,7 @@ async function manejarMarcarTarea(admin: SupabaseClient, tecnico: Tecnico, linea
     .eq('id', linea.ot_id)
     .maybeSingle();
   if (otErr || !ot) return json({ error: 'Orden no encontrada.' }, 404);
-  if (ot.empresa_id !== tecnico.empresa_id || ot.tecnico_asignado !== tecnico.nombre) {
+  if (!puedeMarcarTarea(tecnico, ot)) {
     return json({ error: 'No autorizado.' }, 403);
   }
 
@@ -105,7 +92,7 @@ async function manejarMarcarTarea(admin: SupabaseClient, tecnico: Tecnico, linea
   // todavía), se adelanta sola a "en_reparacion" en cuanto llega la primera
   // marca. El resto de transiciones (listo, entregado) las sigue haciendo
   // el taller a mano, porque esas sí requieren su verificación.
-  if (completado && ot.estado === 'recibido') {
+  if (debeIniciarReparacion(ot.estado, completado)) {
     await admin.from('ordenes_trabajo').update({ estado: 'en_reparacion' }).eq('id', ot.id);
     await admin.from('eventos_ot').insert({
       ot_id: ot.id,
