@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon } from 'lucide-react';
-import { Factura, LineaDocumento, Cliente, Vehiculo, OrdenTrabajo, Empresa } from '../types';
+import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa } from '../types';
 import {
   FacturasResumen, FacturaPeriodo, AgrupacionFacturas,
   getFacturasResumen, getFacturasPorPeriodo, listFacturasPaginado, rangoDeClavePeriodo, listFacturas,
 } from '../lib/data/facturas';
+import { listOrdenesFacturables, OrdenFacturable } from '../lib/data/ordenes';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
 import ConfirmDialog from './ConfirmDialog';
@@ -14,7 +15,6 @@ import QRCode from 'qrcode';
 interface FacturasTabProps {
   clientes: Cliente[];
   vehiculos: Vehiculo[];
-  ordenesTrabajo: OrdenTrabajo[];
   empresa: Empresa;
   onAddFactura: (f: Factura) => Promise<void>;
   onUpdateFactura: (f: Factura) => Promise<void>;
@@ -237,12 +237,11 @@ interface FacturaModalProps {
   factura: Factura | null;
   clientes: Cliente[];
   vehiculos: Vehiculo[];
-  ordenesTrabajo: OrdenTrabajo[];
   onSave: (f: Factura) => void;
   onClose: () => void;
 }
 
-function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, onClose }: FacturaModalProps) {
+function FacturaModal({ factura, clientes, vehiculos, onSave, onClose }: FacturaModalProps) {
   const today = new Date().toISOString().split('T')[0];
   const thirtyDays = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
 
@@ -265,15 +264,14 @@ function FacturaModal({ factura, clientes, vehiculos, ordenesTrabajo, onSave, on
     return vehiculos.filter(v => cli.vehiculosAsociados!.includes(v.id));
   }, [clienteId, clientes, vehiculos]);
 
-  // OT del vehículo seleccionado, ya finalizadas (listo/entregado) y con líneas.
-  const vehOTs = useMemo(
-    () => ordenesTrabajo.filter(
-      ot => ot.vehiculoId === vehiculoId
-        && (ot.estado === 'listo' || ot.estado === 'entregado')
-        && ot.lineas.length > 0
-    ),
-    [vehiculoId, ordenesTrabajo]
-  );
+  // OT del vehículo seleccionado, ya finalizadas (listo/entregado) y con
+  // líneas — se piden solo al elegir el vehículo, no hace falta el
+  // histórico completo de OTs de la empresa para este modal.
+  const [vehOTs, setVehOTs] = useState<OrdenFacturable[]>([]);
+  useEffect(() => {
+    if (!vehiculoId) { setVehOTs([]); return; }
+    listOrdenesFacturables(vehiculoId).then(setVehOTs).catch(() => setVehOTs([]));
+  }, [vehiculoId]);
 
   const totals = useMemo(() => calcLineTotals(lineas, ivaPct), [lineas, ivaPct]);
 
@@ -471,7 +469,7 @@ const PAGE_SIZE = 20;
 
 // -------- Main FacturasTab --------
 export default function FacturasTab({
-  clientes, vehiculos, ordenesTrabajo, empresa,
+  clientes, vehiculos, empresa,
   onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura,
 }: FacturasTabProps) {
   const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null }>({ open: false, factura: null });
@@ -810,7 +808,6 @@ export default function FacturasTab({
           factura={facturaModal.factura}
           clientes={clientes}
           vehiculos={vehiculos}
-          ordenesTrabajo={ordenesTrabajo}
           onSave={handleSaveFactura}
           onClose={() => setFacturaModal({ open: false, factura: null })}
         />

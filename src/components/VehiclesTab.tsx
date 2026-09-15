@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Vehiculo, OrdenTrabajo, OTEstado } from '../types';
+import { useState, useMemo, useEffect } from 'react';
+import { Vehiculo, OTEstado, EventoOT } from '../types';
 import {
   Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, ClipboardList
 } from 'lucide-react';
@@ -7,10 +7,10 @@ import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
+import { listOrdenesPorVehiculo, getHistorialOT, OrdenVehiculoRow } from '../lib/data/ordenes';
 
 interface VehiclesTabProps {
   vehiculos: Vehiculo[];
-  ordenesTrabajo?: OrdenTrabajo[];
   onAddVehiculo: (input: Omit<Vehiculo, 'id' | 'fechaRegistro'>) => void | Promise<void>;
   onUpdateVehiculo: (vehiculo: Vehiculo) => void | Promise<void>;
   onDeleteVehiculo: (id: string) => void | Promise<void>;
@@ -36,7 +36,6 @@ const OT_ESTADO_COLOR: Record<OTEstado, string> = {
 
 export default function VehiclesTab({
   vehiculos,
-  ordenesTrabajo = [],
   onAddVehiculo,
   onUpdateVehiculo,
   onDeleteVehiculo
@@ -44,6 +43,32 @@ export default function VehiclesTab({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehiculo, setSelectedVehiculo] = useState<Vehiculo | null>(null);
   const [expandedOtId, setExpandedOtId] = useState<string | null>(null);
+
+  // Historial de OTs de ESTE vehículo — se pide solo al abrir su ficha, no
+  // hace falta tener el histórico de toda la empresa en memoria.
+  const [otsVehiculo, setOtsVehiculo] = useState<OrdenVehiculoRow[]>([]);
+  const [otsVehiculoCargando, setOtsVehiculoCargando] = useState(false);
+  useEffect(() => {
+    if (!selectedVehiculo) { setOtsVehiculo([]); return; }
+    setOtsVehiculoCargando(true);
+    listOrdenesPorVehiculo(selectedVehiculo.id)
+      .then(setOtsVehiculo)
+      .catch(() => setOtsVehiculo([]))
+      .finally(() => setOtsVehiculoCargando(false));
+  }, [selectedVehiculo]);
+
+  // El historial de eventos de cada OT solo se trae al expandirla, y se
+  // conserva en caché mientras la ficha del vehículo sigue abierta.
+  const [historialPorOt, setHistorialPorOt] = useState<Record<string, EventoOT[]>>({});
+  const [historialCargando, setHistorialCargando] = useState<string | null>(null);
+  useEffect(() => {
+    if (!expandedOtId || historialPorOt[expandedOtId]) return;
+    setHistorialCargando(expandedOtId);
+    getHistorialOT(expandedOtId)
+      .then(historial => setHistorialPorOt(prev => ({ ...prev, [expandedOtId]: historial })))
+      .catch(() => setHistorialPorOt(prev => ({ ...prev, [expandedOtId]: [] })))
+      .finally(() => setHistorialCargando(null));
+  }, [expandedOtId, historialPorOt]);
   const [isAddingOpen, setIsAddingOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -388,11 +413,7 @@ export default function VehiclesTab({
               </div>
 
               {/* Historial de Órdenes de Trabajo */}
-              {(() => {
-                const otsVehiculo = ordenesTrabajo
-                  .filter(ot => ot.vehiculoId === selectedVehiculo.id)
-                  .sort((a, b) => b.fechaActualizacion.localeCompare(a.fechaActualizacion));
-                return (
+              {(
                   <div className="bg-slate-50/60 rounded-2xl border border-slate-100 p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
@@ -401,7 +422,9 @@ export default function VehiclesTab({
                       </div>
                       <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{otsVehiculo.length} visitas</span>
                     </div>
-                    {otsVehiculo.length === 0 ? (
+                    {otsVehiculoCargando ? (
+                      <p className="text-xs text-slate-400 italic text-center py-3">Cargando historial…</p>
+                    ) : otsVehiculo.length === 0 ? (
                       <p className="text-xs text-slate-400 italic text-center py-3">Sin órdenes de trabajo registradas</p>
                     ) : (
                       <div className="space-y-2">
@@ -433,16 +456,20 @@ export default function VehiclesTab({
                               </button>
 
                               {/* Historial expandido */}
-                              {isOpen && (
+                              {isOpen && (() => {
+                                const historial = historialPorOt[ot.id] ?? [];
+                                return (
                                 <div className="border-t border-slate-100 px-3 pb-3 pt-2 bg-slate-50/50">
                                   <p className="text-[10px] font-semibold text-slate-400 uppercase mb-2">Historial de la OT</p>
-                                  {ot.historial.length === 0 ? (
+                                  {historialCargando === ot.id ? (
+                                    <p className="text-xs text-slate-400 italic">Cargando…</p>
+                                  ) : historial.length === 0 ? (
                                     <p className="text-xs text-slate-400 italic">Sin eventos registrados</p>
                                   ) : (
                                     <div className="relative pl-4">
                                       <div className="absolute left-1.5 top-1 bottom-1 w-px bg-slate-200" />
-                                      {ot.historial.map((ev, idx) => {
-                                        const prev = ot.historial[idx - 1];
+                                      {historial.map((ev, idx) => {
+                                        const prev = historial[idx - 1];
                                         let diffLabel = '';
                                         if (prev) {
                                           const ms = new Date(ev.fecha).getTime() - new Date(prev.fecha).getTime();
@@ -471,15 +498,15 @@ export default function VehiclesTab({
                                     </div>
                                   )}
                                 </div>
-                              )}
+                                );
+                              })()}
                             </div>
                           );
                         })}
                       </div>
                     )}
                   </div>
-                );
-              })()}
+              )}
             </div>
           ) : (
             <div className="bg-white p-12 rounded-2xl border border-slate-100 shadow-sm text-center flex flex-col items-center justify-center space-y-3 text-slate-400 h-full min-h-[400px]">

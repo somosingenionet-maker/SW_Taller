@@ -5,7 +5,7 @@ import { Sentry } from './lib/sentry';
 import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
-import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
+import { listOrdenesTablero, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
 import { listAlertas, renovarAlertaMantenimiento, forzarRecordatorio } from './lib/data/alertas';
 import { listNotificaciones, deleteNotificacion } from './lib/data/notificaciones';
 import { createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
@@ -53,6 +53,11 @@ export default function App() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [notificaciones, setNotificaciones] = useState<NotificacionCliente[]>([]);
+  // Alcance acotado (listOrdenesTablero: activas + entregadas de los
+  // últimos 30 días) — SOLO para el Tablero/Kanban de Taller, el único
+  // consumidor que queda de este estado compartido. Agenda/Vehículos/CRM/
+  // Facturas ya tienen su propia consulta puntual (ver lib/data/ordenes.ts)
+  // y no reciben este array — así no crece con el histórico de la empresa.
   const [ordenesTrabajo, setOrdenesTrabajo] = useState<OrdenTrabajo[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
@@ -145,7 +150,7 @@ export default function App() {
     setClientes(await listClientes());
   }, []);
   const recargarOrdenes = useCallback(async () => {
-    setOrdenesTrabajo(await listOrdenes());
+    setOrdenesTrabajo(await listOrdenesTablero());
   }, []);
   const recargarAlertas = useCallback(async () => {
     setAlertas(await listAlertas());
@@ -680,7 +685,6 @@ export default function App() {
             citas={citas}
             vehiculos={vehiculos}
             clientes={clientes}
-            ordenes={ordenesTrabajo}
             onAddCita={handleAddCita}
             onUpdateCita={handleUpdateCita}
             onDeleteCita={handleDeleteCita}
@@ -691,7 +695,6 @@ export default function App() {
         {activeTab === 'vehiculos' && (
           <VehiclesTab
             vehiculos={vehiculos}
-            ordenesTrabajo={ordenesTrabajo}
             onAddVehiculo={handleAddVehiculo}
             onUpdateVehiculo={handleUpdateVehiculo}
             onDeleteVehiculo={handleDeleteVehiculo}
@@ -717,7 +720,6 @@ export default function App() {
           <CrmTab
             clientes={clientes}
             vehiculos={vehiculos}
-            ordenesTrabajo={ordenesTrabajo}
             empresa={empresa}
             onAddCliente={handleAddCliente}
             onUpdateCliente={handleUpdateCliente}
@@ -751,7 +753,6 @@ export default function App() {
           <FacturasTab
             clientes={clientes}
             vehiculos={vehiculos}
-            ordenesTrabajo={ordenesTrabajo}
             empresa={empresa}
             onAddFactura={handleAddFactura}
             onUpdateFactura={handleUpdateFactura}

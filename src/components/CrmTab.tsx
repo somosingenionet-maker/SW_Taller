@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Cliente, InteraccionCliente, Vehiculo, OrdenTrabajo, Empresa } from '../types';
+import { useState, useMemo, useEffect } from 'react';
+import { Cliente, InteraccionCliente, Vehiculo, Empresa } from '../types';
 import {
   Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, PenTool, Car, Link2, Copy, RefreshCw, ShieldOff
 } from 'lucide-react';
@@ -7,11 +7,11 @@ import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
+import { contarClientesConOTAbierta } from '../lib/data/ordenes';
 
 interface CrmTabProps {
   clientes: Cliente[];
   vehiculos: Vehiculo[];
-  ordenesTrabajo: OrdenTrabajo[];
   empresa: Empresa;
   onAddCliente: (input: Omit<Cliente, 'id' | 'fechaRegistro' | 'interacciones'>) => Promise<Cliente>;
   onUpdateCliente: (cliente: Cliente) => Promise<Cliente>;
@@ -24,7 +24,6 @@ interface CrmTabProps {
 export default function CrmTab({
   clientes,
   vehiculos,
-  ordenesTrabajo,
   empresa,
   onAddCliente,
   onUpdateCliente,
@@ -37,6 +36,13 @@ export default function CrmTab({
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalCopiado, setPortalCopiado] = useState(false);
+
+  // Solo el conteo, calculado en el servidor — el KPI no necesita ninguna
+  // fila de ordenes_trabajo en el cliente.
+  const [clientesConOTAbierta, setClientesConOTAbierta] = useState(0);
+  useEffect(() => {
+    contarClientesConOTAbierta().then(setClientesConOTAbierta).catch(() => setClientesConOTAbierta(0));
+  }, []);
 
   const handleGenerarPortal = async () => {
     if (!selectedCliente) return;
@@ -228,10 +234,6 @@ export default function CrmTab({
       {(() => {
         const hoy = new Date();
         const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-        const estadosAbiertos: OrdenTrabajo['estado'][] = ['recibido', 'presupuesto', 'en_reparacion', 'listo'];
-        const clientesConOTAbierta = new Set(
-          ordenesTrabajo.filter(ot => estadosAbiertos.includes(ot.estado)).map(ot => ot.clienteId)
-        ).size;
         const nuevosEsteMes = clientes.filter(c => c.fechaRegistro >= inicioMes).length;
         return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

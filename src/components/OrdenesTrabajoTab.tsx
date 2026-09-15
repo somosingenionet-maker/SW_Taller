@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos, setPortalTokenTecnico } from '../lib/data/tecnicos';
-import { getOrden, buscarOrdenes, OrdenListaRow } from '../lib/data/ordenes';
+import { getOrden, buscarOrdenes, siguienteNumeroOT, OrdenListaRow } from '../lib/data/ordenes';
 import { supabase } from '../lib/supabase';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
@@ -541,7 +541,15 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       return;
     }
     const { subtotal, totalIva, total } = calcTotals(formLineas, otForm.ivaPct);
-    const nextNum = 'OT-' + new Date().getFullYear() + '-' + String(ordenes.length + 1).padStart(3, '0');
+    setGuardandoOT(true);
+    let nextNum: string;
+    try {
+      nextNum = await siguienteNumeroOT();
+    } catch {
+      setFormError('No se pudo generar el número de OT. Inténtalo de nuevo.');
+      setGuardandoOT(false);
+      return;
+    }
     const ot: OrdenTrabajo = {
       id: 'ot-' + Date.now(),
       numero: nextNum,
@@ -568,7 +576,6 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         fotosRecepcion: crearFotos,
       }),
     };
-    setGuardandoOT(true);
     try {
       // Se espera a que el guardado termine antes de cerrar el modal: si se
       // cierra de inmediato (como antes), la tarjeta no aparece en el Kanban
@@ -824,7 +831,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <ClipboardList size={20} className="text-blue-600" /> Órdenes de Trabajo
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">{ordenes.length} órdenes en total</p>
+          <p className="text-xs text-slate-400 mt-0.5">{ordenes.length} activas o entregadas hace poco</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 p-1 bg-slate-50 border border-slate-100 rounded-xl w-fit">

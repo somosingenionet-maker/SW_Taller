@@ -5,13 +5,13 @@ import {
 } from 'lucide-react';
 import { Cita, Vehiculo, Cliente, Tecnico, OrdenTrabajo, OTEstado, EventoOT } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
+import { getNumerosOT, siguienteNumeroOT } from '../lib/data/ordenes';
 import ConfirmDialog from './ConfirmDialog';
 
 interface Props {
   citas: Cita[];
   vehiculos: Vehiculo[];
   clientes: Cliente[];
-  ordenes: OrdenTrabajo[];
   onAddCita: (c: Omit<Cita, 'id'>) => void | Promise<Cita>;
   onUpdateCita: (id: string, cambios: Partial<Omit<Cita, 'id'>>) => void | Promise<Cita>;
   onDeleteCita: (id: string) => void | Promise<void>;
@@ -129,9 +129,20 @@ function seSolapan(a: [number, number], b: [number, number]): boolean {
   return a[0] < b[1] && b[0] < a[1];
 }
 
-export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCita, onUpdateCita, onDeleteCita, onCreateOT }: Props) {
+export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpdateCita, onDeleteCita, onCreateOT }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
+
+  // Solo se necesita el número (para "Convertida en OT {numero}") de las
+  // pocas citas que ya se convirtieron — no el histórico completo de OTs.
+  const [numerosOT, setNumerosOT] = useState<Record<string, string>>({});
+  const otIdsConvertidos = useMemo(
+    () => Array.from(new Set(citas.map(c => c.otId).filter((id): id is string => !!id))),
+    [citas]
+  );
+  useEffect(() => {
+    getNumerosOT(otIdsConvertidos).then(setNumerosOT).catch(() => setNumerosOT({}));
+  }, [otIdsConvertidos]);
 
   const [vista, setVista] = useState<Vista>('dia');
   const [selectedDay, setSelectedDay] = useState(() => new Date());
@@ -379,7 +390,7 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
                       </div>
                       {c.otId && (
                         <p className="text-[10px] text-teal-600 font-semibold mt-1">
-                          {ordenes.find((o) => o.id === c.otId)?.numero ? `Convertida en OT ${ordenes.find((o) => o.id === c.otId)?.numero}` : 'Convertida en OT'}
+                          {numerosOT[c.otId] ? `Convertida en OT ${numerosOT[c.otId]}` : 'Convertida en OT'}
                         </p>
                       )}
                     </div>
@@ -586,7 +597,6 @@ export default function AgendaTab({ citas, vehiculos, clientes, ordenes, onAddCi
           cita={convertirCita}
           vehiculos={vehiculos}
           clientes={clientes}
-          ordenes={ordenes}
           onCreateOT={onCreateOT}
           onConvertida={async (otId) => {
             await onUpdateCita(convertirCita.id, { estado: 'convertida', otId });
@@ -613,13 +623,12 @@ interface ConvertirModalProps {
   cita: Cita;
   vehiculos: Vehiculo[];
   clientes: Cliente[];
-  ordenes: OrdenTrabajo[];
   onCreateOT: (ot: OrdenTrabajo) => void | Promise<OrdenTrabajo>;
   onConvertida: (otId: string) => void | Promise<void>;
   onClose: () => void;
 }
 
-function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, onConvertida, onClose }: ConvertirModalProps) {
+function ConvertirEnOTModal({ cita, vehiculos, clientes, onCreateOT, onConvertida, onClose }: ConvertirModalProps) {
   const [vehiculoId, setVehiculoId] = useState(cita.vehiculoId ?? '');
   const [clienteId, setClienteId] = useState(cita.clienteId ?? '');
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
@@ -636,7 +645,7 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, ordenes, onCreateOT, on
 
     setSaving(true);
     try {
-      const nextNum = 'OT-' + new Date().getFullYear() + '-' + String(ordenes.length + 1).padStart(3, '0');
+      const nextNum = await siguienteNumeroOT();
       const ot: OrdenTrabajo = {
         id: 'ot-' + Date.now(),
         numero: nextNum,

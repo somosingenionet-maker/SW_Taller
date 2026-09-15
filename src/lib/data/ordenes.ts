@@ -158,6 +158,30 @@ export async function listOrdenes(): Promise<OrdenTrabajo[]> {
   return (data ?? []).map((r) => mapOrden(r as unknown as OrdenRow));
 }
 
+const TABLERO_ENTREGADO_DIAS = 30;
+
+/**
+ * Datos completos (líneas + historial) para el Tablero (Kanban) — a
+ * diferencia de listOrdenes(), no crece con el histórico de la empresa:
+ * presupuesto/recibido/en_reparación/listo están naturalmente acotados (lo
+ * que hay físicamente en curso), y "entregado" se limita a los últimos 30
+ * días para no arrastrar años de entregas ya cerradas en una columna que
+ * solo tiene sentido como "lo reciente".
+ */
+export async function listOrdenesTablero(): Promise<OrdenTrabajo[]> {
+  const corteEntregado = new Date(Date.now() - TABLERO_ENTREGADO_DIAS * 86400000).toISOString();
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .select(SELECT)
+    .or(
+      `estado.in.(presupuesto,recibido,en_reparacion,listo),` +
+      `and(estado.eq.entregado,updated_at.gte.${corteEntregado})`
+    )
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => mapOrden(r as unknown as OrdenRow));
+}
+
 export interface OrdenActiva {
   id: string;
   numero: string;
@@ -368,4 +392,121 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
 export async function deleteOrden(id: string): Promise<void> {
   const { error } = await supabase.from('ordenes_trabajo').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Siguiente número de OT ('OT-2026-047') calculado en el servidor a partir
+ * del conteo real — antes se calculaba en el cliente como
+ * `ordenes.length + 1`, lo cual solo funcionaba porque `ordenes` tenía
+ * SIEMPRE el histórico completo. En cuanto un consumidor pasa a tener una
+ * versión acotada, `.length` deja de ser el conteo real de la empresa y
+ * puede repetir un número ya usado (ordenes_trabajo.numero es unique: la
+ * creación fallaría).
+ */
+export async function siguienteNumeroOT(): Promise<string> {
+  const { data, error } = await supabase.rpc('siguiente_numero_ot');
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/** Numero de cada OT por id — para citas con `otId` que solo necesitan mostrar "Convertida en OT {numero}", sin traer el resto del histórico. */
+export async function getNumerosOT(ids: string[]): Promise<Record<string, string>> {
+  if (ids.length === 0) return {};
+  const { data, error } = await supabase.from('ordenes_trabajo').select('id, numero').in('id', ids);
+  if (error) throw new Error(error.message);
+  return Object.fromEntries((data ?? []).map((r) => [r.id as string, r.numero as string]));
+}
+
+export interface OrdenVehiculoRow {
+  id: string;
+  numero: string;
+  descripcionProblema: string;
+  estado: OTEstado;
+  fechaRecepcion: string;
+  total: number;
+  vehiculoId: string;
+}
+
+/**
+ * Historial de OTs de UN vehículo — a diferencia de listOrdenes(), se pide
+ * solo cuando el panel de detalle de ese vehículo está abierto, y sin
+ * líneas/eventos (VehiclesTab solo los necesita al expandir una OT concreta,
+ * ver getHistorialOT). El histórico de un vehículo es legítimamente
+ * multi-año (es su ficha de servicio), así que aquí no se acota por fecha.
+ */
+export async function listOrdenesPorVehiculo(vehiculoId: string): Promise<OrdenVehiculoRow[]> {
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .select('id, numero, descripcion_problema, estado, fecha_recepcion, total, vehiculo_id')
+    .eq('vehiculo_id', vehiculoId)
+    .order('updated_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    numero: r.numero as string,
+    descripcionProblema: r.descripcion_problema as string,
+    estado: r.estado as OTEstado,
+    fechaRecepcion: r.fecha_recepcion as string,
+    total: r.total as number,
+    vehiculoId: r.vehiculo_id as string,
+  }));
+}
+
+/** Historial de eventos de UNA OT — se pide solo al expandir esa OT concreta en la ficha del vehículo. */
+export async function getHistorialOT(otId: string): Promise<EventoOT[]> {
+  const { data, error } = await supabase
+    .from('eventos_ot')
+    .select('fecha, descripcion')
+    .eq('ot_id', otId)
+    .order('fecha');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((e) => ({ fecha: e.fecha as string, descripcion: e.descripcion as string }));
+}
+
+export interface OrdenFacturable {
+  id: string;
+  numero: string;
+  vehiculoId: string;
+  estado: OTEstado;
+  total: number;
+  lineas: LineaOT[];
+}
+
+/**
+ * OTs de UN vehículo listas para facturar (listo/entregado, con líneas) —
+ * usada solo por el modal "Nueva Factura". A diferencia de listOrdenes(),
+ * no trae eventos_ot (nunca se muestran ahí) y está acotada a un vehículo.
+ */
+type FacturableRow = {
+  id: string; numero: string; vehiculo_id: string; estado: string; total: number;
+  lineas_ot: LineaRow[] | null;
+};
+
+export async function listOrdenesFacturables(vehiculoId: string): Promise<OrdenFacturable[]> {
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .select(
+      'id, numero, vehiculo_id, estado, total, ' +
+      'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, notificado_cliente )'
+    )
+    .eq('vehiculo_id', vehiculoId)
+    .in('estado', ['listo', 'entregado']);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as FacturableRow[])
+    .map((r) => ({
+      id: r.id,
+      numero: r.numero,
+      vehiculoId: r.vehiculo_id,
+      estado: r.estado as OTEstado,
+      total: r.total,
+      lineas: (r.lineas_ot ?? []).slice().sort((a, b) => a.posicion - b.posicion).map(mapLinea),
+    }))
+    .filter((ot) => ot.lineas.length > 0);
+}
+
+/** Conteo de clientes distintos con una OT en curso — para el KPI "Con OT Abierta" del CRM, sin traer ninguna fila de ordenes_trabajo al cliente. */
+export async function contarClientesConOTAbierta(): Promise<number> {
+  const { data, error } = await supabase.rpc('contar_clientes_con_ot_abierta');
+  if (error) throw new Error(error.message);
+  return data as number;
 }

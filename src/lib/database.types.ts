@@ -1174,6 +1174,14 @@ export type Database = {
           total_count: number
         }[]
       }
+      siguiente_numero_ot: {
+        Args: never
+        Returns: string
+      }
+      contar_clientes_con_ot_abierta: {
+        Args: never
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
