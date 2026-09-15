@@ -4,7 +4,7 @@ import { supabase } from './lib/supabase';
 import { Sentry } from './lib/sentry';
 import { fetchPerfil, signOut } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
-import { listClientes, createCliente, updateCliente, deleteCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
+import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
 import { listOrdenes, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
 import { listAlertas, renovarAlertaMantenimiento, forzarRecordatorio } from './lib/data/alertas';
 import { listNotificaciones, deleteNotificacion } from './lib/data/notificaciones';
@@ -273,6 +273,12 @@ export default function App() {
   const handleDeleteCliente = useCallback(async (id: string) => {
     await deleteCliente(id);
     await recargarClientes();
+  }, [recargarClientes]);
+
+  const handleAnonymizeCliente = useCallback(async (id: string) => {
+    const actualizado = await anonymizeCliente(id);
+    await recargarClientes();
+    return actualizado;
   }, [recargarClientes]);
 
   const handleAddInteraccion = useCallback(async (cliId: string, input: { tipo: InteraccionCliente['tipo']; notas: string }) => {
@@ -716,6 +722,7 @@ export default function App() {
             onAddCliente={handleAddCliente}
             onUpdateCliente={handleUpdateCliente}
             onDeleteCliente={handleDeleteCliente}
+            onAnonymizeCliente={handleAnonymizeCliente}
             onAddInteraccion={handleAddInteraccion}
             onSetPortalToken={handleSetPortalToken}
           />

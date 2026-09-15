@@ -16,6 +16,7 @@ interface CrmTabProps {
   onAddCliente: (input: Omit<Cliente, 'id' | 'fechaRegistro' | 'interacciones'>) => Promise<Cliente>;
   onUpdateCliente: (cliente: Cliente) => Promise<Cliente>;
   onDeleteCliente: (id: string) => void | Promise<void>;
+  onAnonymizeCliente: (id: string) => Promise<Cliente>;
   onAddInteraccion: (clienteId: string, input: { tipo: InteraccionCliente['tipo']; notas: string }) => Promise<InteraccionCliente>;
   onSetPortalToken: (clienteId: string, token: string | null) => Promise<Cliente>;
 }
@@ -28,6 +29,7 @@ export default function CrmTab({
   onAddCliente,
   onUpdateCliente,
   onDeleteCliente,
+  onAnonymizeCliente,
   onAddInteraccion,
   onSetPortalToken
 }: CrmTabProps) {
@@ -97,6 +99,8 @@ export default function CrmTab({
   const [vehiculoSearch, setVehiculoSearch] = useState('');
   const [vehiculoSearchEdit, setVehiculoSearchEdit] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<{ isOpen: boolean; clienteId: string }>({ isOpen: false, clienteId: '' });
+  const [errorEliminar, setErrorEliminar] = useState<{ clienteId: string; mensaje: string } | null>(null);
+  const [anonymizando, setAnonymizando] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 8;
 
@@ -168,8 +172,29 @@ export default function CrmTab({
   const handleDeleteConfirm = async () => {
     const { clienteId } = confirmDelete;
     setConfirmDelete({ isOpen: false, clienteId: '' });
-    if (selectedCliente?.id === clienteId) setSelectedCliente(null);
-    await onDeleteCliente(clienteId);
+    try {
+      await onDeleteCliente(clienteId);
+      if (selectedCliente?.id === clienteId) setSelectedCliente(null);
+    } catch (err) {
+      // El caso más común es que tenga facturas emitidas — por ley hay que
+      // conservarlas, así que se ofrece anonimizar sus datos personales en
+      // su lugar (las facturas guardan su propia copia congelada del
+      // cliente al emitir, así que anonimizar no les afecta).
+      setErrorEliminar({ clienteId, mensaje: err instanceof Error ? err.message : 'No se pudo eliminar el cliente.' });
+    }
+  };
+
+  const handleAnonymizeConfirm = async () => {
+    if (!errorEliminar) return;
+    const { clienteId } = errorEliminar;
+    setAnonymizando(true);
+    try {
+      const actualizado = await onAnonymizeCliente(clienteId);
+      setErrorEliminar(null);
+      if (selectedCliente?.id === clienteId) setSelectedCliente(actualizado);
+    } finally {
+      setAnonymizando(false);
+    }
   };
 
   const handleAddInteractionSubmit = async (e: React.FormEvent) => {
@@ -793,6 +818,16 @@ export default function CrmTab({
         variant="danger"
         onConfirm={handleDeleteConfirm}
         onCancel={() => setConfirmDelete({ isOpen: false, clienteId: '' })}
+      />
+
+      <ConfirmDialog
+        isOpen={!!errorEliminar}
+        title="No se puede borrar — ¿anonimizar en su lugar?"
+        message={`No se pudo eliminar la ficha — probablemente porque tiene facturas emitidas u órdenes de trabajo asociadas, que hay que conservar. En su lugar puedes anonimizar sus datos personales — nombre, NIF, contacto y dirección se sustituyen por "Cliente eliminado", pero sus facturas ya emitidas y su historial de OTs quedan intactos.`}
+        confirmLabel={anonymizando ? 'Anonimizando…' : 'Sí, anonimizar'}
+        variant="warning"
+        onConfirm={handleAnonymizeConfirm}
+        onCancel={() => setErrorEliminar(null)}
       />
 
       {/* MODAL: EDIT CLIENT */}

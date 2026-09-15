@@ -123,6 +123,31 @@ export async function deleteCliente(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Borra los datos personales del cliente sin eliminar la ficha — para
+ * cuando pide el derecho al olvido (RGPD) pero tiene facturas emitidas que
+ * hay que conservar por ley. Seguro desde que las facturas guardan su
+ * propia copia congelada del cliente al emitir (ver
+ * cliente_*_snapshot en facturas): anonimizar aquí no les afecta.
+ * No toca las asociaciones con vehículos ni el historial de OTs — solo los
+ * campos que identifican a la persona.
+ */
+export async function anonymizeCliente(id: string): Promise<Cliente> {
+  const { error } = await supabase.from('clientes').update({
+    nombre: 'Cliente eliminado',
+    apellidos: '',
+    nif_nie_pasaporte: '',
+    correo: null,
+    telefono: null,
+    direccion: null,
+    ciudad: null,
+    pais: null,
+    portal_token: null,
+  }).eq('id', id);
+  if (error) throw new Error(error.message);
+  return getCliente(id);
+}
+
 export async function addInteraccion(
   clienteId: string,
   input: { tipo: InteraccionCliente['tipo']; notas: string; fecha?: string }
