@@ -3,7 +3,7 @@ import { Cita, Cliente, Vehiculo, Alerta, Perfil, ModuloId } from '../types';
 import { getFacturasResumen, FacturasResumen } from '../lib/data/facturas';
 import { listOrdenesActivas, OrdenActiva } from '../lib/data/ordenes';
 import {
-  CalendarClock, Wrench, Bell, Euro, AlertTriangle, Users, Car, ArrowRight, ClipboardList,
+  CalendarClock, Wrench, Bell, Euro, AlertTriangle, Users, Car, ArrowRight, ClipboardList, Home,
 } from 'lucide-react';
 
 interface Props {
@@ -101,10 +101,10 @@ export default function HomeTab({
     <div className="pb-6">
       <div className="flex items-baseline justify-between flex-wrap gap-2 mb-5">
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            {saludo()}, {currentUser.nombre.split(' ')[0]} 👋
-          </h1>
-          <p className="text-sm text-slate-500">{fechaLarga}</p>
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <Home size={20} className="text-blue-600" /> {saludo()}, {currentUser.nombre.split(' ')[0]} 👋
+          </h2>
+          <p className="text-xs text-slate-400 mt-0.5">{fechaLarga}</p>
         </div>
       </div>
 
