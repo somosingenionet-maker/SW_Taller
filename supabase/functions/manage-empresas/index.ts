@@ -11,6 +11,9 @@
 // el cliente vía RLS (el super admin tiene acceso total a `empresas`).
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { errorPassword, esSuperAdmin } from './logic.ts';
+import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
+
+initSentry('manage-empresas');
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -27,7 +30,7 @@ function json(body: unknown, status = 200) {
   });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(conSentry(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
   if (req.method !== 'POST') return json({ error: 'Método no soportado' }, 405);
 
@@ -129,6 +132,8 @@ Deno.serve(async (req) => {
 
     return json({ error: 'Acción no soportada.' }, 400);
   } catch (e) {
+    Sentry.captureException(e);
+    await Sentry.flush(2000);
     return json({ error: e instanceof Error ? e.message : 'Error inesperado' }, 500);
   }
-});
+}, CORS_HEADERS));

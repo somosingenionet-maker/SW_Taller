@@ -9,6 +9,9 @@
 //    filtro de "ya enviado" (es una orden explícita, puede reenviar).
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { TipoAlerta, TIPO_EVENTO, DIAS_AVISO_VENCIMIENTO, construirEmail, dentroDeVentanaAviso, type EmpresaEmail } from './logic.ts';
+import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
+
+initSentry('enviar-recordatorios');
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -132,6 +135,8 @@ async function manejarForzado(admin: SupabaseClient, req: Request, alertaId: str
     await enviarRecordatorioAlerta(admin, empresa, alerta, vehiculo, cliente);
     return json({ ok: true });
   } catch (e) {
+    Sentry.captureException(e);
+    await Sentry.flush(2000);
     return json({ error: e instanceof Error ? e.message : 'Error inesperado enviando el recordatorio.' }, 500);
   }
 }
@@ -197,17 +202,24 @@ async function manejarLote(admin: SupabaseClient) {
         } catch (e) {
           resumen.fallidos++;
           resumen.errores.push(`alerta ${alerta.id}: ${e instanceof Error ? e.message : String(e)}`);
+          // Solo se encola aquí (sin flush) para no meter una espera de hasta
+          // 2s por cada alerta fallida dentro del bucle del lote — se manda
+          // todo junto justo antes de responder.
+          Sentry.captureException(e);
         }
       }
     }
 
+    if (resumen.fallidos > 0) await Sentry.flush(2000);
     return json(resumen);
   } catch (e) {
+    Sentry.captureException(e);
+    await Sentry.flush(2000);
     return json({ error: e instanceof Error ? e.message : 'Error inesperado', ...resumen }, 500);
   }
 }
 
-Deno.serve(async (req) => {
+Deno.serve(conSentry(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
   if (req.method !== 'POST') return json({ error: 'Método no soportado' }, 405);
 
@@ -228,4 +240,4 @@ Deno.serve(async (req) => {
     return json({ error: 'No autorizado' }, 401);
   }
   return manejarLote(admin);
-});
+}, CORS_HEADERS));

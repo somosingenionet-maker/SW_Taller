@@ -10,6 +10,9 @@
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { Tecnico, puedeMarcarTarea, debeIniciarReparacion, formatearOrdenesPortal } from './logic.ts';
 import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
+import { initSentry, conSentry } from '../_shared/sentry.ts';
+
+initSentry('portal-mecanico');
 
 // Límite por IP: generoso para un uso normal (un técnico recargando o
 // marcando varias tareas), suficiente para frenar fuerza bruta del token o
@@ -111,7 +114,7 @@ async function manejarMarcarTarea(admin: SupabaseClient, tecnico: Tecnico, linea
   return json({ ok: true });
 }
 
-Deno.serve(async (req) => {
+Deno.serve(conSentry(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
   if (req.method !== 'POST') return json({ error: 'Método no soportado' }, 405);
 
@@ -147,4 +150,4 @@ Deno.serve(async (req) => {
   }
 
   return manejarGet(admin, tecnico);
-});
+}, CORS_HEADERS));
