@@ -8,6 +8,7 @@
 //    Bearer <token de usuario>), y no respeta la ventana de aviso ni el
 //    filtro de "ya enviado" (es una orden explícita, puede reenviar).
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { TipoAlerta, TIPO_EVENTO, DIAS_AVISO_VENCIMIENTO, construirEmail, dentroDeVentanaAviso, type EmpresaEmail } from './logic.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -20,10 +21,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
 };
 
-// Ventanas de aviso: cuántos días/km antes del vencimiento se manda el recordatorio del lote.
-const DIAS_AVISO_VENCIMIENTO = 14;
-const KM_AVISO_MANTENIMIENTO = 500;
-
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -31,164 +28,13 @@ function json(body: unknown, status = 200) {
   });
 }
 
-type TipoAlerta = 'itv' | 'seguro' | 'impuesto' | 'mantenimiento';
-type TipoEvento = 'itv_proxima' | 'vencimiento_seguro' | 'impuesto_proximo' | 'mantenimiento_preventivo';
-
-const TIPO_EVENTO: Record<TipoAlerta, TipoEvento> = {
-  itv: 'itv_proxima',
-  seguro: 'vencimiento_seguro',
-  impuesto: 'impuesto_proximo',
-  mantenimiento: 'mantenimiento_preventivo',
-};
-
-const ASUNTO: Record<TipoAlerta, string> = {
-  itv: 'Recordatorio: ITV próxima a vencer',
-  seguro: 'Recordatorio: su seguro está próximo a vencer',
-  impuesto: 'Recordatorio: impuesto de circulación próximo a vencer',
-  mantenimiento: 'Recordatorio: mantenimiento preventivo recomendado',
-};
-
-const ICONO_TIPO: Record<TipoAlerta, string> = {
-  itv: '📋',
-  seguro: '🛡️',
-  impuesto: '🚗',
-  mantenimiento: '🔧',
-};
-
-const ETIQUETA_TIPO: Record<TipoAlerta, string> = {
-  itv: 'ITV',
-  seguro: 'Seguro',
-  impuesto: 'Impuesto de circulación',
-  mantenimiento: 'Mantenimiento',
-};
-
-const BRAND_COLOR_DEFAULT = '#2563eb';
-
-/** Duplicado de src/utils/color.ts — Deno no puede importar código del frontend. */
-function contrastText(hex: string): string {
-  try {
-    const c = hex.replace('#', '');
-    const r = parseInt(c.slice(0, 2), 16) / 255;
-    const g = parseInt(c.slice(2, 4), 16) / 255;
-    const b = parseInt(c.slice(4, 6), 16) / 255;
-    const toLinear = (v: number) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
-    const lum = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-    const onWhite = 1.05 / (lum + 0.05);
-    const onBlack = (lum + 0.05) / 0.05;
-    return onWhite > onBlack ? '#ffffff' : '#000000';
-  } catch {
-    return '#ffffff';
-  }
-}
-
-// Textos por defecto — duplicado en src/utils/recordatorioTemplates.ts
-// (Deno no puede importar código del frontend). Mantener ambos en sincronía.
-const PLANTILLA_DEFAULT: Record<TipoAlerta, string> = {
-  itv: 'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte que la ITV de tu vehículo {{vehiculo}} vence el {{fecha}}.\n\nContacta con nosotros para programar tu cita cuando te venga bien.',
-  seguro: 'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte que el seguro de tu vehículo {{vehiculo}} vence el {{fecha}}.\n\nContacta con nosotros si necesitas ayuda con la renovación.',
-  impuesto: 'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte que el impuesto de circulación de tu vehículo {{vehiculo}} vence el {{fecha}}.',
-  mantenimiento: 'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte que tu vehículo {{vehiculo}} tiene una revisión de mantenimiento preventivo recomendada a los {{km}} km.\n\nContacta con nosotros para programar tu cita cuando te venga bien.',
-};
-
-function sustituirVariables(texto: string, valores: Record<string, string>): string {
-  return texto.replace(/\{\{(\w+)\}\}/g, (match, key) => valores[key] ?? match);
-}
-
-type Empresa = {
-  id: string;
-  nombre: string;
-  plantillas_recordatorios: Partial<Record<TipoAlerta, string>> | null;
-  // Nunca se usa logo_base64 aquí: incrustar un logo en base64 en el HTML del
-  // correo es una señal clásica de spam para Gmail y similares — se usa la
-  // URL pública de Storage (logo_url) en su lugar, o directamente sin logo.
-  logo_url: string | null;
-  brand_color: string | null;
-  correo: string | null;
-  telefono: string | null;
-  web: string | null;
-};
+// Nunca se usa logo_base64 aquí: incrustar un logo en base64 en el HTML del
+// correo es una señal clásica de spam para Gmail y similares — se usa la
+// URL pública de Storage (logo_url) en su lugar, o directamente sin logo.
+type Empresa = EmpresaEmail;
 type Vehiculo = { id: string; marca: string; modelo: string; matricula: string; kilometraje: number };
 type Cliente = { id: string; nombre: string; apellidos: string; correo: string | null };
 type Alerta = { id: string; tipo: string; fecha_limite: string | null; kilometraje_limite: number | null };
-
-function construirEmail(
-  tipo: TipoAlerta,
-  empresa: Empresa,
-  cliente: { nombre: string; apellidos: string },
-  vehiculo: { marca: string; modelo: string; matricula: string },
-  alerta: { fecha_limite: string | null; kilometraje_limite: number | null },
-): { asunto: string; html: string } {
-  const vehiculoDesc = `${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.matricula})`;
-  const plantilla = empresa.plantillas_recordatorios?.[tipo]?.trim() || PLANTILLA_DEFAULT[tipo];
-
-  const cuerpo = sustituirVariables(plantilla, {
-    cliente: cliente.nombre,
-    vehiculo: vehiculoDesc,
-    empresa: empresa.nombre,
-    fecha: alerta.fecha_limite ? new Date(alerta.fecha_limite).toLocaleDateString('es-ES') : '',
-    km: alerta.kilometraje_limite != null ? alerta.kilometraje_limite.toLocaleString('es-ES') : '',
-  });
-
-  const color = empresa.brand_color?.trim() || BRAND_COLOR_DEFAULT;
-  const textoSobreColor = contrastText(color);
-  const detalle = tipo === 'mantenimiento'
-    ? (alerta.kilometraje_limite != null ? `${alerta.kilometraje_limite.toLocaleString('es-ES')} km` : '')
-    : (alerta.fecha_limite ? new Date(alerta.fecha_limite).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '');
-
-  const contacto = [empresa.correo, empresa.telefono, empresa.web].filter(Boolean).join(' · ');
-
-  const html = `
-<div style="background-color:#f1f5f9; padding:32px 16px; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px; margin:0 auto; background-color:#ffffff; border-radius:16px; overflow:hidden; border:1px solid #e2e8f0;">
-    <tr>
-      <td style="background-color:${color}; padding:24px 28px;">
-        <table role="presentation" cellpadding="0" cellspacing="0">
-          <tr>
-            ${empresa.logo_url ? `<td style="padding-right:12px;"><img src="${empresa.logo_url}" alt="${empresa.nombre}" height="36" style="height:36px; width:auto; display:block; border-radius:8px;" /></td>` : ''}
-            <td style="color:${textoSobreColor}; font-size:17px; font-weight:700; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-              ${empresa.nombre}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:32px 28px 8px;">
-        <span style="display:inline-block; background-color:${color}1a; color:${color}; font-size:12px; font-weight:700; letter-spacing:0.02em; padding:4px 12px; border-radius:999px;">
-          ${ICONO_TIPO[tipo]}&nbsp; ${ETIQUETA_TIPO[tipo].toUpperCase()}
-        </span>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:16px 28px 0; color:#1e293b; font-size:15px; line-height:1.6; white-space:pre-line;">
-        ${cuerpo}
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:24px 28px 28px;">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
-          <tr>
-            <td style="padding:16px 18px;">
-              <div style="font-size:14px; font-weight:700; color:#1e293b;">${vehiculoDesc}</div>
-              ${detalle ? `<div style="font-size:13px; color:#64748b; margin-top:2px;">${tipo === 'mantenimiento' ? 'Kilometraje de aviso' : 'Vencimiento'}: ${detalle}</div>` : ''}
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:0 28px 28px; border-top:1px solid #f1f5f9;">
-        <p style="color:#94a3b8; font-size:12px; margin:20px 0 0;">
-          Este es un recordatorio automático de ${empresa.nombre}.${contacto ? ` ${contacto}` : ''}
-        </p>
-      </td>
-    </tr>
-  </table>
-</div>
-  `.trim();
-
-  return { asunto: `${ASUNTO[tipo]} — ${vehiculoDesc}`, html };
-}
 
 /** Construye el email, lo envía por Resend, registra la notificación y marca la alerta como recordada. Lanza si algo falla. */
 async function enviarRecordatorioAlerta(
@@ -330,15 +176,7 @@ async function manejarLote(admin: SupabaseClient) {
           if (!vehiculo) continue;
 
           const tipo = alerta.tipo as TipoAlerta;
-          let dentroDeVentana = false;
-          if (tipo === 'mantenimiento') {
-            if (alerta.kilometraje_limite == null) continue;
-            dentroDeVentana = alerta.kilometraje_limite - vehiculo.kilometraje <= KM_AVISO_MANTENIMIENTO;
-          } else {
-            if (!alerta.fecha_limite) continue;
-            dentroDeVentana = new Date(alerta.fecha_limite) <= limiteFecha;
-          }
-          if (!dentroDeVentana) continue;
+          if (!dentroDeVentanaAviso(tipo, alerta, vehiculo.kilometraje, limiteFecha)) continue;
 
           const { data: rel } = await admin
             .from('cliente_vehiculo')

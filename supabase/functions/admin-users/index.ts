@@ -11,6 +11,7 @@
 // El resto de campos del perfil (nombre, rol, módulos, activo) se editan
 // directamente desde el cliente vía la política RLS `perfiles_update_admin`.
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import { errorPassword, esRolAdmin, puedeGestionarEmpresa, esUltimoAdminDeEmpresa } from './logic.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -19,16 +20,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Política mínima de contraseña — debe mantenerse igual que
-// src/utils/password.ts (no se puede importar entre proyectos Deno/Vite).
-function errorPassword(password: string): string | null {
-  if (password.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-  if (!/[A-Z]/.test(password)) return 'La contraseña debe incluir al menos una mayúscula.';
-  if (!/[a-z]/.test(password)) return 'La contraseña debe incluir al menos una minúscula.';
-  if (!/[0-9]/.test(password)) return 'La contraseña debe incluir al menos un número.';
-  return null;
-}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -55,7 +46,7 @@ Deno.serve(async (req) => {
     .select('rol, empresa_id')
     .eq('id', callerId)
     .single();
-  if (perfilErr || !callerPerfil || !['admin', 'super_admin'].includes(callerPerfil.rol)) {
+  if (perfilErr || !callerPerfil || !esRolAdmin(callerPerfil.rol)) {
     return json({ error: 'Requiere permisos de administrador' }, 403);
   }
   const esSuperAdmin = callerPerfil.rol === 'super_admin';
@@ -121,7 +112,7 @@ Deno.serve(async (req) => {
         .single();
       if (targetErr || !target) return json({ error: 'Usuario no encontrado.' }, 404);
 
-      if (!esSuperAdmin && target.empresa_id !== callerPerfil.empresa_id) {
+      if (!puedeGestionarEmpresa(esSuperAdmin, callerPerfil.empresa_id, target.empresa_id)) {
         return json({ error: 'No puedes eliminar usuarios de otra empresa.' }, 403);
       }
 
@@ -133,7 +124,7 @@ Deno.serve(async (req) => {
           .eq('empresa_id', target.empresa_id)
           .neq('id', id);
         if (countErr) return json({ error: countErr.message }, 400);
-        if (!count) return json({ error: 'No puedes eliminar al último administrador de la empresa.' }, 400);
+        if (esUltimoAdminDeEmpresa(count)) return json({ error: 'No puedes eliminar al último administrador de la empresa.' }, 400);
       }
 
       const { error: delErr } = await admin.auth.admin.deleteUser(id);
@@ -156,7 +147,7 @@ Deno.serve(async (req) => {
           .eq('id', id)
           .single();
         if (targetErr || !target) return json({ error: 'Usuario no encontrado.' }, 404);
-        if (target.empresa_id !== callerPerfil.empresa_id) {
+        if (!puedeGestionarEmpresa(esSuperAdmin, callerPerfil.empresa_id, target.empresa_id)) {
           return json({ error: 'No puedes cambiar la contraseña de usuarios de otra empresa.' }, 403);
         }
       }
@@ -180,7 +171,7 @@ Deno.serve(async (req) => {
           .eq('id', id)
           .single();
         if (targetErr || !target) return json({ error: 'Usuario no encontrado.' }, 404);
-        if (target.empresa_id !== callerPerfil.empresa_id) {
+        if (!puedeGestionarEmpresa(esSuperAdmin, callerPerfil.empresa_id, target.empresa_id)) {
           return json({ error: 'No puedes cambiar el email de usuarios de otra empresa.' }, 403);
         }
       }

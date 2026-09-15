@@ -4,6 +4,14 @@
 // coincida con clientes.portal_token — a partir de ahí se usa la service
 // role para leer/escribir solo los datos de ESE cliente, nunca vía RLS.
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import {
+  Cliente,
+  puedeResponderPresupuesto,
+  calcularVehiculosAMostrar,
+  otActivaPorVehiculo,
+  presupuestosPendientes,
+  type OtCliente,
+} from './logic.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -19,8 +27,6 @@ function json(body: unknown, status = 200) {
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
 }
-
-type Cliente = { id: string; empresa_id: string; nombre: string; apellidos: string };
 
 async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
   const { data: empresa } = await admin
@@ -41,10 +47,6 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
   // cliente_vehiculo (p. ej. un vehículo de flota que factura otro contacto),
   // así que la lista de vehículos a mostrar sale de la UNIÓN de ambas fuentes
   // — nunca solo de cliente_vehiculo, o ese caso se queda sin nombre de vehículo.
-  type OtCliente = {
-    id: string; vehiculo_id: string; estado: string; fecha_estimada_entrega: string | null; created_at: string;
-    total: number; presupuesto_estado: string | null; presupuesto_aprobado: boolean | null;
-  };
   const { data: ordenesCliente } = await admin
     .from('ordenes_trabajo')
     .select('id, vehiculo_id, estado, fecha_estimada_entrega, created_at, total, presupuesto_estado, presupuesto_aprobado')
@@ -52,21 +54,15 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
     .order('created_at', { ascending: false });
   const ordenes = (ordenesCliente ?? []) as OtCliente[];
 
-  const activasEstados = new Set(['presupuesto', 'recibido', 'en_reparacion', 'listo']);
-  const activasVehiculoIds = ordenes.filter(o => activasEstados.has(o.estado)).map(o => o.vehiculo_id);
-  const vehiculoIds = [...new Set([...asociadosIds, ...activasVehiculoIds])];
+  const vehiculoIds = calcularVehiculosAMostrar(asociadosIds, ordenes);
 
   const { data: vehiculos } = vehiculoIds.length
     ? await admin.from('vehiculos').select('id, marca, modelo, matricula').in('id', vehiculoIds)
     : { data: [] };
 
-  // Solo la OT activa más reciente por vehículo (ordenes ya viene ordenado desc).
-  const otPorVehiculo = new Map<string, OtCliente>();
-  for (const ot of ordenes) {
-    if (activasEstados.has(ot.estado) && !otPorVehiculo.has(ot.vehiculo_id)) otPorVehiculo.set(ot.vehiculo_id, ot);
-  }
+  const otPorVehiculo = otActivaPorVehiculo(ordenes);
 
-  const presupuestosOt = ordenes.filter(o => o.presupuesto_estado === 'enviado' && o.presupuesto_aprobado == null);
+  const presupuestosOt = presupuestosPendientes(ordenes);
 
   const presupuestos = [];
   for (const ot of presupuestosOt) {
@@ -132,7 +128,7 @@ async function manejarResponderPresupuesto(admin: SupabaseClient, cliente: Clien
     .eq('id', otId)
     .maybeSingle();
   if (otErr || !ot) return json({ error: 'Presupuesto no encontrado.' }, 404);
-  if (ot.cliente_id !== cliente.id) return json({ error: 'No autorizado.' }, 403);
+  if (!puedeResponderPresupuesto(cliente, ot)) return json({ error: 'No autorizado.' }, 403);
   if (ot.presupuesto_estado !== 'enviado') return json({ error: 'Este presupuesto ya no está pendiente de respuesta.' }, 400);
 
   const { error: updErr } = await admin.from('ordenes_trabajo').update({ presupuesto_aprobado: aprobado }).eq('id', otId);
