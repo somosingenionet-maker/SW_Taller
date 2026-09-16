@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5174
+    },
+    {
+      "name": "e2e",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--mode", "e2e", "--port=3000", "--host=0.0.0.0"],
+      "port": 3000
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   CalendarClock, Plus, ChevronLeft, ChevronRight, X, Check, Trash2, Pencil,
-  Clock, User, Car, Wrench, AlertTriangle, ClipboardCheck, Ban, ArrowRightCircle,
+  Clock, User, Car, Wrench, AlertTriangle, ClipboardCheck, Ban, ArrowRightCircle, Loader2,
 } from 'lucide-react';
 import { Cita, Vehiculo, Cliente, Tecnico, OrdenTrabajo, OTEstado, EventoOT } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
@@ -186,10 +186,13 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
   // OTs que entran (o entraron) al taller en el rango visible — vengan de
   // una cita convertida o se hayan creado directo desde Taller.
   const [otsRecepcion, setOtsRecepcion] = useState<OrdenAgendaRow[]>([]);
+  const [otsRecepcionCargando, setOtsRecepcionCargando] = useState(true);
   useEffect(() => {
+    setOtsRecepcionCargando(true);
     listOrdenesPorRangoRecepcion(rangoVisible[0], rangoVisible[1])
       .then(setOtsRecepcion)
-      .catch(() => setOtsRecepcion([]));
+      .catch(() => setOtsRecepcion([]))
+      .finally(() => setOtsRecepcionCargando(false));
   }, [rangoVisible]);
 
   const otsDelDia = (key: string) => otsRecepcion.filter((o) => o.fechaRecepcion === key);
@@ -514,6 +517,16 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
 
       {/* Entradas al taller ese día — vengan de una cita convertida o de una OT creada directo desde Taller */}
       {(() => {
+        if (otsRecepcionCargando) {
+          return (
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+              <div className="px-5 py-4 flex items-center gap-2 text-slate-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span className="text-xs font-medium">Comprobando entradas al taller…</span>
+              </div>
+            </div>
+          );
+        }
         const ots = otsDelDia(localKey(selectedDay));
         if (ots.length === 0) return null;
         return (
