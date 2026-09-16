@@ -2238,7 +2238,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 {/* Printable content */}
                 <div className="flex-1 overflow-y-auto bg-slate-100 print:bg-white print:overflow-visible">
                   <div className="max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-2xl print:shadow-none print:rounded-none print:my-0 print:max-w-none">
-                    <div className="p-10 space-y-6 text-slate-800 font-sans">
+                    {/* box-decoration-break:clone repite el padding en cada
+                        página cuando el contenido no cabe en una hoja — si
+                        no, solo la primera lo tiene y las siguientes quedan
+                        pegadas arriba. */}
+                    <div className="p-10 space-y-6 text-slate-800 font-sans print:[box-decoration-break:clone] print:[-webkit-box-decoration-break:clone]">
 
                     {/* Header empresa — misma línea gráfica que facturas */}
                     <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">

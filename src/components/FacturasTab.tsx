@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, MessageCircle, Mail as MailIcon, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText } from 'lucide-react';
 import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa } from '../types';
 import {
   FacturasResumen, FacturaPeriodo, AgrupacionFacturas,
@@ -117,7 +117,11 @@ function FacturaPrintable({
 
   return (
     <div className={`max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-2xl print:shadow-none print:rounded-none print:my-0 print:max-w-none ${saltoDePagina ? 'print:break-after-page' : ''}`}>
-      <div className="p-10 space-y-6 text-slate-800 font-sans">
+      {/* box-decoration-break:clone repite el padding (el margen interno)
+          en cada página cuando el contenido no cabe en una hoja — si no,
+          solo la primera página lo tiene y las siguientes quedan pegadas
+          arriba. */}
+      <div className="p-10 space-y-6 text-slate-800 font-sans print:[box-decoration-break:clone] print:[-webkit-box-decoration-break:clone]">
         <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
           <div className="flex items-center gap-4">
             {empresa.logoBase64 && <img src={empresa.logoBase64} alt="Logo" className="h-14 object-contain" />}
@@ -842,12 +846,6 @@ export default function FacturasTab({
       {/* Visor de factura */}
       {viewingDoc && (() => {
         const f = viewingDoc;
-        const cli = clientes.find(c => c.id === f.clienteId);
-
-        const textoWA = `Hola ${cli?.nombre ?? ''},\n\nAdjuntamos la Factura ${numeroMostrado(f)} por importe de ${fmt(f.total)} €.\n\nPor favor, revísala y confírmanos la recepción.\n\nUn saludo,\n${empresa.nombre}`;
-        const telefonoWA = cli?.telefono?.replace(/\D/g, '') ?? '';
-        const waUrl = `https://wa.me/${telefonoWA}?text=${encodeURIComponent(textoWA)}`;
-        const mailUrl = `mailto:${cli?.correo ?? ''}?subject=${encodeURIComponent(`Factura ${numeroMostrado(f)} - ${empresa.nombre}`)}&body=${encodeURIComponent(textoWA)}`;
 
         return (
           <div className="fixed inset-0 z-50 bg-black/60 flex flex-col print:bg-white print:relative print:inset-auto">
@@ -860,16 +858,6 @@ export default function FacturasTab({
                 <button onClick={() => window.print()} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition cursor-pointer">
                   <Printer className="w-3.5 h-3.5" /> Descargar / Imprimir
                 </button>
-                {cli?.telefono && (
-                  <a href={waUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-xl transition">
-                    <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
-                  </a>
-                )}
-                {cli?.correo && (
-                  <a href={mailUrl} className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition">
-                    <MailIcon className="w-3.5 h-3.5" /> Email
-                  </a>
-                )}
                 <button onClick={() => setViewingDoc(null)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl transition cursor-pointer">
                   <X className="w-3.5 h-3.5" /> Cerrar
                 </button>
