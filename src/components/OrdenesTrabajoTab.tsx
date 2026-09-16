@@ -823,7 +823,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const totalesSelected = selected ? calcTotals(selected.lineas, selected.ivaPct) : null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
+    {/* Se envuelve solo la vista de lista/kanban (no el visor de presupuesto
+        de abajo) para que al imprimir un presupuesto no salga también esto. */}
+    <div className="flex flex-col gap-6 print:hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -2199,6 +2202,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         onConfirm={handleDeleteConfirmed}
         onCancel={() => setConfirmDelete(null)}
       />
+    </div>
 
       {/* PDF Presupuesto Modal */}
       <AnimatePresence>
@@ -2373,7 +2377,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
           onCreateProducto={onCreateProducto}
         />
       )}
-    </div>
+    </>
   );
 }
 
