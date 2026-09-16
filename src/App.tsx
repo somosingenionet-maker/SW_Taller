@@ -689,6 +689,7 @@ export default function App() {
             onUpdateCita={handleUpdateCita}
             onDeleteCita={handleDeleteCita}
             onCreateOT={handleAddOT}
+            onAddCliente={handleAddCliente}
           />
         )}
 

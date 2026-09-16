@@ -1182,6 +1182,20 @@ export type Database = {
         Args: never
         Returns: number
       }
+      ordenes_por_rango_recepcion: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: {
+          id: string
+          numero: string
+          estado: string
+          fecha_recepcion: string
+          vehiculo_marca: string
+          vehiculo_modelo: string
+          vehiculo_matricula: string
+          cliente_nombre: string
+          cliente_apellidos: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

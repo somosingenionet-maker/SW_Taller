@@ -537,3 +537,43 @@ export async function contarClientesConOTAbierta(): Promise<number> {
   if (error) throw new Error(error.message);
   return data as number;
 }
+
+export interface OrdenAgendaRow {
+  id: string;
+  numero: string;
+  estado: OTEstado;
+  fechaRecepcion: string;
+  vehiculoMarca: string;
+  vehiculoModelo: string;
+  vehiculoMatricula: string;
+  clienteNombre: string;
+  clienteApellidos: string;
+}
+
+type OrdenAgendaRowDb = {
+  id: string; numero: string; estado: string; fecha_recepcion: string;
+  vehiculo_marca: string; vehiculo_modelo: string; vehiculo_matricula: string;
+  cliente_nombre: string; cliente_apellidos: string;
+};
+
+/**
+ * OTs cuya fecha de recepción cae en el rango dado (activas o ya
+ * entregadas, nunca presupuestos ni canceladas) — para la Agenda: no
+ * importa si vinieron de una cita convertida o se crearon directo desde
+ * Taller, todo lo que va a entrar (o entró) al taller debe verse aquí.
+ */
+export async function listOrdenesPorRangoRecepcion(desde: string, hasta: string): Promise<OrdenAgendaRow[]> {
+  const { data, error } = await supabase.rpc('ordenes_por_rango_recepcion', { p_desde: desde, p_hasta: hasta });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as OrdenAgendaRowDb[]).map((r) => ({
+    id: r.id,
+    numero: r.numero,
+    estado: r.estado as OTEstado,
+    fechaRecepcion: r.fecha_recepcion,
+    vehiculoMarca: r.vehiculo_marca,
+    vehiculoModelo: r.vehiculo_modelo,
+    vehiculoMatricula: r.vehiculo_matricula,
+    clienteNombre: r.cliente_nombre,
+    clienteApellidos: r.cliente_apellidos,
+  }));
+}
