@@ -59,7 +59,10 @@ export async function listVehiculos(): Promise<Vehiculo[]> {
   const { data, error } = await supabase
     .from('vehiculos')
     .select(COLS)
-    .order('fecha_registro', { ascending: false });
+    // fecha_registro es solo la fecha (sin hora) — para que el más reciente
+    // quede primero incluso entre varios dados de alta el mismo día, se
+    // ordena por created_at, que sí tiene precisión de segundos.
+    .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapVehiculo(r as VehiculoRow));
 }

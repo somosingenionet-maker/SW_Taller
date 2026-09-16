@@ -90,17 +90,15 @@ export default function VehiclesTab({
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 8;
 
-  // Filter vehicles
+  // Filter vehicles — el orden (más reciente primero) ya viene de listVehiculos().
   const filteredVehiculos = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    return vehiculos
-      .filter(veh =>
-        veh.marca.toLowerCase().includes(term) ||
-        veh.modelo.toLowerCase().includes(term) ||
-        veh.matricula.toLowerCase().includes(term) ||
-        veh.bastidor.toLowerCase().includes(term)
-      )
-      .sort((a, b) => b.id.localeCompare(a.id));
+    return vehiculos.filter(veh =>
+      veh.marca.toLowerCase().includes(term) ||
+      veh.modelo.toLowerCase().includes(term) ||
+      veh.matricula.toLowerCase().includes(term) ||
+      veh.bastidor.toLowerCase().includes(term)
+    );
   }, [vehiculos, searchTerm]);
 
   const pagedVehiculos = useMemo(() => {

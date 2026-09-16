@@ -65,7 +65,10 @@ export async function listClientes(): Promise<Cliente[]> {
   const { data, error } = await supabase
     .from('clientes')
     .select(SELECT)
-    .order('fecha_registro', { ascending: false });
+    // fecha_registro es solo la fecha (sin hora) — para que el más reciente
+    // quede primero incluso entre varios dados de alta el mismo día, se
+    // ordena por created_at, que sí tiene precisión de segundos.
+    .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []).map((r) => mapCliente(r as unknown as ClienteRow));
 }

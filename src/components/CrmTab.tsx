@@ -110,16 +110,14 @@ export default function CrmTab({
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 8;
 
-  // Filters
-  const filteredClientes = clientes
-    .filter(cli =>
-      cli.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cli.apellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cli.nifNiePasaporte.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cli.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cli.telefono.includes(searchTerm)
-    )
-    .sort((a, b) => b.fechaRegistro.localeCompare(a.fechaRegistro));
+  // Filters — el orden (más reciente primero) ya viene de listClientes().
+  const filteredClientes = clientes.filter(cli =>
+    cli.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cli.apellidos.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cli.nifNiePasaporte.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cli.correo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cli.telefono.includes(searchTerm)
+  );
 
   const pagedClientes = filteredClientes.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
