@@ -673,7 +673,10 @@ export default function FacturasTab({
   );
 
   return (
-    <div className="space-y-5">
+    <>
+    {/* Se envuelve solo la vista de lista (no los visores/modales de abajo)
+        para que al imprimir una factura no salga también esta pantalla. */}
+    <div className="space-y-5 print:hidden">
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -814,6 +817,7 @@ export default function FacturasTab({
           </div>
         )}
       </div>
+    </div>
 
       {facturaModal.open && (
         <FacturaModal
@@ -911,6 +915,6 @@ export default function FacturasTab({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
