@@ -33,10 +33,6 @@ const ESTADO_COLOR: Record<OTEstado, string> = {
   cancelado: 'bg-rose-100 text-rose-600',
 };
 
-function fmt(n: number) {
-  return n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-}
-
 function fmtDec(n: number) {
   return n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
 }
@@ -227,7 +223,7 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Facturación"
-          value={fmt(facturacionActual)}
+          value={fmtDec(facturacionActual)}
           sub={`${entregadasActualCount} OTs entregadas`}
           delta={deltaFacturacion}
           icon={<TrendingUp className="w-4 h-4" />}
@@ -315,15 +311,15 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-400">Total facturado</span>
-                  <span className="font-semibold text-slate-700">{fmt(margenTipo.total)}</span>
+                  <span className="font-semibold text-slate-700">{fmtDec(margenTipo.total)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-400">Costo (mano de obra + productos)</span>
-                  <span className="font-semibold text-slate-700">{fmt(margenTipo.totalCosto)}</span>
+                  <span className="font-semibold text-slate-700">{fmtDec(margenTipo.totalCosto)}</span>
                 </div>
                 <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">Margen bruto</span>
-                  <span className="font-black text-slate-800">{fmt(margenTipo.margen)} <span className="text-slate-400 font-normal">({margenTipo.margenPct.toFixed(0)}%)</span></span>
+                  <span className="font-black text-slate-800">{fmtDec(margenTipo.margen)} <span className="text-slate-400 font-normal">({margenTipo.margenPct.toFixed(0)}%)</span></span>
                 </div>
               </div>
             </div>
@@ -381,7 +377,7 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
                     <p className="text-xs font-semibold text-slate-700 truncate">{t.nombre}</p>
                     <p className="text-[10px] text-slate-400">{t.ots} OTs · {fmtDec(t.facturado)}</p>
                   </div>
-                  <div className="text-xs font-bold text-slate-600 shrink-0">{fmt(t.facturado)}</div>
+                  <div className="text-xs font-bold text-slate-600 shrink-0">{fmtDec(t.facturado)}</div>
                 </div>
               ))}
             </div>
@@ -406,7 +402,7 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
                     <p className="text-xs font-semibold text-slate-700 truncate">{c.nombre}</p>
                     <p className="text-[10px] text-slate-400">{c.visitas} {c.visitas === 1 ? 'visita' : 'visitas'}</p>
                   </div>
-                  <div className="text-xs font-bold text-slate-600 shrink-0">{fmt(c.facturado)}</div>
+                  <div className="text-xs font-bold text-slate-600 shrink-0">{fmtDec(c.facturado)}</div>
                 </div>
               ))}
             </div>
