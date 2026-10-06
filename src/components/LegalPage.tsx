@@ -6,7 +6,7 @@ interface LegalPageProps {
 }
 
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '7 de septiembre de 2026';
+const ULTIMA_ACTUALIZACION = '6 de octubre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -185,6 +185,11 @@ function Privacidad() {
           de tus clientes (nombre, NIF/NIE, email, teléfono, dirección), vehículos, órdenes de trabajo y
           facturas.
         </p>
+        <p>
+          Datos de facturación electrónica: los registros de facturación de tus facturas (huella, número,
+          importes y estado del envío a la Agencia Tributaria) y, si activas el envío, el certificado
+          electrónico de tu empresa (archivo y contraseña), que se guarda cifrado.
+        </p>
         <p>Datos técnicos: dirección IP, tipo de navegador, y registros de error técnico.</p>
       </Section>
 
@@ -196,12 +201,19 @@ function Privacidad() {
           a los clientes que tú registras, cuando actives esa función.
         </p>
         <p>Facturación y cumplimiento de obligaciones fiscales y mercantiles.</p>
+        <p>
+          Remitir a la Agencia Tributaria (AEAT), por encargo tuyo y con tu certificado, los registros de
+          facturación de las facturas que emites (sistema VERI*FACTU), cuando actives el envío.
+        </p>
         <p>Seguridad, prevención de fraude y resolución de incidencias técnicas.</p>
       </Section>
 
       <Section title="5. Base legal">
         <p>Ejecución del contrato de prestación del servicio SaaS (art. 6.1.b RGPD).</p>
-        <p>Cumplimiento de obligaciones legales, en particular fiscales (art. 6.1.c).</p>
+        <p>
+          Cumplimiento de obligaciones legales, en particular fiscales (art. 6.1.c): entre ellas, la de los
+          obligados a expedir facturas de remitir sus registros de facturación a la AEAT.
+        </p>
         <p>Interés legítimo en la seguridad y mejora del servicio (art. 6.1.f).</p>
         <p>Consentimiento, cuando se solicite expresamente (por ejemplo, comunicaciones comerciales).</p>
       </Section>
@@ -217,6 +229,16 @@ function Privacidad() {
           <li><b>Resend</b> — envío de correos electrónicos (recuperación de contraseña, recordatorios automáticos).</li>
           <li><b>Sentry</b> — monitorización técnica de errores, configurada para no capturar datos personales identificativos por defecto.</li>
         </ul>
+        <p>
+          Además, si activas el envío de facturas, los registros de facturación se comunican a la{' '}
+          <b>Agencia Estatal de Administración Tributaria (AEAT)</b>. No es un proveedor nuestro: es una
+          comunicación que la normativa exige al obligado a emitir facturas (tú), y la hacemos en tu
+          nombre y con tu certificado.
+        </p>
+        <p>
+          Los datos que introduces en el servicio no se envían a servicios de inteligencia artificial ni se
+          utilizan para entrenar modelos.
+        </p>
         <p>
           Cuando alguno de estos proveedores esté ubicado fuera del Espacio Económico Europeo, la
           transferencia se ampara en las Cláusulas Contractuales Tipo de la Comisión Europea u otro
@@ -234,6 +256,11 @@ function Privacidad() {
         <p>
           Los datos que tú introduces sobre tus propios clientes se conservan según lo que tú
           determines, conforme a tu propia base legal y política de conservación.
+        </p>
+        <p>
+          Las facturas emitidas y sus registros de facturación son inalterables y no pueden eliminarse
+          mientras dure la obligación legal de conservarlos; si un cliente tuyo ejerce su derecho de
+          supresión, sus datos de contacto pueden anonimizarse, pero la factura se conserva.
         </p>
       </Section>
 
@@ -260,6 +287,11 @@ function Privacidad() {
           en la base de datos: cada taller solo puede acceder a sus propios datos.
         </p>
         <p>Contraseñas gestionadas y cifradas por el proveedor de autenticación, nunca en texto plano.</p>
+        <p>
+          El certificado electrónico que subes para el envío a la AEAT se cifra antes de guardarse
+          (AES-256) con una clave que se conserva aparte de la base de datos: no puede leerse desde ella
+          ni desde la aplicación, y solo lo usa el proceso que envía tus registros a la AEAT.
+        </p>
       </Section>
 
       <Section title="10. Menores de edad">
@@ -294,7 +326,8 @@ function Terminos() {
       <Section title="2. Objeto del servicio">
         <p>
           Doonty Motor es una plataforma de gestión para talleres mecánicos y de flotas: control de
-          vehículos, órdenes de trabajo, CRM de clientes, facturación e inventario.
+          vehículos, órdenes de trabajo, CRM de clientes, facturación (con envío de los registros a la
+        Agencia Tributaria) e inventario.
         </p>
       </Section>
 
@@ -330,7 +363,67 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="7. Planes, precios y facturación">
+      <Section title="7. Facturación electrónica y VERI*FACTU">
+        <p>
+          Doonty Motor es un sistema informático de facturación que funciona únicamente en la modalidad
+          VERI*FACTU: al emitir una factura, sus registros de facturación se envían a la Agencia
+          Tributaria (AEAT). InGenio, como productor del software, certifica su cumplimiento en la{' '}
+          <a href="/declaracion-responsable" className="text-blue-600 hover:underline">Declaración Responsable</a>.
+        </p>
+        <p>
+          <b>Quién responde de qué.</b> InGenio responde de que el software funcione conforme a esa
+          declaración (huella, encadenamiento, inalterabilidad de las facturas emitidas, código QR y
+          envío). Tú, como obligado a expedir facturas, eres responsable del contenido de tus facturas
+          (clientes, conceptos, importes, tipo de IVA y su correcta clasificación), de emitirlas y, en su
+          caso, anularlas cuando corresponda, de usar el sistema conforme a la normativa y de revisar el
+          estado del envío de cada factura.
+        </p>
+        <p>
+          <b>Certificado electrónico.</b> Para enviar tus registros a la AEAT hace falta un certificado
+          electrónico cualificado válido de tu empresa (o de quien la represente ante la AEAT). Al subirlo
+          nos autorizas a usarlo exclusivamente para remitir tus registros de facturación. Se guarda
+          cifrado y puedes retirarlo en cualquier momento, con lo que el envío se desactiva. Eres
+          responsable de que sea válido y esté vigente y de renovarlo: si caduca o lo revocas, no podremos
+          enviar tus facturas.
+        </p>
+        <p>
+          <b>Pruebas y producción.</b> Lo que se envía al entorno de Pruebas no tiene efectos fiscales.
+          Pasar a Producción es decisión tuya y, desde ese momento, cada factura que emitas queda
+          registrada en la AEAT con efectos reales.
+        </p>
+        <p>
+          Una factura emitida no se puede modificar ni borrar: los errores se corrigen mediante
+          anulación. Si la AEAT rechaza o no puede recibir un registro, lo reintentamos
+          automáticamente, pero no controlamos su disponibilidad ni sus decisiones, y un registro
+          rechazado puede impedir el envío de los siguientes hasta que se revise.
+        </p>
+        <p>
+          InGenio no presta asesoramiento fiscal, contable ni jurídico: consulta con tu asesor cómo
+          aplicar la normativa de facturación a tu actividad.
+        </p>
+      </Section>
+      
+      <Section title="8. Inteligencia artificial">
+        <p>
+          Doonty Motor no incorpora funciones de inteligencia artificial: no hay asistentes ni chatbots y
+          el servicio no genera contenidos con IA. Los datos que introduces en el servicio no se envían a
+          servicios de IA ni se utilizan para entrenar modelos.
+        </p>
+        <p>
+          Para desarrollar el software, InGenio utiliza herramientas de inteligencia artificial como
+          asistentes de programación y de redacción (también para parte de la documentación y de estos
+          documentos legales). Eso no cambia quién responde: el productor y responsable del servicio es
+          InGenio, con independencia de las herramientas empleadas para crearlo, y el software se somete
+          a pruebas automatizadas.
+        </p>
+        <p>
+          Si en el futuro incorporamos funciones de IA, te informaremos con claridad cuando interactúes
+          con ellas o veas contenidos generados con IA, conforme al Reglamento (UE) 2024/1689 (Reglamento
+          de IA).
+        </p>
+      </Section>
+
+      <Section title="9. Planes, precios y facturación">
         <p>
           Los precios y condiciones del plan contratado se comunican de forma individual. Nos
           reservamos el derecho a modificar los precios, avisando con antelación razonable antes de que
@@ -338,7 +431,7 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="8. Disponibilidad del servicio">
+      <Section title="10. Disponibilidad del servicio">
         <p>
           Hacemos un esfuerzo razonable por mantener el servicio disponible, pero no garantizamos una
           disponibilidad del 100&nbsp;%. Puede haber interrupciones programadas (mantenimiento) o no
@@ -346,7 +439,7 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="9. Propiedad intelectual">
+      <Section title="11. Propiedad intelectual">
         <p>
           El software, la marca, el diseño y el código de Doonty Motor son propiedad de InGenio. El uso
           del servicio no transfiere ningún derecho de propiedad intelectual sobre la plataforma. Los
@@ -354,16 +447,17 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="10. Limitación de responsabilidad">
+      <Section title="12. Limitación de responsabilidad">
         <p>
           En la medida permitida por la ley, InGenio no será responsable de daños indirectos, lucro
           cesante o pérdida de datos derivados del uso del servicio, salvo en casos de dolo o
-          negligencia grave. Te recomendamos exportar copias periódicas de tus datos (función CSV
+          negligencia grave. InGenio tampoco responde del contenido de las facturas que emites ni de las
+          consecuencias fiscales de datos o clasificaciones incorrectas introducidos por ti. Te recomendamos exportar copias periódicas de tus datos (función CSV
           disponible en varios módulos).
         </p>
       </Section>
 
-      <Section title="11. Duración y cancelación">
+      <Section title="13. Duración y cancelación">
         <p>
           Puedes solicitar la baja del servicio en cualquier momento escribiendo a{' '}
           <a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a>. Tras
@@ -372,14 +466,14 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="12. Modificación de los términos">
+      <Section title="14. Modificación de los términos">
         <p>
           Podemos actualizar estos términos para reflejar cambios legales o del servicio. Te avisaremos
           de cualquier cambio sustancial.
         </p>
       </Section>
 
-      <Section title="13. Ley aplicable y jurisdicción">
+      <Section title="15. Ley aplicable y jurisdicción">
         <p>
           Estos términos se rigen por la legislación española. Para cualquier controversia, las partes
           se someten a los juzgados y tribunales que correspondan conforme a la ley, sin perjuicio de
@@ -387,7 +481,7 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="14. Contacto">
+      <Section title="16. Contacto">
         <p><a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a></p>
       </Section>
     </>
