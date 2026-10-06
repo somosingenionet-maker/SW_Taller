@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { Factura, LineaDocumento } from '../../types';
+import type { EnvioAeat, EstadoEnvioAeat, Factura, LineaDocumento } from '../../types';
 import type { Database } from '../database.types';
 
 // empresa_id y numero los rellenan los triggers del servidor
@@ -12,11 +12,16 @@ const SELECT =
   'cliente_nombre_snapshot, cliente_apellidos_snapshot, cliente_nif_snapshot, cliente_correo_snapshot, ' +
   'cliente_telefono_snapshot, cliente_direccion_snapshot, cliente_ciudad_snapshot, cliente_pais_snapshot, ' +
   'lineas_factura ( id, descripcion, cantidad, precio_unitario, subtotal, posicion ), ' +
-  'factura_ot ( ot_id )';
+  'factura_ot ( ot_id ), ' +
+  'registros_facturacion ( secuencia, tipo, estado_envio, codigo_error, descripcion_error )';
 
 type LineaRow = {
   id: string; descripcion: string; cantidad: number; precio_unitario: number;
   subtotal: number; posicion: number;
+};
+export type RegistroEnvioRow = {
+  secuencia: number; tipo: 'alta' | 'anulacion'; estado_envio: string;
+  codigo_error: string | null; descripcion_error: string | null;
 };
 type FacturaRow = {
   id: string; numero: string; cliente_id: string; vehiculo_id: string | null;
@@ -29,6 +34,7 @@ type FacturaRow = {
   cliente_telefono_snapshot: string | null; cliente_direccion_snapshot: string | null;
   cliente_ciudad_snapshot: string | null; cliente_pais_snapshot: string | null;
   lineas_factura: LineaRow[] | null; factura_ot: { ot_id: string }[] | null;
+  registros_facturacion?: RegistroEnvioRow[] | null;
 };
 
 export function mapLinea(l: LineaRow): LineaDocumento {
@@ -39,6 +45,23 @@ export function mapLinea(l: LineaRow): LineaDocumento {
     precioUnitario: l.precio_unitario,
     subtotal: l.subtotal,
   };
+}
+
+// De peor a mejor: lo que más necesita atención manda sobre el resto.
+const PRIORIDAD_ENVIO: EstadoEnvioAeat[] = ['rechazado', 'error', 'pendiente', 'aceptado_con_errores', 'aceptado'];
+
+/**
+ * Una factura puede tener dos registros (el alta y, si se cancela, la anulación).
+ * Se resume en un solo estado: el que más atención requiere.
+ * Sin registros (borrador, o emitida antes de existir el registro de facturación) no hay estado.
+ */
+export function resumirEnvio(registros: RegistroEnvioRow[] | null | undefined): EnvioAeat | undefined {
+  if (!registros || registros.length === 0) return undefined;
+  const ordenados = registros.slice().sort((a, b) =>
+    PRIORIDAD_ENVIO.indexOf(a.estado_envio as EstadoEnvioAeat) - PRIORIDAD_ENVIO.indexOf(b.estado_envio as EstadoEnvioAeat));
+  const peor = ordenados[0];
+  const detalle = peor.descripcion_error ?? undefined;
+  return { estado: peor.estado_envio as EstadoEnvioAeat, ...(detalle ? { detalle } : {}) };
 }
 
 export function mapFactura(r: FacturaRow): Factura {
@@ -62,6 +85,7 @@ export function mapFactura(r: FacturaRow): Factura {
     hashAnterior: r.hash_anterior ?? undefined,
     qrUrl: r.qr_url ?? undefined,
     fechaEmisionHash: r.fecha_emision_hash ?? undefined,
+    envioAeat: resumirEnvio(r.registros_facturacion),
     clienteSnapshot: r.cliente_nombre_snapshot != null ? {
       nombre: r.cliente_nombre_snapshot,
       apellidos: r.cliente_apellidos_snapshot ?? '',

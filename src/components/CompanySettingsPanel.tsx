@@ -5,6 +5,7 @@ import { listTecnicos, createTecnico, updateTecnico, deleteTecnico, setPortalTok
 import { supabase } from '../lib/supabase';
 import { contrastText } from '../utils/color';
 import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioTemplates';
+import VerifactuSettings from './VerifactuSettings';
 
 interface Props {
   config: Empresa;
@@ -30,7 +31,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 ];
 
 /** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo/recordatorios/numeración de facturas se conservan). */
-const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura' | 'facturaMostrarQr'> = {
+const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura' | 'facturaMostrarQr' | 'verifactuEnvioActivo' | 'verifactuEntorno' | 'verifactuNumeroInstalacion'> = {
   nombre: 'Mi Empresa',
   tagline: '',
   razonSocial: '',
@@ -373,11 +374,15 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
                 </p>
               </section>
 
-              {/* Verificación VeriFactu */}
+              {/* Envío a la AEAT (VERI*FACTU) */}
+              <VerifactuSettings draft={draft} setDraft={setDraft} />
+
+              {/* QR de la factura */}
               <section className="space-y-2">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Verificación VeriFactu</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">QR de verificación</p>
                 <p className="text-[10px] text-slate-400 -mt-1">
-                  VeriFactu es obligatorio desde el 1 ene 2027 (empresas) / 1 jul 2027 (autónomos). Mientras tanto, el QR queda oculto por defecto en las facturas — actívalo solo cuando tu asesor confirme que el formato ya está validado.
+                  El QR remite a la AEAT, que solo puede confirmar la factura si ya la has enviado. Actívalo cuando el envío esté en
+                  Producción; en Pruebas déjalo desactivado, porque las facturas todavía no constan en la AEAT.
                 </p>
                 <label className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2.5 cursor-pointer">
                   <span className="text-xs text-slate-600">Mostrar QR de verificación en las facturas</span>

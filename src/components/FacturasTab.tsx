@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText } from 'lucide-react';
-import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa } from '../types';
+import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa, EnvioAeat } from '../types';
+import { dispararEnvioAeat } from '../lib/data/verifactu';
 import {
   FacturasResumen, FacturaPeriodo, AgrupacionFacturas,
   getFacturasResumen, getFacturasPorPeriodo, listFacturasPaginado, rangoDeClavePeriodo, listFacturas,
@@ -47,6 +48,24 @@ const TRANSICIONES_VALIDAS: Partial<Record<Factura['estado'], Factura['estado'][
   emitida: ['pagada', 'vencida', 'cancelada'],
   vencida: ['pagada', 'cancelada'],
 };
+
+const ENVIO_AEAT_ETIQUETA: Record<EnvioAeat['estado'], { texto: string; color: string }> = {
+  pendiente: { texto: 'AEAT: pendiente', color: 'bg-slate-100 text-slate-500' },
+  aceptado: { texto: 'AEAT: enviada', color: 'bg-emerald-100 text-emerald-700' },
+  aceptado_con_errores: { texto: 'AEAT: con avisos', color: 'bg-amber-100 text-amber-700' },
+  rechazado: { texto: 'AEAT: rechazada', color: 'bg-red-100 text-red-700' },
+  error: { texto: 'AEAT: reintentando', color: 'bg-amber-100 text-amber-700' },
+};
+
+/** Estado del envío de la factura a la AEAT; el detalle (qué ha dicho la AEAT) sale al pasar el ratón. */
+function EnvioAeatBadge({ envio }: { envio: EnvioAeat }) {
+  const e = ENVIO_AEAT_ETIQUETA[envio.estado];
+  return (
+    <span title={envio.detalle ?? e.texto} className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full ${e.color}`}>
+      {e.texto}
+    </span>
+  );
+}
 
 const fmt = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -598,10 +617,18 @@ export default function FacturasTab({
     recargarTodo();
   };
 
+  /** Pide el envío inmediato a la AEAT y, pasados unos segundos, vuelve a leer el estado para que se vea en la tabla. */
+  const enviarAeatYRefrescar = () => {
+    if (!empresa.verifactuEnvioActivo) return;
+    dispararEnvioAeat();
+    setTimeout(recargarTodo, 6000);
+  };
+
   const handleEmitirConfirmado = async () => {
     if (confirmEmitir) {
       await onEmitirFactura(confirmEmitir.id);
       recargarTodo();
+      enviarAeatYRefrescar();
     }
     setConfirmEmitir(null);
   };
@@ -614,6 +641,8 @@ export default function FacturasTab({
   const handleCambiarEstado = async (id: string, estado: Factura['estado']) => {
     await onCambiarEstadoFactura(id, estado);
     recargarTodo();
+    // Cancelar una factura emitida genera un registro de anulación que también se envía.
+    if (estado === 'cancelada') enviarAeatYRefrescar();
   };
 
   /** Misma tabla tanto para la vista sin agrupar como para cada grupo (semana/mes/año). */
@@ -638,6 +667,7 @@ export default function FacturasTab({
               <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fecha)}</td>
               <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fechaVencimiento)}</td>
               <td className="px-4 py-3">
+                <div className="flex flex-col items-start gap-1">
                 {transiciones.length > 0 ? (
                   <select
                     value={f.estado}
@@ -652,6 +682,10 @@ export default function FacturasTab({
                 ) : (
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADO_FACTURA_COLORS[f.estado]}`}>{ESTADO_FACTURA_LABELS[f.estado]}</span>
                 )}
+                {f.envioAeat && (empresa.verifactuEnvioActivo || f.envioAeat.estado !== 'pendiente') && (
+                  <EnvioAeatBadge envio={f.envioAeat} />
+                )}
+                </div>
               </td>
               <td className="px-4 py-3 text-xs font-bold text-slate-700">{fmt(f.total)} €</td>
               <td className="px-4 py-3">

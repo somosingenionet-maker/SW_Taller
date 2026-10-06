@@ -5,7 +5,7 @@ import type { Factura } from '../../types';
 // creación real del cliente Supabase, que falla en Node sin WebSocket.
 vi.mock('../supabase', () => ({ supabase: {} }));
 
-const { mapFactura, mapLinea, toRow, rangoDeClavePeriodo } = await import('./facturas');
+const { mapFactura, mapLinea, toRow, rangoDeClavePeriodo, resumirEnvio } = await import('./facturas');
 
 function facturaFixture(overrides: Partial<Factura> = {}): Factura {
   return {
@@ -96,5 +96,48 @@ describe('rangoDeClavePeriodo', () => {
 
   it('semana: cubre exactamente 7 días desde la clave (lunes)', () => {
     expect(rangoDeClavePeriodo('semana', '2026-09-14')).toEqual({ desde: '2026-09-14', hasta: '2026-09-21' });
+  });
+});
+
+describe('resumirEnvio', () => {
+  const reg = (estado: string, extra: Record<string, unknown> = {}) => ({
+    secuencia: 1, tipo: 'alta' as const, estado_envio: estado, codigo_error: null, descripcion_error: null, ...extra,
+  });
+
+  it('sin registros (borrador o anterior a VeriFactu) no hay estado', () => {
+    expect(resumirEnvio(undefined)).toBeUndefined();
+    expect(resumirEnvio(null)).toBeUndefined();
+    expect(resumirEnvio([])).toBeUndefined();
+  });
+
+  it('un alta aceptada es aceptada, sin detalle', () => {
+    expect(resumirEnvio([reg('aceptado')])).toEqual({ estado: 'aceptado' });
+  });
+
+  it('manda lo que más atención requiere: rechazado > error > pendiente > aceptado con errores > aceptado', () => {
+    expect(resumirEnvio([reg('aceptado'), reg('rechazado', { tipo: 'anulacion' })])?.estado).toBe('rechazado');
+    expect(resumirEnvio([reg('pendiente'), reg('error')])?.estado).toBe('error');
+    expect(resumirEnvio([reg('aceptado'), reg('pendiente', { tipo: 'anulacion' })])?.estado).toBe('pendiente');
+    expect(resumirEnvio([reg('aceptado'), reg('aceptado_con_errores')])?.estado).toBe('aceptado_con_errores');
+  });
+
+  it('conserva la descripción del problema de la AEAT para mostrarla', () => {
+    expect(resumirEnvio([reg('rechazado', { descripcion_error: 'Error 1100: Dato erróneo' })])).toEqual({
+      estado: 'rechazado',
+      detalle: 'Error 1100: Dato erróneo',
+    });
+  });
+
+  it('mapFactura incluye el estado del envío', () => {
+    const base = {
+      id: 'f', numero: 'FAC-0001', cliente_id: 'c', vehiculo_id: null, fecha: '2026-10-06', fecha_vencimiento: '2026-11-06',
+      estado: 'emitida', notas: '', subtotal: 100, iva_pct: 21, total_iva: 21, total: 121, hash: null, hash_anterior: null,
+      qr_url: null, fecha_emision_hash: null, created_at: '2026-10-06T00:00:00Z',
+      cliente_nombre_snapshot: null, cliente_apellidos_snapshot: null, cliente_nif_snapshot: null, cliente_correo_snapshot: null,
+      cliente_telefono_snapshot: null, cliente_direccion_snapshot: null, cliente_ciudad_snapshot: null, cliente_pais_snapshot: null,
+      lineas_factura: [], factura_ot: [],
+    };
+    expect(mapFactura({ ...base, registros_facturacion: [reg('aceptado')] }).envioAeat).toEqual({ estado: 'aceptado' });
+    expect(mapFactura(base).envioAeat).toBeUndefined();
   });
 });

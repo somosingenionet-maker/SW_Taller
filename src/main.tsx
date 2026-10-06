@@ -14,7 +14,10 @@ initSentry();
 // sesión: legales, el Portal del Cliente y el Portal del Mecánico) se
 // resuelven aquí por pathname antes de montar el resto de la aplicación.
 const path = window.location.pathname.replace(/\/+$/, '');
-const legalPage = path === '/privacidad' ? 'privacidad' : path === '/terminos' ? 'terminos' : null;
+const legalPage = path === '/privacidad' ? 'privacidad'
+  : path === '/terminos' ? 'terminos'
+  : path === '/declaracion-responsable' ? 'declaracion-responsable'
+  : null;
 const portalToken = path.startsWith('/portal/') ? path.slice('/portal/'.length) : null;
 const mecanicoToken = path.startsWith('/mecanico/') ? path.slice('/mecanico/'.length) : null;
 

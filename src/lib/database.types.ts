@@ -296,6 +296,9 @@ export type Database = {
           telefono: string
           ultimo_hash_factura: string | null
           updated_at: string
+          verifactu_entorno: string
+          verifactu_envio_activo: boolean
+          verifactu_numero_instalacion: string
           web: string
         }
         Insert: {
@@ -320,6 +323,9 @@ export type Database = {
           telefono?: string
           ultimo_hash_factura?: string | null
           updated_at?: string
+          verifactu_entorno?: string
+          verifactu_envio_activo?: boolean
+          verifactu_numero_instalacion?: string
           web?: string
         }
         Update: {
@@ -344,6 +350,9 @@ export type Database = {
           telefono?: string
           ultimo_hash_factura?: string | null
           updated_at?: string
+          verifactu_entorno?: string
+          verifactu_envio_activo?: boolean
+          verifactu_numero_instalacion?: string
           web?: string
         }
         Relationships: []
@@ -1105,6 +1114,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      certificado_verifactu_estado: {
+        Args: never
+        Returns: {
+          existe: boolean
+          titular_nif: string | null
+          titular_nombre: string | null
+          valido_desde: string | null
+          valido_hasta: string | null
+        }[]
+      }
       es_super_admin: { Args: never; Returns: boolean }
       estado_de_ot: { Args: { p_ot_id: string }; Returns: string }
       mi_empresa_id: { Args: never; Returns: string }

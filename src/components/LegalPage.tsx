@@ -1,7 +1,8 @@
 import { ArrowLeft } from 'lucide-react';
+import { PRODUCTOR, SISTEMA, declaracionCompleta } from '../legal/sistemaInformatico';
 
 interface LegalPageProps {
-  page: 'privacidad' | 'terminos';
+  page: 'privacidad' | 'terminos' | 'declaracion-responsable';
 }
 
 const CONTACTO = 'comercial@somosingenio.net';
@@ -13,6 +14,135 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="text-base font-extrabold text-slate-900 mb-2.5">{title}</h2>
       <div className="text-sm text-slate-600 leading-relaxed space-y-3">{children}</div>
     </section>
+  );
+}
+
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+function fechaLarga(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return m ? `${Number(m[3])} de ${MESES[Number(m[2]) - 1]} de ${m[1]}` : iso;
+}
+
+function Dato({ clave, children }: { clave: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">{clave}</p>
+      <p className="text-slate-800">{children}</p>
+    </div>
+  );
+}
+
+// Estructura y orden del artículo 15 de la Orden HAC/1177/2024: es la información
+// que debe contener la declaración responsable del productor del sistema.
+function DeclaracionResponsable() {
+  return (
+    <>
+      {!declaracionCompleta() && (
+        <div className="mb-7 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          <b>Borrador sin firmar.</b> La declaración se considera emitida cuando el productor la firma y se anota aquí
+          su fecha. Hasta entonces este documento no tiene valor como declaración responsable.
+        </div>
+      )}
+
+      <p className="text-sm text-slate-600 leading-relaxed mb-7">
+        Este documento recoge la información del sistema informático de facturación {SISTEMA.nombre} conforme al artículo 15 de la
+        Orden HAC/1177/2024, de 17 de octubre, que desarrolla las especificaciones técnicas, funcionales y de contenido del Reglamento
+        que establece los requisitos de los sistemas informáticos de facturación (Real Decreto 1007/2023, de 5 de diciembre).
+      </p>
+
+      <Section title="1. Datos del sistema informático y de su productor">
+        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+          <Dato clave="a) Nombre del sistema">{SISTEMA.nombre}</Dato>
+          <Dato clave="b) Código identificador del sistema">{SISTEMA.id}</Dato>
+          <Dato clave="c) Identificador completo de la versión">{`${SISTEMA.nombre} ${SISTEMA.version} (código ${SISTEMA.id})`}</Dato>
+        </div>
+        <div className="my-5">
+          <Dato clave="d) Componentes y funcionalidades">
+            {SISTEMA.nombre} es una aplicación web (SaaS) de gestión para talleres mecánicos y flotas que se usa desde el navegador.
+            Se compone de la aplicación web, una base de datos en la nube donde se generan y conservan las facturas, sus registros de facturación
+            y la huella encadenada, y funciones de servidor que remiten esos registros a la AEAT. No incluye componentes de hardware propios:
+            se ejecuta sobre infraestructura en la nube de terceros. Permite capturar los datos de facturación, expedir y consultar facturas
+            (con su código QR) y enviar los registros de facturación a la AEAT. Gestiona de forma independiente la facturación de cada empresa,
+            como si fueran sistemas de facturación distintos.
+          </Dato>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+          <Dato clave="e) ¿Funciona exclusivamente como VERI*FACTU?">Sí. {SISTEMA.nombre} funciona únicamente en la modalidad VERI*FACTU.</Dato>
+          <Dato clave="f) ¿Permite varios obligados tributarios?">
+            Sí. Permite llevar de forma independiente la facturación de varios obligados tributarios; cada uno cuenta con un número de instalación propio.
+          </Dato>
+          <Dato clave="g) Tipos de firma de los registros">
+            No aplica. Al funcionar solo como VERI*FACTU los registros no se firman electrónicamente: quedan autenticados al remitirse a la sede electrónica de la AEAT con el certificado electrónico cualificado del obligado.
+          </Dato>
+          <Dato clave="h) Razón social o nombre del productor">{PRODUCTOR.nombreRazon}</Dato>
+          <Dato clave="i) NIF del productor">{PRODUCTOR.nif}</Dato>
+          <Dato clave="j) Dirección postal de contacto">{PRODUCTOR.domicilio}</Dato>
+        </div>
+        <div className="mt-5">
+          <Dato clave="k) Declaración">
+            El productor hace constar que el sistema informático indicado, en la versión indicada, cumple con lo dispuesto en el artículo
+            29.2.j) de la Ley 58/2003, de 17 de diciembre, General Tributaria; en el Reglamento que establece los requisitos que deben
+            adoptar los sistemas y programas informáticos o electrónicos que soporten los procesos de facturación de empresarios y
+            profesionales, y la estandarización de formatos de los registros de facturación, aprobado por el Real Decreto 1007/2023, de 5 de
+            diciembre; en la Orden HAC/1177/2024, de 17 de octubre; y en la sede electrónica de la Agencia Estatal de Administración
+            Tributaria para todo aquello que complete las especificaciones de dicha orden.
+          </Dato>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4 mt-5">
+          <Dato clave="l) Fecha de firma">
+            {declaracionCompleta() ? fechaLarga(PRODUCTOR.fechaFirma) : 'Pendiente de firma'}
+          </Dato>
+          <Dato clave="l) Lugar de firma">{PRODUCTOR.lugarFirma}</Dato>
+          <Dato clave="Firmante">{PRODUCTOR.firmante}</Dato>
+        </div>
+      </Section>
+
+      <Section title="2. Información adicional">
+        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
+          <Dato clave="a) Otras formas de contacto">
+            Teléfono {PRODUCTOR.telefono} · Correo{' '}
+            <a href={`mailto:${PRODUCTOR.correo}`} className="text-blue-600 hover:underline">{PRODUCTOR.correo}</a>
+          </Dato>
+          <Dato clave="b) Direcciones de internet">
+            <a href={PRODUCTOR.web} className="text-blue-600 hover:underline">{PRODUCTOR.web}</a>
+            {' · '}
+            <a href="/declaracion-responsable" className="text-blue-600 hover:underline">Esta declaración y las de versiones anteriores</a>
+          </Dato>
+        </div>
+        <div className="mt-5">
+          <Dato clave="c) Cómo cumple el sistema las especificaciones">
+            <span className="block mb-2">
+              {SISTEMA.nombre} aborda el cumplimiento de la Orden HAC/1177/2024 en la gestión de las facturas y de sus registros de
+              facturación de la siguiente manera:
+            </span>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li>Al emitir una factura se genera su registro de facturación de alta y, si la factura se cancela, un registro de anulación.</li>
+              <li>
+                Cada registro lleva una huella SHA-256 (en hexadecimal y mayúsculas) calculada sobre los campos y en el orden que fija la
+                especificación técnica de la AEAT, y se encadena con la huella del registro anterior de la misma empresa.
+              </li>
+              <li>La numeración de las facturas es correlativa, sin huecos, y se asigna en el servidor en el momento de emitir.</li>
+              <li>
+                Una factura emitida no puede modificarse ni eliminarse, y los registros de facturación son inalterables: cualquier corrección se
+                hace mediante anulación. Los datos del cliente quedan congelados tal como estaban al emitir.
+              </li>
+              <li>
+                Las facturas incluyen el código QR con la URL de cotejo de la AEAT y las leyendas exigidas, con las dimensiones y el nivel de
+                corrección de errores que fija la norma.
+              </li>
+              <li>
+                Los registros se remiten automáticamente a la AEAT justo después de generarse, autenticándose con el certificado electrónico
+                cualificado de la empresa. Si el envío falla se reintenta de forma automática, respetando el tiempo de espera que indica la AEAT,
+                y el estado de cada envío se muestra en la propia factura.
+              </li>
+              <li>Al funcionar solo como VERI*FACTU no se firman los registros ni se genera un registro de eventos.</li>
+            </ul>
+          </Dato>
+        </div>
+      </Section>
+    </>
   );
 }
 
@@ -282,7 +412,7 @@ export default function LegalPage({ page }: LegalPageProps) {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-8 py-10">
-        <div className="flex gap-2 mb-6">
+        <div className="flex flex-wrap gap-2 mb-6">
           <a
             href="/privacidad"
             className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${page === 'privacidad' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
@@ -295,15 +425,25 @@ export default function LegalPage({ page }: LegalPageProps) {
           >
             Términos de Uso
           </a>
+          <a
+            href="/declaracion-responsable"
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${page === 'declaracion-responsable' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+          >
+            Declaración Responsable
+          </a>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-9">
           <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1.5">
-            {page === 'privacidad' ? 'Política de Privacidad' : 'Términos y Condiciones de Uso'}
+            {page === 'privacidad' ? 'Política de Privacidad' : page === 'terminos' ? 'Términos y Condiciones de Uso' : 'Declaración Responsable del Sistema Informático de Facturación'}
           </h1>
-          <p className="text-xs text-slate-400 font-semibold mb-8">Última actualización: {ULTIMA_ACTUALIZACION}</p>
+          <p className="text-xs text-slate-400 font-semibold mb-8">
+            {page === 'declaracion-responsable'
+              ? `${SISTEMA.nombre} · versión ${SISTEMA.version}`
+              : `Última actualización: ${ULTIMA_ACTUALIZACION}`}
+          </p>
 
-          {page === 'privacidad' ? <Privacidad /> : <Terminos />}
+          {page === 'privacidad' ? <Privacidad /> : page === 'terminos' ? <Terminos /> : <DeclaracionResponsable />}
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-8">

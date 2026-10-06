@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import type { AlertaTipo, Empresa } from '../../types';
 
 const SELECT =
-  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura, factura_mostrar_qr';
+  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura, factura_mostrar_qr, verifactu_envio_activo, verifactu_entorno, verifactu_numero_instalacion';
 
 type EmpresaRow = {
   id: string; nombre: string; tagline: string; razon_social: string; nif: string;
@@ -13,6 +13,9 @@ type EmpresaRow = {
   factura_prefijo: string;
   siguiente_numero_factura: number;
   factura_mostrar_qr: boolean;
+  verifactu_envio_activo: boolean;
+  verifactu_entorno: string;
+  verifactu_numero_instalacion: string;
 };
 
 function mapEmpresa(r: EmpresaRow): Empresa {
@@ -36,6 +39,9 @@ function mapEmpresa(r: EmpresaRow): Empresa {
     facturaPrefijo: r.factura_prefijo,
     siguienteNumeroFactura: r.siguiente_numero_factura,
     facturaMostrarQr: r.factura_mostrar_qr,
+    verifactuEnvioActivo: r.verifactu_envio_activo,
+    verifactuEntorno: r.verifactu_entorno === 'produccion' ? 'produccion' : 'pruebas',
+    verifactuNumeroInstalacion: r.verifactu_numero_instalacion,
   };
 }
 
@@ -59,6 +65,8 @@ function toRow(c: Partial<Empresa>) {
   if (c.facturaPrefijo !== undefined) row.factura_prefijo = c.facturaPrefijo;
   if (c.siguienteNumeroFactura !== undefined) row.siguiente_numero_factura = c.siguienteNumeroFactura;
   if (c.facturaMostrarQr !== undefined) row.factura_mostrar_qr = c.facturaMostrarQr;
+  if (c.verifactuEnvioActivo !== undefined) row.verifactu_envio_activo = c.verifactuEnvioActivo;
+  if (c.verifactuEntorno !== undefined) row.verifactu_entorno = c.verifactuEntorno;
   return row;
 }
 

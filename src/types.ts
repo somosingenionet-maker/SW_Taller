@@ -200,6 +200,12 @@ export interface Empresa {
   siguienteNumeroFactura: number;
   /** Muestra el QR de verificación VeriFactu en las facturas impresas/descargadas. Desactivado por defecto: VeriFactu no es obligatorio hasta 2027 y el formato del QR aún no está validado contra la especificación oficial de la AEAT. */
   facturaMostrarQr: boolean;
+  /** Envío automático de las facturas a la AEAT (VERI*FACTU). Requiere un certificado cargado. */
+  verifactuEnvioActivo: boolean;
+  /** `pruebas` envía al entorno de pruebas de la AEAT (no tiene validez fiscal); `produccion` es el real. */
+  verifactuEntorno: 'pruebas' | 'produccion';
+  /** Identificador único e inmutable de la instalación de esta empresa ante la AEAT. */
+  verifactuNumeroInstalacion: string;
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
@@ -228,6 +234,14 @@ export interface LineaDocumento {
   subtotal: number;
 }
 
+export type EstadoEnvioAeat = 'pendiente' | 'aceptado' | 'aceptado_con_errores' | 'rechazado' | 'error';
+
+export interface EnvioAeat {
+  estado: EstadoEnvioAeat;
+  /** Qué ha dicho la AEAT (o qué ha fallado) cuando el estado no es plenamente correcto. */
+  detalle?: string;
+}
+
 export interface Factura {
   id: string;
   numero: string;
@@ -251,6 +265,8 @@ export interface Factura {
   hashAnterior?: string;
   qrUrl?: string;
   fechaEmisionHash?: string;
+  /** Estado del envío a la AEAT; ausente en borradores y en facturas anteriores al registro de facturación. */
+  envioAeat?: EnvioAeat;
   /**
    * Copia congelada de los datos del cliente en el momento de emitir — solo
    * presente tras emitir (nunca en un borrador, que sigue resolviendo el
