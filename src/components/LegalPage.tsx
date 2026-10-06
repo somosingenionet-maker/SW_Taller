@@ -6,7 +6,7 @@ interface LegalPageProps {
 }
 
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '6 de octubre de 2026';
+const ULTIMA_ACTUALIZACION = '7 de octubre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -236,10 +236,6 @@ function Privacidad() {
           nombre y con tu certificado.
         </p>
         <p>
-          Los datos que introduces en el servicio no se envían a servicios de inteligencia artificial ni se
-          utilizan para entrenar modelos.
-        </p>
-        <p>
           Cuando alguno de estos proveedores esté ubicado fuera del Espacio Económico Europeo, la
           transferencia se ampara en las Cláusulas Contractuales Tipo de la Comisión Europea u otro
           mecanismo válido conforme al RGPD. No vendemos ni cedemos tus datos a terceros con fines
@@ -403,27 +399,7 @@ function Terminos() {
         </p>
       </Section>
       
-      <Section title="8. Inteligencia artificial">
-        <p>
-          Doonty Motor no incorpora funciones de inteligencia artificial: no hay asistentes ni chatbots y
-          el servicio no genera contenidos con IA. Los datos que introduces en el servicio no se envían a
-          servicios de IA ni se utilizan para entrenar modelos.
-        </p>
-        <p>
-          Para desarrollar el software, InGenio utiliza herramientas de inteligencia artificial como
-          asistentes de programación y de redacción (también para parte de la documentación y de estos
-          documentos legales). Eso no cambia quién responde: el productor y responsable del servicio es
-          InGenio, con independencia de las herramientas empleadas para crearlo, y el software se somete
-          a pruebas automatizadas.
-        </p>
-        <p>
-          Si en el futuro incorporamos funciones de IA, te informaremos con claridad cuando interactúes
-          con ellas o veas contenidos generados con IA, conforme al Reglamento (UE) 2024/1689 (Reglamento
-          de IA).
-        </p>
-      </Section>
-
-      <Section title="9. Planes, precios y facturación">
+      <Section title="8. Planes, precios y facturación">
         <p>
           Los precios y condiciones del plan contratado se comunican de forma individual. Nos
           reservamos el derecho a modificar los precios, avisando con antelación razonable antes de que
@@ -431,7 +407,7 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="10. Disponibilidad del servicio">
+      <Section title="9. Disponibilidad del servicio">
         <p>
           Hacemos un esfuerzo razonable por mantener el servicio disponible, pero no garantizamos una
           disponibilidad del 100&nbsp;%. Puede haber interrupciones programadas (mantenimiento) o no
@@ -439,7 +415,7 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="11. Propiedad intelectual">
+      <Section title="10. Propiedad intelectual">
         <p>
           El software, la marca, el diseño y el código de Doonty Motor son propiedad de InGenio. El uso
           del servicio no transfiere ningún derecho de propiedad intelectual sobre la plataforma. Los
@@ -447,7 +423,7 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="12. Limitación de responsabilidad">
+      <Section title="11. Limitación de responsabilidad">
         <p>
           En la medida permitida por la ley, InGenio no será responsable de daños indirectos, lucro
           cesante o pérdida de datos derivados del uso del servicio, salvo en casos de dolo o
@@ -457,7 +433,7 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="13. Duración y cancelación">
+      <Section title="12. Duración y cancelación">
         <p>
           Puedes solicitar la baja del servicio en cualquier momento escribiendo a{' '}
           <a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a>. Tras
@@ -466,14 +442,14 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="14. Modificación de los términos">
+      <Section title="13. Modificación de los términos">
         <p>
           Podemos actualizar estos términos para reflejar cambios legales o del servicio. Te avisaremos
           de cualquier cambio sustancial.
         </p>
       </Section>
 
-      <Section title="15. Ley aplicable y jurisdicción">
+      <Section title="14. Ley aplicable y jurisdicción">
         <p>
           Estos términos se rigen por la legislación española. Para cualquier controversia, las partes
           se someten a los juzgados y tribunales que correspondan conforme a la ley, sin perjuicio de
@@ -481,7 +457,7 @@ function Terminos() {
         </p>
       </Section>
 
-      <Section title="16. Contacto">
+      <Section title="15. Contacto">
         <p><a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a></p>
       </Section>
     </>
