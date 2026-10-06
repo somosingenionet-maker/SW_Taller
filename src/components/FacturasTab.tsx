@@ -85,14 +85,24 @@ function FacturaQR({ url }: { url: string }) {
 
   useEffect(() => {
     let mounted = true;
-    QRCode.toDataURL(url, { width: 110, margin: 1 })
+    // Nivel de corrección M y resolución alta: lo exige el art. 21 de la orden
+    // de la AEAT; el tamaño físico se fija en mm al imprimir (ver FacturaQR).
+    QRCode.toDataURL(url, { width: 480, margin: 2, errorCorrectionLevel: 'M' })
       .then((d) => { if (mounted) setDataUrl(d); })
       .catch(() => { /* si falla la generación, simplemente no se muestra el QR */ });
     return () => { mounted = false; };
   }, [url]);
 
   if (!dataUrl) return null;
-  return <img src={dataUrl} alt="Código QR de verificación VeriFactu" className="w-[110px] h-[110px] shrink-0" />;
+  // La norma pide entre 30x30 y 40x40 mm de código; 36 mm incluye el margen blanco del QR.
+  return (
+    <img
+      src={dataUrl}
+      alt="Código QR de verificación VeriFactu"
+      style={{ width: '36mm', height: '36mm' }}
+      className="shrink-0"
+    />
+  );
 }
 
 /**
@@ -220,9 +230,12 @@ function FacturaPrintable({
 
         {empresa.facturaMostrarQr && f.qrUrl && (
           <div className="flex items-center gap-4 border-t border-slate-200 pt-4">
-            <FacturaQR url={f.qrUrl} />
+            <div className="flex flex-col items-center text-center shrink-0 text-xs text-slate-700">
+              <p>QR tributario:</p>
+              <FacturaQR url={f.qrUrl} />
+              <p className="max-w-[40mm]">Factura verificable en la sede electrónica de la AEAT</p>
+            </div>
             <div className="text-[10px] text-slate-400 space-y-1 min-w-0">
-              <p className="font-bold text-slate-500">Factura verificable — VeriFactu</p>
               {f.hash && <p className="font-mono break-all">Huella: {f.hash}</p>}
             </div>
           </div>
