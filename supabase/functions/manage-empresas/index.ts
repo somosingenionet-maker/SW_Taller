@@ -12,6 +12,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { errorPassword, esSuperAdmin } from './logic.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
+import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
 
 initSentry('manage-empresas');
 
@@ -42,6 +43,7 @@ Deno.serve(conSentry(async (req) => {
   const { data: callerData, error: callerErr } = await admin.auth.getUser(token);
   if (callerErr || !callerData.user) return json({ error: 'Sesión inválida' }, 401);
   const callerId = callerData.user.id;
+  if (await falta2Factor(admin, token, callerId)) return json({ error: MENSAJE_2FACTOR }, 403);
 
   const { data: callerPerfil, error: perfilErr } = await admin
     .from('perfiles')

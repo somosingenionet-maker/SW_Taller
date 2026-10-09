@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, ChangeEvent } from 'react';
-import { Building2, Plus, Trash2, LogOut, Shield, Check, X, Users, Pencil, Image, Upload } from 'lucide-react';
+import { Building2, Plus, Trash2, LogOut, Shield, ShieldCheck, Check, X, Users, Pencil, Image, Upload } from 'lucide-react';
 import { Perfil } from '../types';
 import { listEmpresas, createEmpresaConAdmin, toggleEmpresaActivo, deleteEmpresa, NuevaEmpresaInput } from '../lib/data/empresa';
 import { updateUsuario, setUsuarioPassword, setUsuarioEmail } from '../lib/data/usuarios';
@@ -8,6 +8,7 @@ import { validarPassword, REQUISITOS_PASSWORD } from '../utils/password';
 import type { Empresa } from '../types';
 import ConfirmDialog from './ConfirmDialog';
 import AdminPanel from './AdminPanel';
+import SeguridadModal from './SeguridadModal';
 
 interface SuperAdminPanelProps {
   currentUser: Perfil;
@@ -27,6 +28,7 @@ interface FormState {
 const EMPTY_FORM: FormState = { nombre: '', nif: '', adminNombre: '', adminEmail: '', adminPassword: '' };
 
 export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }: SuperAdminPanelProps) {
+  const [seguridadOpen, setSeguridadOpen] = useState(false);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
@@ -153,6 +155,14 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
               </div>
               <span className="text-xs font-semibold hidden sm:block">{currentUser.nombre}</span>
               <Pencil className="w-3 h-3 opacity-60" />
+            </button>
+            <button
+              onClick={() => setSeguridadOpen(true)}
+              title="Seguridad de la cuenta"
+              aria-label="Seguridad de la cuenta"
+              className="p-2 rounded-2xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={onLogout}
@@ -341,6 +351,8 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
         onConfirm={handleDeleteConfirmed}
         onCancel={() => setConfirmDelete(null)}
       />
+
+      {seguridadOpen && <SeguridadModal onClose={() => setSeguridadOpen(false)} />}
 
       {manageEmpresa && (
         <AdminPanel

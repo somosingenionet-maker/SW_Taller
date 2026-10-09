@@ -10,6 +10,7 @@
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { TipoAlerta, TIPO_EVENTO, DIAS_AVISO_VENCIMIENTO, construirEmail, dentroDeVentanaAviso, type EmpresaEmail } from './logic.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
+import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
 
 initSentry('enviar-recordatorios');
 
@@ -84,6 +85,7 @@ async function manejarForzado(admin: SupabaseClient, req: Request, alertaId: str
 
   const { data: callerData, error: callerErr } = await admin.auth.getUser(token);
   if (callerErr || !callerData.user) return json({ error: 'Sesión inválida' }, 401);
+  if (await falta2Factor(admin, token, callerData.user.id)) return json({ error: MENSAJE_2FACTOR }, 403);
 
   const { data: callerPerfil, error: perfilErr } = await admin
     .from('perfiles')

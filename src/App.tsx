@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { contrastText } from './utils/color';
 import { supabase } from './lib/supabase';
 import { Sentry } from './lib/sentry';
-import { fetchPerfil, signOut } from './lib/auth';
+import type { Session } from '@supabase/supabase-js';
+import { fetchPerfil, signOut, mfaPendiente } from './lib/auth';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
 import { listOrdenesTablero, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
@@ -24,10 +25,12 @@ import AgendaTab from './components/AgendaTab';
 import HomeTab from './components/HomeTab';
 import LoginScreen from './components/LoginScreen';
 import ResetPasswordScreen from './components/ResetPasswordScreen';
+import MfaChallenge from './components/MfaChallenge';
+import SeguridadModal from './components/SeguridadModal';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminPanel from './components/SuperAdminPanel';
 import {
-  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home
+  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home, ShieldCheck
 } from 'lucide-react';
 import CompanySettingsPanel from './components/CompanySettingsPanel';
 
@@ -40,6 +43,9 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   // true mientras dura el flujo de "restablecer contraseña" (enlace del email de recuperación).
   const [passwordRecovery, setPasswordRecovery] = useState(false);
+  // true si la contraseña fue correcta pero falta el código de la verificación en dos pasos.
+  const [mfaRequerido, setMfaRequerido] = useState(false);
+  const [seguridadOpen, setSeguridadOpen] = useState(false);
 
   // Navigation
   const [activeTab, setActiveTab] = useState<TabId>('inicio');
@@ -66,11 +72,19 @@ export default function App() {
   useEffect(() => {
     let mounted = true;
 
-    const aplicarSesion = async (userId: string | undefined) => {
+    const aplicarSesion = async (session: Session | null) => {
+      const userId = session?.user.id;
       if (!userId) {
-        if (mounted) setCurrentUser(null);
+        if (mounted) { setCurrentUser(null); setMfaRequerido(false); }
         return;
       }
+      // Con la verificación en dos pasos activada, la sesión solo con contraseña no sirve:
+      // la base de datos tampoco le devolvería datos. Se pide el código antes de cargar nada.
+      if (mfaPendiente(session)) {
+        if (mounted) { setCurrentUser(null); setMfaRequerido(true); }
+        return;
+      }
+      if (mounted) setMfaRequerido(false);
       const perfil = await fetchPerfil(userId);
       if (!mounted) return;
       if (!perfil) {
@@ -97,8 +111,15 @@ export default function App() {
       setCurrentUser(perfil);
     };
 
-    supabase.auth.getSession().then(({ data }) => {
-      aplicarSesion(data.session?.user.id).finally(() => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      let sesion = data.session;
+      if (sesion) {
+        // El usuario guardado en el navegador puede no conocer un factor activado después
+        // en otro dispositivo: se refresca antes de decidir si hace falta el código.
+        const { data: u } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+        if (u.user) sesion = { ...sesion, user: u.user };
+      }
+      aplicarSesion(sesion).finally(() => {
         if (mounted) setAuthChecked(true);
       });
     });
@@ -109,7 +130,7 @@ export default function App() {
       // contraseña" en vez de entrar directo al panel con la contraseña
       // antigua todavía activa.
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true);
-      aplicarSesion(session?.user.id);
+      aplicarSesion(session);
     });
 
     return () => {
@@ -446,6 +467,9 @@ export default function App() {
     return <ResetPasswordScreen onDone={() => setPasswordRecovery(false)} />;
   }
 
+  // Contraseña correcta pero falta el código de la verificación en dos pasos.
+  if (mfaRequerido) return <MfaChallenge />;
+
   // Show login if no user
   if (!currentUser) {
     return <LoginScreen authError={authError} />;
@@ -534,6 +558,15 @@ export default function App() {
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${brandText}22`, color: brandText }}>ADMIN</span>
               )}
             </div>
+            <button
+              onClick={() => setSeguridadOpen(true)}
+              title="Seguridad de la cuenta"
+              aria-label="Seguridad de la cuenta"
+              className="p-2 rounded-full transition cursor-pointer"
+              style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+            </button>
             <button
               onClick={handleLogout}
               title="Cerrar sesión"
@@ -826,6 +859,8 @@ export default function App() {
         </div>
       </div>
     </div>
+
+      {seguridadOpen && <SeguridadModal onClose={() => setSeguridadOpen(false)} />}
 
       {settingsOpen && (
         <CompanySettingsPanel

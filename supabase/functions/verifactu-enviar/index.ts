@@ -38,6 +38,7 @@ import {
   type RegistroDb,
 } from './logic.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
+import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
 
 initSentry('verifactu-enviar');
 
@@ -279,6 +280,7 @@ Deno.serve(conSentry(async (req) => {
     if (!token) return json({ error: 'No autenticado' }, 401);
     const { data: userData, error: userErr } = await admin.auth.getUser(token);
     if (userErr || !userData.user) return json({ error: 'Sesión inválida' }, 401);
+    if (await falta2Factor(admin, token, userData.user.id)) return json({ error: MENSAJE_2FACTOR }, 403);
     const { data: perfil } = await admin.from('perfiles').select('empresa_id').eq('id', userData.user.id).single();
     if (!perfil?.empresa_id) return json({ error: 'Tu usuario no pertenece a ninguna empresa.' }, 403);
     if (!(await permitirPeticion(admin, `verifactu-enviar:${userData.user.id}`, 30, 60))) {

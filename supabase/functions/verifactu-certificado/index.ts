@@ -11,6 +11,7 @@ import { ErrorCertificado, leerP12 } from '../_shared/certificado.ts';
 import { normalizarNif } from '../_shared/verifactu.ts';
 import { permitirPeticion } from '../_shared/rateLimit.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
+import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
 
 initSentry('verifactu-certificado');
 
@@ -45,6 +46,7 @@ Deno.serve(conSentry(async (req) => {
   const { data: userData, error: userErr } = await admin.auth.getUser(token);
   if (userErr || !userData.user) return json({ error: 'Sesión inválida' }, 401);
   const userId = userData.user.id;
+  if (await falta2Factor(admin, token, userId)) return json({ error: MENSAJE_2FACTOR }, 403);
 
   const { data: perfil } = await admin.from('perfiles').select('rol, empresa_id').eq('id', userId).single();
   if (!perfil?.empresa_id || perfil.rol !== 'admin') {

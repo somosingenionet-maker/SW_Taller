@@ -293,6 +293,11 @@ function Privacidad() {
         </p>
         <p>Contraseñas gestionadas y cifradas por el proveedor de autenticación, nunca en texto plano.</p>
         <p>
+          Verificación en dos pasos opcional (aplicación autenticadora, TOTP) para cada usuario. Cuando un
+          usuario la activa, también la exigen la base de datos y las funciones del servidor: con solo la
+          contraseña no se puede acceder a los datos, ni siquiera llamando a la API directamente.
+        </p>
+        <p>
           El certificado electrónico que subes para el envío a la AEAT se cifra antes de guardarse
           (AES-256) con una clave que se conserva aparte de la base de datos: no puede leerse desde ella
           ni desde la aplicación, y solo lo usa el proceso que envía tus registros a la AEAT.
@@ -587,12 +592,14 @@ function EncargoTratamiento() {
           <li>Aislamiento de los datos de cada empresa mediante políticas de seguridad a nivel de fila en la base de datos, de modo que cada taller solo accede a los suyos.</li>
           <li>Control de acceso por roles dentro de cada empresa: solo el administrador gestiona usuarios, roles y la configuración de la empresa; los usuarios no pueden elevar sus propios permisos.</li>
           <li>Contraseñas gestionadas y almacenadas cifradas por el proveedor de autenticación, nunca en texto plano.</li>
+          <li>Verificación en dos pasos opcional (aplicación autenticadora, TOTP) para cada usuario; cuando está activada, se exige también en la base de datos y en las funciones del servidor, no solo en la pantalla.</li>
           <li>Cifrado (AES-256) del certificado electrónico que el Responsable sube para el envío a la AEAT, con una clave guardada aparte de la base de datos.</li>
           <li>Limitación de intentos en las funciones sensibles y monitorización de errores técnicos.</li>
           <li>Acceso del Encargado a los datos del Responsable limitado a lo necesario para prestar soporte y mantener el servicio.</li>
         </ul>
         <p>
-          El Responsable, por su parte, debe custodiar sus credenciales, dar de alta solo a personal
+          El Responsable, por su parte, debe custodiar sus credenciales, activar la verificación en dos
+          pasos de sus usuarios (especialmente los administradores), dar de alta solo a personal
           autorizado con el rol adecuado y darlo de baja cuando deje de serlo.
         </p>
       </Section>
