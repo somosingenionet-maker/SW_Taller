@@ -818,6 +818,8 @@ export default function App() {
               <a href="/terminos" className="hover:text-slate-300 underline underline-offset-2 transition">Términos</a>
               {' · '}
               <a href="/declaracion-responsable" className="hover:text-slate-300 underline underline-offset-2 transition">Declaración Responsable</a>
+              {' · '}
+              <a href="/encargo-de-tratamiento" className="hover:text-slate-300 underline underline-offset-2 transition">Encargo de tratamiento</a>
             </p>
           </div>
         </footer>

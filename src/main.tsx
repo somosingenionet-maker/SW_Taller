@@ -17,6 +17,7 @@ const path = window.location.pathname.replace(/\/+$/, '');
 const legalPage = path === '/privacidad' ? 'privacidad'
   : path === '/terminos' ? 'terminos'
   : path === '/declaracion-responsable' ? 'declaracion-responsable'
+  : path === '/encargo-de-tratamiento' ? 'encargo-de-tratamiento'
   : null;
 const portalToken = path.startsWith('/portal/') ? path.slice('/portal/'.length) : null;
 const mecanicoToken = path.startsWith('/mecanico/') ? path.slice('/mecanico/'.length) : null;

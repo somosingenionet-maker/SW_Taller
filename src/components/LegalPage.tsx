@@ -2,11 +2,18 @@ import { ArrowLeft } from 'lucide-react';
 import { PRODUCTOR, SISTEMA, declaracionCompleta } from '../legal/sistemaInformatico';
 
 interface LegalPageProps {
-  page: 'privacidad' | 'terminos' | 'declaracion-responsable';
+  page: 'privacidad' | 'terminos' | 'declaracion-responsable' | 'encargo-de-tratamiento';
 }
 
+const TITULOS: Record<LegalPageProps['page'], string> = {
+  privacidad: 'Política de Privacidad',
+  terminos: 'Términos y Condiciones de Uso',
+  'declaracion-responsable': 'Declaración Responsable del Sistema Informático de Facturación',
+  'encargo-de-tratamiento': 'Contrato de Encargo de Tratamiento de Datos',
+};
+
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '7 de octubre de 2026';
+const ULTIMA_ACTUALIZACION = '9 de octubre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -172,8 +179,10 @@ function Privacidad() {
           <b>b) Datos que tú introduces sobre tus propios clientes</b> (CRM, vehículos, órdenes de
           trabajo, facturas): aquí InGenio actúa como <b>encargado de tratamiento</b> por tu cuenta — tú
           sigues siendo responsable frente a tus clientes y debes contar con base legal para tratar sus
-          datos e informarles conforme a la normativa. Te recomendamos formalizar con nosotros un
-          contrato de encargado de tratamiento (art. 28 RGPD).
+          datos e informarles conforme a la normativa. Las condiciones de ese encargo (art. 28 RGPD) están
+          recogidas en nuestro{' '}
+          <a href="/encargo-de-tratamiento" className="text-blue-600 hover:underline">Contrato de encargo de tratamiento</a>,
+          que forma parte de los Términos de Uso.
         </p>
       </Section>
 
@@ -354,7 +363,9 @@ function Terminos() {
           Como taller, eres responsable de los datos personales de tus propios clientes que introduces
           en la plataforma. Garantizas contar con base legal para tratarlos y haber informado a tus
           clientes conforme a la normativa de protección de datos. InGenio actúa como encargado de
-          tratamiento respecto a estos datos, tal como se describe en nuestra{' '}
+          tratamiento respecto a estos datos, en los términos de nuestro{' '}
+          <a href="/encargo-de-tratamiento" className="text-blue-600 hover:underline">Contrato de encargo de tratamiento</a>
+          (art. 28 RGPD), que forma parte de estos Términos y se entiende aceptado con ellos, y de nuestra{' '}
           <a href="/privacidad" className="text-blue-600 hover:underline">Política de Privacidad</a>.
         </p>
       </Section>
@@ -464,6 +475,166 @@ function Terminos() {
   );
 }
 
+function EncargoTratamiento() {
+  return (
+    <>
+      <Section title="1. Partes y alcance">
+        <p>
+          Este contrato regula el tratamiento de datos personales que <b>Oscar Daniel Sánchez Saenz</b>
+          {' '}(marca comercial "Somos InGenio", NIF <b>Y5483982Z</b>, Calle Doctor Sapena 68, Elche, Alicante;
+          en adelante, el "<b>Encargado</b>") realiza por cuenta del taller o empresa que contrata Doonty
+          Motor (en adelante, el "<b>Responsable</b>"), conforme al artículo 28 del Reglamento (UE) 2016/679
+          (RGPD) y a la Ley Orgánica 3/2018.
+        </p>
+        <p>
+          Forma parte de los <a href="/terminos" className="text-blue-600 hover:underline">Términos de Uso</a> y
+          queda aceptado junto con ellos al crear la cuenta; no hace falta firmarlo aparte. Si necesitas una
+          copia firmada, escríbenos a{' '}
+          <a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a>.
+        </p>
+        <p>
+          Se aplica solo a los datos que el Responsable introduce sobre sus propios clientes y operaciones.
+          Los datos de la cuenta y de la empresa del propio Responsable (usuarios, datos fiscales) los trata
+          InGenio como responsable, según la{' '}
+          <a href="/privacidad" className="text-blue-600 hover:underline">Política de Privacidad</a>.
+        </p>
+      </Section>
+
+      <Section title="2. Objeto, naturaleza y finalidad">
+        <p>
+          El Encargado presta el servicio Doonty Motor (software de gestión de talleres y flotas, en modalidad
+          SaaS) y, para ello, trata los datos personales que el Responsable introduce en la plataforma. El
+          tratamiento consiste en almacenar, consultar, organizar, modificar, conservar, mostrar, exportar y
+          eliminar esos datos, y en enviarlos cuando el Responsable así lo ordena mediante las funciones del
+          servicio:
+        </p>
+        <ul className="list-disc pl-5 space-y-1.5">
+          <li>Envío de correos electrónicos de recordatorio y avisos a los clientes del Responsable.</li>
+          <li>Publicación de los enlaces del Portal del Cliente y del Portal del Mecánico que el Responsable genera.</li>
+          <li>Remisión a la Agencia Tributaria (AEAT) de los registros de facturación, con el certificado del Responsable, si activa el envío VERI*FACTU.</li>
+        </ul>
+        <p>La finalidad es exclusivamente prestar el servicio contratado. El Encargado no usa estos datos para fines propios.</p>
+      </Section>
+
+      <Section title="3. Datos y personas afectadas">
+        <p>
+          <b>Categorías de interesados:</b> clientes del Responsable (personas físicas y representantes de
+          empresas), conductores o titulares de vehículos y, en su caso, el personal del Responsable
+          (técnicos).
+        </p>
+        <p>
+          <b>Tipos de datos:</b> identificación y contacto (nombre, apellidos, NIF/NIE/pasaporte, correo,
+          teléfono, dirección), datos de vehículos (matrícula, bastidor, kilometraje, vencimientos de ITV,
+          seguro e impuesto), historial de órdenes de trabajo, notas e interacciones, y datos de facturación.
+          No están pensados para datos de categorías especiales (art. 9 RGPD) ni de menores; el Responsable
+          se compromete a no introducirlos.
+        </p>
+      </Section>
+
+      <Section title="4. Duración y destino de los datos">
+        <p>
+          El contrato dura lo que dure la prestación del servicio. Al terminar, el Responsable dispone de{' '}
+          <b>30 días</b> para exportar sus datos (funciones de exportación CSV o solicitándolo por correo).
+          Pasado ese plazo, el Encargado los elimina de forma definitiva en un máximo de <b>90 días</b> desde
+          la baja, y lo confirma por escrito si se le pide, salvo que una norma obligue a conservarlos.
+        </p>
+        <p>
+          Las facturas emitidas y sus registros de facturación son inalterables y el Responsable debe
+          conservarlos por ley: es su responsabilidad exportarlos antes de la baja.
+        </p>
+      </Section>
+
+      <Section title="5. Obligaciones del Encargado">
+        <p>El Encargado se obliga a:</p>
+        <ul className="list-disc pl-5 space-y-1.5">
+          <li>Tratar los datos <b>solo siguiendo las instrucciones documentadas</b> del Responsable (este contrato y el uso que haga de las funciones del servicio). Si considera que una instrucción infringe la normativa, se lo comunicará.</li>
+          <li>No aplicar ni utilizar los datos con fin distinto del indicado, ni comunicarlos a terceros salvo a los subencargados autorizados o por obligación legal (en cuyo caso avisará al Responsable, si la ley lo permite).</li>
+          <li>Garantizar que las personas con acceso a los datos están sujetas a un deber de <b>confidencialidad</b>, que subsiste tras terminar la relación.</li>
+          <li>Aplicar las <b>medidas de seguridad</b> del apartado 7.</li>
+          <li><b>Ayudar al Responsable</b> a atender las solicitudes de derechos de los interesados (acceso, rectificación, supresión, oposición, limitación y portabilidad): si un interesado se dirige al Encargado, este se lo trasladará al Responsable sin responder por su cuenta.</li>
+          <li><b>Notificar al Responsable, sin dilación indebida y como máximo en 48 horas</b> desde que tenga constancia, cualquier violación de la seguridad de los datos, con la información de que disponga (naturaleza, datos afectados, consecuencias probables y medidas adoptadas), para que pueda cumplir sus propias obligaciones de notificación ante la autoridad y los interesados.</li>
+          <li>Ayudar al Responsable en las evaluaciones de impacto y consultas previas que procedan (arts. 35 y 36 RGPD), en lo que le corresponda como proveedor.</li>
+          <li>Poner a disposición del Responsable la <b>información necesaria para demostrar el cumplimiento</b> de este contrato y permitir auditorías razonables, con preaviso de al menos 30 días, en horario laboral, sin comprometer la seguridad ni los datos de otros clientes, y a cargo del Responsable.</li>
+          <li>Llevar un registro de las actividades de tratamiento realizadas por cuenta del Responsable, cuando la ley lo exija.</li>
+        </ul>
+      </Section>
+
+      <Section title="6. Subencargados">
+        <p>
+          El Responsable autoriza con carácter general la intervención de los siguientes subencargados, con
+          los que el Encargado mantiene un contrato que les impone obligaciones equivalentes a las de este
+          documento:
+        </p>
+        <ul className="list-disc pl-5 space-y-1.5">
+          <li><b>Supabase, Inc.</b> — base de datos, autenticación y almacenamiento (servidores en la Unión Europea, Frankfurt).</li>
+          <li><b>Vercel Inc.</b> — alojamiento de la aplicación web.</li>
+          <li><b>Resend</b> — envío de correos electrónicos.</li>
+          <li><b>Sentry</b> — monitorización técnica de errores, configurada para no capturar datos personales identificativos por defecto.</li>
+        </ul>
+        <p>
+          Si el Encargado quiere incorporar o sustituir un subencargado, avisará al Responsable con al menos{' '}
+          <b>15 días</b> de antelación (por correo o dentro de la aplicación). El Responsable puede oponerse
+          por motivos razonables de protección de datos en ese plazo; si no hay una alternativa viable, podrá
+          darse de baja sin penalización. El Encargado responde ante el Responsable de los incumplimientos de
+          sus subencargados.
+        </p>
+      </Section>
+
+      <Section title="7. Medidas de seguridad">
+        <p>Teniendo en cuenta el estado de la técnica y los riesgos, el Encargado aplica, como mínimo:</p>
+        <ul className="list-disc pl-5 space-y-1.5">
+          <li>Comunicaciones cifradas (HTTPS/TLS) en toda la aplicación.</li>
+          <li>Aislamiento de los datos de cada empresa mediante políticas de seguridad a nivel de fila en la base de datos, de modo que cada taller solo accede a los suyos.</li>
+          <li>Control de acceso por roles dentro de cada empresa: solo el administrador gestiona usuarios, roles y la configuración de la empresa; los usuarios no pueden elevar sus propios permisos.</li>
+          <li>Contraseñas gestionadas y almacenadas cifradas por el proveedor de autenticación, nunca en texto plano.</li>
+          <li>Cifrado (AES-256) del certificado electrónico que el Responsable sube para el envío a la AEAT, con una clave guardada aparte de la base de datos.</li>
+          <li>Limitación de intentos en las funciones sensibles y monitorización de errores técnicos.</li>
+          <li>Acceso del Encargado a los datos del Responsable limitado a lo necesario para prestar soporte y mantener el servicio.</li>
+        </ul>
+        <p>
+          El Responsable, por su parte, debe custodiar sus credenciales, dar de alta solo a personal
+          autorizado con el rol adecuado y darlo de baja cuando deje de serlo.
+        </p>
+      </Section>
+
+      <Section title="8. Transferencias internacionales">
+        <p>
+          El Encargado no transferirá datos fuera del Espacio Económico Europeo salvo que sea necesario para
+          prestar el servicio a través de un subencargado y siempre amparado en un mecanismo válido del RGPD
+          (decisión de adecuación o Cláusulas Contractuales Tipo de la Comisión Europea).
+        </p>
+      </Section>
+
+      <Section title="9. Obligaciones del Responsable">
+        <ul className="list-disc pl-5 space-y-1.5">
+          <li>Contar con una base legal para tratar los datos de sus clientes e informarles (art. 13 RGPD), incluido el uso del servicio como encargado y de los envíos de recordatorios.</li>
+          <li>Introducir solo los datos necesarios, exactos y actualizados, y no introducir datos de categorías especiales.</li>
+          <li>Atender los derechos de los interesados y notificar a la autoridad y a los afectados las violaciones de seguridad que lo requieran.</li>
+          <li>Enviar comunicaciones comerciales solo a quien lo haya consentido cuando la ley lo exija; los recordatorios automáticos se activan bajo su responsabilidad.</li>
+          <li>Responder de las instrucciones que da al Encargado mediante el uso del servicio.</li>
+        </ul>
+      </Section>
+
+      <Section title="10. Responsabilidad y ley aplicable">
+        <p>
+          Cada parte responde frente a los interesados y las autoridades conforme al RGPD. Entre las partes,
+          la responsabilidad del Encargado se rige por la limitación de los{' '}
+          <a href="/terminos" className="text-blue-600 hover:underline">Términos de Uso</a> (sección 11), sin
+          perjuicio de lo que la ley no permita limitar. Este contrato se rige por la legislación española.
+        </p>
+        <p>
+          Si hay contradicción entre este documento y los Términos o la Política de Privacidad en materia de
+          tratamiento de datos de los clientes del Responsable, prevalece este contrato.
+        </p>
+      </Section>
+
+      <Section title="11. Contacto">
+        <p><a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a></p>
+      </Section>
+    </>
+  );
+}
+
 export default function LegalPage({ page }: LegalPageProps) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
@@ -501,11 +672,17 @@ export default function LegalPage({ page }: LegalPageProps) {
           >
             Declaración Responsable
           </a>
+          <a
+            href="/encargo-de-tratamiento"
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${page === 'encargo-de-tratamiento' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50'}`}
+          >
+            Encargo de Tratamiento
+          </a>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-9">
           <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1.5">
-            {page === 'privacidad' ? 'Política de Privacidad' : page === 'terminos' ? 'Términos y Condiciones de Uso' : 'Declaración Responsable del Sistema Informático de Facturación'}
+            {TITULOS[page]}
           </h1>
           <p className="text-xs text-slate-400 font-semibold mb-8">
             {page === 'declaracion-responsable'
@@ -513,7 +690,7 @@ export default function LegalPage({ page }: LegalPageProps) {
               : `Última actualización: ${ULTIMA_ACTUALIZACION}`}
           </p>
 
-          {page === 'privacidad' ? <Privacidad /> : page === 'terminos' ? <Terminos /> : <DeclaracionResponsable />}
+          {page === 'privacidad' ? <Privacidad /> : page === 'terminos' ? <Terminos /> : page === 'encargo-de-tratamiento' ? <EncargoTratamiento /> : <DeclaracionResponsable />}
         </div>
 
         <p className="text-center text-xs text-slate-400 mt-8">
