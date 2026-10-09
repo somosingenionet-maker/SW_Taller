@@ -67,15 +67,24 @@ export async function listVehiculos(): Promise<Vehiculo[]> {
   return (data ?? []).map((r) => mapVehiculo(r as VehiculoRow));
 }
 
+/** Traduce los errores de duplicado de la base de datos a un mensaje que el usuario entienda. */
+export function mensajeErrorVehiculo(error: { code?: string; message: string }): string {
+  if (error.code === '23505') {
+    if (error.message.includes('matricula')) return 'Ya tienes un vehículo registrado con esa matrícula.';
+    if (error.message.includes('bastidor')) return 'Ya tienes un vehículo registrado con ese número de bastidor.';
+  }
+  return error.message;
+}
+
 export async function createVehiculo(input: NuevoVehiculo): Promise<Vehiculo> {
   const { data, error } = await supabase.from('vehiculos').insert(toRow(input) as VehiculoInsert).select(COLS).single();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mensajeErrorVehiculo(error));
   return mapVehiculo(data as VehiculoRow);
 }
 
 export async function updateVehiculo(v: Vehiculo): Promise<Vehiculo> {
   const { data, error } = await supabase.from('vehiculos').update(toRow(v)).eq('id', v.id).select(COLS).single();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mensajeErrorVehiculo(error));
   return mapVehiculo(data as VehiculoRow);
 }
 

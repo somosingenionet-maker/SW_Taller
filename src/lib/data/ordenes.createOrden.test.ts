@@ -3,9 +3,7 @@ import type { OrdenTrabajo } from '../../types';
 
 // createOrden() no es pura (llama a Supabase) — a diferencia de
 // ordenes.test.ts (que solo prueba funciones puras con un stub `{}`), aquí
-// hace falta un mock con estado real para simular la colisión de número de
-// OT entre dos creaciones simultáneas y comprobar que el reintento
-// automático la resuelve sola, sin que el usuario vea un error.
+// hace falta un mock para comprobar qué se envía a la base de datos.
 const filaOrdenCompleta = {
   id: 'ot-nueva', numero: 'OT-2026-002', vehiculo_id: 'v1', cliente_id: 'c1', estado: 'presupuesto',
   fecha_recepcion: '2026-01-01', fecha_estimada_entrega: null, fecha_entrega: null,
@@ -16,18 +14,16 @@ const filaOrdenCompleta = {
   fotos_recepcion: null, lineas_ot: [], eventos_ot: [],
 };
 
-const { mockRpc, mockInsertOrden } = vi.hoisted(() => ({
-  mockRpc: vi.fn(),
+const { mockInsertOrden } = vi.hoisted(() => ({
   mockInsertOrden: vi.fn(),
 }));
 
 vi.mock('../supabase', () => ({
   supabase: {
-    rpc: mockRpc,
     from: (tabla: string) => {
       if (tabla === 'ordenes_trabajo') {
         return {
-          insert: () => ({ select: () => ({ single: mockInsertOrden }) }),
+          insert: (fila: unknown) => ({ select: () => ({ single: () => mockInsertOrden(fila) }) }),
           select: () => ({ eq: () => ({ single: async () => ({ data: filaOrdenCompleta, error: null }) }) }),
         };
       }
@@ -42,47 +38,32 @@ const { createOrden } = await import('./ordenes');
 
 function otFixture(): OrdenTrabajo {
   return {
-    id: 'local-temp', numero: '', vehiculoId: 'v1', clienteId: 'c1', estado: 'presupuesto',
+    id: 'local-temp', numero: 'LO-QUE-SEA', vehiculoId: 'v1', clienteId: 'c1', estado: 'presupuesto',
     fechaRecepcion: '2026-01-01', kilometrajeEntrada: 0, descripcionProblema: 'Ruido',
     lineas: [], subtotal: 0, ivaPct: 21, totalIva: 0, total: 0,
     fechaActualizacion: '2026-01-01T00:00:00Z', historial: [],
   };
 }
 
-describe('createOrden — reintento en colisión de numeración', () => {
+describe('createOrden — el número lo asigna el servidor', () => {
   beforeEach(() => {
-    mockRpc.mockReset();
     mockInsertOrden.mockReset();
   });
 
-  it('si el primer número choca (23505 en numero), pide uno nuevo y reintenta sola', async () => {
-    mockRpc.mockResolvedValueOnce({ data: 'OT-2026-001', error: null });
-    mockRpc.mockResolvedValueOnce({ data: 'OT-2026-002', error: null });
-    mockInsertOrden
-      .mockResolvedValueOnce({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "ordenes_trabajo_numero_key" numero' } })
-      .mockResolvedValueOnce({ data: { id: 'ot-nueva' }, error: null });
+  it('no envía ningún número: lo pone el trigger del servidor, y devuelve la orden con el número asignado', async () => {
+    mockInsertOrden.mockResolvedValueOnce({ data: { id: 'ot-nueva' }, error: null });
 
     const resultado = await createOrden(otFixture());
 
+    expect(mockInsertOrden).toHaveBeenCalledTimes(1);
+    expect(mockInsertOrden.mock.calls[0][0]).not.toHaveProperty('numero');
     expect(resultado.numero).toBe('OT-2026-002');
-    expect(mockRpc).toHaveBeenCalledTimes(2);
-    expect(mockInsertOrden).toHaveBeenCalledTimes(2);
   });
 
-  it('un error de inserción que NO es colisión de número se propaga sin reintentar', async () => {
-    mockRpc.mockResolvedValueOnce({ data: 'OT-2026-003', error: null });
+  it('un error de inserción se propaga tal cual, sin reintentos', async () => {
     mockInsertOrden.mockResolvedValueOnce({ data: null, error: { code: '23503', message: 'violates foreign key constraint' } });
 
     await expect(createOrden(otFixture())).rejects.toThrow('violates foreign key constraint');
     expect(mockInsertOrden).toHaveBeenCalledTimes(1);
-  });
-
-  it('si todos los intentos chocan, se rinde con un mensaje claro en vez de reintentar para siempre', async () => {
-    mockRpc.mockResolvedValue({ data: 'OT-2026-001', error: null });
-    mockInsertOrden.mockResolvedValue({ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint on numero' } });
-
-    await expect(createOrden(otFixture())).rejects.toThrow();
-    // CREATE_ORDEN_MAX_INTENTOS = 3 — ni uno más, ni uno menos.
-    expect(mockInsertOrden).toHaveBeenCalledTimes(3);
   });
 });

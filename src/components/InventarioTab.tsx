@@ -2,9 +2,10 @@ import { useState, useMemo, useEffect } from 'react';
 import { Producto, MovimientoStock } from '../types';
 import { listMovimientos, NuevoMovimiento } from '../lib/data/productos';
 import {
-  Package, Search, Plus, Edit2, Trash2, X, Check, AlertTriangle, History, PackagePlus, ArrowUpCircle, SlidersHorizontal, Download
+  Package, Search, Plus, Edit2, Trash2, X, Check, AlertTriangle, History, PackagePlus, ArrowUpCircle, SlidersHorizontal, Download, Upload
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
+import ImportarCsvModal from './ImportarCsvModal';
 import { downloadCsv } from '../utils/csvExport';
 
 interface InventarioTabProps {
@@ -13,6 +14,8 @@ interface InventarioTabProps {
   onUpdateProducto: (p: Producto) => void | Promise<void>;
   onDeleteProducto: (id: string) => void | Promise<void>;
   onRegistrarMovimiento: (m: NuevoMovimiento) => void | Promise<void>;
+  /** Recarga el catálogo tras importar artículos desde CSV. */
+  onImportado: () => void | Promise<void>;
 }
 
 interface FormState {
@@ -34,7 +37,8 @@ const EMPTY_FORM: FormState = {
 
 const UNIDADES = ['unidad', 'litro', 'kg', 'metro', 'caja'];
 
-export default function InventarioTab({ productos, onAddProducto, onUpdateProducto, onDeleteProducto, onRegistrarMovimiento }: InventarioTabProps) {
+export default function InventarioTab({ productos, onAddProducto, onUpdateProducto, onDeleteProducto, onRegistrarMovimiento, onImportado }: InventarioTabProps) {
+  const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [soloStockBajo, setSoloStockBajo] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -184,6 +188,13 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
           }`}
         >
           <AlertTriangle className="w-3.5 h-3.5" /> Solo stock bajo
+        </button>
+        <button
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-1.5 px-3.5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-2xl transition cursor-pointer"
+          title="Importar artículos desde un CSV"
+        >
+          <Upload className="w-3.5 h-3.5" /> Importar
         </button>
         <button
           onClick={handleExportCsv}
@@ -349,6 +360,10 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
             </div>
           </div>
         </div>
+      )}
+
+      {showImport && (
+        <ImportarCsvModal entidad="productos" onClose={() => setShowImport(false)} onImportado={onImportado} />
       )}
 
       {movimientoProducto && (

@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Cliente, InteraccionCliente, Vehiculo, Empresa } from '../types';
 import {
-  Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, PenTool, Car, Link2, Copy, RefreshCw, ShieldOff
+  Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, Upload, PenTool, Car, Link2, Copy, RefreshCw, ShieldOff
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
+import ImportarCsvModal from './ImportarCsvModal';
 import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
@@ -19,6 +20,8 @@ interface CrmTabProps {
   onAnonymizeCliente: (id: string) => Promise<Cliente>;
   onAddInteraccion: (clienteId: string, input: { tipo: InteraccionCliente['tipo']; notas: string }) => Promise<InteraccionCliente>;
   onSetPortalToken: (clienteId: string, token: string | null) => Promise<Cliente>;
+  /** Recarga la lista tras importar clientes desde CSV. */
+  onImportado: () => void | Promise<void>;
 }
 
 export default function CrmTab({
@@ -30,8 +33,10 @@ export default function CrmTab({
   onDeleteCliente,
   onAnonymizeCliente,
   onAddInteraccion,
-  onSetPortalToken
+  onSetPortalToken,
+  onImportado
 }: CrmTabProps) {
+  const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
   const [portalBusy, setPortalBusy] = useState(false);
@@ -227,6 +232,9 @@ export default function CrmTab({
 
   return (
     <div className="space-y-6" id="crm-tab-root">
+      {showImport && (
+        <ImportarCsvModal entidad="clientes" onClose={() => setShowImport(false)} onImportado={onImportado} />
+      )}
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -291,6 +299,13 @@ export default function CrmTab({
               <p className="text-xs text-slate-400">Directorio de contacto e identificación fiscal</p>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={() => setShowImport(true)}
+                className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm rounded-2xl transition flex items-center gap-1.5 cursor-pointer"
+                title="Importar clientes desde un CSV"
+              >
+                <Upload className="w-4 h-4" /> Importar
+              </button>
               <button
                 onClick={handleExportCsv}
                 className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm rounded-2xl transition flex items-center gap-1.5 cursor-pointer"

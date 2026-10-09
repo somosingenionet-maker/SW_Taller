@@ -703,6 +703,7 @@ export default function App() {
             onAddVehiculo={handleAddVehiculo}
             onUpdateVehiculo={handleUpdateVehiculo}
             onDeleteVehiculo={handleDeleteVehiculo}
+            onImportado={recargarVehiculos}
           />
         )}
 
@@ -732,6 +733,7 @@ export default function App() {
             onAnonymizeCliente={handleAnonymizeCliente}
             onAddInteraccion={handleAddInteraccion}
             onSetPortalToken={handleSetPortalToken}
+            onImportado={recargarClientes}
           />
         )}
 
@@ -774,6 +776,7 @@ export default function App() {
             onUpdateProducto={handleUpdateProducto}
             onDeleteProducto={handleDeleteProducto}
             onRegistrarMovimiento={handleRegistrarMovimiento}
+            onImportado={recargarProductos}
           />
         )}
       </main>

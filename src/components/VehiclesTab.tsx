@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Vehiculo, OTEstado, EventoOT } from '../types';
 import {
-  Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, ClipboardList
+  Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, Upload, ClipboardList
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
+import ImportarCsvModal from './ImportarCsvModal';
 import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
@@ -14,6 +15,8 @@ interface VehiclesTabProps {
   onAddVehiculo: (input: Omit<Vehiculo, 'id' | 'fechaRegistro'>) => void | Promise<void>;
   onUpdateVehiculo: (vehiculo: Vehiculo) => void | Promise<void>;
   onDeleteVehiculo: (id: string) => void | Promise<void>;
+  /** Recarga la lista tras importar vehículos desde CSV. */
+  onImportado: () => void | Promise<void>;
 }
 
 const OT_ESTADO_LABEL: Record<OTEstado, string> = {
@@ -38,8 +41,10 @@ export default function VehiclesTab({
   vehiculos,
   onAddVehiculo,
   onUpdateVehiculo,
-  onDeleteVehiculo
+  onDeleteVehiculo,
+  onImportado
 }: VehiclesTabProps) {
+  const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedVehiculo, setSelectedVehiculo] = useState<Vehiculo | null>(null);
   const [expandedOtId, setExpandedOtId] = useState<string | null>(null);
@@ -184,6 +189,9 @@ export default function VehiclesTab({
 
   return (
     <div className="space-y-6" id="vehicles-tab-root">
+      {showImport && (
+        <ImportarCsvModal entidad="vehiculos" onClose={() => setShowImport(false)} onImportado={onImportado} />
+      )}
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
@@ -241,6 +249,13 @@ export default function VehiclesTab({
               <p className="text-xs text-slate-400">Fichas técnicas centralizadas de Backoffice</p>
             </div>
             <div className="flex gap-2">
+              <button
+                onClick={() => setShowImport(true)}
+                className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm rounded-2xl transition flex items-center gap-1.5 cursor-pointer"
+                title="Importar vehículos desde un CSV"
+              >
+                <Upload className="w-4 h-4" /> Importar
+              </button>
               <button
                 onClick={handleExportCsv}
                 className="px-3 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium text-sm rounded-2xl transition flex items-center gap-1.5 cursor-pointer"

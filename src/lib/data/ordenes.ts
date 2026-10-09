@@ -278,49 +278,34 @@ export async function buscarOrdenes(params: {
   };
 }
 
-const CREATE_ORDEN_MAX_INTENTOS = 3;
-
 /**
- * `ot.numero` que llega del llamador se ignora — el número real lo asigna
- * esta función (siguienteNumeroOT), con reintento automático si dos
- * creaciones a la vez leyeron el mismo conteo y chocan contra el `unique`
- * de ordenes_trabajo.numero (código Postgres 23505). Sin esto, esa colisión
- * — rara pero posible con más de un usuario a la vez — se le mostraría al
- * usuario como un error genérico de guardado en vez de resolverse sola.
+ * `ot.numero` que llega del llamador se ignora: el número real ('OT-2026-047') lo asigna
+ * el servidor al insertar (trigger asignar_numero_ot), con un bloqueo por taller. Antes se
+ * calculaba aquí contando filas, lo que repetía números al borrar una orden o al crear
+ * dos a la vez, y chocaba entre talleres.
  */
 export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
-  let ultimoError: string | null = null;
+  const { numero: _numero, ...fila } = toRow(ot);
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .insert(fila as unknown as OrdenInsert)
+    .select('id')
+    .single();
+  if (error) throw new Error(error.message);
 
-  for (let intento = 0; intento < CREATE_ORDEN_MAX_INTENTOS; intento++) {
-    const numero = await siguienteNumeroOT();
-    const { data, error } = await supabase
-      .from('ordenes_trabajo')
-      .insert({ ...toRow(ot), numero } as unknown as OrdenInsert)
-      .select('id')
-      .single();
+  const id = (data as { id: string }).id;
 
-    if (error) {
-      const esColisionDeNumero = error.code === '23505' && error.message.includes('numero');
-      if (esColisionDeNumero) { ultimoError = error.message; continue; }
-      throw new Error(error.message);
-    }
+  // Líneas y eventos no dependen entre sí — insertarlos en paralelo en vez
+  // de uno tras otro ahorra una ida y vuelta completa a la base de datos
+  // en cada creación de OT.
+  const [rLineas, rEventos] = await Promise.all([
+    ot.lineas.length ? supabase.from('lineas_ot').insert(lineasToRows(id, ot.lineas)) : null,
+    ot.historial.length ? supabase.from('eventos_ot').insert(eventosToRows(id, ot.historial)) : null,
+  ]);
+  if (rLineas?.error) throw new Error(rLineas.error.message);
+  if (rEventos?.error) throw new Error(rEventos.error.message);
 
-    const id = (data as { id: string }).id;
-
-    // Líneas y eventos no dependen entre sí — insertarlos en paralelo en vez
-    // de uno tras otro ahorra una ida y vuelta completa a la base de datos
-    // en cada creación de OT.
-    const [rLineas, rEventos] = await Promise.all([
-      ot.lineas.length ? supabase.from('lineas_ot').insert(lineasToRows(id, ot.lineas)) : null,
-      ot.historial.length ? supabase.from('eventos_ot').insert(eventosToRows(id, ot.historial)) : null,
-    ]);
-    if (rLineas?.error) throw new Error(rLineas.error.message);
-    if (rEventos?.error) throw new Error(rEventos.error.message);
-
-    return getOrden(id);
-  }
-
-  throw new Error(ultimoError ?? 'No se pudo generar un número de OT único.');
+  return getOrden(id);
 }
 
 /**
@@ -419,21 +404,6 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
 export async function deleteOrden(id: string): Promise<void> {
   const { error } = await supabase.from('ordenes_trabajo').delete().eq('id', id);
   if (error) throw new Error(error.message);
-}
-
-/**
- * Siguiente número de OT ('OT-2026-047') calculado en el servidor a partir
- * del conteo real — antes se calculaba en el cliente como
- * `ordenes.length + 1`, lo cual solo funcionaba porque `ordenes` tenía
- * SIEMPRE el histórico completo. En cuanto un consumidor pasa a tener una
- * versión acotada, `.length` deja de ser el conteo real de la empresa y
- * puede repetir un número ya usado (ordenes_trabajo.numero es unique: la
- * creación fallaría).
- */
-export async function siguienteNumeroOT(): Promise<string> {
-  const { data, error } = await supabase.rpc('siguiente_numero_ot');
-  if (error) throw new Error(error.message);
-  return data as string;
 }
 
 /** Numero de cada OT por id — para citas con `otId` que solo necesitan mostrar "Convertida en OT {numero}", sin traer el resto del histórico. */
