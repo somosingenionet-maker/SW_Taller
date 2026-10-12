@@ -60,6 +60,9 @@ async function enviarRecordatorioAlerta(
       to: [cliente.correo],
       subject: asunto,
       html,
+      // Las respuestas del cliente van al taller, no al buzón de envío. Si el correo del taller
+      // no es válido se omite: Resend rechazaría el envío entero.
+      ...(empresa.correo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(empresa.correo) ? { reply_to: empresa.correo } : {}),
     }),
   });
   if (!resp.ok) throw new Error(`Resend ${resp.status}: ${await resp.text()}`);
