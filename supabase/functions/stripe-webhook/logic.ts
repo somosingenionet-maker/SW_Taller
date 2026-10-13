@@ -28,6 +28,15 @@ export const EVENTOS_ATENDIDOS = [
 const idDe = (v: unknown): string | undefined =>
   typeof v === 'string' ? v : typeof (v as Obj)?.id === 'string' ? (v as Obj).id : undefined;
 
+/**
+ * ¿Tiene la cancelación programada para el final del periodo? Stripe lo expresa de dos formas según
+ * la versión de la API: `cancel_at_period_end = true` (clásica) o una fecha en `cancel_at` (la que
+ * pone el portal de clientes en las versiones nuevas). Con cualquiera de las dos el cliente se va.
+ */
+export function cancelacionProgramada(sub: Obj): boolean {
+  return sub.cancel_at_period_end === true || typeof sub.cancel_at === 'number';
+}
+
 /** Fin del periodo actual de una suscripción (según la versión de API está en la suscripción o en sus ítems). */
 function finPeriodoSuscripcion(sub: Obj): number | undefined {
   const n = sub.current_period_end ?? sub.items?.data?.[0]?.current_period_end;
@@ -66,7 +75,7 @@ export function planificarEvento(evento: Obj): PlanEvento | null {
           stripe_customer_id: cliente,
           stripe_subscription_id: o.id,
           estado_suscripcion: estado,
-          cancelar_al_final: eliminada ? false : !!o.cancel_at_period_end,
+          cancelar_al_final: eliminada ? false : cancelacionProgramada(o),
           ...(plan ? { plan_facturacion: plan } : {}),
           ...(!eliminada && fin ? { periodo_fin: new Date(fin * 1000).toISOString() } : {}),
         },

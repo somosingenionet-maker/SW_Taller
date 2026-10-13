@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@1';
-import { planificarEvento } from './logic.ts';
+import { cancelacionProgramada, planificarEvento } from './logic.ts';
 
 const FIN = 1_800_000_000;
 const finIso = new Date((FIN + 3 * 86400) * 1000).toISOString();
@@ -65,4 +65,29 @@ Deno.test('eventos no atendidos o malformados se ignoran sin lanzar', () => {
   assertEquals(planificarEvento({}), null);
   assertEquals(planificarEvento(null as never), null);
   assertEquals(planificarEvento({ type: 'invoice.paid', data: { object: { lines: { data: [{ period: { end: FIN } }] } } } }), null);
+});
+
+Deno.test('cancelación programada: cancel_at_period_end (clásica) o cancel_at (portal en versiones nuevas)', () => {
+  assertEquals(cancelacionProgramada({ cancel_at_period_end: true, cancel_at: null }), true);
+  assertEquals(cancelacionProgramada({ cancel_at_period_end: false, cancel_at: FIN }), true);
+  assertEquals(cancelacionProgramada({ cancel_at_period_end: false, cancel_at: null }), false);
+  assertEquals(cancelacionProgramada({}), false);
+});
+
+Deno.test('suscripción activa con cancel_at marca la cancelación al final y sigue activa', () => {
+  const p = planificarEvento({ type: 'customer.subscription.updated', data: { object: {
+    id: 's', customer: 'c', status: 'active', cancel_at_period_end: false, cancel_at: FIN,
+    items: { data: [{ current_period_end: FIN, price: { recurring: { interval: 'month' } } }] },
+  } } });
+  assertEquals(p?.campos.cancelar_al_final, true);
+  assertEquals(p?.campos.estado_suscripcion, 'activa');
+  assertEquals(p?.extenderHasta, finIso);
+});
+
+Deno.test('deshacer la cancelación (cancel_at nulo) la desmarca', () => {
+  const p = planificarEvento({ type: 'customer.subscription.updated', data: { object: {
+    id: 's', customer: 'c', status: 'active', cancel_at_period_end: false, cancel_at: null,
+    items: { data: [{ current_period_end: FIN, price: { recurring: { interval: 'month' } } }] },
+  } } });
+  assertEquals(p?.campos.cancelar_al_final, false);
 });

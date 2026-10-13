@@ -54,6 +54,8 @@ Deno.serve(conSentry(async (req) => {
 
   try {
     const plan = planificarEvento(evento);
+    // Rastro para diagnóstico (sin datos personales): qué evento llegó y qué se decidió.
+    console.log(JSON.stringify({ stripeEvento: evento.id, tipo: evento.type, plan }));
     if (plan) {
       let empresaId = plan.empresaId;
       if (!empresaId && plan.clienteStripe) {
