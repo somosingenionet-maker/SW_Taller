@@ -4,6 +4,8 @@ import { supabase } from './lib/supabase';
 import { Sentry } from './lib/sentry';
 import type { Session } from '@supabase/supabase-js';
 import { fetchPerfil, signOut, mfaPendiente } from './lib/auth';
+import { llegaDeInvitacion, errorDeEnlace } from './lib/invitacion';
+import { getSuscripcion, type Suscripcion } from './lib/data/suscripcion';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
 import { listOrdenesTablero, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
@@ -27,10 +29,12 @@ import LoginScreen from './components/LoginScreen';
 import ResetPasswordScreen from './components/ResetPasswordScreen';
 import MfaChallenge from './components/MfaChallenge';
 import SeguridadModal from './components/SeguridadModal';
+import SuscripcionBanner from './components/SuscripcionBanner';
+import SuscripcionPanel from './components/SuscripcionPanel';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminPanel from './components/SuperAdminPanel';
 import {
-  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home, ShieldCheck
+  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home, ShieldCheck, CreditCard
 } from 'lucide-react';
 import CompanySettingsPanel from './components/CompanySettingsPanel';
 
@@ -40,12 +44,17 @@ export default function App() {
   // Auth state
   const [currentUser, setCurrentUser] = useState<Perfil | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(errorDeEnlace);
   // true mientras dura el flujo de "restablecer contraseña" (enlace del email de recuperación).
-  const [passwordRecovery, setPasswordRecovery] = useState(false);
+  // También se muestra al llegar desde el enlace de invitación del alta (hay que elegir contraseña).
+  const [passwordRecovery, setPasswordRecovery] = useState(llegaDeInvitacion);
   // true si la contraseña fue correcta pero falta el código de la verificación en dos pasos.
   const [mfaRequerido, setMfaRequerido] = useState(false);
   const [seguridadOpen, setSeguridadOpen] = useState(false);
+  // Suscripción (prueba / pago / solo lectura) y regreso desde la página de pago de Stripe.
+  const [suscripcion, setSuscripcion] = useState<Suscripcion | null>(null);
+  const [suscripcionOpen, setSuscripcionOpen] = useState(false);
+  const [pagoVolviendo, setPagoVolviendo] = useState(() => new URLSearchParams(window.location.search).get('suscripcion') === 'ok');
 
   // Navigation
   const [activeTab, setActiveTab] = useState<TabId>('inicio');
@@ -138,6 +147,27 @@ export default function App() {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  // Estado de la suscripción. Tras volver de pagar, el webhook de Stripe tarda unos segundos en
+  // activarla: se consulta cada pocos segundos hasta verla activa (máx. ~40 s).
+  useEffect(() => {
+    if (!currentUser || currentUser.rol === 'super_admin') { setSuscripcion(null); return; }
+    let vivo = true;
+    let intentos = 0;
+    const consultar = () => getSuscripcion()
+      .then((s) => {
+        if (!vivo) return;
+        setSuscripcion(s);
+        if (pagoVolviendo && s?.estado !== 'activa' && ++intentos < 12) setTimeout(consultar, 3500);
+        else if (pagoVolviendo) {
+          setPagoVolviendo(false);
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      })
+      .catch((err) => console.error('Error cargando la suscripción', err));
+    void consultar();
+    return () => { vivo = false; };
+  }, [currentUser, pagoVolviendo]);
 
   // Datos de la propia empresa: se cargan tras autenticar (multi-tenant, sin
   // marca genérica antes de login — la pantalla de login es de la plataforma).
@@ -558,6 +588,17 @@ export default function App() {
                 <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${brandText}22`, color: brandText }}>ADMIN</span>
               )}
             </div>
+            {currentUser.rol === 'admin' && suscripcion && suscripcion.estado !== 'sin_limite' && (
+              <button
+                onClick={() => setSuscripcionOpen(true)}
+                title="Suscripción"
+                aria-label="Suscripción"
+                className="p-2 rounded-full transition cursor-pointer"
+                style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+              </button>
+            )}
             <button
               onClick={() => setSeguridadOpen(true)}
               title="Seguridad de la cuenta"
@@ -579,6 +620,17 @@ export default function App() {
         </div>
       </header>
     </div>
+
+    {pagoVolviendo && (
+      <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
+        <div role="status" className="w-[82%] max-w-4xl rounded-2xl border border-green-200 bg-green-50 text-green-800 px-4 py-2.5 text-xs font-semibold">
+          ¡Gracias! Estamos activando tu suscripción, tardará unos segundos…
+        </div>
+      </div>
+    )}
+    {!pagoVolviendo && suscripcion && (
+      <SuscripcionBanner suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onAbrir={() => setSuscripcionOpen(true)} />
+    )}
 
     {/* Fila: riel lateral (flotante) + columna principal */}
     <div className="flex-1 flex min-h-0 pl-3.5 pt-3.5 pb-3.5 overflow-hidden print:overflow-visible print:block print:p-0">
@@ -861,6 +913,9 @@ export default function App() {
     </div>
 
       {seguridadOpen && <SeguridadModal onClose={() => setSeguridadOpen(false)} />}
+      {suscripcionOpen && suscripcion && (
+        <SuscripcionPanel suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onClose={() => setSuscripcionOpen(false)} />
+      )}
 
       {settingsOpen && (
         <CompanySettingsPanel

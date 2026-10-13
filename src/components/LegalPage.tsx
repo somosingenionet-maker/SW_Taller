@@ -13,7 +13,7 @@ const TITULOS: Record<LegalPageProps['page'], string> = {
 };
 
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '9 de octubre de 2026';
+const ULTIMA_ACTUALIZACION = '13 de octubre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -188,7 +188,7 @@ function Privacidad() {
 
       <Section title="3. Qué datos recogemos">
         <p>Datos de cuenta: nombre, email, teléfono y contraseña (cifrada) de cada usuario.</p>
-        <p>Datos de la empresa: razón social, NIF, dirección fiscal, datos de contacto, marca.</p>
+        <p>Datos de la empresa: razón social, NIF, dirección fiscal, datos de contacto, marca y el estado de su suscripción (prueba, plan, fechas de pago). Los datos de tu tarjeta los trata Stripe; nosotros no los vemos ni los guardamos.</p>
         <p>
           Datos introducidos al usar el servicio (por tu cuenta, como encargado de tratamiento): datos
           de tus clientes (nombre, NIF/NIE, email, teléfono, dirección), vehículos, órdenes de trabajo y
@@ -237,6 +237,7 @@ function Privacidad() {
           <li><b>Vercel Inc.</b> — alojamiento de la aplicación web.</li>
           <li><b>Resend</b> — envío de correos electrónicos (recuperación de contraseña, recordatorios automáticos).</li>
           <li><b>Sentry</b> — monitorización técnica de errores, configurada para no capturar datos personales identificativos por defecto.</li>
+          <li><b>Stripe</b> — cobro de la suscripción del taller. Recibe los datos de pago y de facturación de tu empresa (no los de tus clientes). Actúa con sus propias condiciones como proveedor de servicios de pago.</li>
         </ul>
         <p>
           Además, si activas el envío de facturas, los registros de facturación se comunican a la{' '}
@@ -415,11 +416,28 @@ function Terminos() {
         </p>
       </Section>
       
-      <Section title="8. Planes, precios y facturación">
+      <Section title="8. Prueba gratuita, precios y facturación">
         <p>
-          Los precios y condiciones del plan contratado se comunican de forma individual. Nos
-          reservamos el derecho a modificar los precios, avisando con antelación razonable antes de que
-          surtan efecto en tu siguiente periodo de facturación.
+          <b>Prueba gratuita.</b> Al registrarte tienes 14 días de prueba con todas las funciones, sin
+          tarjeta y sin compromiso. Al terminar, si no te suscribes, tu cuenta pasa a <b>modo solo
+          lectura</b>: puedes seguir viendo y exportando tus datos, pero no crear, modificar ni borrar
+          nada hasta que te suscribas. Conservamos tus datos al menos 90 días desde que termina la
+          prueba, para que puedas retomarlo; pasado ese plazo podremos eliminarlos.
+        </p>
+        <p>
+          <b>Precio.</b> El plan de pago cuesta 89 € al mes o 961,20 € al año (10 % de descuento), más el
+          IVA aplicable. Incluye todas las funciones, sin límite de usuarios ni de órdenes de trabajo. Los
+          servicios opcionales de migración de datos y formación, si los contratas, se presupuestan aparte.
+        </p>
+        <p>
+          <b>Cobro.</b> La suscripción se cobra por adelantado al inicio de cada periodo y se renueva
+          automáticamente. El pago lo gestiona Stripe: InGenio no recibe ni guarda los datos de tu tarjeta.
+          Si un cobro falla, te avisaremos y tendrás unos días para actualizar tu método de pago antes de
+          que la cuenta pase a modo solo lectura.
+        </p>
+        <p>
+          <b>Cambios de precio.</b> Podemos modificar los precios avisándote con antelación razonable,
+          antes de que surtan efecto en tu siguiente periodo de facturación.
         </p>
       </Section>
 
@@ -451,10 +469,13 @@ function Terminos() {
 
       <Section title="12. Duración y cancelación">
         <p>
-          Puedes solicitar la baja del servicio en cualquier momento escribiendo a{' '}
-          <a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a>. Tras
-          la baja, tus datos se conservarán durante el plazo indicado en la Política de Privacidad y
-          después se eliminarán, salvo obligación legal de conservarlos.
+          Puedes cancelar la suscripción en cualquier momento desde «Gestionar suscripción» dentro de la
+          aplicación o escribiendo a{' '}
+          <a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a>. La
+          cancelación surte efecto al final del periodo ya pagado: hasta entonces sigues teniendo acceso
+          completo, y no se devuelve el importe del periodo en curso, salvo que la ley disponga otra cosa.
+          Tras la baja dispones de 30 días para exportar tus datos; después se eliminarán según el
+          contrato de encargo de tratamiento, salvo obligación legal de conservarlos.
         </p>
       </Section>
 

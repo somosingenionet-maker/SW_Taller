@@ -161,6 +161,10 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
                 )}
                 {loading ? 'Verificando...' : 'Iniciar sesión'}
               </button>
+              <p className="text-center text-xs text-slate-500 pt-1">
+                ¿Aún no tienes cuenta?{' '}
+                <a href="/registro" className="font-semibold text-blue-400 hover:text-blue-300 underline underline-offset-2">Prueba 14 días gratis</a>
+              </p>
             </form>
           </>
         ) : (
