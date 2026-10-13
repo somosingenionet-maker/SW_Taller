@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../supabase', () => ({ supabase: {} }));
-const { avisoSuscripcion, diasRestantes } = await import('./suscripcion');
+const { avisoSuscripcion, diasRestantes, finPeriodo } = await import('./suscripcion');
 
 const AHORA = new Date('2026-10-13T12:00:00Z').getTime();
 const en = (dias: number) => new Date(AHORA + dias * 86_400_000).toISOString();
-const base = { estado: 'activa', estadoStripe: 'activa', accesoHasta: null, pruebaHasta: null, plan: null, cancelarAlFinal: false, tieneCliente: false, puedeEscribir: true } as const;
+const base = { estado: 'activa', estadoStripe: 'activa', accesoHasta: null, periodoFin: null, pruebaHasta: null, plan: null, cancelarAlFinal: false, tieneCliente: false, puedeEscribir: true } as const;
 
 describe('diasRestantes', () => {
   it('redondea hacia arriba y no baja de 0', () => {
@@ -53,5 +53,19 @@ describe('avisoSuscripcion', () => {
 
   it('cancelada con acceso vigente: informa y permite reactivar', () => {
     expect(avisoSuscripcion({ ...base, estado: 'cancelada', estadoStripe: 'cancelada', accesoHasta: en(5) }, AHORA)).toMatchObject({ nivel: 'info', accion: 'suscribirse' });
+  });
+});
+
+describe('finPeriodo', () => {
+  it('usa el fin real del periodo cuando lo hay', () => {
+    expect(finPeriodo({ periodoFin: en(30), accesoHasta: en(33) })).toBe(en(30));
+  });
+  it('si no, resta el margen de 3 días al acceso (empresas anteriores a la columna)', () => {
+    expect(finPeriodo({ periodoFin: null, accesoHasta: en(33) })).toBe(en(30));
+    expect(finPeriodo({ periodoFin: null, accesoHasta: null })).toBeNull();
+  });
+  it('el aviso de cancelación habla del fin del periodo, no del margen', () => {
+    const a = avisoSuscripcion({ ...base, cancelarAlFinal: true, periodoFin: en(10), accesoHasta: en(13) }, AHORA);
+    expect(a?.texto).toBe(`Tu suscripción está cancelada y termina el ${new Date(en(10)).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}.`);
   });
 });

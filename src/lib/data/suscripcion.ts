@@ -7,6 +7,8 @@ export interface Suscripcion {
   /** Estado que informa Stripe (sin tener en cuenta si el acceso ya venció). */
   estadoStripe: string;
   accesoHasta: string | null;
+  /** Fin real del periodo pagado (próxima renovación). `accesoHasta` suma unos días de margen. */
+  periodoFin: string | null;
   pruebaHasta: string | null;
   plan: 'mensual' | 'anual' | null;
   cancelarAlFinal: boolean;
@@ -20,6 +22,15 @@ export async function getSuscripcion(): Promise<Suscripcion | null> {
   const { data, error } = await (supabase.rpc as unknown as (fn: string) => Promise<{ data: Suscripcion | null; error: { message: string } | null }>)('mi_suscripcion');
   if (error) throw new Error(error.message);
   return data;
+}
+
+/** Días de margen que el servidor suma al fin del periodo (supabase/functions/_shared/stripe.ts). */
+const MARGEN_DIAS = 3;
+
+/** Fecha que se enseña como «renovación»/«fin»: el periodo real, no el acceso con margen. */
+export function finPeriodo(s: Pick<Suscripcion, 'periodoFin' | 'accesoHasta'>): string | null {
+  if (s.periodoFin) return s.periodoFin;
+  return s.accesoHasta ? new Date(new Date(s.accesoHasta).getTime() - MARGEN_DIAS * 86_400_000).toISOString() : null;
 }
 
 /** Días enteros que quedan hasta `iso` (redondeando hacia arriba); 0 si ya pasó o no hay fecha. */
@@ -52,8 +63,8 @@ export function avisoSuscripcion(s: Suscripcion, ahora = Date.now()): AvisoSuscr
       };
     }
     case 'activa':
-      return s.cancelarAlFinal && s.accesoHasta
-        ? { nivel: 'info', texto: `Tu suscripción está cancelada y termina el ${fechaCorta(s.accesoHasta)}.`, accion: 'gestionar' }
+      return s.cancelarAlFinal && finPeriodo(s)
+        ? { nivel: 'info', texto: `Tu suscripción está cancelada y termina el ${fechaCorta(finPeriodo(s)!)}.`, accion: 'gestionar' }
         : null;
     case 'impago':
       return {
@@ -66,7 +77,7 @@ export function avisoSuscripcion(s: Suscripcion, ahora = Date.now()): AvisoSuscr
     case 'cancelada':
       return {
         nivel: 'info',
-        texto: s.accesoHasta ? `Suscripción cancelada. Puedes seguir trabajando hasta el ${fechaCorta(s.accesoHasta)}.` : 'Suscripción cancelada.',
+        texto: finPeriodo(s) ? `Suscripción cancelada. Puedes seguir trabajando hasta el ${fechaCorta(finPeriodo(s)!)}.` : 'Suscripción cancelada.',
         accion: 'suscribirse',
       };
     case 'vencida':

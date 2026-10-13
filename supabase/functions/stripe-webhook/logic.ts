@@ -68,6 +68,7 @@ export function planificarEvento(evento: Obj): PlanEvento | null {
           estado_suscripcion: estado,
           cancelar_al_final: eliminada ? false : !!o.cancel_at_period_end,
           ...(plan ? { plan_facturacion: plan } : {}),
+          ...(!eliminada && fin ? { periodo_fin: new Date(fin * 1000).toISOString() } : {}),
         },
         // Solo una suscripción al día prolonga el acceso.
         ...(estado === 'activa' && fin ? { extenderHasta: accesoHastaDesdeFinPeriodo(fin) } : {}),
@@ -80,7 +81,7 @@ export function planificarEvento(evento: Obj): PlanEvento | null {
       if (!cliente || fines.length === 0) return null;
       return {
         clienteStripe: cliente,
-        campos: { estado_suscripcion: 'activa' },
+        campos: { estado_suscripcion: 'activa', periodo_fin: new Date(Math.max(...fines) * 1000).toISOString() },
         extenderHasta: accesoHastaDesdeFinPeriodo(Math.max(...fines)),
       };
     }

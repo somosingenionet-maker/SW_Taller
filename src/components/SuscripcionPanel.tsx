@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { CreditCard, ExternalLink, ShieldCheck, X } from 'lucide-react';
-import { abrirPortal, avisoSuscripcion, diasRestantes, iniciarCheckout, type Suscripcion } from '../lib/data/suscripcion';
+import { abrirPortal, avisoSuscripcion, diasRestantes, finPeriodo, iniciarCheckout, type Suscripcion } from '../lib/data/suscripcion';
 
 interface Props {
   suscripcion: Suscripcion;
@@ -46,7 +46,11 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, onClose }: P
         <div className="border border-slate-200 rounded-2xl p-4 space-y-1">
           <p className="text-sm font-bold text-slate-800">{ETIQUETA[s.estado]}</p>
           {s.estado === 'prueba' && <p className="text-xs text-slate-500">Te quedan {diasRestantes(s.accesoHasta)} días (hasta el {fecha(s.accesoHasta)}).</p>}
-          {s.estado === 'activa' && s.accesoHasta && <p className="text-xs text-slate-500">{s.plan ? `Plan ${s.plan}. ` : ''}Pagado hasta el {fecha(s.accesoHasta)}.</p>}
+          {s.estado === 'activa' && finPeriodo(s) && (
+            <p className="text-xs text-slate-500">
+              {s.plan ? `Plan ${s.plan}. ` : ''}{s.cancelarAlFinal ? 'Termina el' : 'Próxima renovación:'} {fecha(finPeriodo(s))}.
+            </p>
+          )}
           {aviso && <p className={`text-xs ${aviso.nivel === 'error' ? 'text-rose-600' : aviso.nivel === 'aviso' ? 'text-amber-700' : 'text-slate-500'}`}>{aviso.texto}</p>}
         </div>
 

@@ -54,6 +54,8 @@ export default function App() {
   // Suscripción (prueba / pago / solo lectura) y regreso desde la página de pago de Stripe.
   const [suscripcion, setSuscripcion] = useState<Suscripcion | null>(null);
   const [suscripcionOpen, setSuscripcionOpen] = useState(false);
+  // Resultado visible tras volver de pagar: confirmado, o la activación tarda más de lo normal.
+  const [pagoMensaje, setPagoMensaje] = useState<'confirmado' | 'lento' | null>(null);
   const [pagoVolviendo, setPagoVolviendo] = useState(() => new URLSearchParams(window.location.search).get('suscripcion') === 'ok');
 
   // Navigation
@@ -160,6 +162,8 @@ export default function App() {
         setSuscripcion(s);
         if (pagoVolviendo && s?.estado !== 'activa' && ++intentos < 12) setTimeout(consultar, 3500);
         else if (pagoVolviendo) {
+          setPagoMensaje(s?.estado === 'activa' ? 'confirmado' : 'lento');
+          if (s?.estado === 'activa') setTimeout(() => setPagoMensaje(null), 10_000);
           setPagoVolviendo(false);
           window.history.replaceState(null, '', window.location.pathname);
         }
@@ -625,6 +629,16 @@ export default function App() {
       <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
         <div role="status" className="w-[82%] max-w-4xl rounded-2xl border border-green-200 bg-green-50 text-green-800 px-4 py-2.5 text-xs font-semibold">
           ¡Gracias! Estamos activando tu suscripción, tardará unos segundos…
+        </div>
+      </div>
+    )}
+    {pagoMensaje && (
+      <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
+        <div role="status" className={`w-[82%] max-w-4xl flex items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs font-semibold ${pagoMensaje === 'confirmado' ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+          <span>{pagoMensaje === 'confirmado'
+            ? '¡Pago recibido! Tu suscripción está activa. Gracias por confiar en Doonty Motor.'
+            : 'Hemos recibido tu pago, pero la activación tarda más de lo normal. Recarga la página en unos minutos; si sigue igual, escríbenos a send@doonty.com.'}</span>
+          <button onClick={() => setPagoMensaje(null)} aria-label="Cerrar aviso" className="font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
         </div>
       </div>
     )}

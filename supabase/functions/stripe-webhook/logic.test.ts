@@ -3,6 +3,7 @@ import { planificarEvento } from './logic.ts';
 
 const FIN = 1_800_000_000;
 const finIso = new Date((FIN + 3 * 86400) * 1000).toISOString();
+const periodoIso = new Date(FIN * 1000).toISOString();
 
 Deno.test('checkout completado enlaza empresa, cliente y suscripción', () => {
   assertEquals(planificarEvento({ type: 'checkout.session.completed', data: { object: { mode: 'subscription', client_reference_id: 'emp-1', customer: 'cus_1', subscription: 'sub_1' } } }),
@@ -20,12 +21,17 @@ Deno.test('suscripción activa prolonga el acceso y registra plan y cancelación
     items: { data: [{ price: { recurring: { interval: 'year' } }, current_period_end: FIN }] },
   } } });
   assertEquals(p, { empresaId: 'emp-1', clienteStripe: 'cus_1', extenderHasta: finIso,
-    campos: { stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1', estado_suscripcion: 'activa', cancelar_al_final: true, plan_facturacion: 'anual' } });
+    campos: { stripe_customer_id: 'cus_1', stripe_subscription_id: 'sub_1', estado_suscripcion: 'activa', cancelar_al_final: true, plan_facturacion: 'anual', periodo_fin: periodoIso } });
 });
 
 Deno.test('current_period_end también se lee de la propia suscripción (otra versión de API)', () => {
   const p = planificarEvento({ type: 'customer.subscription.created', data: { object: { id: 's', customer: 'c', status: 'trialing', current_period_end: FIN, items: { data: [] } } } });
   assertEquals(p?.extenderHasta, finIso);
+});
+
+Deno.test('la suscripción eliminada no toca periodo_fin', () => {
+  const p = planificarEvento({ type: 'customer.subscription.deleted', data: { object: { id: 's', customer: 'c', status: 'canceled', items: { data: [{ current_period_end: FIN }] } } } });
+  assertEquals('periodo_fin' in (p?.campos ?? {}), false);
 });
 
 Deno.test('impago NO prolonga el acceso', () => {
@@ -43,7 +49,7 @@ Deno.test('suscripción eliminada: cancelada, sin prolongar y sin cancelación p
 
 Deno.test('factura pagada prolonga hasta el fin de periodo más largo', () => {
   const p = planificarEvento({ type: 'invoice.paid', data: { object: { customer: 'cus_1', lines: { data: [{ period: { end: FIN - 100 } }, { period: { end: FIN } }] } } } });
-  assertEquals(p, { clienteStripe: 'cus_1', campos: { estado_suscripcion: 'activa' }, extenderHasta: finIso });
+  assertEquals(p, { clienteStripe: 'cus_1', campos: { estado_suscripcion: 'activa', periodo_fin: periodoIso }, extenderHasta: finIso });
 });
 
 Deno.test('factura sin líneas con periodo se ignora', () => {
