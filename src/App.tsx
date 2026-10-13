@@ -5,6 +5,7 @@ import { Sentry } from './lib/sentry';
 import type { Session } from '@supabase/supabase-js';
 import { fetchPerfil, signOut, mfaPendiente } from './lib/auth';
 import { llegaDeInvitacion, errorDeEnlace } from './lib/invitacion';
+import { mensajeSoloLectura } from './lib/errores';
 import { getSuscripcion, type Suscripcion } from './lib/data/suscripcion';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
@@ -54,6 +55,8 @@ export default function App() {
   // Suscripción (prueba / pago / solo lectura) y regreso desde la página de pago de Stripe.
   const [suscripcion, setSuscripcion] = useState<Suscripcion | null>(null);
   const [suscripcionOpen, setSuscripcionOpen] = useState(false);
+  // Aviso emergente cuando el servidor rechaza un guardado porque la empresa está en solo lectura.
+  const [avisoSoloLectura, setAvisoSoloLectura] = useState<string | null>(null);
   // Resultado visible tras volver de pagar: confirmado, o la activación tarda más de lo normal.
   const [pagoMensaje, setPagoMensaje] = useState<'confirmado' | 'lento' | null>(null);
   const [pagoVolviendo, setPagoVolviendo] = useState(() => new URLSearchParams(window.location.search).get('suscripcion') === 'ok');
@@ -149,6 +152,24 @@ export default function App() {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  // Un guardado rechazado por solo lectura llega como promesa no capturada desde formularios que no
+  // manejan el error: se enseña aquí, una vez, con un botón para suscribirse.
+  useEffect(() => {
+    const alRechazar = (e: PromiseRejectionEvent) => {
+      const mensaje = mensajeSoloLectura(e.reason);
+      if (!mensaje) return;
+      e.preventDefault();
+      setAvisoSoloLectura(mensaje);
+    };
+    window.addEventListener('unhandledrejection', alRechazar);
+    return () => window.removeEventListener('unhandledrejection', alRechazar);
+  }, []);
+  useEffect(() => {
+    if (!avisoSoloLectura) return;
+    const t = setTimeout(() => setAvisoSoloLectura(null), 12_000);
+    return () => clearTimeout(t);
+  }, [avisoSoloLectura]);
 
   // Estado de la suscripción. Tras volver de pagar, el webhook de Stripe tarda unos segundos en
   // activarla: se consulta cada pocos segundos hasta verla activa (máx. ~40 s).
@@ -925,6 +946,16 @@ export default function App() {
         </div>
       </div>
     </div>
+
+      {avisoSoloLectura && (
+        <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[92%] max-w-lg rounded-2xl border border-rose-200 bg-rose-50 text-rose-800 shadow-xl px-4 py-3 text-xs font-semibold flex items-start gap-3">
+          <span className="flex-1">{avisoSoloLectura}</span>
+          {currentUser.rol === 'admin' && (
+            <button onClick={() => { setAvisoSoloLectura(null); setSuscripcionOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-rose-200 font-bold hover:bg-rose-100 transition cursor-pointer">Suscribirme</button>
+          )}
+          <button onClick={() => setAvisoSoloLectura(null)} aria-label="Cerrar aviso" className="shrink-0 font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
+        </div>
+      )}
 
       {seguridadOpen && <SeguridadModal onClose={() => setSeguridadOpen(false)} />}
       {suscripcionOpen && suscripcion && (

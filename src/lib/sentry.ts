@@ -16,6 +16,8 @@ export function initSentry() {
     dsn,
     environment: import.meta.env.MODE,
     sendDefaultPii: false,
+    // Es un bloqueo esperado (empresa en solo lectura), no un fallo: no ensucia el panel de errores.
+    ignoreErrors: [/Tu periodo de prueba o tu suscripción ha terminado/],
   });
 }
 
