@@ -206,7 +206,7 @@ function Privacidad() {
         <p>Prestar el servicio: gestión de flota, taller, CRM, inventario y facturación.</p>
         <p>Gestionar el alta, autenticación y soporte de tu cuenta.</p>
         <p>
-          Enviar, por encargo tuyo, los recordatorios automáticos (ITV, seguro, impuesto, mantenimiento)
+          Enviar, por encargo tuyo, los recordatorios automáticos (ITV, seguro, impuesto y cambio de aceite)
           a los clientes que tú registras, cuando actives esa función.
         </p>
         <p>Facturación y cumplimiento de obligaciones fiscales y mercantiles.</p>

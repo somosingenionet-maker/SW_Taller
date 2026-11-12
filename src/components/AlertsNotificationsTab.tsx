@@ -6,6 +6,8 @@ import {
 import ConfirmDialog from './ConfirmDialog';
 import { formatDate } from '../utils/dateFormat';
 import { formatKm } from '../utils/moneda';
+import { avisoAceitePendiente } from '../utils/aceite';
+import { NOMBRE_EVENTO, textoDeHtml } from '../utils/textoHtml';
 
 interface AlertsNotificationsTabProps {
   alertas: Alerta[];
@@ -13,21 +15,21 @@ interface AlertsNotificationsTabProps {
   clientes: Cliente[];
   vehiculos: Vehiculo[];
   onForzarRecordatorio: (alertaId: string) => Promise<void>;
-  onRenovarMantenimiento: (alertaId: string, nuevoKilometrajeLimite: number) => void;
   onDeleteNotificacion: (id: string) => void;
-  onTriggerAutoRenew: (vehiculoId: string, tipo: Exclude<AlertaTipo, 'mantenimiento'>, nuevaFecha: string) => void;
+  onTriggerAutoRenew: (vehiculoId: string, tipo: Exclude<AlertaTipo, 'aceite'>, nuevaFecha: string) => void;
 }
 
 // Mismas ventanas que usa la Edge Function enviar-recordatorios — solo para
 // mostrar el estado aquí; el filtrado real de qué se envía vive en el servidor.
 const DIAS_AVISO_VENCIMIENTO = 14;
-const KM_AVISO_MANTENIMIENTO = 500;
+
+const hoyLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 function estaDentroDeVentana(alerta: Alerta, vehiculo?: Vehiculo): boolean {
-  if (alerta.tipo === 'mantenimiento') {
-    if (alerta.kilometrajeLimite == null || !vehiculo) return false;
-    return alerta.kilometrajeLimite - vehiculo.kilometraje <= KM_AVISO_MANTENIMIENTO;
-  }
+  if (alerta.tipo === 'aceite') return avisoAceitePendiente(alerta, vehiculo?.kilometraje ?? 0, hoyLocal()) !== null;
   if (!alerta.fechaLimite) return false;
   const limite = new Date();
   limite.setDate(limite.getDate() + DIAS_AVISO_VENCIMIENTO);
@@ -40,7 +42,6 @@ export default function AlertsNotificationsTab({
   clientes,
   vehiculos,
   onForzarRecordatorio,
-  onRenovarMantenimiento,
   onDeleteNotificacion,
   onTriggerAutoRenew
 }: AlertsNotificationsTabProps) {
@@ -75,12 +76,6 @@ export default function AlertsNotificationsTab({
       title = 'Confirmar pago de impuesto de circulación';
       message = `La fecha del impuesto de circulación se actualizará a ${nuevaFecha} (+1 año) y se cerrará esta alerta.`;
       onConfirm = () => { onTriggerAutoRenew(alerta.vehiculoId, 'impuesto', nuevaFecha); };
-    } else if (alerta.tipo === 'mantenimiento') {
-      const targetVeh = vehiculos.find(v => v.id === alerta.vehiculoId);
-      const nextMaintKm = (targetVeh ? targetVeh.kilometraje : 0) + 15000;
-      title = 'Confirmar mantenimiento realizado';
-      message = `La alerta de kilometraje se pospondrá 15.000 km (próxima revisión recomendada: ${formatKm(nextMaintKm)} km).`;
-      onConfirm = () => { onRenovarMantenimiento(alerta.id, nextMaintKm); };
     }
 
     setConfirmAlerta({ isOpen: true, title, message, onConfirm });
@@ -141,12 +136,12 @@ export default function AlertsNotificationsTab({
             <AlertTriangle className="w-5 h-5 text-amber-500" />
             Alertas Preventivas del Sistema de Flotas
           </h2>
-          <p className="text-xs text-slate-400">Monitor de recordatorios automáticos de ITV, seguros, impuesto y mantenimiento</p>
+          <p className="text-xs text-slate-400">Monitor de recordatorios automáticos de ITV, seguros, impuesto y cambio de aceite</p>
         </div>
 
         {/* Quick tab alerts selector */}
         <div className="flex gap-2 p-1 border-slate-100 border text-xs bg-slate-50/40 rounded-lg w-full sm:w-fit">
-          {['all', 'itv', 'seguro', 'impuesto', 'mantenimiento'].map(tipo => (
+          {['all', 'itv', 'seguro', 'impuesto', 'aceite'].map(tipo => (
             <button
               key={tipo}
               onClick={() => setSelectedTipoFilter(tipo)}
@@ -186,23 +181,31 @@ export default function AlertsNotificationsTab({
                       <div className="flex items-center gap-1.5">
                         <span className={`px-2 py-0.5 rounded text-[9px] font-extrabold uppercase ${
                           al.tipo === 'itv' ? 'bg-amber-100 text-amber-800' :
-                          al.tipo === 'seguro' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                          al.tipo === 'seguro' ? 'bg-red-100 text-red-800' :
+                          al.tipo === 'aceite' ? 'bg-teal-100 text-teal-800' : 'bg-blue-100 text-blue-800'
                         }`}>
-                          {al.tipo}
+                          {al.tipo === 'aceite' ? 'Cambio de aceite' : al.tipo}
                         </span>
                         {veh && (
                           <strong className="text-xs text-slate-800 font-bold">{veh.marca} ({veh.matricula})</strong>
                         )}
                       </div>
                       <p className="text-xs text-slate-600 font-medium leading-relaxed">{al.descripcion}</p>
-                      {al.fechaLimite && (
+                      {(al.fechaLimite || (al.tipo === 'aceite' && al.kilometrajeLimite != null)) && (
                         <div className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-slate-400" /> Vencimiento: {formatDate(al.fechaLimite)}
+                          <Calendar className="w-3 h-3 text-slate-400" />
+                          {al.tipo === 'aceite'
+                            ? <>Le toca: {[al.fechaLimite ? formatDate(al.fechaLimite) : '', al.kilometrajeLimite != null ? `${al.fechaLimite ? 'o a los' : 'a los'} ${formatKm(al.kilometrajeLimite)} km${veh ? ` (lleva ${formatKm(veh.kilometraje)})` : ''}` : ''].filter(Boolean).join(' ')}</>
+                            : <>Vencimiento: {formatDate(al.fechaLimite!)}</>}
                         </div>
                       )}
                     </div>
 
-                    {al.estado !== 'atendida' ? (
+                    {al.tipo === 'aceite' ? (
+                      <span className="text-[10px] text-slate-400 font-semibold shrink-0 sm:max-w-[190px] sm:text-right">
+                        Se actualiza sola al anotar el próximo cambio en una orden de cambio de aceite.
+                      </span>
+                    ) : al.estado !== 'atendida' ? (
                       <button
                         onClick={() => handleResolveAlertClick(al)}
                         id={`btn-resolve-alert-${al.id}`}
@@ -217,9 +220,13 @@ export default function AlertsNotificationsTab({
 
                   {al.estado !== 'atendida' && (
                     <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-200/60">
-                      {al.recordatorioEnviadoEn ? (
+                      {al.ultimoAvisoEnviadoEn ? (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-                          <CheckCircle2 className="w-3 h-3" /> Recordatorio enviado el {formatDate(al.recordatorioEnviadoEn)}
+                          <CheckCircle2 className="w-3 h-3" /> Último aviso enviado el {formatDate(al.ultimoAvisoEnviadoEn.slice(0, 10))}
+                        </span>
+                      ) : al.recordatorioEnviadoEn && !(al.tipo === 'aceite' && dentroDeVentana) ? (
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="w-3 h-3" /> Recordatorio enviado el {formatDate(al.recordatorioEnviadoEn.slice(0, 10))}
                         </span>
                       ) : dentroDeVentana ? (
                         <span className="flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
@@ -257,7 +264,7 @@ export default function AlertsNotificationsTab({
             <MessageSquare className="w-4 h-4 text-blue-600" />
             Bandeja de Salida (Registro de Comunicaciones Despachadas)
           </h3>
-          <p className="text-[11px] text-slate-400">Mensajes enviados a los titulares para recordatorios ITV/mantenimientos</p>
+          <p className="text-[11px] text-slate-400">Mensajes enviados a los titulares para recordatorios de ITV, seguro, impuesto y cambio de aceite</p>
         </div>
 
         <div className="space-y-2 max-h-[220px] overflow-y-auto">
@@ -279,10 +286,10 @@ export default function AlertsNotificationsTab({
                     <span>{formatDate(not.fechaEnvio)}</span>
                   </div>
                   {not.asunto && <strong className="text-slate-800 text-xs block font-bold">{not.asunto}</strong>}
-                  <p className="text-xs text-slate-600 leading-relaxed font-semibold whitespace-pre-line">{not.mensaje}</p>
+                  <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">{textoDeHtml(not.mensaje)}</p>
 
                   <div className="flex justify-between items-center text-[9px] text-slate-400 pt-1">
-                    <span>Filtro evento: {not.tipoEvento.replace('_', ' ')}</span>
+                    <span>{NOMBRE_EVENTO[not.tipoEvento] ?? not.tipoEvento}</span>
                     <button
                       onClick={() => onDeleteNotificacion(not.id)}
                       className="text-slate-400 hover:text-rose-600 text-[10px] shrink-0"

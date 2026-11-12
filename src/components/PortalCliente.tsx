@@ -14,8 +14,8 @@ const PASOS = [
   { estado: 'listo', label: 'Listo' },
 ] as const;
 
-const TIPO_LABEL: Record<string, string> = { itv: 'ITV', seguro: 'Seguro', impuesto: 'Impuesto de circulación', mantenimiento: 'Mantenimiento' };
-const TIPO_ICONO: Record<string, string> = { itv: '📋', seguro: '🛡️', impuesto: '🚗', mantenimiento: '🔧' };
+const TIPO_LABEL: Record<string, string> = { itv: 'ITV', seguro: 'Seguro', impuesto: 'Impuesto de circulación', aceite: 'Cambio de aceite' };
+const TIPO_ICONO: Record<string, string> = { itv: '📋', seguro: '🛡️', impuesto: '🚗', aceite: '🛢️' };
 
 const fmt = fmt2;
 
@@ -227,7 +227,9 @@ export default function PortalCliente({ token }: Props) {
                   <div className="flex-1">
                     <p className="font-bold text-slate-700">{TIPO_LABEL[a.tipo]}</p>
                     <p className="text-slate-400">
-                      {a.fechaLimite ? `Vence ${formatDate(a.fechaLimite)}` : a.kilometrajeLimite ? `A los ${formatKm(a.kilometrajeLimite)} km` : ''}
+                      {a.tipo === 'aceite'
+                        ? [a.fechaLimite ? `Te toca el ${formatDate(a.fechaLimite)}` : '', a.kilometrajeLimite ? `${a.fechaLimite ? 'o a' : 'A'} los ${formatKm(a.kilometrajeLimite)} km` : ''].filter(Boolean).join(' ')
+                        : a.fechaLimite ? `Vence ${formatDate(a.fechaLimite)}` : ''}
                     </p>
                   </div>
                 </div>

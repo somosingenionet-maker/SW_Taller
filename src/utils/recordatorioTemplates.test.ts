@@ -34,10 +34,6 @@ describe('sustituirVariables', () => {
 });
 
 describe('PLANTILLA_DEFAULT', () => {
-  it('tiene una plantilla para cada tipo de alerta', () => {
-    expect(Object.keys(PLANTILLA_DEFAULT).sort()).toEqual(['impuesto', 'itv', 'mantenimiento', 'seguro']);
-  });
-
   it('cada plantilla solo usa variables de la lista soportada', () => {
     const nombresSoportados = VARIABLES_DISPONIBLES.map(v => v.replace(/[{}]/g, ''));
     for (const plantilla of Object.values(PLANTILLA_DEFAULT)) {
@@ -48,10 +44,15 @@ describe('PLANTILLA_DEFAULT', () => {
     }
   });
 
-  it('la plantilla de mantenimiento es la única que usa {{km}}', () => {
-    expect(PLANTILLA_DEFAULT.mantenimiento).toContain('{{km}}');
-    expect(PLANTILLA_DEFAULT.itv).not.toContain('{{km}}');
-    expect(PLANTILLA_DEFAULT.seguro).not.toContain('{{km}}');
-    expect(PLANTILLA_DEFAULT.impuesto).not.toContain('{{km}}');
+  it('la plantilla de aceite usa {{cuando}} (fecha, km o ambos) y las demás la fecha de vencimiento', () => {
+    expect(PLANTILLA_DEFAULT.aceite).toContain('{{cuando}}');
+    for (const tipo of ['itv', 'seguro', 'impuesto'] as const) {
+      expect(PLANTILLA_DEFAULT[tipo]).toContain('{{fecha}}');
+      expect(PLANTILLA_DEFAULT[tipo]).not.toContain('{{cuando}}');
+    }
+  });
+
+  it('tiene una plantilla para cada tipo de alerta, y ya no existe la de mantenimiento', () => {
+    expect(Object.keys(PLANTILLA_DEFAULT).sort()).toEqual(['aceite', 'impuesto', 'itv', 'seguro']);
   });
 });

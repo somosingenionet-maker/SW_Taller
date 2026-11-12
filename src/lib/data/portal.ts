@@ -24,7 +24,7 @@ export interface PortalPresupuesto {
 }
 
 export interface PortalAlerta {
-  tipo: 'itv' | 'seguro' | 'impuesto' | 'mantenimiento';
+  tipo: 'itv' | 'seguro' | 'impuesto' | 'aceite';
   fechaLimite: string | null;
   kilometrajeLimite: number | null;
 }

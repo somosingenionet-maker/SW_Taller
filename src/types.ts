@@ -132,9 +132,11 @@ export interface Cliente {
   vehiculosAsociados?: string[];
   /** Token del enlace del Portal del Cliente (sin login). Null hasta generarlo desde su ficha. */
   portalToken?: string | null;
+  /** El cliente pidió no recibir avisos: no se le envía ningún correo automático ni forzado. */
+  noAvisar?: boolean;
 }
 
-export type AlertaTipo = 'itv' | 'mantenimiento' | 'seguro' | 'impuesto';
+export type AlertaTipo = 'itv' | 'seguro' | 'impuesto' | 'aceite';
 
 export interface Alerta {
   id: string;
@@ -144,10 +146,12 @@ export interface Alerta {
   estado: 'activa' | 'pendiente' | 'atendida';
   /** Fecha límite para alertas por vencimiento (ITV, seguro, impuesto). */
   fechaLimite?: string;
-  /** Kilometraje límite para alertas por odómetro (mantenimiento). */
+  /** Kilometraje límite (cambio de aceite: «o a los X km»). */
   kilometrajeLimite?: number;
   /** ISO timestamp del último recordatorio automático enviado para el ciclo actual (undefined = pendiente). */
   recordatorioEnviadoEn?: string;
+  /** Aceite: cuándo se envió el «último aviso» de un cambio ya vencido. */
+  ultimoAvisoEnviadoEn?: string;
 }
 
 export interface NotificacionCliente {
@@ -159,7 +163,7 @@ export interface NotificacionCliente {
   mensaje: string;
   fechaEnvio: string;
   leido: boolean;
-  tipoEvento: 'mantenimiento_preventivo' | 'itv_proxima' | 'vencimiento_seguro' | 'impuesto_proximo' | 'reparacion_lista';
+  tipoEvento: 'mantenimiento_preventivo' | 'itv_proxima' | 'vencimiento_seguro' | 'impuesto_proximo' | 'reparacion_lista' | 'cambio_aceite' | 'aceite_vencido' | 'aceite_resumen';
   /** 'automatico' = disparado por el cron de recordatorios; 'manual' = despachado desde el simulador. */
   origen: 'manual' | 'automatico';
 }

@@ -9,13 +9,14 @@ type ClienteInsert = Database['public']['Tables']['clientes']['Insert'];
 export type NuevoCliente = Omit<Cliente, 'id' | 'fechaRegistro' | 'interacciones'>;
 
 const SELECT =
-  'id, nombre, apellidos, nif_nie_pasaporte, correo, telefono, direccion, ciudad, pais, fecha_registro, portal_token, ' +
+  'id, nombre, apellidos, nif_nie_pasaporte, correo, telefono, direccion, ciudad, pais, fecha_registro, portal_token, no_avisar, ' +
   'interacciones_cliente ( id, fecha, tipo, notas ), cliente_vehiculo ( vehiculo_id )';
 
 type ClienteRow = {
   id: string; nombre: string; apellidos: string; nif_nie_pasaporte: string;
   correo: string | null; telefono: string | null; direccion: string | null;
   ciudad: string | null; pais: string | null; fecha_registro: string; portal_token: string | null;
+  no_avisar?: boolean | null;
   interacciones_cliente: { id: string; fecha: string; tipo: string; notas: string }[] | null;
   cliente_vehiculo: { vehiculo_id: string }[] | null;
 };
@@ -33,6 +34,7 @@ function mapCliente(r: ClienteRow): Cliente {
     pais: r.pais ?? undefined,
     fechaRegistro: r.fecha_registro,
     portalToken: r.portal_token,
+    noAvisar: r.no_avisar === true,
     vehiculosAsociados: (r.cliente_vehiculo ?? []).map((cv) => cv.vehiculo_id),
     interacciones: (r.interacciones_cliente ?? [])
       .map((i) => ({ id: i.id, fecha: i.fecha, tipo: i.tipo as InteraccionCliente['tipo'], notas: i.notas }))
@@ -52,6 +54,7 @@ function toRow(c: NuevoCliente | Cliente): Partial<Database['public']['Tables'][
     pais: c.pais || null,
   };
   if (c.portalToken !== undefined) row.portal_token = c.portalToken;
+  if (c.noAvisar !== undefined) (row as Record<string, unknown>).no_avisar = c.noAvisar;
   return row;
 }
 

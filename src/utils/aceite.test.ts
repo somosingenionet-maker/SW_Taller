@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diasHasta, resumenFiltros, sumarMeses, urgenciaAceite } from './aceite';
+import { avisoAceitePendiente, diasHasta, resumenFiltros, sumarMeses, urgenciaAceite } from './aceite';
 
 describe('sumarMeses', () => {
   it('suma meses y años', () => {
@@ -44,5 +44,24 @@ describe('urgenciaAceite', () => {
   it('diasHasta', () => {
     expect(diasHasta('2026-11-22', hoy)).toBe(10);
     expect(diasHasta('2026-11-02', hoy)).toBe(-10);
+  });
+});
+
+// Misma regla que el servidor (enviar-recordatorios/logic.ts → avisoAceite): si cambian allí, cambian aquí.
+describe('avisoAceitePendiente', () => {
+  const hoy = '2026-11-12';
+  it('recordatorio desde 14 días antes, una sola vez', () => {
+    expect(avisoAceitePendiente({ fechaLimite: '2026-11-27' }, 0, hoy)).toBeNull();
+    expect(avisoAceitePendiente({ fechaLimite: '2026-11-26' }, 0, hoy)).toBe('recordatorio');
+    expect(avisoAceitePendiente({ fechaLimite: '2026-11-26', recordatorioEnviadoEn: '2026-11-12T08:00:00Z' }, 0, hoy)).toBeNull();
+  });
+  it('por kilómetros', () => {
+    expect(avisoAceitePendiente({ fechaLimite: '2027-05-12', kilometrajeLimite: 100000 }, 99500, hoy)).toBe('recordatorio');
+    expect(avisoAceitePendiente({ fechaLimite: '2027-05-12', kilometrajeLimite: 100000 }, 99000, hoy)).toBeNull();
+  });
+  it('último aviso entre 7 y 60 días después, una sola vez', () => {
+    expect(avisoAceitePendiente({ fechaLimite: '2026-11-05', recordatorioEnviadoEn: 'x' }, 0, hoy)).toBe('vencido');
+    expect(avisoAceitePendiente({ fechaLimite: '2026-11-05', recordatorioEnviadoEn: 'x', ultimoAvisoEnviadoEn: 'y' }, 0, hoy)).toBeNull();
+    expect(avisoAceitePendiente({ fechaLimite: '2026-09-12' }, 0, hoy)).toBeNull();
   });
 });

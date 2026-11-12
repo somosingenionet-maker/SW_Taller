@@ -12,7 +12,7 @@ import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, guardarA
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
 import { listOrdenesTablero, createOrden, updateOrden, deleteOrden, getOrden } from './lib/data/ordenes';
 import { avisoDelMecanico } from './utils/avisoMecanico';
-import { listAlertas, renovarAlertaMantenimiento, forzarRecordatorio } from './lib/data/alertas';
+import { listAlertas, forzarRecordatorio } from './lib/data/alertas';
 import { listNotificaciones, deleteNotificacion } from './lib/data/notificaciones';
 import { createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
 import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
@@ -356,7 +356,7 @@ export default function App() {
   const handleAddVehiculo = useCallback(async (input: NuevoVehiculo) => {
     await createVehiculo(input);
     await recargarVehiculos();
-    // El trigger de BD crea las alertas de itv/seguro/impuesto/mantenimiento.
+    // El trigger de BD crea las alertas de itv/seguro/impuesto.
     await recargarAlertas();
   }, [recargarVehiculos, recargarAlertas]);
 
@@ -405,15 +405,7 @@ export default function App() {
     return actualizado;
   }, [recargarClientes]);
 
-  // Estas tres acciones de Alertas se lanzan desde un botón sin formulario detrás: el error se avisa aquí.
-  const handleRenovarMantenimiento = useCallback(async (alertaId: string, nuevoKilometrajeLimite: number) => {
-    try {
-      await renovarAlertaMantenimiento(alertaId, nuevoKilometrajeLimite);
-      await recargarAlertas();
-    } catch (err) {
-      avisarError(err, 'No se pudo posponer la alerta de mantenimiento.');
-    }
-  }, [recargarAlertas]);
+  // Las acciones de Alertas se lanzan desde un botón sin formulario detrás: el error se avisa aquí.
 
   const handleForzarRecordatorio = useCallback(async (alertaId: string) => {
     await forzarRecordatorio(alertaId);
@@ -430,7 +422,7 @@ export default function App() {
     }
   }, [recargarNotificaciones]);
 
-  const handleTriggerAutoRenew = useCallback(async (vehId: string, tipo: Exclude<AlertaTipo, 'mantenimiento'>, nuevaFecha: string) => {
+  const handleTriggerAutoRenew = useCallback(async (vehId: string, tipo: Exclude<AlertaTipo, 'aceite'>, nuevaFecha: string) => {
     const veh = vehiculos.find(v => v.id === vehId);
     if (!veh) return;
     const updatedVeh = { ...veh };
@@ -527,12 +519,14 @@ export default function App() {
   const handleOrdenRefrescada = useCallback((ot: OrdenTrabajo) => {
     setOrdenesTrabajo(prev => prev.map(o => (o.id === ot.id ? ot : o)));
     void recargarVehiculos().catch(() => undefined);
-  }, [recargarVehiculos]);
+    void recargarAlertas().catch(() => undefined); // el próximo cambio mueve la alerta de aceite
+  }, [recargarVehiculos, recargarAlertas]);
 
   const handleGuardarAceite = useCallback(async (vehiculoId: string, datos: AceiteVehiculo) => {
     await guardarAceite(vehiculoId, datos);
     await recargarVehiculos();
-  }, [recargarVehiculos]);
+    await recargarAlertas();
+  }, [recargarVehiculos, recargarAlertas]);
 
   const handleDeleteOT = useCallback(async (id: string) => {
     await deleteOrden(id);
@@ -932,7 +926,6 @@ export default function App() {
             clientes={clientes}
             vehiculos={vehiculos}
             onForzarRecordatorio={handleForzarRecordatorio}
-            onRenovarMantenimiento={handleRenovarMantenimiento}
             onDeleteNotificacion={handleDeleteNotificacion}
             onTriggerAutoRenew={handleTriggerAutoRenew}
           />

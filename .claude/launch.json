@@ -12,6 +12,13 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "--mode", "e2e", "--port=3000", "--host=0.0.0.0"],
       "port": 3000
+    },
+    {
+      "name": "preview-build",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "npx vite preview --port ${PORT:-4173} --strictPort false"],
+      "port": 4173,
+      "autoPort": true
     }
   ]
 }

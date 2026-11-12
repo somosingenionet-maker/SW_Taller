@@ -495,6 +495,12 @@ export default function CrmTab({
                     </div>
                   </div>
                 )}
+
+                {selectedCliente.noAvisar && (
+                  <p className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                    Este cliente pidió no recibir avisos: no se le envían recordatorios.
+                  </p>
+                )}
               </div>
 
               {/* Vehículos asociados */}
@@ -982,6 +988,15 @@ export default function CrmTab({
                     placeholder="España, Francia..."
                   />
                 </div>
+
+                <label className="flex items-start gap-2.5 px-3 py-2.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition">
+                  <input type="checkbox" className="w-4 h-4 mt-0.5 accent-blue-600" checked={!!editFormData.noAvisar}
+                    onChange={e => setEditFormData({ ...editFormData, noAvisar: e.target.checked })} />
+                  <span>
+                    <span className="block text-sm text-slate-700 font-medium">No enviarle avisos</span>
+                    <span className="block text-[11px] text-slate-400">Márcalo si el cliente pide no recibir correos de recordatorio (ITV, seguro, impuesto, cambio de aceite).</span>
+                  </span>
+                </label>
 
                 {vehiculos.length > 0 && (
                   <div>

@@ -18,7 +18,7 @@ const TIPO_LABEL: Record<AlertaTipo, string> = {
   itv: 'ITV',
   seguro: 'Seguro',
   impuesto: 'Impuesto de circulación',
-  mantenimiento: 'Mantenimiento preventivo',
+  aceite: 'Cambio de aceite (recordatorio)',
 };
 
 type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'tecnicos';
@@ -464,7 +464,7 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
               <label className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-100 rounded-2xl px-3 py-2.5 cursor-pointer">
                 <span className="text-xs text-slate-600 flex items-center gap-2">
                   <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  Enviar por email recordatorios de ITV, seguro, impuesto y mantenimiento a los clientes automáticamente.
+                  Enviar por email a los clientes, automáticamente, los recordatorios de ITV, seguro e impuesto y los avisos del cambio de aceite (resumen al entregar, recordatorio antes del próximo cambio y último aviso si no vuelve).
                 </span>
                 <input
                   type="checkbox"

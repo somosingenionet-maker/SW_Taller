@@ -418,3 +418,8 @@ enabled = true
 # Stripe no envía un JWT de Supabase: el webhook se autentica con la firma Stripe-Signature.
 [functions.stripe-webhook]
 verify_jwt = false
+
+# El Portal del Mecánico se protege con el token del enlace, pero la pasarela exige además la clave
+# pública de la app (como portal-cliente): se deja explícito para que un despliegue no lo cambie.
+[functions.portal-mecanico]
+verify_jwt = true
