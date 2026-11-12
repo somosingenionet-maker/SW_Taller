@@ -79,14 +79,57 @@ export const EVENTOS = {
   tareaDeshecha: (tecnico: string, tarea: string) => `${tecnico} desmarcó «${tarea}».`,
   duracion: (tecnico: string, tarea: string, minutos: number) => `${tecnico} corrigió el tiempo de «${tarea}»: ${textoDuracion(minutos)}.`,
   nota: (tecnico: string, texto: string) => `Nota de ${tecnico}: ${texto}`,
+  aceite: (tecnico: string, activo: boolean) =>
+    activo ? `${tecnico} marcó la orden como cambio de aceite.` : `${tecnico} quitó la marca de cambio de aceite.`,
+  filtro: (tecnico: string, filtro: Filtro, estado: EstadoFiltro) =>
+    estado === 'cambiado' ? `${tecnico}: ${NOMBRE_FILTRO[filtro]} cambiado.`
+      : estado === 'no_cambiado' ? `${tecnico}: ${NOMBRE_FILTRO[filtro]} NO se cambió.`
+      : `${tecnico} dejó sin revisar el ${NOMBRE_FILTRO[filtro]}.`,
 };
+
+// ---- Cambio de aceite ----
+export const FILTROS = ['aire', 'aceite', 'combustible', 'habitaculo'] as const;
+export type Filtro = typeof FILTROS[number];
+export type EstadoFiltro = 'cambiado' | 'no_cambiado' | null;
+export const NOMBRE_FILTRO: Record<Filtro, string> = {
+  aire: 'filtro de aire', aceite: 'filtro de aceite', combustible: 'filtro de combustible', habitaculo: 'filtro de habitáculo',
+};
+
+export function esFiltro(valor: unknown): valor is Filtro {
+  return typeof valor === 'string' && (FILTROS as readonly string[]).includes(valor);
+}
+
+/** 'cambiado' | 'no_cambiado' | null (sin revisar). Cualquier otra cosa no vale. */
+export function normalizarEstadoFiltro(valor: unknown): { ok: true; estado: EstadoFiltro } | { ok: false } {
+  if (valor === null || valor === undefined || valor === '') return { ok: true, estado: null };
+  return valor === 'cambiado' || valor === 'no_cambiado' ? { ok: true, estado: valor } : { ok: false };
+}
+
+/** Fecha «AAAA-MM-DD» real (no 2027-02-31) o null. Los límites (futura, máx. 5 años) los valida la base de datos. */
+export function fechaValida(valor: unknown): string | null {
+  if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return null;
+  const d = new Date(`${valor}T00:00:00Z`);
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== valor ? null : valor;
+}
+
+/** Kilómetros del próximo cambio: entero positivo o null (no se anotan). */
+export function normalizarKm(valor: unknown): { ok: true; km: number | null } | { ok: false } {
+  if (valor === null || valor === undefined || valor === '') return { ok: true, km: null };
+  const n = typeof valor === 'number' ? valor : Number(valor);
+  return Number.isInteger(n) && n > 0 && n <= 2_000_000 ? { ok: true, km: n } : { ok: false };
+}
 
 export type OtRow = {
   id: string; numero: string; vehiculo_id: string; estado: string; descripcion_problema: string;
   diagnostico?: string | null; kilometraje_entrada?: number | null;
   fecha_estimada_entrega?: string | null; created_at?: string;
+  es_cambio_aceite?: boolean | null; aceite_anotado_en?: string | null;
+  filtro_aire?: string | null; filtro_aceite?: string | null; filtro_combustible?: string | null; filtro_habitaculo?: string | null;
 };
-export type VehiculoRow = { id: string; marca: string; modelo: string; matricula: string };
+export type VehiculoRow = {
+  id: string; marca: string; modelo: string; matricula: string;
+  aceite_proxima_fecha?: string | null; aceite_proximo_km?: number | null;
+};
 export type LineaRow = { id: string; ot_id: string; descripcion: string; completado: boolean; duracion_min?: number | null };
 export type EventoRow = { ot_id: string; fecha: string; descripcion: string };
 
@@ -138,6 +181,14 @@ export function formatearOrdenesPortal(
         fechaEstimadaEntrega: o.fecha_estimada_entrega ?? null,
         ingreso: ingresoDe(o, eventos),
         vehiculo: v ? { marca: v.marca, modelo: v.modelo, matricula: v.matricula } : null,
+        esCambioAceite: o.es_cambio_aceite === true,
+        filtros: {
+          aire: o.filtro_aire ?? null, aceite: o.filtro_aceite ?? null,
+          combustible: o.filtro_combustible ?? null, habitaculo: o.filtro_habitaculo ?? null,
+        },
+        // El próximo cambio solo se enseña si se anotó a raíz de ESTA orden (si no, sería el del ciclo anterior).
+        aceiteProximo: o.aceite_anotado_en && v?.aceite_proxima_fecha
+          ? { fecha: v.aceite_proxima_fecha, km: v.aceite_proximo_km ?? null } : null,
         tareas: lineas
           .filter((l) => l.ot_id === o.id)
           .map((l) => ({ id: l.id, descripcion: l.descripcion, completado: l.completado, duracionMin: l.duracion_min ?? null })),

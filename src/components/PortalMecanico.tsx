@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff } from 'lucide-react';
+import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff, Droplet } from 'lucide-react';
 import {
   getPortalMecanicoData, marcarTareaMecanico, cambiarDuracionMecanico, cambiarEstadoMecanico, dejarNotaMecanico,
+  marcarCambioAceiteMecanico, marcarFiltroMecanico, anotarProximoCambioMecanico,
   type PortalMecanicoData, type PortalMecanicoOrden, type PortalMecanicoTarea,
 } from '../lib/data/portalMecanico';
 import { OPCIONES_DURACION, textoDuracion } from '../utils/duracionTarea';
 import { GRUPOS, fechaHora, ordenesNuevas, vistosActualizados } from '../utils/portalMecanico';
+import { FILTROS, sumarMeses } from '../utils/aceite';
 import { formatDate } from '../utils/dateFormat';
 import { formatKm } from '../utils/moneda';
 
@@ -90,6 +92,9 @@ function OrdenCard({ orden, color, token, nuevo, onVisto, onCambio }: {
   const [confirmarListo, setConfirmarListo] = useState(false);
   const [notaAbierta, setNotaAbierta] = useState(false);
   const [nota, setNota] = useState('');
+  const [proximoAbierto, setProximoAbierto] = useState(false);
+  const [proximaFecha, setProximaFecha] = useState('');
+  const [proximoKm, setProximoKm] = useState('');
 
   const editable = orden.estado === 'recibido' || orden.estado === 'en_reparacion';
   const hechas = orden.tareas.filter((t) => t.completado).length;
@@ -140,6 +145,22 @@ function OrdenCard({ orden, color, token, nuevo, onVisto, onCambio }: {
     if (!texto) return;
     const ok = await ejecutar(() => dejarNotaMecanico(token, orden.id, texto));
     if (ok) { setNota(''); setNotaAbierta(false); }
+  };
+
+  const abrirProximo = () => {
+    onVisto();
+    setError('');
+    setProximaFecha(orden.aceiteProximo?.fecha ?? '');
+    setProximoKm(orden.aceiteProximo?.km ? String(orden.aceiteProximo.km) : '');
+    setProximoAbierto(true);
+  };
+
+  const guardarProximo = async () => {
+    if (!proximaFecha) { setError('Indica la fecha del próximo cambio.'); return; }
+    const km = proximoKm.trim() === '' ? null : Number(proximoKm);
+    if (km !== null && (!Number.isInteger(km) || km <= 0)) { setError('Los kilómetros no son válidos.'); return; }
+    const ok = await ejecutar(() => anotarProximoCambioMecanico(token, orden.id, proximaFecha, km));
+    if (ok) setProximoAbierto(false);
   };
 
   const chip = orden.estado === 'en_reparacion' ? 'bg-orange-50 text-orange-700'
@@ -216,6 +237,85 @@ function OrdenCard({ orden, color, token, nuevo, onVisto, onCambio }: {
             </button>
           ))}
         </div>
+      )}
+
+      {/* Cambio de aceite: check list de filtros y próximo cambio. */}
+      {orden.esCambioAceite ? (
+        <div className="mt-3 rounded-2xl border border-slate-200 p-3 space-y-3" data-testid="aceite-mecanico">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1"><Droplet className="w-3 h-3" /> Cambio de aceite</p>
+            {editable && (
+              <button type="button" disabled={ocupado} onClick={() => void ejecutar(() => marcarCambioAceiteMecanico(token, orden.id, false))}
+                className="text-[11px] font-semibold text-slate-400 underline cursor-pointer disabled:opacity-50">No es un cambio de aceite</button>
+            )}
+          </div>
+          {FILTROS.map((f) => (
+            <div key={f.id} role="group" aria-label={f.nombre}>
+              <p className="text-sm font-semibold text-slate-700 mb-1.5">{f.nombre}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([['cambiado', 'Cambiado'], ['no_cambiado', 'No se cambió']] as const).map(([estado, texto]) => {
+                  const activo = orden.filtros[f.id] === estado;
+                  return (
+                    <button key={estado} type="button" disabled={!editable || ocupado} aria-pressed={activo}
+                      onClick={() => void ejecutar(() => marcarFiltroMecanico(token, orden.id, f.id, activo ? null : estado))}
+                      className={`py-3 rounded-2xl border text-sm font-bold transition active:scale-[0.98] cursor-pointer disabled:cursor-default flex items-center justify-center gap-1.5 ${
+                        activo
+                          ? estado === 'cambiado' ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-amber-50 border-amber-300 text-amber-700'
+                          : 'bg-white border-slate-200 text-slate-500'
+                      }`}>
+                      {activo && <Check className="w-4 h-4" />}{texto}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          <div className="border-t border-slate-100 pt-3 space-y-2">
+            <p className="text-sm font-semibold text-slate-700">Próximo cambio</p>
+            {proximoAbierto ? (
+              <>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setProximaFecha(sumarMeses(6))} className="py-2.5 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 cursor-pointer">6 meses</button>
+                  <button type="button" onClick={() => setProximaFecha(sumarMeses(12))} className="py-2.5 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 cursor-pointer">1 año</button>
+                </div>
+                <label className="block text-xs font-semibold text-slate-500">Fecha
+                  <input type="date" value={proximaFecha} onChange={(e) => setProximaFecha(e.target.value)}
+                    className="mt-1 w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </label>
+                <label className="block text-xs font-semibold text-slate-500">O a los kilómetros (opcional)
+                  <input type="number" inputMode="numeric" min="1" step="1" value={proximoKm} onChange={(e) => setProximoKm(e.target.value)}
+                    placeholder="Ej.: 100000"
+                    className="mt-1 w-full border border-slate-200 rounded-2xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                </label>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setProximoAbierto(false); setError(''); }} className="px-4 py-3 rounded-2xl bg-slate-100 text-slate-600 text-sm font-bold cursor-pointer">Cancelar</button>
+                  <button type="button" onClick={() => void guardarProximo()} disabled={ocupado}
+                    className="flex-1 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-50 cursor-pointer" style={{ backgroundColor: color }}>
+                    {ocupado ? 'Guardando…' : 'Guardar próximo cambio'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-600">
+                  {orden.aceiteProximo
+                    ? <><span className="font-bold text-slate-800">{formatDate(orden.aceiteProximo.fecha)}</span>{orden.aceiteProximo.km ? ` o a los ${formatKm(orden.aceiteProximo.km)} km` : ''}</>
+                    : 'Sin anotar todavía.'}
+                </p>
+                <button type="button" onClick={abrirProximo} disabled={ocupado}
+                  className="w-full py-3 rounded-2xl border-2 text-sm font-bold disabled:opacity-50 cursor-pointer" style={{ borderColor: color, color }}>
+                  {orden.aceiteProximo ? 'Cambiar el próximo cambio' : 'Anotar próximo cambio'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ) : editable && (
+        <button type="button" disabled={ocupado} onClick={() => void ejecutar(() => marcarCambioAceiteMecanico(token, orden.id, true))}
+          className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 rounded-2xl border border-dashed border-slate-300 text-slate-500 text-sm font-semibold disabled:opacity-50 cursor-pointer">
+          <Droplet className="w-4 h-4" /> Es un cambio de aceite
+        </button>
       )}
 
       {orden.notas.length > 0 && (

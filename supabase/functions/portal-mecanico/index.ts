@@ -11,6 +11,7 @@ import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import {
   Tecnico, OtRow, AccionEstado, puedeMarcarTarea, debeIniciarReparacion, formatearOrdenesPortal,
   transicionMecanico, normalizarDuracion, limpiarNota, EVENTOS, ESTADOS_VISIBLES, ESTADOS_EDITABLES, NOTA_MAX,
+  esFiltro, normalizarEstadoFiltro, fechaValida, normalizarKm,
 } from './logic.ts';
 import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
 import { initSentry, conSentry } from '../_shared/sentry.ts';
@@ -47,17 +48,18 @@ async function manejarGet(admin: SupabaseClient, tecnico: Tecnico) {
 
   const { data: ordenesData } = await admin
     .from('ordenes_trabajo')
-    .select('id, numero, vehiculo_id, estado, descripcion_problema, diagnostico, kilometraje_entrada, fecha_estimada_entrega, created_at')
+    .select('id, numero, vehiculo_id, estado, descripcion_problema, diagnostico, kilometraje_entrada, fecha_estimada_entrega, created_at, ' +
+      'es_cambio_aceite, aceite_anotado_en, filtro_aire, filtro_aceite, filtro_combustible, filtro_habitaculo')
     .eq('empresa_id', tecnico.empresa_id)
     .eq('tecnico_asignado', tecnico.nombre)
     .in('estado', [...ESTADOS_VISIBLES]);
-  const ordenes = (ordenesData ?? []) as OtRow[];
+  const ordenes = (ordenesData ?? []) as unknown as OtRow[];
 
   const vehiculoIds = [...new Set(ordenes.map(o => o.vehiculo_id))];
   const otIds = ordenes.map(o => o.id);
   const [{ data: vehiculos }, { data: lineas }, { data: eventos }] = await Promise.all([
     vehiculoIds.length
-      ? admin.from('vehiculos').select('id, marca, modelo, matricula').in('id', vehiculoIds)
+      ? admin.from('vehiculos').select('id, marca, modelo, matricula, aceite_proxima_fecha, aceite_proximo_km').in('id', vehiculoIds)
       : Promise.resolve({ data: [] }),
     otIds.length
       ? admin.from('lineas_ot').select('id, ot_id, descripcion, completado, duracion_min, posicion')
@@ -77,14 +79,14 @@ async function manejarGet(admin: SupabaseClient, tecnico: Tecnico) {
   });
 }
 
-type OtAccion = { id: string; empresa_id: string; tecnico_asignado: string | null; estado: string };
+type OtAccion = { id: string; empresa_id: string; tecnico_asignado: string | null; estado: string; es_cambio_aceite: boolean };
 
 /** La orden, solo si es de este técnico (misma empresa y asignada a él). */
 async function ordenDelTecnico(admin: SupabaseClient, tecnico: Tecnico, otId: string): Promise<OtAccion | Response> {
   if (!otId) return json({ error: 'Orden no encontrada.' }, 404);
   const { data: ot, error } = await admin
     .from('ordenes_trabajo')
-    .select('id, empresa_id, tecnico_asignado, estado')
+    .select('id, empresa_id, tecnico_asignado, estado, es_cambio_aceite')
     .eq('id', otId)
     .maybeSingle();
   if (error || !ot) return json({ error: 'Orden no encontrada.' }, 404);
@@ -184,6 +186,47 @@ async function manejarEstado(admin: SupabaseClient, tecnico: Tecnico, otId: stri
   return json({ ok: true, estado: nuevo });
 }
 
+// ---- Cambio de aceite ----
+
+async function manejarAceite(admin: SupabaseClient, tecnico: Tecnico, otId: string, activo: boolean) {
+  const ot = await ordenDelTecnico(admin, tecnico, otId);
+  if (ot instanceof Response) return ot;
+  if (!(ESTADOS_EDITABLES as readonly string[]).includes(ot.estado)) return json({ error: SOLO_EN_TALLER }, 409);
+  if (ot.es_cambio_aceite === activo) return json({ ok: true });
+  await registrar(admin, ot.id, EVENTOS.aceite(tecnico.nombre, activo), { es_cambio_aceite: activo });
+  return json({ ok: true });
+}
+
+async function manejarFiltro(admin: SupabaseClient, tecnico: Tecnico, otId: string, filtro: unknown, estado: unknown) {
+  const ot = await ordenDelTecnico(admin, tecnico, otId);
+  if (ot instanceof Response) return ot;
+  if (!(ESTADOS_EDITABLES as readonly string[]).includes(ot.estado)) return json({ error: SOLO_EN_TALLER }, 409);
+  if (!ot.es_cambio_aceite) return json({ error: 'Esta orden no está marcada como cambio de aceite.' }, 409);
+  const e = normalizarEstadoFiltro(estado);
+  if (!esFiltro(filtro) || !e.ok) return json({ error: 'Filtro no reconocido.' }, 400);
+  // `filtro` viene de una lista cerrada: el nombre de columna nunca sale del texto del cliente.
+  await registrar(admin, ot.id, EVENTOS.filtro(tecnico.nombre, filtro, e.estado), { [`filtro_${filtro}`]: e.estado });
+  return json({ ok: true });
+}
+
+async function manejarAceiteProximo(admin: SupabaseClient, tecnico: Tecnico, otId: string, fecha: unknown, km: unknown) {
+  const ot = await ordenDelTecnico(admin, tecnico, otId);
+  if (ot instanceof Response) return ot;
+  if (!(ESTADOS_VISIBLES as readonly string[]).includes(ot.estado)) return json({ error: SOLO_EN_TALLER }, 409);
+  const f = fechaValida(fecha);
+  const k = normalizarKm(km);
+  if (!f) return json({ error: 'Indica la fecha del próximo cambio.' }, 400);
+  if (!k.ok) return json({ error: 'Los kilómetros del próximo cambio no son válidos.' }, 400);
+  // La función de la base de datos valida los límites y escribe en la ficha del vehículo, en la
+  // orden y en el historial de una vez. Sus mensajes de validación (P0001) son para el mecánico.
+  const { error } = await admin.rpc('anotar_cambio_aceite', {
+    p_ot_id: ot.id, p_proxima_fecha: f, p_proximo_km: k.km, p_autor: tecnico.nombre,
+  });
+  if (error) return json({ error: error.code === 'P0001' ? error.message : 'No se pudo guardar.' }, error.code === 'P0001' ? 400 : 500);
+  await admin.from('ordenes_trabajo').update({ mecanico_actualizado_en: new Date().toISOString() }).eq('id', ot.id);
+  return json({ ok: true });
+}
+
 async function manejarNota(admin: SupabaseClient, tecnico: Tecnico, otId: string, texto: unknown) {
   const ot = await ordenDelTecnico(admin, tecnico, otId);
   if (ot instanceof Response) return ot;
@@ -237,6 +280,9 @@ Deno.serve(conSentry(async (req) => {
     return manejarEstado(admin, tecnico, String(body.otId ?? ''), accion);
   }
   if (accion === 'nota') return manejarNota(admin, tecnico, String(body.otId ?? ''), body.texto);
+  if (accion === 'aceite') return manejarAceite(admin, tecnico, String(body.otId ?? ''), body.activo === true);
+  if (accion === 'filtro') return manejarFiltro(admin, tecnico, String(body.otId ?? ''), body.filtro, body.estado);
+  if (accion === 'aceite_proximo') return manejarAceiteProximo(admin, tecnico, String(body.otId ?? ''), body.fecha, body.km);
   if (accion) return json({ error: 'Acción no reconocida.' }, 400);
 
   return manejarGet(admin, tecnico);

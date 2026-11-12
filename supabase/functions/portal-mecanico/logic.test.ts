@@ -10,6 +10,10 @@ import {
   ingresoDe,
   notasDe,
   EVENTOS,
+  esFiltro,
+  normalizarEstadoFiltro,
+  fechaValida,
+  normalizarKm,
   type Tecnico,
 } from './logic.ts';
 
@@ -176,4 +180,55 @@ Deno.test('EVENTOS: textos del historial', () => {
   assertEquals(EVENTOS.listo('Ana', 0), 'Ana marcó el vehículo como listo: todas las tareas hechas.');
   assertEquals(EVENTOS.listo('Ana', 1), 'Ana marcó el vehículo como listo con 1 tarea sin marcar.');
   assertEquals(EVENTOS.nota('Ana', 'x').startsWith('Nota de Ana: '), true);
+});
+
+// -------- cambio de aceite --------
+Deno.test('esFiltro: solo los cuatro filtros (el nombre acaba en un nombre de columna)', () => {
+  for (const f of ['aire', 'aceite', 'combustible', 'habitaculo']) assertEquals(esFiltro(f), true);
+  for (const f of ['estado', 'aire; drop table', 'AIRE', '', null, 3]) assertEquals(esFiltro(f), false);
+});
+
+Deno.test('normalizarEstadoFiltro', () => {
+  assertEquals(normalizarEstadoFiltro('cambiado'), { ok: true, estado: 'cambiado' });
+  assertEquals(normalizarEstadoFiltro('no_cambiado'), { ok: true, estado: 'no_cambiado' });
+  assertEquals(normalizarEstadoFiltro(null), { ok: true, estado: null });
+  assertEquals(normalizarEstadoFiltro('quizá'), { ok: false });
+  assertEquals(normalizarEstadoFiltro(true), { ok: false });
+});
+
+Deno.test('fechaValida: AAAA-MM-DD que exista', () => {
+  assertEquals(fechaValida('2027-05-11'), '2027-05-11');
+  assertEquals(fechaValida('2027-02-31'), null);
+  assertEquals(fechaValida('11/05/2027'), null);
+  assertEquals(fechaValida(''), null);
+  assertEquals(fechaValida(20270511), null);
+});
+
+Deno.test('normalizarKm: entero positivo, vacío = sin km', () => {
+  assertEquals(normalizarKm(100000), { ok: true, km: 100000 });
+  assertEquals(normalizarKm('67500'), { ok: true, km: 67500 });
+  assertEquals(normalizarKm(''), { ok: true, km: null });
+  assertEquals(normalizarKm(null), { ok: true, km: null });
+  for (const malo of [0, -5, 12.5, 'abc', 3_000_000]) assertEquals(normalizarKm(malo), { ok: false });
+});
+
+Deno.test('formatearOrdenesPortal: aceite — filtros y próximo cambio solo si se anotó en ESTA orden', () => {
+  const veh = [{ id: 'v1', marca: 'Seat', modelo: 'Ibiza', matricula: '1111AAA', aceite_proxima_fecha: '2027-05-11', aceite_proximo_km: 67500 }];
+  const base = { numero: 'OT', vehiculo_id: 'v1', estado: 'en_reparacion', descripcion_problema: '' };
+  const [anotada, sinAnotar, normal] = formatearOrdenesPortal([
+    { ...base, id: 'a', es_cambio_aceite: true, filtro_aire: 'cambiado', filtro_habitaculo: 'no_cambiado', aceite_anotado_en: '2026-11-12T10:00:00Z', created_at: '2026-11-01T00:00:00Z' },
+    { ...base, id: 'b', es_cambio_aceite: true, created_at: '2026-11-02T00:00:00Z' },
+    { ...base, id: 'c', created_at: '2026-11-03T00:00:00Z' },
+  ], veh, []);
+  assertEquals(anotada.esCambioAceite, true);
+  assertEquals(anotada.filtros, { aire: 'cambiado', aceite: null, combustible: null, habitaculo: 'no_cambiado' });
+  assertEquals(anotada.aceiteProximo, { fecha: '2027-05-11', km: 67500 });
+  assertEquals(sinAnotar.aceiteProximo, null);
+  assertEquals(normal.esCambioAceite, false);
+});
+
+Deno.test('EVENTOS de aceite', () => {
+  assertEquals(EVENTOS.filtro('Ana', 'aire', 'cambiado'), 'Ana: filtro de aire cambiado.');
+  assertEquals(EVENTOS.filtro('Ana', 'habitaculo', 'no_cambiado'), 'Ana: filtro de habitáculo NO se cambió.');
+  assertEquals(EVENTOS.aceite('Ana', true), 'Ana marcó la orden como cambio de aceite.');
 });

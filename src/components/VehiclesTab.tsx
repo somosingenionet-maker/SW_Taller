@@ -9,6 +9,8 @@ import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
 import { avisarError } from '../lib/avisos';
+import type { AceiteVehiculo } from '../lib/data/vehiculos';
+import AceiteVehiculoCard from './AceiteVehiculoCard';
 import { mensajeDeError } from '../lib/errores';
 import { formatEuros, formatKm } from '../utils/moneda';
 import { listOrdenesPorVehiculo, getHistorialOT, OrdenVehiculoRow } from '../lib/data/ordenes';
@@ -18,6 +20,8 @@ interface VehiclesTabProps {
   onAddVehiculo: (input: Omit<Vehiculo, 'id' | 'fechaRegistro'>) => void | Promise<void>;
   onUpdateVehiculo: (vehiculo: Vehiculo) => void | Promise<void>;
   onDeleteVehiculo: (id: string) => void | Promise<void>;
+  /** Corrección a mano del cambio de aceite de la ficha (guardado propio, aparte del resto de la ficha). */
+  onGuardarAceite: (vehiculoId: string, datos: AceiteVehiculo) => Promise<void>;
   /** Recarga la lista tras importar vehículos desde CSV. */
   onImportado: () => void | Promise<void>;
 }
@@ -45,6 +49,7 @@ export default function VehiclesTab({
   onAddVehiculo,
   onUpdateVehiculo,
   onDeleteVehiculo,
+  onGuardarAceite,
   onImportado
 }: VehiclesTabProps) {
   const [showImport, setShowImport] = useState(false);
@@ -201,8 +206,10 @@ export default function VehiclesTab({
   };
 
   const handleExportCsv = () => {
-    const headers = ['Marca', 'Modelo', 'Matrícula', 'Bastidor', 'Km', 'ITV Vencimiento', 'Seguro Vencimiento', 'Impuesto Vencimiento', 'Fecha Registro'];
-    const rows = vehiculos.map(v => [v.marca, v.modelo, v.matricula, v.bastidor, String(v.kilometraje), v.itvVencimiento, v.seguroVencimiento, v.impuestoVencimiento, v.fechaRegistro]);
+    const headers = ['Marca', 'Modelo', 'Matrícula', 'Bastidor', 'Km', 'ITV Vencimiento', 'Seguro Vencimiento', 'Impuesto Vencimiento', 'Fecha Registro',
+      'Aceite: último cambio', 'Aceite: km del último', 'Aceite: próximo cambio', 'Aceite: km del próximo'];
+    const rows = vehiculos.map(v => [v.marca, v.modelo, v.matricula, v.bastidor, String(v.kilometraje), v.itvVencimiento, v.seguroVencimiento, v.impuestoVencimiento, v.fechaRegistro,
+      v.aceiteUltimaFecha ?? '', v.aceiteUltimoKm != null ? String(v.aceiteUltimoKm) : '', v.aceiteProximaFecha ?? '', v.aceiteProximoKm != null ? String(v.aceiteProximoKm) : '']);
     downloadCsv(`doonty_flota_${new Date().toISOString().slice(0, 10)}.csv`, [headers, ...rows]);
   };
 
@@ -450,6 +457,13 @@ export default function VehiclesTab({
                   </div>
                   <span className="text-[10px] text-slate-300 font-mono">Alta: {formatDate(selectedVehiculo.fechaRegistro)}</span>
                 </div>
+
+                {/* Se lee de la lista viva (no de la copia abierta): el mecánico puede anotarlo desde su Portal. */}
+                <AceiteVehiculoCard
+                  key={selectedVehiculo.id}
+                  vehiculo={vehiculos.find(v => v.id === selectedVehiculo.id) ?? selectedVehiculo}
+                  onGuardar={onGuardarAceite}
+                />
               </div>
 
               {/* Historial de Órdenes de Trabajo */}

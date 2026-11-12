@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import type { EstadoFiltro, FiltroAceite, FiltrosAceite } from '../../types';
 
 export interface PortalMecanicoTarea {
   id: string;
@@ -24,6 +25,10 @@ export interface PortalMecanicoOrden {
   tareas: PortalMecanicoTarea[];
   /** Notas que dejó este mismo técnico en la orden. */
   notas: { fecha: string; texto: string }[];
+  /** Cambio de aceite: interruptor, check list de filtros y próximo cambio anotado en esta orden. */
+  esCambioAceite: boolean;
+  filtros: FiltrosAceite;
+  aceiteProximo: { fecha: string; km: number | null } | null;
 }
 
 export interface PortalMecanicoData {
@@ -79,4 +84,19 @@ export async function cambiarEstadoMecanico(token: string, otId: string, accion:
 
 export async function dejarNotaMecanico(token: string, otId: string, texto: string): Promise<void> {
   await invokePortalMecanico<{ ok: true }>({ token, action: 'nota', otId, texto });
+}
+
+/** Marca o quita «es un cambio de aceite» en la orden. */
+export async function marcarCambioAceiteMecanico(token: string, otId: string, activo: boolean): Promise<void> {
+  await invokePortalMecanico<{ ok: true }>({ token, action: 'aceite', otId, activo });
+}
+
+/** Marca un filtro como cambiado / no cambiado, o lo deja sin revisar (null). */
+export async function marcarFiltroMecanico(token: string, otId: string, filtro: FiltroAceite, estado: EstadoFiltro): Promise<void> {
+  await invokePortalMecanico<{ ok: true }>({ token, action: 'filtro', otId, filtro, estado });
+}
+
+/** Anota el próximo cambio de aceite (fecha y, si se quiere, km) en la ficha del vehículo. */
+export async function anotarProximoCambioMecanico(token: string, otId: string, fecha: string, km: number | null): Promise<void> {
+  await invokePortalMecanico<{ ok: true }>({ token, action: 'aceite_proximo', otId, fecha, km });
 }

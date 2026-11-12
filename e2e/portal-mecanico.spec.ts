@@ -12,7 +12,9 @@ type Orden = {
   id: string; numero: string; estado: string; descripcionProblema: string; diagnostico: string | null;
   kilometrajeEntrada: number | null; fechaEstimadaEntrega: string | null; ingreso: string;
   vehiculo: { marca: string; modelo: string; matricula: string }; tareas: Tarea[]; notas: { fecha: string; texto: string }[];
+  esCambioAceite: boolean; filtros: Record<string, string | null>; aceiteProximo: { fecha: string; km: number | null } | null;
 };
+const SIN_ACEITE = { esCambioAceite: false, filtros: { aire: null, aceite: null, combustible: null, habitaculo: null }, aceiteProximo: null };
 
 function servidorDeMentira() {
   const ordenes: Orden[] = [
@@ -25,6 +27,7 @@ function servidorDeMentira() {
         { id: 't2', descripcion: 'Purgar circuito', completado: false, duracionMin: null },
       ],
       notas: [],
+      ...structuredClone(SIN_ACEITE),
     },
   ];
   const peticiones: Record<string, unknown>[] = [];
@@ -51,6 +54,11 @@ function servidorDeMentira() {
       case 'reabrir': orden(body.otId).estado = 'en_reparacion'; return { status: 200, json: { ok: true } };
       case 'nota':
         orden(body.otId).notas.push({ fecha: new Date().toISOString(), texto: String(body.texto) });
+        return { status: 200, json: { ok: true } };
+      case 'aceite': orden(body.otId).esCambioAceite = body.activo === true; return { status: 200, json: { ok: true } };
+      case 'filtro': orden(body.otId).filtros[String(body.filtro)] = body.estado as string | null; return { status: 200, json: { ok: true } };
+      case 'aceite_proximo':
+        orden(body.otId).aceiteProximo = { fecha: String(body.fecha), km: body.km as number | null };
         return { status: 200, json: { ok: true } };
       default:
         return { status: 400, json: { error: 'Acción no reconocida.' } };
@@ -145,7 +153,7 @@ test('mecánico: un coche asignado después aparece solo y marcado como nuevo', 
   servidor.ordenes.push({
     id: 'ot-2', numero: 'OT-2026-102', estado: 'recibido', descripcionProblema: 'Cambio de aceite', diagnostico: null,
     kilometrajeEntrada: null, fechaEstimadaEntrega: null, ingreso: '2026-11-11T12:00:00Z',
-    vehiculo: { marca: 'Renault', modelo: 'Clio', matricula: '2222BBB' }, tareas: [], notas: [],
+    vehiculo: { marca: 'Renault', modelo: 'Clio', matricula: '2222BBB' }, tareas: [], notas: [], ...structuredClone(SIN_ACEITE),
   });
   await page.clock.fastForward(21_000); // refresco automático cada 20 s
 
@@ -170,4 +178,41 @@ test('mecánico: si el servidor rechaza una acción, se explica y la tarea no qu
   await expect(page.getByRole('alert')).toContainText('Esta orden ya no está en reparación');
   await page.getByRole('button', { name: 'Cancelar' }).click();
   await expect(page.getByText('0 de 2 hechas')).toBeVisible();
+});
+
+test('mecánico: cambio de aceite — marcar la orden, el check list de filtros y el próximo cambio', async ({ page }) => {
+  const servidor = servidorDeMentira();
+  servidor.ordenes[0].estado = 'en_reparacion';
+  await abrir(page, servidor);
+
+  await page.getByRole('button', { name: 'Es un cambio de aceite' }).click();
+  await expect(page.getByTestId('aceite-mecanico')).toBeVisible();
+  expect(servidor.peticiones.find((p) => p.action === 'aceite')).toMatchObject({ otId: 'ot-1', activo: true });
+
+  const aire = page.getByRole('group', { name: 'Filtro de aire' });
+  await aire.getByRole('button', { name: 'Cambiado' }).click();
+  await expect(aire.getByRole('button', { name: 'Cambiado' })).toHaveAttribute('aria-pressed', 'true');
+  const habitaculo = page.getByRole('group', { name: 'Filtro de habitáculo' });
+  await habitaculo.getByRole('button', { name: 'No se cambió' }).click();
+  await expect(habitaculo.getByRole('button', { name: 'No se cambió' })).toHaveAttribute('aria-pressed', 'true');
+  // Volver a pulsar el marcado lo deja sin revisar.
+  await aire.getByRole('button', { name: 'Cambiado' }).click();
+  await expect(aire.getByRole('button', { name: 'Cambiado' })).toHaveAttribute('aria-pressed', 'false');
+  expect(servidor.peticiones.filter((p) => p.action === 'filtro').map((p) => [p.filtro, p.estado]))
+    .toEqual([['aire', 'cambiado'], ['habitaculo', 'no_cambiado'], ['aire', null]]);
+
+  // Próximo cambio: sin fecha no se envía; el atajo «1 año» la rellena.
+  await page.getByRole('button', { name: 'Anotar próximo cambio' }).click();
+  await page.getByRole('button', { name: 'Guardar próximo cambio' }).click();
+  await expect(page.getByRole('alert')).toContainText('Indica la fecha del próximo cambio.');
+  expect(servidor.peticiones.some((p) => p.action === 'aceite_proximo')).toBe(false);
+
+  await page.getByRole('button', { name: '1 año', exact: true }).click();
+  await page.getByLabel('O a los kilómetros (opcional)').fill('100000');
+  await page.getByRole('button', { name: 'Guardar próximo cambio' }).click();
+  const enviada = servidor.peticiones.find((p) => p.action === 'aceite_proximo')!;
+  expect(enviada).toMatchObject({ otId: 'ot-1', km: 100000 });
+  expect(String(enviada.fecha)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  await expect(page.getByTestId('aceite-mecanico')).toContainText('o a los 100.000 km');
+  await expect(page.getByRole('button', { name: 'Cambiar el próximo cambio' })).toBeVisible();
 });

@@ -10,8 +10,12 @@ type VehiculoInsert = Database['public']['Tables']['vehiculos']['Insert'];
 /** Datos para dar de alta un vehículo (el id y la fecha los pone la BD). */
 export type NuevoVehiculo = Omit<Vehiculo, 'id' | 'fechaRegistro'>;
 
+/** Los cuatro datos del cambio de aceite de la ficha. `undefined` = vacío. */
+export type AceiteVehiculo = Pick<Vehiculo, 'aceiteUltimaFecha' | 'aceiteUltimoKm' | 'aceiteProximaFecha' | 'aceiteProximoKm'>;
+
 const COLS =
-  'id, marca, modelo, anio, color, combustible, matricula, bastidor, kilometraje, itv_vencimiento, seguro_vencimiento, impuesto_vencimiento, fecha_registro';
+  'id, marca, modelo, anio, color, combustible, matricula, bastidor, kilometraje, itv_vencimiento, seguro_vencimiento, impuesto_vencimiento, fecha_registro, ' +
+  'aceite_ultima_fecha, aceite_ultimo_km, aceite_proxima_fecha, aceite_proximo_km';
 
 // La BD usa snake_case; el dominio (frontend) usa camelCase. Aquí está el mapeo.
 type VehiculoRow = {
@@ -19,6 +23,8 @@ type VehiculoRow = {
   combustible: string | null; matricula: string; bastidor: string; kilometraje: number;
   itv_vencimiento: string | null; seguro_vencimiento: string | null;
   impuesto_vencimiento: string | null; fecha_registro: string;
+  aceite_ultima_fecha?: string | null; aceite_ultimo_km?: number | null;
+  aceite_proxima_fecha?: string | null; aceite_proximo_km?: number | null;
 };
 
 function mapVehiculo(r: VehiculoRow): Vehiculo {
@@ -36,9 +42,15 @@ function mapVehiculo(r: VehiculoRow): Vehiculo {
     seguroVencimiento: r.seguro_vencimiento ?? '',
     impuestoVencimiento: r.impuesto_vencimiento ?? '',
     fechaRegistro: r.fecha_registro,
+    aceiteUltimaFecha: r.aceite_ultima_fecha ?? undefined,
+    aceiteUltimoKm: r.aceite_ultimo_km ?? undefined,
+    aceiteProximaFecha: r.aceite_proxima_fecha ?? undefined,
+    aceiteProximoKm: r.aceite_proximo_km ?? undefined,
   };
 }
 
+// Los datos del cambio de aceite NO van aquí a propósito: los escribe también el mecánico desde su
+// Portal, y guardar la ficha con una copia vieja los pisaría. Tienen su propio guardado (guardarAceite).
 function toRow(v: NuevoVehiculo) {
   return {
     marca: v.marca,
@@ -64,7 +76,7 @@ export async function listVehiculos(): Promise<Vehiculo[]> {
     // ordena por created_at, que sí tiene precisión de segundos.
     .order('created_at', { ascending: false });
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => mapVehiculo(r as VehiculoRow));
+  return (data ?? []).map((r) => mapVehiculo(r as unknown as VehiculoRow));
 }
 
 /** Traduce los errores de duplicado de la base de datos a un mensaje que el usuario entienda. */
@@ -79,13 +91,30 @@ export function mensajeErrorVehiculo(error: { code?: string; message: string }):
 export async function createVehiculo(input: NuevoVehiculo): Promise<Vehiculo> {
   const { data, error } = await supabase.from('vehiculos').insert(toRow(input) as VehiculoInsert).select(COLS).single();
   if (error) throw new Error(mensajeErrorVehiculo(error));
-  return mapVehiculo(data as VehiculoRow);
+  return mapVehiculo(data as unknown as VehiculoRow);
 }
 
 export async function updateVehiculo(v: Vehiculo): Promise<Vehiculo> {
   const { data, error } = await supabase.from('vehiculos').update(toRow(v)).eq('id', v.id).select(COLS).single();
   if (error) throw new Error(mensajeErrorVehiculo(error));
-  return mapVehiculo(data as VehiculoRow);
+  return mapVehiculo(data as unknown as VehiculoRow);
+}
+
+/** Guarda solo los datos del cambio de aceite de la ficha (corrección a mano desde Vehículos). */
+export async function guardarAceite(id: string, a: AceiteVehiculo): Promise<Vehiculo> {
+  const { data, error } = await supabase
+    .from('vehiculos')
+    .update({
+      aceite_ultima_fecha: a.aceiteUltimaFecha || null,
+      aceite_ultimo_km: a.aceiteUltimoKm ?? null,
+      aceite_proxima_fecha: a.aceiteProximaFecha || null,
+      aceite_proximo_km: a.aceiteProximoKm ?? null,
+    } as never)
+    .eq('id', id)
+    .select(COLS)
+    .single();
+  if (error) throw new Error(error.message);
+  return mapVehiculo(data as unknown as VehiculoRow);
 }
 
 export async function deleteVehiculo(id: string): Promise<void> {

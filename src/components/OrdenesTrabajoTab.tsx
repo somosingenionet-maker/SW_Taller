@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   ClipboardList, Plus, Search, ChevronRight, X, Check, Trash2,
   Car, User, Calendar, Gauge, Wrench, Package, AlertCircle, FileText,
-  Bell, Printer, Pencil, MessageCircle, Mail, List, LayoutGrid, Camera, ImageOff
+  Bell, Printer, Pencil, MessageCircle, Mail, List, LayoutGrid, Camera, ImageOff, Droplet
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos, setPortalTokenTecnico } from '../lib/data/tecnicos';
@@ -14,6 +14,9 @@ import { mensajeDeError } from '../lib/errores';
 import { telefonoWhatsApp } from '../utils/telefono';
 import { fmt2, formatKm } from '../utils/moneda';
 import { resumenTiempos, textoDuracion, textoHoras } from '../utils/duracionTarea';
+import { resumenFiltros } from '../utils/aceite';
+import { formatDate as fechaLarga } from '../utils/dateFormat';
+import CambioAceiteOrden from './CambioAceiteOrden';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
@@ -28,6 +31,8 @@ interface Props {
   /** Devuelve la OT tal como quedó en el servidor (con los ids reales de sus líneas) — imprescindible para que ediciones encadenadas de líneas recién creadas se reconozcan como existentes en vez de generar un delete+insert espurio. */
   onUpdate: (ot: OrdenTrabajo) => Promise<OrdenTrabajo>;
   onDelete: (id: string) => void | Promise<void>;
+  /** Una orden cambió en el servidor fuera del guardado normal (cambio de aceite: interruptor, filtros, próximo cambio). */
+  onRefrescada: (ot: OrdenTrabajo) => void;
   onCreateProducto: (p: Producto, stockInicial: number) => Promise<Producto>;
   /** El tablero necesita más ancho del que da el layout centrado normal — App.tsx usa esto para ensanchar el <main> solo mientras esta vista está activa. */
   onVistaAmpliaChange?: (amplia: boolean) => void;
@@ -175,6 +180,7 @@ interface OTForm {
   tecnicoAsignado: string;
   notas: string;
   ivaPct: number;
+  esCambioAceite: boolean;
 }
 
 const EMPTY_OT_FORM: OTForm = {
@@ -188,6 +194,7 @@ const EMPTY_OT_FORM: OTForm = {
   tecnicoAsignado: '',
   notas: '',
   ivaPct: IVA_DEFAULT,
+  esCambioAceite: false,
 };
 
 export function calcTotals(lineas: LineaOT[], ivaPct: number) {
@@ -326,7 +333,10 @@ function KanbanBoard({
                     className={`bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-300 transition ${dragOtId === ot.id ? 'opacity-40' : ''}`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 font-mono">{ot.numero}</span>
+                      <span className="text-[10px] font-bold text-slate-400 font-mono flex items-center gap-1">
+                        {ot.numero}
+                        {ot.esCambioAceite && <span title="Cambio de aceite" aria-label="Cambio de aceite"><Droplet size={10} className="text-blue-500" /></span>}
+                      </span>
                       <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full ${aviso ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{texto}</span>
                     </div>
                     <div className="text-xs font-extrabold text-slate-800">{veh ? `${veh.marca} ${veh.modelo}` : '—'}</div>
@@ -382,7 +392,7 @@ function KanbanBoard({
   );
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onCreateProducto, onVistaAmpliaChange }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
@@ -593,6 +603,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       ivaPct: otForm.ivaPct,
       totalIva,
       total,
+      esCambioAceite: otForm.esCambioAceite,
       ...(esPresupuesto ? {} : {
         checklistRecepcion: CHECKLIST_RECEPCION_ITEMS.map(item => ({ item, ok: !!crearChecklist[item] })),
         checklistObservaciones: crearObservaciones || undefined,
@@ -798,6 +809,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       tecnicoAsignado: ot.tecnicoAsignado ?? '',
       notas: ot.notas ?? '',
       ivaPct: ot.ivaPct,
+      esCambioAceite: ot.esCambioAceite ?? false, // no se edita aquí: tiene su propio bloque en la ficha
     });
     setEditOTLineas([...ot.lineas]);
     setEditOTEditingLineaId(null);
@@ -1249,6 +1261,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     </div>
                   );
                 })()}
+
+                <CambioAceiteOrden
+                  ot={selected}
+                  vehiculo={vehiculos.find(v => v.id === selected.vehiculoId)}
+                  onCambio={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
+                />
 
                 {/* Totals */}
                 {totalesSelected && selected.lineas.length > 0 && (
@@ -1969,6 +1987,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" required />
                 </div>
 
+                {/* Cambio de aceite: activa el check list de filtros y el próximo cambio en la orden. */}
+                <label className="flex items-center gap-2.5 px-3 py-2.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition">
+                  <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={otForm.esCambioAceite}
+                    onChange={e => setOTForm(f => ({ ...f, esCambioAceite: e.target.checked }))} />
+                  <span className="text-sm text-slate-700 flex items-center gap-1.5"><Droplet size={14} className="text-blue-600" /> Es un cambio de aceite</span>
+                  <span className="text-[11px] text-slate-400 ml-auto hidden sm:inline">Añade el check list de filtros y el próximo cambio</span>
+                </label>
+
                 {/* Diagnóstico — solo al recibir el vehículo */}
                 {createTipo === 'recibido' && (
                   <div>
@@ -2447,6 +2473,20 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Observaciones</p>
                         <p className="text-xs text-slate-600">{ot.notas}</p>
+                      </div>
+                    )}
+
+                    {/* Cambio de aceite: lo que se llevó el coche y cuándo le toca volver (solo en el resumen de reparación). */}
+                    {esListo && ot.esCambioAceite && (resumenFiltros(ot.filtros) || (ot.aceiteAnotadoEn && veh?.aceiteProximaFecha)) && (
+                      <div className="border border-slate-200 rounded-xl px-4 py-3">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Cambio de aceite</p>
+                        {resumenFiltros(ot.filtros) && <p className="text-xs text-slate-600">{resumenFiltros(ot.filtros)}</p>}
+                        {ot.aceiteAnotadoEn && veh?.aceiteProximaFecha && (
+                          <p className="text-xs text-slate-800 font-semibold mt-1">
+                            Próximo cambio: {fechaLarga(veh.aceiteProximaFecha)}
+                            {veh.aceiteProximoKm ? ` o a los ${formatKm(veh.aceiteProximoKm)} km, lo que ocurra antes` : ''}
+                          </p>
+                        )}
                       </div>
                     )}
 

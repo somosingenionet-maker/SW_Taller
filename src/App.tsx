@@ -8,7 +8,7 @@ import { llegaDeInvitacion, errorDeEnlace } from './lib/invitacion';
 import { mensajeDeError, mensajeSoloLectura, textoDeError } from './lib/errores';
 import { avisar, avisarError, escucharAvisos, type Aviso } from './lib/avisos';
 import { getSuscripcion, type Suscripcion } from './lib/data/suscripcion';
-import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
+import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, guardarAceite, NuevoVehiculo, AceiteVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
 import { listOrdenesTablero, createOrden, updateOrden, deleteOrden, getOrden } from './lib/data/ordenes';
 import { avisoDelMecanico } from './utils/avisoMecanico';
@@ -319,6 +319,8 @@ export default function App() {
             getOrden(nueva.id)
               .then((fresca) => {
                 setOrdenesTrabajo(prev => prev.map(o => (o.id === fresca.id ? fresca : o)));
+                // En un cambio de aceite el mecánico también escribe en la ficha del vehículo.
+                if (fresca.esCambioAceite) void recargarVehiculos().catch(() => undefined);
                 const mensaje = avisoDelMecanico(antes, fresca, vehiculosRef.current.find(v => v.id === fresca.vehiculoId));
                 if (mensaje) avisar({ tipo: 'ok', mensaje });
               })
@@ -502,7 +504,7 @@ export default function App() {
     const creada = await createOrden(ot);
     setOrdenesTrabajo(prev => [creada, ...prev]);
     // El servidor pasa el kilometraje de la orden a la ficha del vehículo: se relee para verlo al momento.
-    if (creada.kilometrajeEntrada > 0) void recargarVehiculos().catch(() => undefined);
+    if (creada.kilometrajeEntrada > 0 || creada.esCambioAceite) void recargarVehiculos().catch(() => undefined);
     return creada;
   }, [recargarVehiculos]);
 
@@ -515,8 +517,21 @@ export default function App() {
   const handleUpdateOT = useCallback(async (ot: OrdenTrabajo) => {
     const actualizada = await updateOrden(ot);
     setOrdenesTrabajo(prev => prev.map(o => (o.id === actualizada.id ? actualizada : o)));
-    if (actualizada.kilometrajeEntrada > 0) void recargarVehiculos().catch(() => undefined);
+    // …y, al entregar un cambio de aceite, anota el cambio en esa ficha.
+    if (actualizada.kilometrajeEntrada > 0 || actualizada.esCambioAceite) void recargarVehiculos().catch(() => undefined);
     return actualizada;
+  }, [recargarVehiculos]);
+
+  // Cambio de aceite: interruptor, filtros y próximo cambio se guardan al momento desde la ficha de
+  // la orden; aquí solo se refleja la orden ya guardada (y la ficha del vehículo si cambió).
+  const handleOrdenRefrescada = useCallback((ot: OrdenTrabajo) => {
+    setOrdenesTrabajo(prev => prev.map(o => (o.id === ot.id ? ot : o)));
+    void recargarVehiculos().catch(() => undefined);
+  }, [recargarVehiculos]);
+
+  const handleGuardarAceite = useCallback(async (vehiculoId: string, datos: AceiteVehiculo) => {
+    await guardarAceite(vehiculoId, datos);
+    await recargarVehiculos();
   }, [recargarVehiculos]);
 
   const handleDeleteOT = useCallback(async (id: string) => {
@@ -868,6 +883,7 @@ export default function App() {
             onAddVehiculo={handleAddVehiculo}
             onUpdateVehiculo={handleUpdateVehiculo}
             onDeleteVehiculo={handleDeleteVehiculo}
+            onGuardarAceite={handleGuardarAceite}
             onImportado={recargarVehiculos}
           />
         )}
@@ -882,6 +898,7 @@ export default function App() {
             onAdd={handleAddOT}
             onUpdate={handleUpdateOT}
             onDelete={handleDeleteOT}
+            onRefrescada={handleOrdenRefrescada}
             onCreateProducto={handleAddProducto}
             onVistaAmpliaChange={setTallerVistaAmplia}
           />

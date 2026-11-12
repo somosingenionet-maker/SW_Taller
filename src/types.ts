@@ -12,6 +12,11 @@ export interface Vehiculo {
   seguroVencimiento: string;    // YYYY-MM-DD
   impuestoVencimiento: string;  // YYYY-MM-DD
   fechaRegistro: string;
+  /** Cambio de aceite: último (fecha y km a los que se hizo) y próximo (fecha y, si se anotó, km). */
+  aceiteUltimaFecha?: string;
+  aceiteUltimoKm?: number;
+  aceiteProximaFecha?: string;
+  aceiteProximoKm?: number;
 }
 
 // ─── Órdenes de Trabajo ───────────────────────────────────────────────────────
@@ -25,6 +30,10 @@ export type OTEstado =
   | 'cancelado';
 
 export type LineaOTTipo = 'mano_de_obra' | 'producto';
+
+export type FiltroAceite = 'aire' | 'aceite' | 'combustible' | 'habitaculo';
+export type EstadoFiltro = 'cambiado' | 'no_cambiado' | null;
+export type FiltrosAceite = Record<FiltroAceite, EstadoFiltro>;
 
 export interface EventoOT {
   fecha: string;       // ISO timestamp
@@ -82,6 +91,12 @@ export interface OrdenTrabajo {
   fechaActualizacion: string;
   /** Última acción del mecánico desde su Portal; la app la usa para refrescar la orden en vivo. */
   mecanicoActualizadoEn?: string;
+  /** La orden es un cambio de aceite: lleva check list de filtros y permite anotar el próximo cambio. */
+  esCambioAceite?: boolean;
+  /** Check list de filtros del cambio de aceite. Cada uno: cambiado, no se cambió o sin revisar (null). */
+  filtros?: FiltrosAceite;
+  /** Cuándo se anotó el próximo cambio en la ficha del vehículo a raíz de esta orden. */
+  aceiteAnotadoEn?: string;
   /** Registro cronológico de eventos de esta OT. */
   historial: EventoOT[];
   /** Factura generada desde esta OT. */

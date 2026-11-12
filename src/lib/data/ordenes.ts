@@ -1,5 +1,5 @@
 import { supabase } from '../supabase';
-import type { OrdenTrabajo, LineaOT, EventoOT, OTEstado, LineaOTTipo } from '../../types';
+import type { OrdenTrabajo, LineaOT, EventoOT, OTEstado, LineaOTTipo, FiltroAceite, EstadoFiltro } from '../../types';
 import type { Database } from '../database.types';
 
 // empresa_id lo rellena el trigger set_empresa_id() en el servidor.
@@ -10,6 +10,7 @@ const SELECT =
   'fecha_entrega, kilometraje_entrada, kilometraje_salida, descripcion_problema, diagnostico, ' +
   'tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, ' +
   'presupuesto_aprobado, notificacion_enviada, updated_at, mecanico_actualizado_en, ' +
+  'es_cambio_aceite, filtro_aire, filtro_aceite, filtro_combustible, filtro_habitaculo, aceite_anotado_en, ' +
   'checklist_recepcion, checklist_observaciones, fotos_recepcion, ' +
   'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, duracion_min, notificado_cliente ), ' +
   'eventos_ot ( fecha, descripcion )';
@@ -31,6 +32,8 @@ type OrdenRow = {
   total_iva: number; total: number; notas: string | null;
   presupuesto_estado: string | null; presupuesto_aprobado: boolean | null;
   notificacion_enviada: boolean | null; updated_at: string; mecanico_actualizado_en?: string | null;
+  es_cambio_aceite?: boolean | null; aceite_anotado_en?: string | null;
+  filtro_aire?: string | null; filtro_aceite?: string | null; filtro_combustible?: string | null; filtro_habitaculo?: string | null;
   checklist_recepcion: ChecklistItemRow[] | null; checklist_observaciones: string | null;
   fotos_recepcion: string[] | null;
   lineas_ot: LineaRow[] | null; eventos_ot: EventoRow[] | null;
@@ -81,6 +84,14 @@ export function mapOrden(r: OrdenRow): OrdenTrabajo {
     notificacionEnviada: r.notificacion_enviada ?? undefined,
     fechaActualizacion: r.updated_at,
     mecanicoActualizadoEn: r.mecanico_actualizado_en ?? undefined,
+    esCambioAceite: r.es_cambio_aceite === true,
+    filtros: {
+      aire: (r.filtro_aire ?? null) as EstadoFiltro,
+      aceite: (r.filtro_aceite ?? null) as EstadoFiltro,
+      combustible: (r.filtro_combustible ?? null) as EstadoFiltro,
+      habitaculo: (r.filtro_habitaculo ?? null) as EstadoFiltro,
+    },
+    aceiteAnotadoEn: r.aceite_anotado_en ?? undefined,
     checklistRecepcion: r.checklist_recepcion ?? undefined,
     checklistObservaciones: r.checklist_observaciones ?? undefined,
     fotosRecepcion: r.fotos_recepcion ?? undefined,
@@ -290,9 +301,11 @@ export async function buscarOrdenes(params: {
  */
 export async function createOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   const { numero: _numero, ...fila } = toRow(ot);
+  // El interruptor de cambio de aceite solo se envía al crear: después tiene su propio guardado
+  // (setCambioAceite), porque también lo puede tocar el mecánico y toRow() lo pisaría.
   const { data, error } = await supabase
     .from('ordenes_trabajo')
-    .insert(fila as unknown as OrdenInsert)
+    .insert({ ...fila, es_cambio_aceite: ot.esCambioAceite === true } as unknown as OrdenInsert)
     .select('id')
     .single();
   if (error) throw new Error(error.message);
@@ -413,6 +426,50 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   }
 
   return getOrden(ot.id);
+}
+
+// ---- Cambio de aceite: cada dato se guarda por separado, en el momento de marcarlo ----
+
+async function anotarEvento(otId: string, descripcion: string): Promise<void> {
+  const { error } = await supabase.from('eventos_ot').insert({ ot_id: otId, fecha: new Date().toISOString(), descripcion });
+  if (error) throw new Error(error.message);
+}
+
+export const NOMBRE_FILTRO: Record<FiltroAceite, string> = {
+  aire: 'Filtro de aire', aceite: 'Filtro de aceite', combustible: 'Filtro de combustible', habitaculo: 'Filtro de habitáculo',
+};
+
+/** Texto del historial al marcar un filtro desde el taller. */
+export function eventoFiltro(filtro: FiltroAceite, estado: EstadoFiltro): string {
+  const nombre = NOMBRE_FILTRO[filtro].toLowerCase();
+  return estado === 'cambiado' ? `Taller: ${nombre} cambiado.`
+    : estado === 'no_cambiado' ? `Taller: ${nombre} NO se cambió.`
+    : `Taller: ${nombre} sin revisar.`;
+}
+
+/** Marca o quita «es un cambio de aceite» en una orden ya creada. */
+export async function setCambioAceite(otId: string, activo: boolean): Promise<OrdenTrabajo> {
+  const { error } = await supabase.from('ordenes_trabajo').update({ es_cambio_aceite: activo } as never).eq('id', otId);
+  if (error) throw new Error(error.message);
+  await anotarEvento(otId, activo ? 'Orden marcada como cambio de aceite.' : 'Se quitó la marca de cambio de aceite.');
+  return getOrden(otId);
+}
+
+/** Marca un filtro del check list (o lo deja sin revisar con `null`). */
+export async function marcarFiltro(otId: string, filtro: FiltroAceite, estado: EstadoFiltro): Promise<OrdenTrabajo> {
+  const { error } = await supabase.from('ordenes_trabajo').update({ [`filtro_${filtro}`]: estado } as never).eq('id', otId);
+  if (error) throw new Error(error.message);
+  await anotarEvento(otId, eventoFiltro(filtro, estado));
+  return getOrden(otId);
+}
+
+/** Anota en la ficha del vehículo el próximo cambio de aceite a raíz de esta orden (y el último = hoy). */
+export async function anotarProximoCambio(otId: string, fecha: string, km: number | null): Promise<OrdenTrabajo> {
+  const { error } = await supabase.rpc('anotar_cambio_aceite' as never, {
+    p_ot_id: otId, p_proxima_fecha: fecha, p_proximo_km: km, p_autor: 'el taller',
+  } as never);
+  if (error) throw new Error(error.message);
+  return getOrden(otId);
 }
 
 export async function deleteOrden(id: string): Promise<void> {
