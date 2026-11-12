@@ -7,6 +7,7 @@ import {
 import ConfirmDialog from './ConfirmDialog';
 import ImportarCsvModal from './ImportarCsvModal';
 import { downloadCsv } from '../utils/csvExport';
+import { formatEuros } from '../utils/moneda';
 
 interface InventarioTabProps {
   productos: Producto[];
@@ -165,7 +166,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
         </div>
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Valor de inventario</p>
-          <p className="text-2xl font-bold text-slate-800 mt-1">{valorInventario.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
+          <p className="text-2xl font-bold text-slate-800 mt-1">{formatEuros(valorInventario)}</p>
         </div>
       </div>
 
@@ -243,8 +244,8 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
                     </span>
                     {bajoStock(p) && <span className="block text-[10px] text-rose-500 mt-0.5">Mínimo: {p.stockMinimo}</span>}
                   </td>
-                  <td className="px-4 py-3 text-slate-700">{p.precioVenta.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  <td className="px-4 py-3 text-slate-500">{p.costo.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                  <td className="px-4 py-3 text-slate-700">{formatEuros(p.precioVenta)}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatEuros(p.costo)}</td>
                   <td className="px-4 py-3">
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
                       {p.activo ? 'Activo' : 'Inactivo'}

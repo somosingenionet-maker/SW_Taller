@@ -5,7 +5,8 @@ import { Sentry } from './lib/sentry';
 import type { Session } from '@supabase/supabase-js';
 import { fetchPerfil, signOut, mfaPendiente } from './lib/auth';
 import { llegaDeInvitacion, errorDeEnlace } from './lib/invitacion';
-import { mensajeSoloLectura } from './lib/errores';
+import { mensajeDeError, mensajeSoloLectura, textoDeError } from './lib/errores';
+import { avisarError, escucharAvisos, type Aviso } from './lib/avisos';
 import { getSuscripcion, type Suscripcion } from './lib/data/suscripcion';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
@@ -55,8 +56,9 @@ export default function App() {
   // Suscripción (prueba / pago / solo lectura) y regreso desde la página de pago de Stripe.
   const [suscripcion, setSuscripcion] = useState<Suscripcion | null>(null);
   const [suscripcionOpen, setSuscripcionOpen] = useState(false);
-  // Aviso emergente cuando el servidor rechaza un guardado porque la empresa está en solo lectura.
-  const [avisoSoloLectura, setAvisoSoloLectura] = useState<string | null>(null);
+  // Aviso emergente (error o confirmación) de cualquier pantalla. `soloLectura`: el servidor rechazó
+  // el guardado porque la prueba o la suscripción ha terminado — se ofrece suscribirse.
+  const [aviso, setAviso] = useState<(Aviso & { soloLectura: boolean }) | null>(null);
   // Resultado visible tras volver de pagar: confirmado, o la activación tarda más de lo normal.
   const [pagoMensaje, setPagoMensaje] = useState<'confirmado' | 'lento' | null>(null);
   const [pagoVolviendo, setPagoVolviendo] = useState(() => new URLSearchParams(window.location.search).get('suscripcion') === 'ok');
@@ -153,23 +155,30 @@ export default function App() {
     };
   }, []);
 
-  // Un guardado rechazado por solo lectura llega como promesa no capturada desde formularios que no
-  // manejan el error: se enseña aquí, una vez, con un botón para suscribirse.
+  // Avisos emergentes: los que lanzan las pantallas (lib/avisos) y, como red de seguridad, cualquier
+  // promesa rechazada que nadie capturó — ninguna acción debe fallar sin que el usuario lo vea.
   useEffect(() => {
+    const mostrar = (a: Aviso) => setAviso({ ...a, soloLectura: mensajeSoloLectura(a.mensaje) !== null });
     const alRechazar = (e: PromiseRejectionEvent) => {
-      const mensaje = mensajeSoloLectura(e.reason);
-      if (!mensaje) return;
-      e.preventDefault();
-      setAvisoSoloLectura(mensaje);
+      const soloLectura = mensajeSoloLectura(e.reason);
+      if (soloLectura) {
+        e.preventDefault();
+        mostrar({ tipo: 'error', mensaje: soloLectura });
+        return;
+      }
+      // Peticiones canceladas a propósito o rechazos sin texto: no son un fallo que contar al usuario.
+      if ((e.reason as { name?: string } | null)?.name === 'AbortError' || !textoDeError(e.reason).trim()) return;
+      mostrar({ tipo: 'error', mensaje: mensajeDeError(e.reason, 'No se pudo completar la acción.') });
     };
+    const dejarDeEscuchar = escucharAvisos(mostrar);
     window.addEventListener('unhandledrejection', alRechazar);
-    return () => window.removeEventListener('unhandledrejection', alRechazar);
+    return () => { dejarDeEscuchar(); window.removeEventListener('unhandledrejection', alRechazar); };
   }, []);
   useEffect(() => {
-    if (!avisoSoloLectura) return;
-    const t = setTimeout(() => setAvisoSoloLectura(null), 12_000);
+    if (!aviso) return;
+    const t = setTimeout(() => setAviso(null), aviso.tipo === 'ok' ? 5_000 : 12_000);
     return () => clearTimeout(t);
-  }, [avisoSoloLectura]);
+  }, [aviso]);
 
   // Estado de la suscripción. Tras volver de pagar, el webhook de Stripe tarda unos segundos en
   // activarla: se consulta cada pocos segundos hasta verla activa (máx. ~40 s).
@@ -374,9 +383,14 @@ export default function App() {
     return actualizado;
   }, [recargarClientes]);
 
+  // Estas tres acciones de Alertas se lanzan desde un botón sin formulario detrás: el error se avisa aquí.
   const handleRenovarMantenimiento = useCallback(async (alertaId: string, nuevoKilometrajeLimite: number) => {
-    await renovarAlertaMantenimiento(alertaId, nuevoKilometrajeLimite);
-    await recargarAlertas();
+    try {
+      await renovarAlertaMantenimiento(alertaId, nuevoKilometrajeLimite);
+      await recargarAlertas();
+    } catch (err) {
+      avisarError(err, 'No se pudo posponer la alerta de mantenimiento.');
+    }
   }, [recargarAlertas]);
 
   const handleForzarRecordatorio = useCallback(async (alertaId: string) => {
@@ -386,8 +400,12 @@ export default function App() {
   }, [recargarAlertas, recargarNotificaciones]);
 
   const handleDeleteNotificacion = useCallback(async (id: string) => {
-    await deleteNotificacion(id);
-    await recargarNotificaciones();
+    try {
+      await deleteNotificacion(id);
+      await recargarNotificaciones();
+    } catch (err) {
+      avisarError(err, 'No se pudo eliminar la notificación.');
+    }
   }, [recargarNotificaciones]);
 
   const handleTriggerAutoRenew = useCallback(async (vehId: string, tipo: Exclude<AlertaTipo, 'mantenimiento'>, nuevaFecha: string) => {
@@ -397,9 +415,13 @@ export default function App() {
     if (tipo === 'itv') updatedVeh.itvVencimiento = nuevaFecha;
     else if (tipo === 'seguro') updatedVeh.seguroVencimiento = nuevaFecha;
     else if (tipo === 'impuesto') updatedVeh.impuestoVencimiento = nuevaFecha;
-    await handleUpdateVehiculo(updatedVeh);
-    // El trigger de BD reabre/actualiza la alerta correspondiente.
-    await recargarAlertas();
+    try {
+      await handleUpdateVehiculo(updatedVeh);
+      // El trigger de BD reabre/actualiza la alerta correspondiente.
+      await recargarAlertas();
+    } catch (err) {
+      avisarError(err, 'No se pudo actualizar la fecha del vehículo.');
+    }
   }, [vehiculos, handleUpdateVehiculo, recargarAlertas]);
 
   // Factura handlers (Supabase) — FacturasTab gestiona su propia carga
@@ -459,8 +481,10 @@ export default function App() {
   const handleAddOT = useCallback(async (ot: OrdenTrabajo) => {
     const creada = await createOrden(ot);
     setOrdenesTrabajo(prev => [creada, ...prev]);
+    // El servidor pasa el kilometraje de la orden a la ficha del vehículo: se relee para verlo al momento.
+    if (creada.kilometrajeEntrada > 0) void recargarVehiculos().catch(() => undefined);
     return creada;
-  }, []);
+  }, [recargarVehiculos]);
 
   // El tablero del taller (5 columnas de ancho fijo) no cabe en el máximo
   // centrado normal y aparece con scroll horizontal aunque sobre espacio en
@@ -471,8 +495,9 @@ export default function App() {
   const handleUpdateOT = useCallback(async (ot: OrdenTrabajo) => {
     const actualizada = await updateOrden(ot);
     setOrdenesTrabajo(prev => prev.map(o => (o.id === actualizada.id ? actualizada : o)));
+    if (actualizada.kilometrajeEntrada > 0) void recargarVehiculos().catch(() => undefined);
     return actualizada;
-  }, []);
+  }, [recargarVehiculos]);
 
   const handleDeleteOT = useCallback(async (id: string) => {
     await deleteOrden(id);
@@ -947,13 +972,16 @@ export default function App() {
       </div>
     </div>
 
-      {avisoSoloLectura && (
-        <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[92%] max-w-lg rounded-2xl border border-rose-200 bg-rose-50 text-rose-800 shadow-xl px-4 py-3 text-xs font-semibold flex items-start gap-3">
-          <span className="flex-1">{avisoSoloLectura}</span>
-          {currentUser.rol === 'admin' && (
-            <button onClick={() => { setAvisoSoloLectura(null); setSuscripcionOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-rose-200 font-bold hover:bg-rose-100 transition cursor-pointer">Suscribirme</button>
+      {aviso && (
+        <div
+          role={aviso.tipo === 'error' ? 'alert' : 'status'}
+          className={`print:hidden fixed top-4 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg rounded-2xl border shadow-xl px-4 py-3 text-xs font-semibold flex items-start gap-3 ${aviso.tipo === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}
+        >
+          <span className="flex-1 break-words">{aviso.mensaje}</span>
+          {aviso.soloLectura && currentUser.rol === 'admin' && (
+            <button onClick={() => { setAviso(null); setSuscripcionOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-rose-200 font-bold hover:bg-rose-100 transition cursor-pointer">Suscribirme</button>
           )}
-          <button onClick={() => setAvisoSoloLectura(null)} aria-label="Cerrar aviso" className="shrink-0 font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
+          <button onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="shrink-0 font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
         </div>
       )}
 

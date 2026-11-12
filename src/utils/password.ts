@@ -14,3 +14,13 @@ export function validarPassword(password: string): string | null {
 }
 
 export const REQUISITOS_PASSWORD = 'Mín. 8 caracteres, con mayúscula, minúscula y número.';
+
+/** Valida el formulario «cambiar mi contraseña». Devuelve el mensaje de error o null si es válido. */
+export function validarCambioPassword(f: { actual: string; nueva: string; repetir: string }): string | null {
+  if (!f.actual) return 'Escribe tu contraseña actual.';
+  const errNueva = validarPassword(f.nueva);
+  if (errNueva) return errNueva.replace('La contraseña', 'La nueva contraseña');
+  if (f.nueva === f.actual) return 'La nueva contraseña debe ser distinta de la actual.';
+  if (f.nueva !== f.repetir) return 'Las contraseñas nuevas no coinciden.';
+  return null;
+}

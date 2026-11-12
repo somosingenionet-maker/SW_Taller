@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { supabase, crearClienteSinSesion } from './supabase';
 import type { Perfil, ModuloId } from '../types';
 
 /** Inicia sesión con email y contraseña. Devuelve un mensaje de error o null. */
@@ -38,6 +38,41 @@ export async function updatePassword(password: string): Promise<string | null> {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return error.message;
   return null;
+}
+
+/**
+ * Cambia la contraseña de la cuenta en curso, desde dentro de la aplicación. Antes comprueba la
+ * contraseña actual, para que una sesión abierta y desatendida no baste para cambiarla. La
+ * comprobación se hace con un cliente aparte: la sesión en curso (y su segundo factor) no se toca.
+ * Devuelve el mensaje de error, o null si se cambió.
+ */
+export async function cambiarPassword(actual: string, nueva: string): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  const email = data.session?.user.email;
+  if (!email) return 'Tu sesión ha caducado. Vuelve a iniciar sesión.';
+
+  const comprobador = crearClienteSinSesion();
+  const { error: errActual } = await comprobador.auth.signInWithPassword({ email, password: actual });
+  if (errActual) return mensajeCambioPassword(errActual.message, 'actual');
+  // Solo la sesión de comprobación: el cierre por defecto («global») cerraría también la del usuario.
+  await comprobador.auth.signOut({ scope: 'local' }).catch(() => undefined);
+
+  const { error } = await supabase.auth.updateUser({ password: nueva });
+  return error ? mensajeCambioPassword(error.message, 'nueva') : null;
+}
+
+/** Traduce los errores del servidor al cambiar la contraseña. `paso`: en cuál de las dos llamadas falló. */
+export function mensajeCambioPassword(mensaje: string, paso: 'actual' | 'nueva'): string {
+  if (/failed to fetch|networkerror|load failed/i.test(mensaje)) return 'No hay conexión con el servidor. Comprueba tu internet y vuelve a intentarlo.';
+  if (/rate limit|too many/i.test(mensaje)) return 'Demasiados intentos. Espera unos minutos y vuelve a probar.';
+  if (paso === 'actual') {
+    return /invalid login credentials/i.test(mensaje) ? 'La contraseña actual no es correcta.' : 'No se pudo comprobar la contraseña actual. Inténtalo de nuevo.';
+  }
+  if (/different from the old|same_password/i.test(mensaje)) return 'La nueva contraseña debe ser distinta de la actual.';
+  if (/reauthentication|reauthenticate/i.test(mensaje)) return 'Por seguridad, cierra sesión, vuelve a entrar y repite el cambio.';
+  if (/weak|pwned|known to be/i.test(mensaje)) return 'Esa contraseña es demasiado fácil de adivinar o ha aparecido en filtraciones. Elige otra.';
+  if (/aal2|mfa/i.test(mensaje)) return 'Para cambiar la contraseña necesitas haber entrado con tu código de verificación en dos pasos.';
+  return 'No se pudo cambiar la contraseña. Inténtalo de nuevo.';
 }
 
 /**

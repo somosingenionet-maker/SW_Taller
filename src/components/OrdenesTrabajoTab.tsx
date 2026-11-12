@@ -9,6 +9,10 @@ import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, Evento
 import { listTecnicos, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { getOrden, buscarOrdenes, OrdenListaRow } from '../lib/data/ordenes';
 import { supabase } from '../lib/supabase';
+import { avisarError } from '../lib/avisos';
+import { mensajeDeError } from '../lib/errores';
+import { telefonoWhatsApp } from '../utils/telefono';
+import { fmt2, formatKm } from '../utils/moneda';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
@@ -45,7 +49,8 @@ const ESTADO_FLOW: OTEstado[] = [
 export const ESTADOS_SIN_AVISO_EXTRA: OTEstado[] = ['presupuesto', 'cancelado', 'entregado'];
 
 export function waHref(telefono: string | undefined, mensaje: string): string | null {
-  return telefono ? `https://wa.me/${telefono.replace(/\D/g, '')}?text=${encodeURIComponent(mensaje)}` : null;
+  const numero = telefonoWhatsApp(telefono);
+  return numero ? `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}` : null;
 }
 
 export function mailHref(correo: string | undefined, asunto: string, mensaje: string): string | null {
@@ -109,7 +114,7 @@ function LineaTipoYProducto({
   const opciones = productos.map((p) => ({
     value: p.id,
     label: p.nombre,
-    sublabel: `Stock: ${p.stockActual} ${p.unidad} · Costo: ${p.costo.toFixed(2)} €`,
+    sublabel: `Stock: ${p.stockActual} ${p.unidad} · Costo: ${fmt2(p.costo)} €`,
   }));
 
   const aplicarProducto = (p: Producto) => {
@@ -342,7 +347,7 @@ function KanbanBoard({
                     )}
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold text-slate-700">
-                        {ot.total > 0 ? `${ot.total.toFixed(2)} €` : <span className="text-slate-300 font-normal">Por definir</span>}
+                        {ot.total > 0 ? `${fmt2(ot.total)} €` : <span className="text-slate-300 font-normal">Por definir</span>}
                       </span>
                       {estado === 'presupuesto' && ot.presupuestoEstado === 'enviado' && (
                         <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Enviado</span>
@@ -481,6 +486,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setCargandoDetalleId(id);
     try {
       setSelected(await getOrden(id));
+    } catch (err) {
+      avisarError(err, 'No se pudo abrir la orden.');
     } finally {
       setCargandoDetalleId(null);
     }
@@ -583,6 +590,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       // terminado de guardarse todavía.
       await onAdd(ot);
       setIsCreating(false);
+    } catch (err) {
+      // La ventana se queda abierta con todo lo escrito.
+      setFormError(mensajeDeError(err, esPresupuesto ? 'No se pudo guardar el presupuesto.' : 'No se pudo guardar la orden.'));
     } finally {
       setGuardandoOT(false);
     }
@@ -622,7 +632,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     if (estado === 'entregado' && !ot.fechaEntrega) {
       updated.fechaEntrega = new Date().toISOString().split('T')[0];
     }
-    setSelected(await onUpdate(updated));
+    try {
+      setSelected(await onUpdate(updated));
+    } catch (err) {
+      avisarError(err, `No se pudo pasar la orden a «${ESTADO_META[estado].label}».`);
+    }
   };
 
   const handleConfirmarRecepcion = async (ot: OrdenTrabajo) => {
@@ -641,8 +655,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       checklistObservaciones: recepcionModal.observaciones || undefined,
       fotosRecepcion: recepcionModal.fotos,
     };
-    setSelected(await onUpdate(updated));
-    setRecepcionModal(null);
+    try {
+      setSelected(await onUpdate(updated));
+      setRecepcionModal(null);
+    } catch (err) {
+      avisarError(err, 'No se pudo registrar la recepción del vehículo.');
+    }
   };
 
   /** Compartido entre el modal de recepción y el alta directa como "recibido" — ambos suben a la misma carpeta/límite, solo cambia dónde se guarda el resultado. */
@@ -709,7 +727,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       fechaActualizacion: new Date().toISOString(),
       historial: [...(ot.historial ?? []), evento('Presupuesto enviado al cliente')],
     };
-    setSelected(await onUpdate(updated));
+    try {
+      setSelected(await onUpdate(updated));
+    } catch (err) {
+      avisarError(err, 'No se pudo marcar el presupuesto como enviado.');
+    }
   };
 
   const handleNotificarListo = async (ot: OrdenTrabajo) => {
@@ -719,7 +741,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       fechaActualizacion: new Date().toISOString(),
       historial: [...(ot.historial ?? []), evento('Cliente notificado — vehículo listo para recoger')],
     };
-    setSelected(await onUpdate(updated));
+    try {
+      setSelected(await onUpdate(updated));
+    } catch (err) {
+      avisarError(err, 'No se pudo anotar el aviso al cliente.');
+    }
   };
 
   const [generandoPortalTecnico, setGenerandoPortalTecnico] = useState(false);
@@ -791,8 +817,13 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       lineas: lineasFinal,
       subtotal, totalIva, total,
     };
-    setSelected(await onUpdate(updated));
-    setIsEditing(false);
+    try {
+      setSelected(await onUpdate(updated));
+      setIsEditing(false);
+    } catch (err) {
+      // La edición se queda abierta con los cambios sin guardar.
+      avisarError(err, 'No se pudieron guardar los cambios de la orden.');
+    }
   };
 
   const handleMarcarLineasAvisadas = async (ot: OrdenTrabajo) => {
@@ -800,14 +831,22 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       ...ot,
       lineas: ot.lineas.map(l => (l.notificadoCliente === false ? { ...l, notificadoCliente: true } : l)),
     };
-    setSelected(await onUpdate(updated));
+    try {
+      setSelected(await onUpdate(updated));
+    } catch (err) {
+      avisarError(err, 'No se pudo marcar el aviso como enviado.');
+    }
   };
 
-  const handleDeleteConfirmed = () => {
-    if (confirmDelete) {
-      onDelete(confirmDelete);
-      if (selected?.id === confirmDelete) setSelected(null);
-      setConfirmDelete(null);
+  const handleDeleteConfirmed = async () => {
+    const id = confirmDelete;
+    setConfirmDelete(null);
+    if (!id) return;
+    try {
+      await onDelete(id);
+      if (selected?.id === id) setSelected(null);
+    } catch (err) {
+      avisarError(err, 'No se pudo eliminar la orden.');
     }
   };
 
@@ -966,7 +1005,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-slate-800">
-                        {f.total > 0 ? `${f.total.toFixed(2)} €` : <span className="text-slate-300 font-normal text-xs">Por definir</span>}
+                        {f.total > 0 ? `${fmt2(f.total)} €` : <span className="text-slate-300 font-normal text-xs">Por definir</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <ChevronRight size={14} className="text-slate-300 inline" />
@@ -1043,8 +1082,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       <p className="text-[10px] uppercase font-bold text-slate-400 mb-0.5">Vehículo</p>
                       <p className="text-sm font-semibold text-slate-800">{vehLabel(selected.vehiculoId)}</p>
                       {selected.estado !== 'presupuesto' && (
-                        <p className="text-xs text-slate-400">{selected.kilometrajeEntrada.toLocaleString()} km entrada
-                          {selected.kilometrajeSalida && ` · ${selected.kilometrajeSalida.toLocaleString()} km salida`}
+                        <p className="text-xs text-slate-400">{formatKm(selected.kilometrajeEntrada)} km entrada
+                          {selected.kilometrajeSalida && ` · ${formatKm(selected.kilometrajeSalida)} km salida`}
                         </p>
                       )}
                     </div>
@@ -1156,8 +1195,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                 </span>
                               </td>
                               <td className="px-3 py-2 text-right text-slate-600">{l.cantidad}</td>
-                              <td className="px-3 py-2 text-right font-mono">{l.precioUnitario.toFixed(2)} €</td>
-                              <td className="px-3 py-2 text-right font-mono font-semibold">{l.subtotal.toFixed(2)} €</td>
+                              <td className="px-3 py-2 text-right font-mono">{fmt2(l.precioUnitario)} €</td>
+                              <td className="px-3 py-2 text-right font-mono font-semibold">{fmt2(l.subtotal)} €</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1171,15 +1210,15 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   <div className="bg-slate-50 rounded-2xl p-4 space-y-1.5 text-sm">
                     <div className="flex justify-between text-slate-500">
                       <span>Subtotal</span>
-                      <span className="font-mono">{totalesSelected.subtotal.toFixed(2)} €</span>
+                      <span className="font-mono">{fmt2(totalesSelected.subtotal)} €</span>
                     </div>
                     <div className="flex justify-between text-slate-500">
                       <span>IVA ({selected.ivaPct}%)</span>
-                      <span className="font-mono">{totalesSelected.totalIva.toFixed(2)} €</span>
+                      <span className="font-mono">{fmt2(totalesSelected.totalIva)} €</span>
                     </div>
                     <div className="flex justify-between font-bold text-slate-800 border-t border-slate-200 pt-2 mt-1">
                       <span>Total</span>
-                      <span className="font-mono text-base">{totalesSelected.total.toFixed(2)} €</span>
+                      <span className="font-mono text-base">{fmt2(totalesSelected.total)} €</span>
                     </div>
                   </div>
                 )}
@@ -1293,7 +1332,13 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   const descVeh = veh ? `${veh.marca} ${veh.modelo}${veh.matricula ? ` (${veh.matricula})` : ''}` : 'un vehículo';
 
                   const handleClick = async () => {
-                    const tecConToken = await asegurarPortalTecnico(tec);
+                    let tecConToken: Tecnico;
+                    try {
+                      tecConToken = await asegurarPortalTecnico(tec);
+                    } catch (err) {
+                      avisarError(err, 'No se pudo generar el enlace del mecánico.');
+                      return;
+                    }
                     const enlace = `${window.location.origin}/mecanico/${tecConToken.portalToken}`;
                     const mensaje = `Hola ${tec.nombre}, se te ha asignado ${descVeh} — OT ${selected.numero}. Aquí puedes ver y marcar las tareas: ${enlace}`;
                     const link = waHref(tec.telefono, mensaje);
@@ -1334,8 +1379,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   // Importe con IVA incluido — es lo que realmente pagará el cliente,
                   // no el subtotal de las líneas.
                   const { total: totalAnadido } = calcTotals(pendientes, selected.ivaPct);
-                  const detalle = pendientes.map(l => `• ${l.descripcion} (${l.subtotal.toFixed(2)} €)`).join('\n');
-                  const mensaje = `Hola ${nombreCliente}, durante el trabajo en ${descVeh} (OT ${selected.numero}) hemos añadido lo siguiente:\n${detalle}\nTotal añadido (IVA incl.): ${totalAnadido.toFixed(2)} €.\nCualquier duda, contáctanos.`;
+                  const detalle = pendientes.map(l => `• ${l.descripcion} (${fmt2(l.subtotal)} €)`).join('\n');
+                  const mensaje = `Hola ${nombreCliente}, durante el trabajo en ${descVeh} (OT ${selected.numero}) hemos añadido lo siguiente:\n${detalle}\nTotal añadido (IVA incl.): ${fmt2(totalAnadido)} €.\nCualquier duda, contáctanos.`;
                   const waLink = waHref(cli?.telefono, mensaje);
                   const mailLink = mailHref(cli?.correo, `Trabajo adicional en tu vehículo - ${empresa.nombre}`, mensaje);
                   return (
@@ -1343,7 +1388,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
                         <Bell size={11} /> Se añadieron {pendientes.length} línea{pendientes.length === 1 ? '' : 's'} nueva{pendientes.length === 1 ? '' : 's'}
                       </p>
-                      <p className="text-xs text-slate-600">¿Avisamos al cliente de este añadido ({totalAnadido.toFixed(2)} € IVA incl.)?</p>
+                      <p className="text-xs text-slate-600">¿Avisamos al cliente de este añadido ({fmt2(totalAnadido)} € IVA incl.)?</p>
                       <div className="flex gap-2 flex-wrap">
                         {waLink ? (
                           <a href={waLink} target="_blank" rel="noopener noreferrer"
@@ -1645,8 +1690,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             <tr key={l.id}>
                               <td className="px-3 py-1.5 text-slate-700">{l.descripcion} <span className="text-slate-400 text-[9px]">({TIPO_META[l.tipo].label})</span></td>
                               <td className="px-3 py-1.5 text-right">{l.cantidad}</td>
-                              <td className="px-3 py-1.5 text-right font-mono">{l.precioUnitario.toFixed(2)} €</td>
-                              <td className="px-3 py-1.5 text-right font-mono font-semibold">{l.subtotal.toFixed(2)} €</td>
+                              <td className="px-3 py-1.5 text-right font-mono">{fmt2(l.precioUnitario)} €</td>
+                              <td className="px-3 py-1.5 text-right font-mono font-semibold">{fmt2(l.subtotal)} €</td>
                               <td className="px-3 py-1.5 text-right">
                                 <div className="flex items-center justify-end gap-2">
                                   <button type="button" onClick={() => {
@@ -1715,7 +1760,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     className="w-20 px-2 py-1.5 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400" />
                   {editOTLineas.length > 0 && (() => {
                     const t = calcTotals(editOTLineas, editForm.ivaPct);
-                    return <div className="flex-1 text-right text-sm"><span className="text-slate-400">Base: {t.subtotal.toFixed(2)} € · IVA: {t.totalIva.toFixed(2)} € · </span><strong className="text-slate-800 font-mono">{t.total.toFixed(2)} €</strong></div>;
+                    return <div className="flex-1 text-right text-sm"><span className="text-slate-400">Base: {fmt2(t.subtotal)} € · IVA: {fmt2(t.totalIva)} € · </span><strong className="text-slate-800 font-mono">{fmt2(t.total)} €</strong></div>;
                   })()}
                 </div>
 
@@ -1999,8 +2044,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             <tr key={l.id}>
                               <td className="px-3 py-1.5 text-slate-700">{l.descripcion} <span className="text-slate-400 text-[9px]">({TIPO_META[l.tipo].label})</span></td>
                               <td className="px-3 py-1.5 text-right">{l.cantidad}</td>
-                              <td className="px-3 py-1.5 text-right font-mono">{l.precioUnitario.toFixed(2)} €</td>
-                              <td className="px-3 py-1.5 text-right font-mono font-semibold">{l.subtotal.toFixed(2)} €</td>
+                              <td className="px-3 py-1.5 text-right font-mono">{fmt2(l.precioUnitario)} €</td>
+                              <td className="px-3 py-1.5 text-right font-mono font-semibold">{fmt2(l.subtotal)} €</td>
                               <td className="px-3 py-1.5 text-right">
                                 <div className="flex items-center justify-end gap-2">
                                   <button type="button" onClick={() => openEditLinea(l)} className="text-slate-300 hover:text-blue-500 transition"><Pencil size={11} /></button>
@@ -2050,8 +2095,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     const t = calcTotals(formLineas, otForm.ivaPct);
                     return (
                       <div className="flex-1 text-right text-sm">
-                        <span className="text-slate-400">Base: {t.subtotal.toFixed(2)} € · IVA: {t.totalIva.toFixed(2)} € · </span>
-                        <strong className="text-slate-800 font-mono">{t.total.toFixed(2)} €</strong>
+                        <span className="text-slate-400">Base: {fmt2(t.subtotal)} € · IVA: {fmt2(t.totalIva)} € · </span>
+                        <strong className="text-slate-800 font-mono">{fmt2(t.total)} €</strong>
                       </div>
                     );
                   })()}
@@ -2286,8 +2331,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             <p className="font-semibold text-slate-800">{veh.marca} {veh.modelo}</p>
                             <p className="text-xs text-slate-500">Matrícula: {veh.matricula}</p>
                             {veh.bastidor && <p className="text-xs text-slate-500">Bastidor: {veh.bastidor}</p>}
-                            <p className="text-xs text-slate-500">Km entrada: {ot.kilometrajeEntrada.toLocaleString()} km</p>
-                            {ot.kilometrajeSalida && <p className="text-xs text-slate-500">Km salida: {ot.kilometrajeSalida.toLocaleString()} km</p>}
+                            <p className="text-xs text-slate-500">Km entrada: {formatKm(ot.kilometrajeEntrada)} km</p>
+                            {ot.kilometrajeSalida && <p className="text-xs text-slate-500">Km salida: {formatKm(ot.kilometrajeSalida)} km</p>}
                           </>
                         ) : <p className="text-xs text-slate-400">—</p>}
                         {ot.tecnicoAsignado && <p className="text-xs text-slate-500 mt-1">Técnico: {ot.tecnicoAsignado}</p>}
@@ -2328,8 +2373,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                 <td className="py-2 text-slate-800">{l.descripcion}</td>
                                 <td className="py-2 text-center text-xs text-slate-500">{TIPO_META[l.tipo].label}</td>
                                 <td className="py-2 text-right font-mono text-slate-600">{l.cantidad}</td>
-                                <td className="py-2 text-right font-mono text-slate-600">{l.precioUnitario.toFixed(2)} €</td>
-                                <td className="py-2 text-right font-mono font-semibold text-slate-800">{l.subtotal.toFixed(2)} €</td>
+                                <td className="py-2 text-right font-mono text-slate-600">{fmt2(l.precioUnitario)} €</td>
+                                <td className="py-2 text-right font-mono font-semibold text-slate-800">{fmt2(l.subtotal)} €</td>
                               </tr>
                             ))}
                           </tbody>
@@ -2341,15 +2386,15 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     <div className="border-t-2 border-slate-200 pt-4 space-y-1.5">
                       <div className="flex justify-between text-sm text-slate-500">
                         <span>Base imponible</span>
-                        <span className="font-mono">{ot.subtotal.toFixed(2)} €</span>
+                        <span className="font-mono">{fmt2(ot.subtotal)} €</span>
                       </div>
                       <div className="flex justify-between text-sm text-slate-500">
                         <span>IVA ({ot.ivaPct}%)</span>
-                        <span className="font-mono">{ot.totalIva.toFixed(2)} €</span>
+                        <span className="font-mono">{fmt2(ot.totalIva)} €</span>
                       </div>
                       <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
                         <span>TOTAL</span>
-                        <span className="font-mono text-lg">{ot.total.toFixed(2)} €</span>
+                        <span className="font-mono text-lg">{fmt2(ot.total)} €</span>
                       </div>
                     </div>
 

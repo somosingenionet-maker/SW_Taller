@@ -24,6 +24,11 @@
 .bg-blue-100 { background-color: color-mix(in srgb, var(--brand-color) 12%, white) !important; }
 .ring-blue-400 { --tw-ring-color: color-mix(in srgb, var(--brand-color) 70%, white) !important; }
 
+/* Impresión (facturas, presupuestos, resúmenes): A4 con margen de 8 mm arriba y abajo a propósito.
+   Chrome solo escribe su encabezado y pie (fecha, título de la pestaña y dirección web) cuando ese
+   margen llega a unos 10 mm; con 8 mm no los pone en ninguna hoja. No subirlo sin volver a comprobarlo. */
+@page { size: A4; margin: 8mm 12mm; }
+
 /* Entrada de ventanas emergentes centradas (Admin, Empresa...): pequeño scale+fade. */
 @keyframes modal-pop { from { opacity: 0; transform: scale(.96) translateY(4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes overlay-fade { from { opacity: 0; } to { opacity: 1; } }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Cita, Cliente, Vehiculo, Alerta, Perfil, ModuloId } from '../types';
 import { getFacturasResumen, FacturasResumen } from '../lib/data/facturas';
 import { listOrdenesActivas, OrdenActiva } from '../lib/data/ordenes';
+import { fmt2 } from '../utils/moneda';
 import {
   CalendarClock, Wrench, Bell, Euro, AlertTriangle, Users, Car, ArrowRight, ClipboardList, Home,
 } from 'lucide-react';
@@ -17,7 +18,7 @@ interface Props {
   onNavigate: (tab: ModuloId) => void;
 }
 
-const fmtMoney = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtMoney = fmt2;
 
 function saludo(): string {
   const h = new Date().getHours();

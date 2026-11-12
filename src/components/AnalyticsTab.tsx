@@ -4,6 +4,7 @@ import {
   TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, Users, Wrench, BarChart2, Target, Download
 } from 'lucide-react';
 import { downloadCsv } from '../utils/csvExport';
+import { formatEuros } from '../utils/moneda';
 import {
   RentabilidadPeriodo, TecnicoStat, ClienteTop,
   getRentabilidadPeriodo, getRentabilidadEstadoActual, getRentabilidadTecnicos, getRentabilidadTopClientes,
@@ -34,7 +35,7 @@ const ESTADO_COLOR: Record<OTEstado, string> = {
 };
 
 function fmtDec(n: number) {
-  return n.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+  return formatEuros(n);
 }
 
 function periodoRange(periodo: Periodo): { start: Date; end: Date; prevStart: Date; prevEnd: Date } {

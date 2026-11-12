@@ -9,6 +9,8 @@ import {
 import { listOrdenesFacturables, OrdenFacturable } from '../lib/data/ordenes';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
+import { avisarError } from '../lib/avisos';
+import { fmt2 } from '../utils/moneda';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
 import QRCode from 'qrcode';
@@ -67,7 +69,7 @@ function EnvioAeatBadge({ envio }: { envio: EnvioAeat }) {
   );
 }
 
-const fmt = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = fmt2;
 
 /** Un borrador todavía no tiene número real (se asigna al emitir) — no mostrar el marcador interno. */
 const numeroMostrado = (f: Pick<Factura, 'numero' | 'estado'>) => f.estado === 'borrador' ? 'Borrador' : f.numero;
@@ -589,7 +591,13 @@ export default function FacturasTab({
   };
 
   const handleExportCsv = async () => {
-    const todas = await listFacturas();
+    let todas: Factura[];
+    try {
+      todas = await listFacturas();
+    } catch (err) {
+      avisarError(err, 'No se pudo exportar el listado de facturas.');
+      return;
+    }
     const sorted = [...todas].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const headers = ['Número', 'Cliente', 'Vehículo', 'Fecha', 'Vencimiento', 'Estado', 'Subtotal', 'IVA', 'Total'];
     const rows = sorted.map(f => [
@@ -605,14 +613,22 @@ export default function FacturasTab({
       const rango = rangoDeClavePeriodo(agrupacion as AgrupacionFacturas, g.clave);
       const { data } = await listFacturasPaginado({ limit: g.cantidad, offset: 0, rangoFecha: rango });
       setViewingGrupo({ label: labelDePeriodo(agrupacion as AgrupacionFacturas, g.clave), facturas: data });
+    } catch (err) {
+      avisarError(err, 'No se pudieron cargar las facturas de ese periodo.');
     } finally {
       setDescargandoGrupo(null);
     }
   };
 
+  // Si el guardado falla, la ventana se queda abierta con lo escrito (no se pierde el borrador).
   const handleSaveFactura = async (f: Factura) => {
-    if (facturaModal.factura) await onUpdateFactura(f);
-    else await onAddFactura(f);
+    try {
+      if (facturaModal.factura) await onUpdateFactura(f);
+      else await onAddFactura(f);
+    } catch (err) {
+      avisarError(err, 'No se pudo guardar la factura.');
+      return;
+    }
     setFacturaModal({ open: false, factura: null });
     recargarTodo();
   };
@@ -625,21 +641,37 @@ export default function FacturasTab({
   };
 
   const handleEmitirConfirmado = async () => {
-    if (confirmEmitir) {
-      await onEmitirFactura(confirmEmitir.id);
-      recargarTodo();
-      enviarAeatYRefrescar();
-    }
+    const aEmitir = confirmEmitir;
     setConfirmEmitir(null);
+    if (!aEmitir) return;
+    try {
+      await onEmitirFactura(aEmitir.id);
+    } catch (err) {
+      avisarError(err, 'No se pudo emitir la factura. Sigue en borrador.');
+      return;
+    }
+    recargarTodo();
+    enviarAeatYRefrescar();
   };
 
   const handleDelete = async (id: string) => {
-    await onDeleteFactura(id);
+    try {
+      await onDeleteFactura(id);
+    } catch (err) {
+      avisarError(err, 'No se pudo eliminar el borrador.');
+      return;
+    }
     recargarTodo();
   };
 
   const handleCambiarEstado = async (id: string, estado: Factura['estado']) => {
-    await onCambiarEstadoFactura(id, estado);
+    try {
+      await onCambiarEstadoFactura(id, estado);
+    } catch (err) {
+      avisarError(err, 'No se pudo cambiar el estado de la factura.');
+      recargarTodo(); // el desplegable vuelve al estado real
+      return;
+    }
     recargarTodo();
     // Cancelar una factura emitida genera un registro de anulación que también se envía.
     if (estado === 'cancelada') enviarAeatYRefrescar();

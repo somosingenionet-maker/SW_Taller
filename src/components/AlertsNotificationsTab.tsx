@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
 import { formatDate } from '../utils/dateFormat';
+import { formatKm } from '../utils/moneda';
 
 interface AlertsNotificationsTabProps {
   alertas: Alerta[];
@@ -78,7 +79,7 @@ export default function AlertsNotificationsTab({
       const targetVeh = vehiculos.find(v => v.id === alerta.vehiculoId);
       const nextMaintKm = (targetVeh ? targetVeh.kilometraje : 0) + 15000;
       title = 'Confirmar mantenimiento realizado';
-      message = `La alerta de kilometraje se pospondrá 15.000 km (próxima revisión recomendada: ${nextMaintKm.toLocaleString()} km).`;
+      message = `La alerta de kilometraje se pospondrá 15.000 km (próxima revisión recomendada: ${formatKm(nextMaintKm)} km).`;
       onConfirm = () => { onRenovarMantenimiento(alerta.id, nextMaintKm); };
     }
 

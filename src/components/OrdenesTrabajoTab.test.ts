@@ -26,6 +26,8 @@ function ordenFixture(overrides: Partial<OrdenTrabajo> = {}): OrdenTrabajo {
 describe('waHref / mailHref', () => {
   it('waHref arma el enlace de WhatsApp limpiando el teléfono de todo lo que no sea dígito', () => {
     expect(waHref('+34 600 000 001', 'Hola')).toBe('https://wa.me/34600000001?text=Hola');
+    // Un móvil español guardado sin prefijo (lo habitual) recibe el 34: sin él el chat no abre.
+    expect(waHref('600 000 001', 'Hola')).toBe('https://wa.me/34600000001?text=Hola');
   });
 
   it('waHref devuelve null sin teléfono (evita un enlace roto)', () => {

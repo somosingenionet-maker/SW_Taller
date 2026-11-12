@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Check, ShieldAlert, ShieldCheck, X } from 'lucide-react';
+import { Check, KeyRound, ShieldAlert, ShieldCheck, X } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
-import { iniciarAltaTotp, listarFactoresTotp, quitarFactor, verificarCodigoMfa, type AltaTotp, type FactorTotp } from '../lib/auth';
+import { cambiarPassword, iniciarAltaTotp, listarFactoresTotp, quitarFactor, verificarCodigoMfa, type AltaTotp, type FactorTotp } from '../lib/auth';
+import { REQUISITOS_PASSWORD, validarCambioPassword } from '../utils/password';
 
 interface Props { onClose: () => void }
 
-/** Activar o desactivar la verificación en dos pasos (app autenticadora, TOTP) de la cuenta actual. */
+/** Seguridad de la cuenta actual: cambiar la contraseña y activar o desactivar la verificación en dos pasos (TOTP). */
 export default function SeguridadModal({ onClose }: Props) {
   const [factores, setFactores] = useState<FactorTotp[] | null>(null);
   const [alta, setAlta] = useState<AltaTotp | null>(null);
@@ -51,6 +52,34 @@ export default function SeguridadModal({ onClose }: Props) {
   };
 
   const activo = (factores?.length ?? 0) > 0;
+
+  // Cambio de contraseña (formulario plegado hasta que se pide).
+  const PW_VACIO = { actual: '', nueva: '', repetir: '' };
+  const [pwAbierto, setPwAbierto] = useState(false);
+  const [pw, setPw] = useState(PW_VACIO);
+  const [pwError, setPwError] = useState('');
+  const [pwOcupado, setPwOcupado] = useState(false);
+  const [pwHecho, setPwHecho] = useState(false);
+
+  const setCampoPw = (campo: keyof typeof PW_VACIO, valor: string) => {
+    setPw((f) => ({ ...f, [campo]: valor }));
+    if (pwError) setPwError('');
+  };
+
+  const guardarPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const fallo = validarCambioPassword(pw);
+    if (fallo) { setPwError(fallo); return; }
+    setPwOcupado(true);
+    const err = await cambiarPassword(pw.actual, pw.nueva).catch(() => 'No se pudo cambiar la contraseña. Inténtalo de nuevo.');
+    setPwOcupado(false);
+    if (err) { setPwError(err); return; }
+    setPw(PW_VACIO);
+    setPwAbierto(false);
+    setPwHecho(true);
+  };
+
+  const CAMPO_PW = 'w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -119,6 +148,52 @@ export default function SeguridadModal({ onClose }: Props) {
               className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl transition cursor-pointer disabled:opacity-60">
               <ShieldCheck className="w-4 h-4" /> {ocupado ? 'Preparando…' : 'Activar verificación en dos pasos'}
             </button>
+          </div>
+        )}
+
+        {/* Contraseña — no se ofrece a mitad de la activación del segundo factor, para no mezclar dos tareas. */}
+        {factores !== null && !alta && (
+          <div className="border-t border-slate-100 pt-4 space-y-3">
+            <p className="text-sm font-bold text-slate-800 flex items-center gap-2"><KeyRound className="w-4 h-4 text-blue-600" /> Contraseña</p>
+            {pwHecho && !pwAbierto && (
+              <div role="status" className="flex items-start gap-2 bg-green-50 border border-green-200 text-green-800 text-xs font-medium px-4 py-2.5 rounded-xl">
+                <Check className="w-4 h-4 shrink-0" /> Contraseña cambiada. Úsala la próxima vez que inicies sesión.
+              </div>
+            )}
+            {!pwAbierto ? (
+              <button onClick={() => { setPwAbierto(true); setPwHecho(false); }}
+                className="w-full px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-semibold rounded-2xl transition cursor-pointer">
+                Cambiar mi contraseña
+              </button>
+            ) : (
+              <form onSubmit={guardarPassword} className="space-y-3" noValidate>
+                <div>
+                  <label htmlFor="pw-actual" className="block text-xs font-semibold text-slate-600 mb-1">Contraseña actual</label>
+                  <input id="pw-actual" type="password" autoComplete="current-password" autoFocus value={pw.actual}
+                    onChange={(e) => setCampoPw('actual', e.target.value)} className={CAMPO_PW} />
+                </div>
+                <div>
+                  <label htmlFor="pw-nueva" className="block text-xs font-semibold text-slate-600 mb-1">Nueva contraseña</label>
+                  <input id="pw-nueva" type="password" autoComplete="new-password" value={pw.nueva}
+                    onChange={(e) => setCampoPw('nueva', e.target.value)} className={CAMPO_PW} />
+                  <p className="text-[11px] text-slate-400 mt-1">{REQUISITOS_PASSWORD}</p>
+                </div>
+                <div>
+                  <label htmlFor="pw-repetir" className="block text-xs font-semibold text-slate-600 mb-1">Repite la nueva contraseña</label>
+                  <input id="pw-repetir" type="password" autoComplete="new-password" value={pw.repetir}
+                    onChange={(e) => setCampoPw('repetir', e.target.value)} className={CAMPO_PW} />
+                </div>
+                {pwError && <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{pwError}</div>}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setPwAbierto(false); setPw(PW_VACIO); setPwError(''); }}
+                    className="px-3.5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold rounded-2xl transition cursor-pointer">Cancelar</button>
+                  <button type="submit" disabled={pwOcupado}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl transition cursor-pointer disabled:opacity-60">
+                    <Check className="w-4 h-4" /> {pwOcupado ? 'Guardando…' : 'Cambiar contraseña'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
       </div>

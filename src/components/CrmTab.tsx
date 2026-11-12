@@ -8,6 +8,8 @@ import ImportarCsvModal from './ImportarCsvModal';
 import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
+import { avisarError } from '../lib/avisos';
+import { mensajeDeError } from '../lib/errores';
 import { contarClientesConOTAbierta } from '../lib/data/ordenes';
 
 interface CrmTabProps {
@@ -56,6 +58,8 @@ export default function CrmTab({
       const token = crypto.randomUUID();
       const actualizado = await onSetPortalToken(selectedCliente.id, token);
       setSelectedCliente(actualizado);
+    } catch (err) {
+      avisarError(err, 'No se pudo generar el enlace del portal.');
     } finally {
       setPortalBusy(false);
     }
@@ -67,6 +71,8 @@ export default function CrmTab({
     try {
       const actualizado = await onSetPortalToken(selectedCliente.id, null);
       setSelectedCliente(actualizado);
+    } catch (err) {
+      avisarError(err, 'No se pudo revocar el enlace del portal.');
     } finally {
       setPortalBusy(false);
     }
@@ -152,9 +158,14 @@ export default function CrmTab({
       return;
     }
     setAddFormError('');
-    const creado = await onAddCliente(formData);
-    setIsAddingOpen(false);
-    setSelectedCliente(creado);
+    try {
+      const creado = await onAddCliente(formData);
+      setIsAddingOpen(false);
+      setSelectedCliente(creado);
+    } catch (err) {
+      // El motivo se enseña junto al botón de guardar, que es donde está mirando quien rellena la ficha.
+      setAddFormError(mensajeDeError(err, 'No se pudo guardar el cliente.'));
+    }
   };
 
   const handleEditClick = (cli: Cliente) => {
@@ -166,10 +177,14 @@ export default function CrmTab({
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editFormData) {
-      const actualizado = await onUpdateCliente(editFormData);
-      setIsEditing(false);
-      if (selectedCliente?.id === editFormData.id) {
-        setSelectedCliente(actualizado);
+      try {
+        const actualizado = await onUpdateCliente(editFormData);
+        setIsEditing(false);
+        if (selectedCliente?.id === editFormData.id) {
+          setSelectedCliente(actualizado);
+        }
+      } catch (err) {
+        avisarError(err, 'No se pudieron guardar los cambios del cliente.');
       }
     }
   };
@@ -201,6 +216,8 @@ export default function CrmTab({
       const actualizado = await onAnonymizeCliente(clienteId);
       setErrorEliminar(null);
       if (selectedCliente?.id === clienteId) setSelectedCliente(actualizado);
+    } catch (err) {
+      avisarError(err, 'No se pudieron anonimizar los datos del cliente.');
     } finally {
       setAnonymizando(false);
     }
@@ -210,10 +227,16 @@ export default function CrmTab({
     e.preventDefault();
     if (!selectedCliente || !newInteractionNotes) return;
 
-    const creada = await onAddInteraccion(selectedCliente.id, {
-      tipo: newInteractionTipo,
-      notas: newInteractionNotes,
-    });
+    let creada: InteraccionCliente;
+    try {
+      creada = await onAddInteraccion(selectedCliente.id, {
+        tipo: newInteractionTipo,
+        notas: newInteractionNotes,
+      });
+    } catch (err) {
+      avisarError(err, 'No se pudo guardar la nota.');
+      return;
+    }
 
     // Refleja la nueva interacción en la ficha abierta.
     setSelectedCliente({

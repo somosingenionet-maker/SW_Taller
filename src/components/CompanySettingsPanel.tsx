@@ -3,6 +3,7 @@ import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Ma
 import { AlertaTipo, Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { supabase } from '../lib/supabase';
+import { avisarError } from '../lib/avisos';
 import { contrastText } from '../utils/color';
 import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioTemplates';
 import VerifactuSettings from './VerifactuSettings';
@@ -88,13 +89,18 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
     const nombre = tecnicoForm.nombre.trim();
     const especialidad = tecnicoForm.especialidad.trim();
     const telefono = tecnicoForm.telefono.trim();
-    if (editingTecnicoId) {
-      const actual = tecnicos.find(t => t.id === editingTecnicoId);
-      await updateTecnico({ id: editingTecnicoId, nombre, especialidad, telefono, activo: actual?.activo ?? true });
-    } else {
-      await createTecnico({ nombre, especialidad, telefono, activo: true });
+    try {
+      if (editingTecnicoId) {
+        const actual = tecnicos.find(t => t.id === editingTecnicoId);
+        await updateTecnico({ id: editingTecnicoId, nombre, especialidad, telefono, activo: actual?.activo ?? true });
+      } else {
+        await createTecnico({ nombre, especialidad, telefono, activo: true });
+      }
+      await recargarTecnicos();
+    } catch (err) {
+      avisarError(err, 'No se pudo guardar el técnico.');
+      return;
     }
-    await recargarTecnicos();
     setTecnicoForm(null);
     setEditingTecnicoId(null);
   };
@@ -105,6 +111,8 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
     try {
       await setPortalTokenTecnico(editingTecnicoId, crypto.randomUUID());
       await recargarTecnicos();
+    } catch (err) {
+      avisarError(err, 'No se pudo generar el enlace del mecánico.');
     } finally {
       setPortalTecnicoBusy(false);
     }
@@ -116,6 +124,8 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
     try {
       await setPortalTokenTecnico(editingTecnicoId, null);
       await recargarTecnicos();
+    } catch (err) {
+      avisarError(err, 'No se pudo revocar el enlace del mecánico.');
     } finally {
       setPortalTecnicoBusy(false);
     }
@@ -128,8 +138,12 @@ export default function CompanySettingsPanel({ config, onSave, onClose }: Props)
   };
 
   const handleDeleteTecnico = async (id: string) => {
-    await deleteTecnico(id);
-    await recargarTecnicos();
+    try {
+      await deleteTecnico(id);
+      await recargarTecnicos();
+    } catch (err) {
+      avisarError(err, 'No se pudo eliminar el técnico.');
+    }
   };
 
   const set = (field: keyof Empresa, value: string) =>

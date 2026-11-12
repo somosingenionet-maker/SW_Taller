@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Car, Bell, Receipt, ClipboardList, Check, X, ShieldAlert } from 'lucide-react';
 import { getPortalData, responderPresupuesto, PortalData } from '../lib/data/portal';
 import { formatDate } from '../utils/dateFormat';
+import { fmt2, formatKm } from '../utils/moneda';
 
 interface Props {
   token: string;
@@ -16,7 +17,7 @@ const PASOS = [
 const TIPO_LABEL: Record<string, string> = { itv: 'ITV', seguro: 'Seguro', impuesto: 'Impuesto de circulación', mantenimiento: 'Mantenimiento' };
 const TIPO_ICONO: Record<string, string> = { itv: '📋', seguro: '🛡️', impuesto: '🚗', mantenimiento: '🔧' };
 
-const fmt = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt = fmt2;
 
 function VehiculoStatus({ v, color }: { v: PortalData['vehiculos'][number]; color: string }) {
   if (!v.estadoOt || v.estadoOt === 'presupuesto') {
@@ -226,7 +227,7 @@ export default function PortalCliente({ token }: Props) {
                   <div className="flex-1">
                     <p className="font-bold text-slate-700">{TIPO_LABEL[a.tipo]}</p>
                     <p className="text-slate-400">
-                      {a.fechaLimite ? `Vence ${formatDate(a.fechaLimite)}` : a.kilometrajeLimite ? `A los ${a.kilometrajeLimite.toLocaleString('es-ES')} km` : ''}
+                      {a.fechaLimite ? `Vence ${formatDate(a.fechaLimite)}` : a.kilometrajeLimite ? `A los ${formatKm(a.kilometrajeLimite)} km` : ''}
                     </p>
                   </div>
                 </div>

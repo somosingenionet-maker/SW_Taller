@@ -8,6 +8,9 @@ import ImportarCsvModal from './ImportarCsvModal';
 import Pagination from './Pagination';
 import { formatDate } from '../utils/dateFormat';
 import { downloadCsv } from '../utils/csvExport';
+import { avisarError } from '../lib/avisos';
+import { mensajeDeError } from '../lib/errores';
+import { formatEuros, formatKm } from '../utils/moneda';
 import { listOrdenesPorVehiculo, getHistorialOT, OrdenVehiculoRow } from '../lib/data/ordenes';
 
 interface VehiclesTabProps {
@@ -137,18 +140,24 @@ export default function VehiclesTab({
     setIsAddingOpen(true);
   };
 
-  const handleAddSubmit = (e: { preventDefault(): void }) => {
+  // Los tres guardados esperan al servidor: si falla (p. ej. matrícula repetida), la ventana se
+  // queda abierta con lo escrito y se explica el motivo, en vez de cerrarse como si se hubiera guardado.
+  const handleAddSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     if (!formData.marca || !formData.modelo || !formData.matricula) {
       setAddFormError('Por favor, rellene de forma correcta la Marca, Modelo y Matrícula.');
       return;
     }
     setAddFormError('');
-    onAddVehiculo({
-      ...formData,
-      kilometraje: Number(formData.kilometraje)
-    });
-    setIsAddingOpen(false);
+    try {
+      await onAddVehiculo({
+        ...formData,
+        kilometraje: Number(formData.kilometraje)
+      });
+      setIsAddingOpen(false);
+    } catch (err) {
+      setAddFormError(mensajeDeError(err, 'No se pudo guardar el vehículo.'));
+    }
   };
 
   const handleEditClick = (veh: Vehiculo) => {
@@ -156,13 +165,18 @@ export default function VehiclesTab({
     setIsEditing(true);
   };
 
-  const handleEditSubmit = (e: { preventDefault(): void }) => {
+  const handleEditSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     if (editFormData) {
-      onUpdateVehiculo({
-        ...editFormData,
-        kilometraje: Number(editFormData.kilometraje)
-      });
+      try {
+        await onUpdateVehiculo({
+          ...editFormData,
+          kilometraje: Number(editFormData.kilometraje)
+        });
+      } catch (err) {
+        avisarError(err, 'No se pudieron guardar los cambios del vehículo.');
+        return;
+      }
       setIsEditing(false);
       // Update selected interactive vehicle view if open
       if (selectedVehiculo?.id === editFormData.id) {
@@ -175,10 +189,15 @@ export default function VehiclesTab({
     setConfirmDialog({ isOpen: true, vehiculoId: id });
   };
 
-  const handleDeleteConfirm = () => {
-    onDeleteVehiculo(confirmDialog.vehiculoId);
-    if (selectedVehiculo?.id === confirmDialog.vehiculoId) setSelectedVehiculo(null);
+  const handleDeleteConfirm = async () => {
+    const id = confirmDialog.vehiculoId;
     setConfirmDialog({ isOpen: false, vehiculoId: '' });
+    try {
+      await onDeleteVehiculo(id);
+      if (selectedVehiculo?.id === id) setSelectedVehiculo(null);
+    } catch (err) {
+      avisarError(err, 'No se pudo eliminar el vehículo. Si tiene órdenes o facturas, no se puede borrar.');
+    }
   };
 
   const handleExportCsv = () => {
@@ -331,7 +350,7 @@ export default function VehiclesTab({
                         </span>
                       </td>
                       <td className="py-3.5 px-2 font-mono text-slate-600 text-xs">
-                        {veh.kilometraje.toLocaleString()} km
+                        {formatKm(veh.kilometraje)} km
                       </td>
                       <td className="py-3.5 px-2 text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -399,7 +418,7 @@ export default function VehiclesTab({
                   <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1">
                     <Wrench className="w-3 h-3 text-blue-500" /> Kilometraje
                   </div>
-                  <div className="font-mono font-bold text-slate-700 mt-1">{selectedVehiculo.kilometraje.toLocaleString()} km</div>
+                  <div className="font-mono font-bold text-slate-700 mt-1">{formatKm(selectedVehiculo.kilometraje)} km</div>
                 </div>
 
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
@@ -472,7 +491,7 @@ export default function VehiclesTab({
                                 </div>
                                 <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
                                   <span>{formatDate(ot.fechaRecepcion)}</span>
-                                  <span className="font-semibold text-slate-600">{ot.total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
+                                  <span className="font-semibold text-slate-600">{formatEuros(ot.total)}</span>
                                 </div>
                               </button>
 

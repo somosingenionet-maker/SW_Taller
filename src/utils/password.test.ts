@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validarPassword } from './password';
+import { validarPassword, validarCambioPassword } from './password';
 
 describe('validarPassword', () => {
   it('rechaza contraseñas de menos de 8 caracteres', () => {
@@ -33,5 +33,21 @@ describe('validarPassword', () => {
 
   it('rechaza una cadena vacía', () => {
     expect(validarPassword('')).toBe('La contraseña debe tener al menos 8 caracteres.');
+  });
+});
+
+describe('validarCambioPassword', () => {
+  const ok = { actual: 'Vieja123', nueva: 'Nueva1234', repetir: 'Nueva1234' };
+  it('acepta un cambio correcto', () => expect(validarCambioPassword(ok)).toBeNull());
+  it('pide la contraseña actual', () => expect(validarCambioPassword({ ...ok, actual: '' })).toBe('Escribe tu contraseña actual.'));
+  it('aplica a la nueva la misma política que al resto de contraseñas', () => {
+    expect(validarCambioPassword({ ...ok, nueva: 'corta1A', repetir: 'corta1A' })).toBe('La nueva contraseña debe tener al menos 8 caracteres.');
+    expect(validarCambioPassword({ ...ok, nueva: 'sinmayuscula1', repetir: 'sinmayuscula1' })).toContain('mayúscula');
+  });
+  it('la nueva no puede ser igual a la actual', () => {
+    expect(validarCambioPassword({ actual: 'Vieja123', nueva: 'Vieja123', repetir: 'Vieja123' })).toBe('La nueva contraseña debe ser distinta de la actual.');
+  });
+  it('las dos nuevas deben coincidir', () => {
+    expect(validarCambioPassword({ ...ok, repetir: 'Nueva12345' })).toBe('Las contraseñas nuevas no coinciden.');
   });
 });

@@ -7,6 +7,7 @@ import { Cita, Vehiculo, Cliente, Tecnico, OrdenTrabajo, OTEstado, EventoOT } fr
 import { listTecnicos } from '../lib/data/tecnicos';
 import { getNumerosOT, listOrdenesPorRangoRecepcion, listOrdenesActivas, OrdenAgendaRow } from '../lib/data/ordenes';
 import { NuevoCliente } from '../lib/data/clientes';
+import { avisarError } from '../lib/avisos';
 import ConfirmDialog from './ConfirmDialog';
 
 interface Props {
@@ -328,12 +329,21 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
 
   const handleDeleteConfirmed = async () => {
     if (!confirmDelete) return;
-    await onDeleteCita(confirmDelete.id);
+    const cita = confirmDelete;
     setConfirmDelete(null);
+    try {
+      await onDeleteCita(cita.id);
+    } catch (err) {
+      avisarError(err, 'No se pudo eliminar la cita.');
+    }
   };
 
   const handleCambiarEstado = async (c: Cita, estado: Cita['estado']) => {
-    await onUpdateCita(c.id, { estado });
+    try {
+      await onUpdateCita(c.id, { estado });
+    } catch (err) {
+      avisarError(err, 'No se pudo cambiar el estado de la cita.');
+    }
   };
 
   const hoy = localKey(new Date());
