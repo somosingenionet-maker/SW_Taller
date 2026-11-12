@@ -8,7 +8,10 @@
 // (ordenes_trabajo.tecnico_asignado), no por id — se respeta ese mismo
 // criterio aquí para no introducir un segundo modelo de asignación.
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
-import { Tecnico, puedeMarcarTarea, debeIniciarReparacion, formatearOrdenesPortal } from './logic.ts';
+import {
+  Tecnico, OtRow, AccionEstado, puedeMarcarTarea, debeIniciarReparacion, formatearOrdenesPortal,
+  transicionMecanico, normalizarDuracion, limpiarNota, EVENTOS, ESTADOS_VISIBLES, ESTADOS_EDITABLES, NOTA_MAX,
+} from './logic.ts';
 import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
 import { initSentry, conSentry } from '../_shared/sentry.ts';
 
@@ -42,75 +45,152 @@ async function manejarGet(admin: SupabaseClient, tecnico: Tecnico) {
     .eq('id', tecnico.empresa_id)
     .single();
 
-  type OtRow = {
-    id: string; numero: string; vehiculo_id: string; estado: string; descripcion_problema: string;
-  };
   const { data: ordenesData } = await admin
     .from('ordenes_trabajo')
-    .select('id, numero, vehiculo_id, estado, descripcion_problema')
+    .select('id, numero, vehiculo_id, estado, descripcion_problema, diagnostico, kilometraje_entrada, fecha_estimada_entrega, created_at')
     .eq('empresa_id', tecnico.empresa_id)
     .eq('tecnico_asignado', tecnico.nombre)
-    .in('estado', ['recibido', 'en_reparacion'])
-    .order('created_at', { ascending: false });
+    .in('estado', [...ESTADOS_VISIBLES]);
   const ordenes = (ordenesData ?? []) as OtRow[];
 
   const vehiculoIds = [...new Set(ordenes.map(o => o.vehiculo_id))];
-  const { data: vehiculos } = vehiculoIds.length
-    ? await admin.from('vehiculos').select('id, marca, modelo, matricula').in('id', vehiculoIds)
-    : { data: [] };
-
   const otIds = ordenes.map(o => o.id);
-  const { data: lineas } = otIds.length
-    ? await admin
-        .from('lineas_ot')
-        .select('id, ot_id, descripcion, completado, posicion')
-        .in('ot_id', otIds)
-        .eq('tipo', 'mano_de_obra')
-        .order('posicion')
-    : { data: [] };
+  const [{ data: vehiculos }, { data: lineas }, { data: eventos }] = await Promise.all([
+    vehiculoIds.length
+      ? admin.from('vehiculos').select('id, marca, modelo, matricula').in('id', vehiculoIds)
+      : Promise.resolve({ data: [] }),
+    otIds.length
+      ? admin.from('lineas_ot').select('id, ot_id, descripcion, completado, duracion_min, posicion')
+          .in('ot_id', otIds).eq('tipo', 'mano_de_obra').order('posicion')
+      : Promise.resolve({ data: [] }),
+    // Del historial solo hacen falta el ingreso al taller y las notas de este técnico.
+    otIds.length
+      ? admin.from('eventos_ot').select('ot_id, fecha, descripcion').in('ot_id', otIds)
+          .or(`descripcion.ilike.*recibido en taller*,descripcion.like.Nota de *`).order('fecha')
+      : Promise.resolve({ data: [] }),
+  ]);
 
   return json({
     empresa: empresa ? { nombre: empresa.nombre, brandColor: empresa.brand_color, logoUrl: empresa.logo_url } : null,
     tecnico: { nombre: tecnico.nombre },
-    ordenes: formatearOrdenesPortal(ordenes, vehiculos ?? [], lineas ?? []),
+    ordenes: formatearOrdenesPortal(ordenes, vehiculos ?? [], lineas ?? [], eventos ?? [], tecnico.nombre),
   });
 }
 
-async function manejarMarcarTarea(admin: SupabaseClient, tecnico: Tecnico, lineaId: string, completado: boolean) {
-  const { data: linea, error: lErr } = await admin
-    .from('lineas_ot')
-    .select('id, ot_id')
-    .eq('id', lineaId)
-    .maybeSingle();
-  if (lErr || !linea) return json({ error: 'Tarea no encontrada.' }, 404);
+type OtAccion = { id: string; empresa_id: string; tecnico_asignado: string | null; estado: string };
 
-  const { data: ot, error: otErr } = await admin
+/** La orden, solo si es de este técnico (misma empresa y asignada a él). */
+async function ordenDelTecnico(admin: SupabaseClient, tecnico: Tecnico, otId: string): Promise<OtAccion | Response> {
+  if (!otId) return json({ error: 'Orden no encontrada.' }, 404);
+  const { data: ot, error } = await admin
     .from('ordenes_trabajo')
     .select('id, empresa_id, tecnico_asignado, estado')
-    .eq('id', linea.ot_id)
+    .eq('id', otId)
     .maybeSingle();
-  if (otErr || !ot) return json({ error: 'Orden no encontrada.' }, 404);
-  if (!puedeMarcarTarea(tecnico, ot)) {
-    return json({ error: 'No autorizado.' }, 403);
+  if (error || !ot) return json({ error: 'Orden no encontrada.' }, 404);
+  if (!puedeMarcarTarea(tecnico, ot)) return json({ error: 'No autorizado.' }, 403);
+  return ot as OtAccion;
+}
+
+/** Anota en el historial y avisa a la pantalla del taller de que el mecánico tocó la orden. */
+async function registrar(admin: SupabaseClient, otId: string, descripcion: string, cambios: Record<string, unknown> = {}) {
+  const ahora = new Date().toISOString();
+  await admin.from('eventos_ot').insert({ ot_id: otId, fecha: ahora, descripcion });
+  await admin.from('ordenes_trabajo').update({ ...cambios, mecanico_actualizado_en: ahora }).eq('id', otId);
+}
+
+const SOLO_EN_TALLER = 'Esta orden ya no está en reparación. Si hay que cambiar algo, pulsa «Reabrir» o avisa al taller.';
+
+async function manejarMarcarTarea(
+  admin: SupabaseClient, tecnico: Tecnico, lineaId: string, completado: boolean, duracion: unknown, soloDuracion: boolean,
+) {
+  const { data: linea, error: lErr } = await admin
+    .from('lineas_ot')
+    .select('id, ot_id, tipo, descripcion, completado')
+    .eq('id', lineaId)
+    .maybeSingle();
+  if (lErr || !linea || linea.tipo !== 'mano_de_obra') return json({ error: 'Tarea no encontrada.' }, 404);
+
+  const ot = await ordenDelTecnico(admin, tecnico, linea.ot_id);
+  if (ot instanceof Response) return ot;
+  if (!(ESTADOS_EDITABLES as readonly string[]).includes(ot.estado)) return json({ error: SOLO_EN_TALLER }, 409);
+
+  const d = normalizarDuracion(duracion);
+  if (!d.ok) return json({ error: 'El tiempo debe estar entre 5 minutos y 24 horas.' }, 400);
+
+  if (soloDuracion) {
+    if (!linea.completado || d.minutos === null) return json({ error: 'Marca la tarea como hecha para anotar su tiempo.' }, 400);
+    const { error } = await admin.from('lineas_ot').update({ duracion_min: d.minutos }).eq('id', lineaId);
+    if (error) return json({ error: 'No se pudo guardar.' }, 500);
+    await registrar(admin, ot.id, EVENTOS.duracion(tecnico.nombre, linea.descripcion, d.minutos));
+    return json({ ok: true });
   }
 
-  const { error: updErr } = await admin.from('lineas_ot').update({ completado }).eq('id', lineaId);
+  // Al desmarcar se borra también el tiempo: ya no corresponde a una tarea hecha.
+  const { error: updErr } = await admin
+    .from('lineas_ot')
+    .update({ completado, duracion_min: completado ? d.minutos : null })
+    .eq('id', lineaId);
   if (updErr) return json({ error: 'No se pudo guardar.' }, 500);
 
   // El técnico marcando una tarea es la prueba de que el trabajo ya empezó
   // — si la OT seguía en "recibido" (nadie la había avanzado a mano
   // todavía), se adelanta sola a "en_reparacion" en cuanto llega la primera
-  // marca. El resto de transiciones (listo, entregado) las sigue haciendo
-  // el taller a mano, porque esas sí requieren su verificación.
-  if (debeIniciarReparacion(ot.estado, completado)) {
-    await admin.from('ordenes_trabajo').update({ estado: 'en_reparacion' }).eq('id', ot.id);
-    await admin.from('eventos_ot').insert({
-      ot_id: ot.id,
-      fecha: new Date().toISOString(),
-      descripcion: `Reparación iniciada — ${tecnico.nombre} marcó la primera tarea desde su Portal.`,
-    });
+  // marca. «Listo» lo decide él con su botón; entregar es cosa del taller.
+  const inicia = debeIniciarReparacion(ot.estado, completado);
+  if (linea.completado !== completado) {
+    await registrar(
+      admin, ot.id,
+      completado ? EVENTOS.tareaHecha(tecnico.nombre, linea.descripcion, d.minutos) : EVENTOS.tareaDeshecha(tecnico.nombre, linea.descripcion),
+    );
+  }
+  if (inicia) {
+    await admin.from('ordenes_trabajo').update({ estado: 'en_reparacion' }).eq('id', ot.id).eq('estado', 'recibido');
+    await registrar(admin, ot.id, EVENTOS.primeraTarea(tecnico.nombre));
   }
 
+  return json({ ok: true, estado: inicia ? 'en_reparacion' : ot.estado });
+}
+
+async function manejarEstado(admin: SupabaseClient, tecnico: Tecnico, otId: string, accion: AccionEstado) {
+  const ot = await ordenDelTecnico(admin, tecnico, otId);
+  if (ot instanceof Response) return ot;
+  const nuevo = transicionMecanico(ot.estado, accion);
+  if (!nuevo) return json({ error: 'La orden ha cambiado de estado. Actualiza la página.' }, 409);
+
+  let pendientes = 0;
+  if (accion === 'listo') {
+    const { count } = await admin
+      .from('lineas_ot')
+      .select('*', { count: 'exact', head: true })
+      .eq('ot_id', ot.id).eq('tipo', 'mano_de_obra').eq('completado', false);
+    pendientes = count ?? 0;
+  }
+
+  // Condicionado al estado leído: si el taller la movió entre medias, no se pisa.
+  const { data: cambiadas, error } = await admin
+    .from('ordenes_trabajo')
+    .update({ estado: nuevo })
+    .eq('id', ot.id).eq('estado', ot.estado)
+    .select('id');
+  if (error) return json({ error: 'No se pudo guardar.' }, 500);
+  if (!cambiadas?.length) return json({ error: 'La orden ha cambiado de estado. Actualiza la página.' }, 409);
+
+  const texto = accion === 'empezar' ? EVENTOS.empezar(tecnico.nombre)
+    : accion === 'listo' ? EVENTOS.listo(tecnico.nombre, pendientes)
+    : EVENTOS.reabrir(tecnico.nombre);
+  // Al reabrir, el aviso «vehículo listo» al cliente deja de ser cierto: se vuelve a poder enviar.
+  await registrar(admin, ot.id, texto, accion === 'reabrir' ? { notificacion_enviada: false } : {});
+  return json({ ok: true, estado: nuevo });
+}
+
+async function manejarNota(admin: SupabaseClient, tecnico: Tecnico, otId: string, texto: unknown) {
+  const ot = await ordenDelTecnico(admin, tecnico, otId);
+  if (ot instanceof Response) return ot;
+  if (!(ESTADOS_VISIBLES as readonly string[]).includes(ot.estado)) return json({ error: SOLO_EN_TALLER }, 409);
+  const nota = limpiarNota(texto);
+  if (!nota) return json({ error: `Escribe una nota de hasta ${NOTA_MAX} caracteres.` }, 400);
+  await registrar(admin, ot.id, EVENTOS.nota(tecnico.nombre, nota));
   return json({ ok: true });
 }
 
@@ -139,15 +219,25 @@ Deno.serve(conSentry(async (req) => {
 
   const { data: tecnico, error: tecnicoErr } = await admin
     .from('tecnicos')
-    .select('id, empresa_id, nombre')
+    .select('id, empresa_id, nombre, activo')
     .eq('portal_token', token)
     .maybeSingle();
   if (tecnicoErr) return json({ error: 'Error interno.' }, 500);
-  if (!tecnico) return json({ error: 'Este enlace no es válido.' }, 404);
+  // Un técnico dado de baja pierde el acceso aunque conserve el enlace.
+  if (!tecnico || tecnico.activo === false) return json({ error: 'Este enlace no es válido.' }, 404);
 
-  if (body.action === 'marcar_tarea') {
-    return manejarMarcarTarea(admin, tecnico, String(body.lineaId ?? ''), Boolean(body.completado));
+  const accion = String(body.action ?? '');
+  if (accion === 'marcar_tarea') {
+    return manejarMarcarTarea(admin, tecnico, String(body.lineaId ?? ''), Boolean(body.completado), body.duracionMin, false);
   }
+  if (accion === 'duracion') {
+    return manejarMarcarTarea(admin, tecnico, String(body.lineaId ?? ''), true, body.duracionMin, true);
+  }
+  if (accion === 'empezar' || accion === 'listo' || accion === 'reabrir') {
+    return manejarEstado(admin, tecnico, String(body.otId ?? ''), accion);
+  }
+  if (accion === 'nota') return manejarNota(admin, tecnico, String(body.otId ?? ''), body.texto);
+  if (accion) return json({ error: 'Acción no reconocida.' }, 400);
 
   return manejarGet(admin, tecnico);
 }, CORS_HEADERS));

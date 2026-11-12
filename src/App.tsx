@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { contrastText } from './utils/color';
 import { supabase } from './lib/supabase';
 import { Sentry } from './lib/sentry';
@@ -6,11 +6,12 @@ import type { Session } from '@supabase/supabase-js';
 import { fetchPerfil, signOut, mfaPendiente } from './lib/auth';
 import { llegaDeInvitacion, errorDeEnlace } from './lib/invitacion';
 import { mensajeDeError, mensajeSoloLectura, textoDeError } from './lib/errores';
-import { avisarError, escucharAvisos, type Aviso } from './lib/avisos';
+import { avisar, avisarError, escucharAvisos, type Aviso } from './lib/avisos';
 import { getSuscripcion, type Suscripcion } from './lib/data/suscripcion';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, NuevoVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
-import { listOrdenesTablero, createOrden, updateOrden, deleteOrden } from './lib/data/ordenes';
+import { listOrdenesTablero, createOrden, updateOrden, deleteOrden, getOrden } from './lib/data/ordenes';
+import { avisoDelMecanico } from './utils/avisoMecanico';
 import { listAlertas, renovarAlertaMantenimiento, forzarRecordatorio } from './lib/data/alertas';
 import { listNotificaciones, deleteNotificacion } from './lib/data/notificaciones';
 import { createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
@@ -81,6 +82,11 @@ export default function App() {
   // Facturas ya tienen su propia consulta puntual (ver lib/data/ordenes.ts)
   // y no reciben este array — así no crece con el histórico de la empresa.
   const [ordenesTrabajo, setOrdenesTrabajo] = useState<OrdenTrabajo[]>([]);
+  // Copias siempre al día para los oyentes de tiempo real (se registran una vez y no ven el estado nuevo).
+  const ordenesRef = useRef<OrdenTrabajo[]>([]);
+  const vehiculosRef = useRef<Vehiculo[]>([]);
+  ordenesRef.current = ordenesTrabajo;
+  vehiculosRef.current = vehiculos;
   const [productos, setProductos] = useState<Producto[]>([]);
   const [citas, setCitas] = useState<Cita[]>([]);
 
@@ -288,10 +294,10 @@ export default function App() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'lineas_ot' },
         (payload) => {
-          const nueva = payload.new as { id: string; ot_id: string; completado: boolean };
+          const nueva = payload.new as { id: string; ot_id: string; completado: boolean; duracion_min: number | null };
           setOrdenesTrabajo(prev => prev.map(ot =>
             ot.id === nueva.ot_id
-              ? { ...ot, lineas: ot.lineas.map(l => (l.id === nueva.id ? { ...l, completado: nueva.completado } : l)) }
+              ? { ...ot, lineas: ot.lineas.map(l => (l.id === nueva.id ? { ...l, completado: nueva.completado, duracionMin: nueva.duracion_min ?? undefined } : l)) }
               : ot
           ));
         }
@@ -300,10 +306,24 @@ export default function App() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'ordenes_trabajo' },
         (payload) => {
-          const nueva = payload.new as { id: string; estado: OTEstado; updated_at: string };
+          const nueva = payload.new as { id: string; estado: OTEstado; updated_at: string; mecanico_actualizado_en: string | null };
           setOrdenesTrabajo(prev => prev.map(ot =>
             ot.id === nueva.id ? { ...ot, estado: nueva.estado, fechaActualizacion: nueva.updated_at } : ot
           ));
+          // Si el cambio lo hizo el mecánico desde su Portal, se relee esa orden entera (tareas,
+          // tiempos e historial con sus notas) y se avisa al taller de lo importante. Los cambios
+          // del propio taller no pasan por aquí: no mueven `mecanico_actualizado_en`.
+          const antes = ordenesRef.current.find(o => o.id === nueva.id);
+          const marca = (f?: string | null) => (f ? new Date(f).getTime() : 0);
+          if (antes && nueva.mecanico_actualizado_en && marca(nueva.mecanico_actualizado_en) !== marca(antes.mecanicoActualizadoEn)) {
+            getOrden(nueva.id)
+              .then((fresca) => {
+                setOrdenesTrabajo(prev => prev.map(o => (o.id === fresca.id ? fresca : o)));
+                const mensaje = avisoDelMecanico(antes, fresca, vehiculosRef.current.find(v => v.id === fresca.vehiculoId));
+                if (mensaje) avisar({ tipo: 'ok', mensaje });
+              })
+              .catch((err) => console.error('No se pudo refrescar la orden', err));
+          }
         }
       )
       .subscribe();

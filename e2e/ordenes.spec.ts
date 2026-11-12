@@ -15,8 +15,16 @@ test('OT: crear un presupuesto lo añade a la lista, y se puede eliminar sin dej
   const buscador = page.getByPlaceholder('Buscar por número, matrícula o cliente...');
   const filas = page.locator('table tbody tr');
 
+  // Se espera a la respuesta de ESTA búsqueda antes de contar: con una pausa fija, una red lenta
+  // hacía contar 0 filas, el test fallaba y además dejaba el presupuesto de prueba sin borrar.
+  const busquedaHecha = () => page.waitForResponse(
+    (r) => r.url().includes('/rpc/buscar_ordenes') && (r.request().postData() ?? '').includes(MATRICULA_PRUEBA),
+    { timeout: 15_000 },
+  );
+  const primera = busquedaHecha();
   await buscador.fill(MATRICULA_PRUEBA);
-  await page.waitForTimeout(400); // debounce de búsqueda (300ms) + respuesta
+  await primera;
+  await page.waitForTimeout(200); // pintado de la tabla
   const totalAntes = await filas.count();
 
   await page.getByRole('button', { name: 'Nueva OT' }).click();
@@ -40,8 +48,7 @@ test('OT: crear un presupuesto lo añade a la lista, y se puede eliminar sin dej
   // La búsqueda sigue activa (mismo filtro) — el nuevo presupuesto debe
   // aparecer como la fila más reciente (buscar_ordenes ordena por
   // updated_at desc), sumando una fila más a las que ya había.
-  await page.waitForTimeout(400);
-  await expect(filas).toHaveCount(totalAntes + 1);
+  await expect(filas).toHaveCount(totalAntes + 1, { timeout: 15_000 });
 
   const filaNueva = filas.first();
   await expect(filaNueva.getByText('Presupuesto', { exact: false })).toBeVisible();

@@ -9,15 +9,17 @@ const SELECT =
   'id, numero, vehiculo_id, cliente_id, estado, fecha_recepcion, fecha_estimada_entrega, ' +
   'fecha_entrega, kilometraje_entrada, kilometraje_salida, descripcion_problema, diagnostico, ' +
   'tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, ' +
-  'presupuesto_aprobado, notificacion_enviada, updated_at, ' +
+  'presupuesto_aprobado, notificacion_enviada, updated_at, mecanico_actualizado_en, ' +
   'checklist_recepcion, checklist_observaciones, fotos_recepcion, ' +
-  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, notificado_cliente ), ' +
+  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, duracion_min, notificado_cliente ), ' +
   'eventos_ot ( fecha, descripcion )';
 
 type LineaRow = {
   id: string; tipo: string; producto_id: string | null; descripcion: string; cantidad: number;
   precio_unitario: number; costo_unitario: number | null; subtotal: number; posicion: number;
   completado: boolean; notificado_cliente: boolean;
+  /** Opcional: no todas las consultas lo piden (p. ej. las líneas facturables). */
+  duracion_min?: number | null;
 };
 type EventoRow = { fecha: string; descripcion: string };
 type ChecklistItemRow = { item: string; ok: boolean };
@@ -28,7 +30,7 @@ type OrdenRow = {
   diagnostico: string | null; tecnico_asignado: string | null; subtotal: number; iva_pct: number;
   total_iva: number; total: number; notas: string | null;
   presupuesto_estado: string | null; presupuesto_aprobado: boolean | null;
-  notificacion_enviada: boolean | null; updated_at: string;
+  notificacion_enviada: boolean | null; updated_at: string; mecanico_actualizado_en?: string | null;
   checklist_recepcion: ChecklistItemRow[] | null; checklist_observaciones: string | null;
   fotos_recepcion: string[] | null;
   lineas_ot: LineaRow[] | null; eventos_ot: EventoRow[] | null;
@@ -45,6 +47,7 @@ export function mapLinea(l: LineaRow): LineaOT {
     costoUnitario: l.costo_unitario ?? undefined,
     subtotal: l.subtotal,
     completado: l.completado,
+    duracionMin: l.duracion_min ?? undefined,
     notificadoCliente: l.notificado_cliente,
   };
 }
@@ -77,6 +80,7 @@ export function mapOrden(r: OrdenRow): OrdenTrabajo {
     presupuestoAprobado: r.presupuesto_aprobado ?? undefined,
     notificacionEnviada: r.notificacion_enviada ?? undefined,
     fechaActualizacion: r.updated_at,
+    mecanicoActualizadoEn: r.mecanico_actualizado_en ?? undefined,
     checklistRecepcion: r.checklist_recepcion ?? undefined,
     checklistObservaciones: r.checklist_observaciones ?? undefined,
     fotosRecepcion: r.fotos_recepcion ?? undefined,
@@ -335,10 +339,14 @@ export function diffLineas(idsExistentes: Set<string>, lineas: LineaOT[], otId: 
   const aBorrar = [...idsExistentes].filter((id) => !idsEntrantes.has(id));
 
   const aInsertar: ReturnType<typeof lineaToRow>[] = [];
-  const aActualizar: (ReturnType<typeof lineaToRow> & { id: string })[] = [];
+  const aActualizar: (Omit<ReturnType<typeof lineaToRow>, 'completado'> & { id: string })[] = [];
   for (const [i, l] of lineas.entries()) {
     if (idsExistentes.has(l.id)) {
-      aActualizar.push({ id: l.id, ...lineaToRow(l, otId, i) });
+      // `completado` (y el tiempo de la tarea) son del mecánico: al actualizar una línea que ya
+      // existe NO se envían. La copia que tiene abierta el taller puede ser de hace minutos y
+      // enviarla desmarcaría tareas que el mecánico acaba de terminar desde su Portal.
+      const { completado: _delMecanico, ...fila } = lineaToRow(l, otId, i);
+      aActualizar.push({ id: l.id, ...fila });
     } else {
       aInsertar.push(lineaToRow(l, otId, i));
     }
@@ -346,14 +354,20 @@ export function diffLineas(idsExistentes: Set<string>, lineas: LineaOT[], otId: 
   return { aBorrar, aActualizar, aInsertar };
 }
 
+const claveEvento = (e: EventoOT) => `${new Date(e.fecha).getTime()}|${e.descripcion}`;
+
 /**
- * Del historial completo que llega (`historial`), qué eventos todavía no
- * están guardados — es de solo-añadir (ningún sitio de la app edita ni
- * borra un evento pasado), así que son justo los que sobran al final
- * respecto a cuántos ya hay en la base de datos.
+ * Del historial completo que llega (`historial`), qué eventos todavía no están guardados. El
+ * historial es de solo-añadir (ningún sitio de la app edita ni borra un evento pasado), así que son
+ * los que no existen ya en la base de datos, comparando momento + texto.
+ *
+ * No vale contar («los que sobran al final»): el mecánico también escribe en el historial desde su
+ * Portal, y con una copia vieja abierta en el taller la cuenta se descuadraba y la anotación nueva
+ * del taller se perdía sin aviso.
  */
-export function eventosPendientes(historial: EventoOT[], countGuardados: number): EventoOT[] {
-  return historial.slice(countGuardados);
+export function eventosPendientes(historial: EventoOT[], guardados: EventoOT[]): EventoOT[] {
+  const yaEstan = new Set(guardados.map(claveEvento));
+  return historial.filter((e) => !yaEstan.has(claveEvento(e)));
 }
 
 export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
@@ -387,12 +401,12 @@ export async function updateOrden(ot: OrdenTrabajo): Promise<OrdenTrabajo> {
   // El historial es de solo-añadir: en vez de borrar toda la tabla y
   // reescribirla entera en cada guardado (cada vez más cara cuanta más
   // historia acumula la OT), basta con insertar los eventos pendientes.
-  const { count, error: eCount } = await supabase
+  const { data: guardados, error: eCount } = await supabase
     .from('eventos_ot')
-    .select('*', { count: 'exact', head: true })
+    .select('fecha, descripcion')
     .eq('ot_id', ot.id);
   if (eCount) throw new Error(eCount.message);
-  const eventosNuevos = eventosPendientes(ot.historial, count ?? 0);
+  const eventosNuevos = eventosPendientes(ot.historial, (guardados ?? []) as EventoOT[]);
   if (eventosNuevos.length) {
     const { error: eE } = await supabase.from('eventos_ot').insert(eventosToRows(ot.id, eventosNuevos));
     if (eE) throw new Error(eE.message);

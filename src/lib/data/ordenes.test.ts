@@ -73,10 +73,13 @@ describe('diffLineas', () => {
     expect(aInsertar.map((l) => l.posicion)).toEqual([0, 1, 2]);
   });
 
-  it('conserva completado=true de una línea existente al actualizarla (no lo resetea)', () => {
+  it('al actualizar una línea existente NO envía completado: es del mecánico y la copia del taller puede estar vieja', () => {
     const existentes = new Set(['lin-1']);
-    const { aActualizar } = diffLineas(existentes, [linea({ id: 'lin-1', completado: true })], 'ot-1');
-    expect(aActualizar[0].completado).toBe(true);
+    for (const completado of [true, false, undefined]) {
+      const { aActualizar } = diffLineas(existentes, [linea({ id: 'lin-1', completado })], 'ot-1');
+      expect('completado' in aActualizar[0]).toBe(false);
+      expect('duracion_min' in aActualizar[0]).toBe(false);
+    }
   });
 
   it('una línea nueva sin completado/notificadoCliente definidos usa los defaults seguros', () => {
@@ -94,16 +97,32 @@ describe('eventosPendientes', () => {
     { fecha: '2026-01-03T00:00:00Z', descripcion: 'Reparación iniciada' },
   ];
 
-  it('devuelve solo los eventos nuevos al final, respetando cuántos ya había guardados', () => {
-    expect(eventosPendientes(historial, 1)).toEqual(historial.slice(1));
+  it('devuelve solo los eventos que no están ya guardados', () => {
+    expect(eventosPendientes(historial, historial.slice(0, 1))).toEqual(historial.slice(1));
   });
 
   it('devuelve todo el historial cuando no había nada guardado', () => {
-    expect(eventosPendientes(historial, 0)).toEqual(historial);
+    expect(eventosPendientes(historial, [])).toEqual(historial);
   });
 
   it('no devuelve nada cuando ya está todo guardado', () => {
-    expect(eventosPendientes(historial, historial.length)).toEqual([]);
+    expect(eventosPendientes(historial, historial)).toEqual([]);
+  });
+
+  it('reconoce un evento guardado aunque el servidor devuelva la fecha en otro formato', () => {
+    const guardados = historial.map((e) => ({ ...e, fecha: e.fecha.replace('Z', '+00:00') }));
+    expect(eventosPendientes(historial, guardados)).toEqual([]);
+  });
+
+  it('no pierde la anotación del taller cuando el mecánico escribió entre medias (copia vieja abierta)', () => {
+    // El taller abrió la orden con 3 eventos y añade el suyo; mientras, el mecánico añadió 2 desde su Portal.
+    const delTaller = { fecha: '2026-01-04T10:00:00Z', descripcion: 'Presupuesto enviado al cliente' };
+    const enServidor = [
+      ...historial,
+      { fecha: '2026-01-04T09:00:00+00:00', descripcion: 'Ana terminó «Frenos» (45 min).' },
+      { fecha: '2026-01-04T09:30:00+00:00', descripcion: 'Nota de Ana: falta la junta' },
+    ];
+    expect(eventosPendientes([...historial, delTaller], enServidor)).toEqual([delTaller]);
   });
 });
 

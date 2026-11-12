@@ -13,6 +13,7 @@ import { avisarError } from '../lib/avisos';
 import { mensajeDeError } from '../lib/errores';
 import { telefonoWhatsApp } from '../utils/telefono';
 import { fmt2, formatKm } from '../utils/moneda';
+import { resumenTiempos, textoDuracion, textoHoras } from '../utils/duracionTarea';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
@@ -338,13 +339,30 @@ function KanbanBoard({
                       )}
                       <span className="truncate">{cli ? `${cli.nombre} ${cli.apellidos}` : '—'}</span>
                     </div>
-                    {(estado === 'recibido' || estado === 'en_reparacion') && progresoTareas(ot).terminado && (
-                      <div className="mb-1.5">
-                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 flex items-center gap-1 w-fit">
-                          <Check size={9} /> Técnico terminó
-                        </span>
-                      </div>
-                    )}
+                    {/* Avance en el taller: quién lo lleva, tareas hechas y tiempo real anotado por el mecánico. */}
+                    {(estado === 'recibido' || estado === 'en_reparacion' || estado === 'listo') && (() => {
+                      const t = resumenTiempos(ot.lineas);
+                      if (!ot.tecnicoAsignado && t.tareas === 0) return null;
+                      const terminado = t.tareas > 0 && t.hechas === t.tareas;
+                      return (
+                        <div className="mb-1.5 space-y-1">
+                          <div className="flex items-center justify-between gap-2 text-[10px]">
+                            <span className="flex items-center gap-1 text-slate-500 truncate"><Wrench size={9} className="shrink-0" /> {ot.tecnicoAsignado || 'Sin técnico'}</span>
+                            {t.tareas > 0 && (
+                              <span className={`font-bold shrink-0 ${terminado ? 'text-teal-700' : 'text-slate-500'}`}>
+                                {terminado && <Check size={9} className="inline -mt-0.5 mr-0.5" />}{t.hechas}/{t.tareas}
+                                {t.minutosReales > 0 && ` · ${textoDuracion(t.minutosReales)}`}
+                              </span>
+                            )}
+                          </div>
+                          {t.tareas > 0 && (
+                            <div className="h-1 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={t.tareas} aria-valuenow={t.hechas} aria-label="Tareas hechas">
+                              <div className={`h-full rounded-full ${terminado ? 'bg-teal-500' : 'bg-orange-400'}`} style={{ width: `${(t.hechas / t.tareas) * 100}%` }} />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-extrabold text-slate-700">
                         {ot.total > 0 ? `${fmt2(ot.total)} €` : <span className="text-slate-300 font-normal">Por definir</span>}
@@ -1188,6 +1206,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                   {l.tipo === 'mano_de_obra' && l.completado && <Check size={12} className="text-teal-600 shrink-0" />}
                                   {l.descripcion}
                                 </span>
+                                {l.tipo === 'mano_de_obra' && l.duracionMin != null && (
+                                  <span className="block text-[10px] text-slate-400 mt-0.5">
+                                    Real {textoDuracion(l.duracionMin)} · Cobrado {textoHoras(l.cantidad)}
+                                  </span>
+                                )}
                               </td>
                               <td className="px-3 py-2 text-center">
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${l.tipo === 'mano_de_obra' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>
@@ -1204,6 +1227,28 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     </div>
                   )}
                 </div>
+
+                {/* Avance en el taller: lo que ha anotado el mecánico desde su Portal. */}
+                {(() => {
+                  const t = resumenTiempos(selected.lineas);
+                  if (t.tareas === 0 || (t.hechas === 0 && t.conTiempo === 0)) return null;
+                  return (
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-1.5">
+                      <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><Wrench size={11} /> Avance en el taller</p>
+                      <p className="text-xs text-slate-600">
+                        <span className="font-semibold text-slate-800">{t.hechas} de {t.tareas}</span> {t.tareas === 1 ? 'tarea hecha' : 'tareas hechas'}
+                        {selected.tecnicoAsignado ? ` · ${selected.tecnicoAsignado}` : ''}
+                      </p>
+                      {t.conTiempo > 0 && (
+                        <p className="text-xs text-slate-600">
+                          Tiempo real registrado: <span className="font-semibold text-slate-800">{textoDuracion(t.minutosReales)}</span>
+                          {t.conTiempo < t.tareas && ` (en ${t.conTiempo} de ${t.tareas} tareas)`}
+                          {' · '}Horas cobradas: <span className="font-semibold text-slate-800">{textoHoras(t.horasCobradas)}</span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Totals */}
                 {totalesSelected && selected.lineas.length > 0 && (
