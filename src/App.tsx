@@ -34,6 +34,7 @@ import MfaChallenge from './components/MfaChallenge';
 import SeguridadModal from './components/SeguridadModal';
 import SuscripcionBanner from './components/SuscripcionBanner';
 import SuscripcionPanel from './components/SuscripcionPanel';
+import type { TabId as PestanaEmpresa } from './components/CompanySettingsPanel';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminPanel from './components/SuperAdminPanel';
 import {
@@ -68,6 +69,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('inicio');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Pestaña con la que se abre Empresa: la guía de primeros pasos enlaza directo a cada una.
+  const [settingsTab, setSettingsTab] = useState<PestanaEmpresa | undefined>(undefined);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
 
@@ -258,16 +261,18 @@ export default function App() {
 
   // Datos de Supabase: se cargan cuando hay sesión (la RLS requiere estar
   // autenticado). Al cerrar sesión se limpian.
+  // `datosListos`: ya llegó la primera carga de clientes, vehículos y órdenes (la guía de primeros
+  // pasos espera a esto para no enseñar pasos «pendientes» que en realidad ya están hechos).
+  const [datosListos, setDatosListos] = useState(false);
   useEffect(() => {
     if (currentUser) {
-      recargarVehiculos();
-      recargarClientes();
-      recargarOrdenes();
+      void Promise.allSettled([recargarVehiculos(), recargarClientes(), recargarOrdenes()]).then(() => setDatosListos(true));
       recargarAlertas();
       recargarNotificaciones();
       recargarProductos();
       recargarCitas();
     } else {
+      setDatosListos(false);
       setVehiculos([]);
       setClientes([]);
       setOrdenesTrabajo([]);
@@ -854,7 +859,11 @@ export default function App() {
             alertas={alertas}
             modulos={activeModulos}
             brandColor={brandColor}
+            empresa={empresa}
+            nOrdenes={ordenesTrabajo.length}
+            datosListos={datosListos}
             onNavigate={setActiveTab}
+            onAbrirEmpresa={(pestana) => { setSettingsTab(pestana); setSettingsOpen(true); }}
           />
         )}
 
@@ -1023,8 +1032,9 @@ export default function App() {
       {settingsOpen && (
         <CompanySettingsPanel
           config={empresa}
+          pestanaInicial={settingsTab}
           onSave={handleSaveEmpresa}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => { setSettingsOpen(false); setSettingsTab(undefined); }}
         />
       )}
 

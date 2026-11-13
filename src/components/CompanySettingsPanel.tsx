@@ -10,6 +10,8 @@ import VerifactuSettings from './VerifactuSettings';
 
 interface Props {
   config: Empresa;
+  /** Pestaña con la que se abre (la guía de primeros pasos enlaza directo a cada una). */
+  pestanaInicial?: TabId;
   onSave: (config: Partial<Empresa>) => void | Promise<void>;
   onClose: () => void;
 }
@@ -21,7 +23,7 @@ const TIPO_LABEL: Record<AlertaTipo, string> = {
   aceite: 'Cambio de aceite (recordatorio)',
 };
 
-type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'tecnicos';
+export type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'tecnicos';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'identidad', label: 'Identidad', icon: <IdCard className="w-3.5 h-3.5" /> },
@@ -62,11 +64,11 @@ const BRAND_COLORS = [
   { label: 'Negro',      value: '#111827' },
 ];
 
-export default function CompanySettingsPanel({ config, onSave, onClose }: Props) {
+export default function CompanySettingsPanel({ config, pestanaInicial, onSave, onClose }: Props) {
   const [draft, setDraft] = useState<Empresa>({ ...config });
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
-  const [activeTab, setActiveTab] = useState<TabId>('identidad');
+  const [activeTab, setActiveTab] = useState<TabId>(pestanaInicial ?? 'identidad');
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Técnicos (desde Supabase)

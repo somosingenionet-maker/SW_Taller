@@ -97,6 +97,10 @@ export interface OrdenTrabajo {
   filtros?: FiltrosAceite;
   /** Cuándo se anotó el próximo cambio en la ficha del vehículo a raíz de esta orden. */
   aceiteAnotadoEn?: string;
+  /** Firma en pantalla del presupuesto (sin el dibujo, que se pide aparte): quién, cuándo y por qué importe. */
+  firmaPresupuesto?: { nombre: string; en: string; total: number };
+  /** Firma en pantalla de la entrega del vehículo (sin el dibujo). */
+  firmaEntrega?: { nombre: string; en: string };
   /** Registro cronológico de eventos de esta OT. */
   historial: EventoOT[];
   /** Factura generada desde esta OT. */

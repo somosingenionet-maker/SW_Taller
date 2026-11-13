@@ -17,6 +17,10 @@ import { resumenTiempos, textoDuracion, textoHoras } from '../utils/duracionTare
 import { resumenFiltros } from '../utils/aceite';
 import { formatDate as fechaLarga } from '../utils/dateFormat';
 import CambioAceiteOrden from './CambioAceiteOrden';
+import FirmasOrden, { FirmaImpresa } from './FirmasOrden';
+import FirmaOrdenModal from './FirmaOrdenModal';
+import { getFirmas, type FirmasOrden as Firmas, type TipoFirma } from '../lib/data/firmas';
+import { avisarOk } from '../lib/avisos';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
@@ -434,6 +438,15 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const [formError, setFormError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [presupuestoPDF, setPresupuestoPDF] = useState<OrdenTrabajo | null>(null);
+  // Firma en pantalla: qué firma se está pidiendo ahora, y los dibujos de la orden que se imprime.
+  const [firmando, setFirmando] = useState<TipoFirma | null>(null);
+  const [firmasPDF, setFirmasPDF] = useState<Firmas>({});
+  useEffect(() => {
+    if (!presupuestoPDF || (!presupuestoPDF.firmaPresupuesto && !presupuestoPDF.firmaEntrega)) { setFirmasPDF({}); return; }
+    let vivo = true;
+    getFirmas(presupuestoPDF.id).then((f) => { if (vivo) setFirmasPDF(f); }).catch(() => { if (vivo) setFirmasPDF({}); });
+    return () => { vivo = false; };
+  }, [presupuestoPDF?.id, presupuestoPDF?.firmaPresupuesto?.en, presupuestoPDF?.firmaEntrega?.en]);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<OTForm>(EMPTY_OT_FORM);
   const [editingLineaId, setEditingLineaId] = useState<string | null>(null);
@@ -1267,6 +1280,16 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   vehiculo={vehiculos.find(v => v.id === selected.vehiculoId)}
                   onCambio={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
                 />
+
+                <FirmasOrden ot={selected} onFirmar={setFirmando} />
+
+                {/* El resumen de reparación (con las firmas) se imprime con el vehículo ya listo o entregado. */}
+                {(selected.estado === 'listo' || selected.estado === 'entregado') && (
+                  <button type="button" onClick={() => setPresupuestoPDF(selected)}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer">
+                    <FileText size={14} /> Ver / imprimir resumen de reparación
+                  </button>
+                )}
 
                 {/* Totals */}
                 {totalesSelected && selected.lineas.length > 0 && (
@@ -2490,6 +2513,17 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       </div>
                     )}
 
+                    {/* Firmas del cliente en pantalla: aceptación del presupuesto y, en el resumen de reparación, la entrega. */}
+                    {(firmasPDF.presupuesto || (esListo && firmasPDF.entrega)) && (
+                      <div className="grid grid-cols-2 gap-8 pt-2">
+                        {firmasPDF.presupuesto && (
+                          <FirmaImpresa titulo="Aceptación del presupuesto" firma={firmasPDF.presupuesto}
+                            nota={firmasPDF.presupuesto.total != null ? `importe ${fmt2(firmasPDF.presupuesto.total)} €` : undefined} />
+                        )}
+                        {esListo && firmasPDF.entrega && <FirmaImpresa titulo="Conformidad en la entrega" firma={firmasPDF.entrega} />}
+                      </div>
+                    )}
+
                     {/* Pie */}
                     <div className="border-t border-slate-100 pt-6 text-center text-[10px] text-slate-300">
                       {empresa.nombre} · {empresa.direccionFiscal} · {empresa.telefono} · {empresa.web}
@@ -2502,6 +2536,23 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
           );
         })()}
       </AnimatePresence>
+
+      {firmando && selected && (
+        <FirmaOrdenModal
+          tipo={firmando}
+          ot={selected}
+          clienteNombre={cliLabel(selected.clienteId)}
+          vehiculoDescripcion={vehLabel(selected.vehiculoId)}
+          onCancelar={() => setFirmando(null)}
+          onFirmada={() => {
+            const id = selected.id;
+            setFirmando(null);
+            getOrden(id)
+              .then((fresca) => { setSelected(fresca); onRefrescada(fresca); avisarOk('Firma guardada.'); })
+              .catch((err) => avisarError(err, 'La firma se guardó, pero no se pudo actualizar la pantalla. Cierra y vuelve a abrir la orden.'));
+          }}
+        />
+      )}
 
       {crearProductoRapido && (
         <CrearProductoRapidoModal

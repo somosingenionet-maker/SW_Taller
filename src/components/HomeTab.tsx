@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Cita, Cliente, Vehiculo, Alerta, Perfil, ModuloId } from '../types';
+import { Cita, Cliente, Vehiculo, Alerta, Perfil, ModuloId, Empresa } from '../types';
 import { getFacturasResumen, FacturasResumen } from '../lib/data/facturas';
 import { listOrdenesActivas, OrdenActiva } from '../lib/data/ordenes';
 import { fmt2 } from '../utils/moneda';
+import { listTecnicos } from '../lib/data/tecnicos';
+import GuiaInicial from './GuiaInicial';
+import type { AccionPaso } from '../utils/guiaInicial';
 import {
   CalendarClock, Wrench, Bell, Euro, AlertTriangle, Users, Car, ArrowRight, ClipboardList, Home,
 } from 'lucide-react';
@@ -15,7 +18,13 @@ interface Props {
   alertas: Alerta[];
   modulos: ModuloId[];
   brandColor: string;
+  empresa: Empresa;
+  /** Cuántas órdenes de trabajo tiene el taller (para saber si ya creó la primera). */
+  nOrdenes: number;
+  /** Ya llegó la primera carga de clientes, vehículos y órdenes. */
+  datosListos: boolean;
   onNavigate: (tab: ModuloId) => void;
+  onAbrirEmpresa: (pestana: Extract<AccionPaso, { tipo: 'empresa' }>['pestana']) => void;
 }
 
 const fmtMoney = fmt2;
@@ -33,7 +42,7 @@ const OT_LABEL: Record<string, string> = {
 };
 
 export default function HomeTab({
-  currentUser, citas, clientes, vehiculos, alertas, modulos, brandColor, onNavigate,
+  currentUser, citas, clientes, vehiculos, alertas, modulos, brandColor, empresa, nOrdenes, datosListos, onNavigate, onAbrirEmpresa,
 }: Props) {
   const puede = (m: ModuloId) => modulos.includes(m);
 
@@ -54,6 +63,15 @@ export default function HomeTab({
     if (!puede('taller')) return;
     listOrdenesActivas().then(setOrdenesActivas).catch(() => setOrdenesActivas([]));
   }, []);
+
+  // La guía de primeros pasos es para quien administra el taller. Los mecánicos se cuentan con una
+  // consulta aparte porque no están cargados en App.
+  const esAdmin = currentUser.rol === 'admin';
+  const [nTecnicos, setNTecnicos] = useState<number | null>(null);
+  useEffect(() => {
+    if (!esAdmin) return;
+    listTecnicos().then(t => setNTecnicos(t.length)).catch(() => setNTecnicos(null));
+  }, [esAdmin]);
 
   const hoyStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const fechaLarga = useMemo(() => {
@@ -108,6 +126,22 @@ export default function HomeTab({
           <p className="text-xs text-slate-400 mt-0.5">{fechaLarga}</p>
         </div>
       </div>
+
+      {/* Hasta tener todos los datos no se enseña la guía: evita que parpadee un paso «pendiente» que ya está hecho. */}
+      {esAdmin && datosListos && nTecnicos !== null && (
+        <GuiaInicial
+          empresaId={empresa.id}
+          modulos={modulos}
+          brandColor={brandColor}
+          datos={{
+            razonSocial: empresa.razonSocial, nif: empresa.nif, direccionFiscal: empresa.direccionFiscal,
+            tieneLogo: !!(empresa.logoUrl || empresa.logoBase64),
+            nTecnicos, nClientes: clientes.length, nVehiculos: vehiculos.length, nOrdenes,
+            recordatoriosActivos: empresa.recordatoriosAutomaticosActivos,
+          }}
+          onAccion={(a) => (a.tipo === 'empresa' ? onAbrirEmpresa(a.pestana) : onNavigate(a.modulo))}
+        />
+      )}
 
       {puede('facturas') && facturasVencidasCount > 0 && (
         <div className="flex items-center gap-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl px-4 py-3 mb-5 text-sm font-semibold">

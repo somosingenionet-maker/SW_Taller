@@ -8,7 +8,7 @@ Las variables `{{ .ConfirmationURL }}`, `{{ .Email }}`, `{{ .NewEmail }}` y `{{ 
 | Pestaña de Supabase | Archivo | Asunto |
 |---|---|---|
 | Reset password | `recovery.html` | Restablece tu contraseña de Doonty Motor |
-| Invite user | `invite.html` | Te han invitado a Doonty Motor |
+| Invite user | `invite.html` | Bienvenido a Doonty Motor: elige tu contraseña |
 | Confirm sign up | `confirmation.html` | Confirma tu correo en Doonty Motor |
 | Magic link | `magic_link.html` | Tu enlace de acceso a Doonty Motor |
 | Change email address | `email_change.html` | Confirma tu nuevo correo en Doonty Motor |
@@ -16,3 +16,5 @@ Las variables `{{ .ConfirmationURL }}`, `{{ .Email }}`, `{{ .NewEmail }}` y `{{ 
 
 Nota: `config.toml` no apunta a estos archivos a propósito. Un `supabase config push` aplicaría
 también el resto de ese archivo (valores de desarrollo) sobre producción.
+
+Nota sobre `invite.html`: solo la usa el alta autoservicio (función `registro`); los usuarios que crea un administrador llevan contraseña directa y no reciben invitación. Por eso es un correo de bienvenida y no una invitación genérica.

@@ -11,6 +11,8 @@ const SELECT =
   'tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, ' +
   'presupuesto_aprobado, notificacion_enviada, updated_at, mecanico_actualizado_en, ' +
   'es_cambio_aceite, filtro_aire, filtro_aceite, filtro_combustible, filtro_habitaculo, aceite_anotado_en, ' +
+  // De las firmas solo quién, cuándo y por cuánto: el dibujo (PNG) no viaja en los listados.
+  'firma_presupuesto_nombre, firma_presupuesto_en, firma_presupuesto_total, firma_entrega_nombre, firma_entrega_en, ' +
   'checklist_recepcion, checklist_observaciones, fotos_recepcion, ' +
   'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, duracion_min, notificado_cliente ), ' +
   'eventos_ot ( fecha, descripcion )';
@@ -33,6 +35,8 @@ type OrdenRow = {
   presupuesto_estado: string | null; presupuesto_aprobado: boolean | null;
   notificacion_enviada: boolean | null; updated_at: string; mecanico_actualizado_en?: string | null;
   es_cambio_aceite?: boolean | null; aceite_anotado_en?: string | null;
+  firma_presupuesto_nombre?: string | null; firma_presupuesto_en?: string | null; firma_presupuesto_total?: number | null;
+  firma_entrega_nombre?: string | null; firma_entrega_en?: string | null;
   filtro_aire?: string | null; filtro_aceite?: string | null; filtro_combustible?: string | null; filtro_habitaculo?: string | null;
   checklist_recepcion: ChecklistItemRow[] | null; checklist_observaciones: string | null;
   fotos_recepcion: string[] | null;
@@ -92,6 +96,9 @@ export function mapOrden(r: OrdenRow): OrdenTrabajo {
       habitaculo: (r.filtro_habitaculo ?? null) as EstadoFiltro,
     },
     aceiteAnotadoEn: r.aceite_anotado_en ?? undefined,
+    firmaPresupuesto: r.firma_presupuesto_en
+      ? { nombre: r.firma_presupuesto_nombre ?? '', en: r.firma_presupuesto_en, total: r.firma_presupuesto_total ?? 0 } : undefined,
+    firmaEntrega: r.firma_entrega_en ? { nombre: r.firma_entrega_nombre ?? '', en: r.firma_entrega_en } : undefined,
     checklistRecepcion: r.checklist_recepcion ?? undefined,
     checklistObservaciones: r.checklist_observaciones ?? undefined,
     fotosRecepcion: r.fotos_recepcion ?? undefined,
