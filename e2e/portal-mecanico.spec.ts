@@ -161,7 +161,7 @@ test('mecánico: un coche asignado después aparece solo y marcado como nuevo', 
   await expect(page.getByText('Nuevo', { exact: true })).toHaveCount(1);
   await expect(page).toHaveTitle('(1) Mis vehículos');
   // El que entró antes va primero.
-  const titulos = await page.getByRole('region', { name: 'Por empezar' }).locator('p.font-extrabold.truncate').allInnerTexts();
+  const titulos = await page.getByRole('region', { name: 'Por empezar' }).getByTestId('nombre-vehiculo').allInnerTexts();
   expect(titulos).toEqual(['Seat Ibiza', 'Renault Clio']);
 });
 
@@ -234,4 +234,67 @@ test('mecánico: instalable en el móvil con su propio enlace, y sin bajar la ap
 
   // Quien abre el enlace de un mecánico no descarga el código de la aplicación del taller.
   expect(pedidos.filter((u) => /\/src\/App\.tsx|\/assets\/App-/.test(u))).toEqual([]);
+});
+
+function ordenExtra(id: string, numero: string, marca: string, modelo: string, matricula: string, hechas: number, total: number): Orden {
+  return {
+    id, numero, estado: 'en_reparacion', descripcionProblema: `Problema de ${modelo}`, diagnostico: null,
+    kilometrajeEntrada: 50000, fechaEstimadaEntrega: null, ingreso: '2026-11-11T12:00:00Z',
+    vehiculo: { marca, modelo, matricula },
+    tareas: Array.from({ length: total }, (_, i) => ({ id: `${id}-t${i}`, descripcion: `Tarea ${i + 1} de ${modelo}`, completado: i < hechas, duracionMin: i < hechas ? 30 : null })),
+    notas: [], ...structuredClone(SIN_ACEITE),
+  };
+}
+
+test('mecánico: con varios coches cada uno empieza plegado con su resumen y se despliega al tocarlo', async ({ page }) => {
+  const servidor = servidorDeMentira();
+  servidor.ordenes.push(ordenExtra('ot-2', 'OT-2026-102', 'Renault', 'Clio', '2222BBB', 2, 2), ordenExtra('ot-3', 'OT-2026-103', 'Audi', 'A3', '3333CCC', 1, 4));
+  await abrir(page, servidor);
+
+  // Los tres plegados: ven su resumen (tareas hechas y progreso) pero no el detalle.
+  const resumenes = page.getByTestId('resumen-vehiculo');
+  await expect(resumenes).toHaveCount(3);
+  await expect(resumenes.filter({ hasText: '0/2 tareas' })).toHaveCount(1);
+  await expect(resumenes.filter({ hasText: '2/2 tareas' })).toHaveCount(1);
+  await expect(resumenes.filter({ hasText: '1/4 tareas' })).toHaveCount(1);
+  await expect(page.getByText('Ruido al frenar')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Cambiar pastillas delanteras/ })).toHaveCount(0);
+
+  // Tocar la cabecera del Seat lo despliega; los demás siguen plegados.
+  const cabeceraSeat = page.getByRole('button', { name: /Seat Ibiza/ });
+  await expect(cabeceraSeat).toHaveAttribute('aria-expanded', 'false');
+  await cabeceraSeat.click();
+  await expect(cabeceraSeat).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByText('Ruido al frenar')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Cambiar pastillas delanteras/ })).toBeVisible();
+  await expect(resumenes).toHaveCount(2);
+  await expect(page.getByText('Problema de Clio')).toHaveCount(0);
+
+  // Desplegado se puede trabajar; al volver a tocar se pliega y recupera su resumen.
+  await page.getByRole('button', { name: /Cambiar pastillas delanteras/ }).click();
+  await page.getByRole('button', { name: '45 min', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Cambiar pastillas delanteras/ })).toContainText('45 min');
+  await cabeceraSeat.click();
+  await expect(cabeceraSeat).toHaveAttribute('aria-expanded', 'false');
+  await expect(resumenes).toHaveCount(3);
+  await expect(resumenes.filter({ hasText: '1/2 tareas' })).toHaveCount(1);
+});
+
+test('mecánico: con un solo coche asignado se abre solo', async ({ page }) => {
+  await abrir(page, servidorDeMentira());
+  await expect(page.getByRole('button', { name: /Seat Ibiza/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByTestId('resumen-vehiculo')).toHaveCount(0);
+});
+
+test('mecánico: la cabecera queda centrada y alineada con las tarjetas también en pantallas anchas', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await abrir(page, servidorDeMentira());
+  const centro = async (loc: ReturnType<Page['locator']>) => { const b = (await loc.boundingBox())!; return b.x + b.width / 2; };
+  const pantalla = 1600 / 2;
+  expect(Math.abs((await centro(page.getByRole('heading', { name: 'Hola, Ana' }))) - pantalla)).toBeLessThan(3);
+  expect(Math.abs((await centro(page.getByTestId('cabecera-mecanico'))) - pantalla)).toBeLessThan(3);
+  expect(Math.abs((await centro(page.getByRole('button', { name: /Seat Ibiza/ }))) - pantalla)).toBeLessThan(220); // la tarjeta está en la misma columna central
+  // Los botones de la cabecera caen dentro de la columna de las tarjetas, no pegados al borde de la pantalla.
+  const boton = (await page.getByRole('button', { name: 'Actualizar' }).boundingBox())!;
+  expect(boton.x + boton.width).toBeLessThan(pantalla + 224 + 1);
 });

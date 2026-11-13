@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff, Droplet, Download } from 'lucide-react';
+import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff, Droplet, Download, ChevronDown } from 'lucide-react';
 import { useInstalar, usarManifiestoMecanico } from '../lib/pwa';
 import {
   getPortalMecanicoData, marcarTareaMecanico, cambiarDuracionMecanico, cambiarEstadoMecanico, dejarNotaMecanico,
@@ -83,8 +83,12 @@ function SelectorDuracion({ tarea, color, ocupado, onElegir, onDesmarcar, onCerr
   );
 }
 
-function OrdenCard({ orden, color, token, nuevo, onVisto, onCambio }: {
+function OrdenCard({ orden, color, token, nuevo, abierta, onAlternar, onVisto, onCambio }: {
   orden: PortalMecanicoOrden; color: string; token: string; nuevo: boolean;
+  /** Qué coches están desplegados lo decide la página, no cada tarjeta: al marcar la primera tarea el coche
+   *  cambia de grupo («Por empezar» → «En reparación»), la tarjeta se vuelve a montar y se plegaría sola. */
+  abierta: boolean;
+  onAlternar: () => void;
   onVisto: () => void; onCambio: () => Promise<void>;
 }) {
   const [ocupado, setOcupado] = useState(false);
@@ -169,23 +173,49 @@ function OrdenCard({ orden, color, token, nuevo, onVisto, onCambio }: {
   const etiqueta = orden.estado === 'en_reparacion' ? 'En reparación' : orden.estado === 'listo' ? 'Listo' : 'Por empezar';
 
   return (
-    <div className={`bg-white rounded-3xl border shadow-sm p-5 ${nuevo ? 'border-blue-300 ring-2 ring-blue-100' : 'border-slate-200'}`} onClick={nuevo ? onVisto : undefined}>
-      <div className="flex items-center gap-3">
+    <div className={`bg-white rounded-3xl border shadow-sm p-5 ${nuevo ? 'border-blue-300 ring-2 ring-blue-100' : 'border-slate-200'}`}>
+      {/* Toda la cabecera es un botón: tocarla pliega o despliega el coche. */}
+      <button
+        type="button" aria-expanded={abierta} aria-controls={`orden-${orden.id}`}
+        onClick={() => { onVisto(); onAlternar(); }}
+        className="w-full flex items-center gap-3 text-left cursor-pointer"
+      >
         <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}1a`, color }}>
           <Car className="w-5 h-5" />
         </span>
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-extrabold text-slate-800 truncate">
+        <span className="flex-1 min-w-0 block">
+          <span data-testid="nombre-vehiculo" className="block text-base font-extrabold text-slate-800 truncate">
             {orden.vehiculo ? `${orden.vehiculo.marca} ${orden.vehiculo.modelo}` : orden.numero}
-          </p>
-          <p className="text-xs text-slate-500 font-mono">{orden.vehiculo?.matricula ? `${orden.vehiculo.matricula} · ` : ''}{orden.numero}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
+          </span>
+          <span className="block text-xs text-slate-500 font-mono truncate">{orden.vehiculo?.matricula ? `${orden.vehiculo.matricula} · ` : ''}{orden.numero}</span>
+        </span>
+        <span className="flex flex-col items-end gap-1 shrink-0">
           {nuevo && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-600 text-white">Nuevo</span>}
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${chip}`}>{etiqueta}</span>
-        </div>
-      </div>
+        </span>
+        <ChevronDown className={`w-5 h-5 shrink-0 text-slate-400 transition-transform ${abierta ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
 
+      {/* Plegado: lo justo para decidir si merece la pena abrirlo. */}
+      {!abierta && (
+        <div className="mt-3 flex items-center gap-3 text-[11px] text-slate-500" data-testid="resumen-vehiculo">
+          {orden.tareas.length > 0 ? (
+            <>
+              <span className={`font-bold shrink-0 ${todoHecho ? 'text-teal-700' : 'text-slate-600'}`}>
+                {todoHecho && <Check className="w-3 h-3 inline -mt-0.5 mr-0.5" />}{hechas}/{orden.tareas.length} tareas
+              </span>
+              <span className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={orden.tareas.length} aria-valuenow={hechas} aria-label="Tareas hechas">
+                <span className="block h-full rounded-full" style={{ width: `${(hechas / orden.tareas.length) * 100}%`, backgroundColor: todoHecho ? '#14b8a6' : color }} />
+              </span>
+            </>
+          ) : <span className="flex-1">Sin tareas apuntadas</span>}
+          {orden.esCambioAceite && <Droplet className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-label="Cambio de aceite" />}
+          <span className="shrink-0">Ingreso {fechaHora(orden.ingreso)}</span>
+        </div>
+      )}
+
+      {abierta && (
+      <div id={`orden-${orden.id}`}>
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
         <span>Ingreso: <span className="font-semibold text-slate-700">{fechaHora(orden.ingreso)}</span></span>
         {orden.kilometrajeEntrada ? <span>{formatKm(orden.kilometrajeEntrada)} km</span> : null}
@@ -390,6 +420,8 @@ function OrdenCard({ orden, color, token, nuevo, onVisto, onCambio }: {
           )}
         </div>
       )}
+      </div>
+      )}
 
       {tareaAbierta && (
         <SelectorDuracion
@@ -456,6 +488,11 @@ export default function PortalMecanico({ token }: Props) {
   const ordenes = data?.ordenes ?? [];
   const nuevas = ordenesNuevas(ordenes, vistos);
 
+  // Coches desplegados. Sin tocar nada: con un solo coche asignado se abre solo; con varios, todos plegados.
+  const [abiertasPorElUsuario, setAbiertasPorElUsuario] = useState<Record<string, boolean>>({});
+  const estaAbierta = (id: string) => abiertasPorElUsuario[id] ?? ordenes.length === 1;
+  const alternar = (id: string) => setAbiertasPorElUsuario((a) => ({ ...a, [id]: !(a[id] ?? ordenes.length === 1) }));
+
   // La primera vez se da todo por visto; después solo se recuerda lo que sigue existiendo.
   useEffect(() => {
     if (!data) return;
@@ -521,36 +558,42 @@ export default function PortalMecanico({ token }: Props) {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-10">
-      <div className="rounded-b-[28px] px-5 pt-6 pb-7" style={{ backgroundColor: color }}>
-        <div className="flex items-center gap-2.5 mb-5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 overflow-hidden" style={{ backgroundColor: '#ffffff22' }}>
-            {data.empresa?.logoUrl ? (
-              <img src={data.empresa.logoUrl} alt={data.empresa.nombre} className="w-full h-full object-contain" />
-            ) : (
-              <Wrench className="w-4 h-4 text-white" />
-            )}
-          </div>
-          <span className="text-white font-bold text-sm flex-1 truncate">{data.empresa?.nombre}</span>
-          <button onClick={alternarSonido} aria-label={sonido ? 'Quitar el sonido de los avisos' : 'Activar el sonido de los avisos'} aria-pressed={sonido}
-            className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
-            {sonido ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-          </button>
-          {puedeInstalar && (
-            <button onClick={() => void instalar()} aria-label="Instalar como aplicación" title="Instalar como aplicación"
+      <div className="rounded-b-[28px] px-5 pt-4 pb-7" style={{ backgroundColor: color }}>
+        {/* Todo el contenido va en la misma columna que las tarjetas (también en pantallas anchas). */}
+        <div className="max-w-md mx-auto">
+          <div className="flex justify-end gap-2">
+            <button onClick={alternarSonido} aria-label={sonido ? 'Quitar el sonido de los avisos' : 'Activar el sonido de los avisos'} aria-pressed={sonido}
               className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
-              <Download className="w-4 h-4" />
+              {sonido ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
             </button>
-          )}
-          <button onClick={() => void refrescarAMano()} aria-label="Actualizar" disabled={refrescando}
-            className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
-            <RefreshCw className={`w-4 h-4 ${refrescando ? 'animate-spin' : ''}`} />
-          </button>
+            {puedeInstalar && (
+              <button onClick={() => void instalar()} aria-label="Instalar como aplicación" title="Instalar como aplicación"
+                className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
+                <Download className="w-4 h-4" />
+              </button>
+            )}
+            <button onClick={() => void refrescarAMano()} aria-label="Actualizar" disabled={refrescando}
+              className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
+              <RefreshCw className={`w-4 h-4 ${refrescando ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          <div className="flex flex-col items-center text-center -mt-1" data-testid="cabecera-mecanico">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: '#ffffff22' }}>
+              {data.empresa?.logoUrl ? (
+                <img src={data.empresa.logoUrl} alt={data.empresa.nombre} className="w-full h-full object-contain" />
+              ) : (
+                <Wrench className="w-6 h-6 text-white" />
+              )}
+            </div>
+            <p className="mt-2 text-white/80 font-bold text-xs uppercase tracking-wider max-w-full truncate">{data.empresa?.nombre}</p>
+            <h1 className="mt-3 text-2xl font-black text-white">Hola, {data.tecnico.nombre}</h1>
+            <p className="mt-1 text-sm text-white/85">
+              {ordenes.length === 0 ? 'No tienes vehículos asignados' : `${ordenes.length} ${ordenes.length === 1 ? 'vehículo asignado' : 'vehículos asignados'}`}
+              {nuevas.length > 0 && ` · ${nuevas.length} ${nuevas.length === 1 ? 'nuevo' : 'nuevos'}`}
+            </p>
+          </div>
         </div>
-        <h1 className="text-xl font-black text-white mb-1">Hola, {data.tecnico.nombre}</h1>
-        <p className="text-xs text-white/80">
-          {ordenes.length === 0 ? 'No tienes vehículos asignados' : `${ordenes.length} ${ordenes.length === 1 ? 'vehículo asignado' : 'vehículos asignados'}`}
-          {nuevas.length > 0 && ` · ${nuevas.length} ${nuevas.length === 1 ? 'nuevo' : 'nuevos'}`}
-        </p>
       </div>
 
       <div className="max-w-md mx-auto px-4 mt-4 space-y-4">
@@ -576,7 +619,7 @@ export default function PortalMecanico({ token }: Props) {
                   <Clock className="w-3 h-3" /> {g.titulo} · {delGrupo.length}
                 </h2>
                 {delGrupo.map((o) => (
-                  <OrdenCard key={o.id} orden={o} color={color} token={token} nuevo={nuevas.includes(o.id)} onVisto={() => marcarVisto(o.id)} onCambio={cargar} />
+                  <OrdenCard key={o.id} orden={o} color={color} token={token} nuevo={nuevas.includes(o.id)} abierta={estaAbierta(o.id)} onAlternar={() => alternar(o.id)} onVisto={() => marcarVisto(o.id)} onCambio={cargar} />
                 ))}
               </section>
             );
