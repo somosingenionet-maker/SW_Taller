@@ -14,6 +14,7 @@ import {
 } from './logic.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
 import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
+import { perfilTieneModulo, mensajeSinModulo } from '../_shared/modulos.ts';
 
 initSentry('enviar-recordatorios');
 
@@ -117,10 +118,12 @@ async function manejarForzado(admin: SupabaseClient, req: Request, alertaId: str
 
   const { data: callerPerfil, error: perfilErr } = await admin
     .from('perfiles')
-    .select('empresa_id')
+    .select('empresa_id, rol, modulos, activo')
     .eq('id', callerData.user.id)
     .single();
   if (perfilErr || !callerPerfil?.empresa_id) return json({ error: 'No autorizado' }, 403);
+  // Enviar un aviso a un cliente a mano es del módulo Alertas.
+  if (!perfilTieneModulo(callerPerfil, 'alertas')) return json({ error: mensajeSinModulo('Alertas') }, 403);
 
   if (!alertaId) return json({ error: 'Falta el id de la alerta.' }, 400);
 

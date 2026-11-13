@@ -15,14 +15,14 @@ interface AdminPanelProps {
 }
 
 const MODULOS_BASE = [
-  { id: 'citas' as ModuloId, label: 'Agenda', desc: 'Citas y programación del taller' },
-  { id: 'inventario' as ModuloId, label: 'Inventario', desc: 'Catálogo y control de stock' },
-  { id: 'vehiculos' as ModuloId, label: 'Vehículos', desc: 'Gestión de flota' },
-  { id: 'clientes' as ModuloId, label: 'Clientes CRM', desc: 'Directorio de clientes' },
-  { id: 'taller' as ModuloId, label: 'Taller', desc: 'Diario de mantenimientos' },
-  { id: 'alertas' as ModuloId, label: 'Alertas', desc: 'ITV y vencimientos' },
-  { id: 'rentabilidad' as ModuloId, label: 'Rentabilidad', desc: 'Análisis LTV' },
-  { id: 'facturas' as ModuloId, label: 'Facturas', desc: 'Documentos comerciales' },
+  { id: 'citas' as ModuloId, label: 'Agenda', desc: 'Las citas del taller' },
+  { id: 'inventario' as ModuloId, label: 'Inventario', desc: 'Productos y movimientos de stock (el Taller también ve los productos)' },
+  { id: 'vehiculos' as ModuloId, label: 'Vehículos', desc: 'Fichas de los vehículos' },
+  { id: 'clientes' as ModuloId, label: 'Clientes CRM', desc: 'Fichas de clientes y sus notas de seguimiento' },
+  { id: 'taller' as ModuloId, label: 'Taller', desc: 'Órdenes de trabajo, tablero y mecánicos' },
+  { id: 'alertas' as ModuloId, label: 'Alertas', desc: 'ITV, seguro, impuesto y cambio de aceite, y los avisos a clientes' },
+  { id: 'rentabilidad' as ModuloId, label: 'Rentabilidad', desc: 'Márgenes, costes y rankings de clientes y mecánicos' },
+  { id: 'facturas' as ModuloId, label: 'Facturas', desc: 'Facturas y su envío a la AEAT (VeriFactu)' },
 ];
 
 interface FormState {
@@ -384,7 +384,12 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
 
               {/* Modules */}
               <div>
-                <p className="text-xs font-semibold text-slate-600 mb-2">Módulos</p>
+                <p className="text-xs font-semibold text-slate-600 mb-1">Módulos</p>
+                <p className="text-[10px] text-slate-400 mb-2 leading-snug" data-testid="nota-modulos">
+                  {form.rol === 'admin'
+                    ? 'Un administrador tiene acceso a todos los módulos, marques lo que marques.'
+                    : 'Sin el módulo, ese usuario no ve esos datos ni por la aplicación ni por ningún otro medio. Los clientes, los vehículos y las órdenes de trabajo los ven todos los usuarios del taller, porque los necesitan varios módulos.'}
+                </p>
                 <div className="space-y-2">
                   {MODULOS_BASE.map(m => (
                     <label key={m.id} className="flex items-center gap-3 cursor-pointer group">

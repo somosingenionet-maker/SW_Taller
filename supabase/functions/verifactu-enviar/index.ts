@@ -39,6 +39,7 @@ import {
 } from './logic.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
 import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
+import { perfilTieneModulo, mensajeSinModulo } from '../_shared/modulos.ts';
 
 initSentry('verifactu-enviar');
 
@@ -281,8 +282,10 @@ Deno.serve(conSentry(async (req) => {
     const { data: userData, error: userErr } = await admin.auth.getUser(token);
     if (userErr || !userData.user) return json({ error: 'Sesión inválida' }, 401);
     if (await falta2Factor(admin, token, userData.user.id)) return json({ error: MENSAJE_2FACTOR }, 403);
-    const { data: perfil } = await admin.from('perfiles').select('empresa_id').eq('id', userData.user.id).single();
+    const { data: perfil } = await admin.from('perfiles').select('empresa_id, rol, modulos, activo').eq('id', userData.user.id).single();
     if (!perfil?.empresa_id) return json({ error: 'Tu usuario no pertenece a ninguna empresa.' }, 403);
+    // El envío a la AEAT es de Facturas: quien no tiene ese módulo no puede lanzarlo (ni consultar su estado).
+    if (!perfilTieneModulo(perfil, 'facturas')) return json({ error: mensajeSinModulo('Facturas') }, 403);
     if (!(await permitirPeticion(admin, `verifactu-enviar:${userData.user.id}`, 30, 60))) {
       return json({ error: 'Demasiadas peticiones, espera un momento.' }, 429);
     }
