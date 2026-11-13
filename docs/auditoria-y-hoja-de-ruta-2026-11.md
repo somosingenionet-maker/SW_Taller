@@ -45,14 +45,12 @@
 6. **Archivos gigantes:** `OrdenesTrabajoTab.tsx` (2.642 líneas), `App.tsx` (1.086), `CrmTab`, `AgendaTab`
    (~1.050 cada una). Funcionan y tienen pruebas e2e, pero cada cambio es más arriesgado de lo necesario. Dividir
    `OrdenesTrabajoTab` (lista, tablero, ficha, creación) es lo más rentable.
-7. **Pequeñas mejoras de base de datos** (necesitan migración):
-   - `empresas_borradas` sin clave primaria (aviso del asesor).
-   - El rol anónimo tiene permisos de tabla en todo `public` (por defecto de Supabase; RLS lo bloquea) y puede
-     ejecutar 9 funciones de negocio (`rentabilidad_*`, `facturas_resumen`, `buscar_ordenes`…, devuelven vacío
-     por RLS) y 3 auxiliares de VERI*FACTU. Quitarlos es defensa en profundidad.
-   - `pg_net` instalada en `public` (aviso del asesor; moverla exige cuidado con el cron).
-   - 10 índices «sin uso»: es base casi vacía; no tocar (la mayoría son de claves foráneas).
-   - Protección contra contraseñas filtradas: solo en plan de pago.
+7. **Base de datos** — HECHO el 14-11-2026 (migración `20261114100000`): `empresas_borradas` con clave primaria; el
+   rol anónimo ya no tiene permisos de tabla (solo lee `plataforma_config` para el logo del login) ni ejecuta ninguna
+   función. Comprobado contra la API real: `clientes` y `buscar_ordenes` responden 401 sin sesión. Quedan:
+   `pg_net` en `public` (aviso del asesor; moverla exige cuidado con el cron), 10 índices «sin uso» (base casi vacía;
+   son de claves foráneas, no tocar), dos políticas de UPDATE en `perfiles` (aviso menor de rendimiento) y la
+   protección contra contraseñas filtradas (solo en plan de pago).
 8. Exports innecesarios sin efecto (`textoFirma`, `sinAcentos`, …) y tipos sueltos: cosméticos, no se tocan.
 
 Falsos positivos de `knip` descartados: las funciones de `supabase/functions/*` (son puntos de entrada), `public/sw.js`
