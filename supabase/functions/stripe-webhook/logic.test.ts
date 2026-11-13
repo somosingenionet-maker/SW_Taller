@@ -48,8 +48,25 @@ Deno.test('suscripción eliminada: cancelada, sin prolongar y sin cancelación p
 });
 
 Deno.test('factura pagada prolonga hasta el fin de periodo más largo', () => {
-  const p = planificarEvento({ type: 'invoice.paid', data: { object: { customer: 'cus_1', lines: { data: [{ period: { end: FIN - 100 } }, { period: { end: FIN } }] } } } });
+  // «Ahora» fijo: sin él, esta prueba dejaría de servir cuando pase la fecha FIN.
+  const p = planificarEvento({ type: 'invoice.paid', data: { object: { customer: 'cus_1', lines: { data: [{ period: { end: FIN - 100 } }, { period: { end: FIN } }] } } } }, FIN - 30 * 86400);
   assertEquals(p, { clienteStripe: 'cus_1', campos: { estado_suscripcion: 'activa', periodo_fin: periodoIso }, extenderHasta: finIso });
+});
+
+Deno.test('una factura suelta (periodo que termina ahora) NO se trata como una renovación', () => {
+  const ahora = 1_800_000_000;
+  const suelta = { type: 'invoice.paid', data: { object: { customer: 'cus_1', lines: { data: [{ period: { start: ahora, end: ahora } }] } } } };
+  assertEquals(planificarEvento(suelta, ahora), null);
+  // ni siquiera una cuyo periodo ya pasó (p. ej. un evento reenviado tarde de una factura vieja)
+  assertEquals(planificarEvento({ type: 'invoice.paid', data: { object: { customer: 'cus_1', lines: { data: [{ period: { end: ahora - 86400 } }] } } } }, ahora), null);
+});
+
+Deno.test('una renovación (periodo que termina en el futuro) sí prolonga, aunque mezcle líneas ya pasadas', () => {
+  const ahora = 1_800_000_000;
+  const fin = ahora + 30 * 86400;
+  const p = planificarEvento({ type: 'invoice.paid', data: { object: { customer: 'cus_1', lines: { data: [{ period: { end: ahora - 10 } }, { period: { end: fin } }] } } } }, ahora);
+  assertEquals(p?.campos.estado_suscripcion, 'activa');
+  assertEquals(p?.campos.periodo_fin, new Date(fin * 1000).toISOString());
 });
 
 Deno.test('factura sin líneas con periodo se ignora', () => {

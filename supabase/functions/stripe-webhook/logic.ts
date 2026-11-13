@@ -43,7 +43,10 @@ function finPeriodoSuscripcion(sub: Obj): number | undefined {
   return typeof n === 'number' ? n : undefined;
 }
 
-export function planificarEvento(evento: Obj): PlanEvento | null {
+/**
+ * `ahora` (en segundos, como los de Stripe) solo se inyecta en las pruebas.
+ */
+export function planificarEvento(evento: Obj, ahora: number = Math.floor(Date.now() / 1000)): PlanEvento | null {
   const o: Obj = evento?.data?.object ?? {};
 
   switch (evento?.type) {
@@ -86,7 +89,14 @@ export function planificarEvento(evento: Obj): PlanEvento | null {
 
     case 'invoice.paid': {
       const cliente = idDe(o.customer);
-      const fines: number[] = (o.lines?.data ?? []).map((l: Obj) => l?.period?.end).filter((n: unknown) => typeof n === 'number');
+      // Solo cuenta una factura cuyo periodo TERMINA EN EL FUTURO, que es lo que tiene una
+      // renovación (o el primer cobro) de la suscripción. Una factura suelta (p. ej. un servicio de
+      // migración o formación cobrado aparte) trae un periodo que termina «ahora»: tratarla como una
+      // renovación movería la próxima renovación a hoy y marcaría la cuenta como activa aunque la
+      // suscripción siga impagada.
+      const fines: number[] = (o.lines?.data ?? [])
+        .map((l: Obj) => l?.period?.end)
+        .filter((n: unknown): n is number => typeof n === 'number' && n > ahora);
       if (!cliente || fines.length === 0) return null;
       return {
         clienteStripe: cliente,
