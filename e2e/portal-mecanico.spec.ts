@@ -216,3 +216,22 @@ test('mecánico: cambio de aceite — marcar la orden, el check list de filtros 
   await expect(page.getByTestId('aceite-mecanico')).toContainText('o a los 100.000 km');
   await expect(page.getByRole('button', { name: 'Cambiar el próximo cambio' })).toBeVisible();
 });
+
+test('mecánico: instalable en el móvil con su propio enlace, y sin bajar la aplicación del taller', async ({ page }) => {
+  const servidor = servidorDeMentira();
+  const pedidos: string[] = [];
+  page.on('request', (r) => pedidos.push(r.url()));
+  await abrir(page, servidor);
+
+  // El manifiesto de la página es el del mecánico: el icono instalado abre ESTA página, no «/».
+  const href = await page.locator('link[rel="manifest"]').getAttribute('href');
+  expect(href).toMatch(/^blob:/);
+  const manifiesto = await page.evaluate(async (h) => (await fetch(h as string)).json(), href);
+  expect(manifiesto.start_url).toBe(page.url());
+  expect(manifiesto.scope).toMatch(/\/mecanico\/$/);
+  expect(manifiesto.name).toBe('Mis vehículos · Taller Ejemplo');
+  expect(manifiesto.display).toBe('standalone');
+
+  // Quien abre el enlace de un mecánico no descarga el código de la aplicación del taller.
+  expect(pedidos.filter((u) => /\/src\/App\.tsx|\/assets\/App-/.test(u))).toEqual([]);
+});

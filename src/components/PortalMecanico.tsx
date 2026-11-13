@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff, Droplet } from 'lucide-react';
+import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff, Droplet, Download } from 'lucide-react';
+import { useInstalar, usarManifiestoMecanico } from '../lib/pwa';
 import {
   getPortalMecanicoData, marcarTareaMecanico, cambiarDuracionMecanico, cambiarEstadoMecanico, dejarNotaMecanico,
   marcarCambioAceiteMecanico, marcarFiltroMecanico, anotarProximoCambioMecanico,
@@ -442,6 +443,16 @@ export default function PortalMecanico({ token }: Props) {
     return () => { clearInterval(reloj); document.removeEventListener('visibilitychange', refrescar); };
   }, [cargar, loading, error]);
 
+  // Instalar en el móvil: el icono abre ESTE enlace (el del propio mecánico), no la aplicación del taller.
+  const { puedeInstalar, pistaIOS, instalar } = useInstalar();
+  const nombreTaller = data?.empresa?.nombre ?? '';
+  const colorTaller = data?.empresa?.brandColor ?? '';
+  const cargado = !!data;
+  useEffect(() => {
+    if (!cargado) return;
+    return usarManifiestoMecanico(window.location.href, nombreTaller, colorTaller);
+  }, [cargado, nombreTaller, colorTaller]);
+
   const ordenes = data?.ordenes ?? [];
   const nuevas = ordenesNuevas(ordenes, vistos);
 
@@ -524,6 +535,12 @@ export default function PortalMecanico({ token }: Props) {
             className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
             {sonido ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
           </button>
+          {puedeInstalar && (
+            <button onClick={() => void instalar()} aria-label="Instalar como aplicación" title="Instalar como aplicación"
+              className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
+              <Download className="w-4 h-4" />
+            </button>
+          )}
           <button onClick={() => void refrescarAMano()} aria-label="Actualizar" disabled={refrescando}
             className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
             <RefreshCw className={`w-4 h-4 ${refrescando ? 'animate-spin' : ''}`} />
@@ -564,6 +581,12 @@ export default function PortalMecanico({ token }: Props) {
               </section>
             );
           })
+        )}
+
+        {pistaIOS && (
+          <p className="text-center text-[11px] text-slate-500 bg-white border border-slate-200 rounded-2xl px-4 py-3">
+            Para tenerlo como una aplicación en tu iPhone: pulsa el botón <strong>Compartir</strong> de Safari y elige <strong>Añadir a pantalla de inicio</strong>.
+          </p>
         )}
 
         <p className="text-center text-[11px] text-slate-400 pt-2">

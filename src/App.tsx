@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { contrastText } from './utils/color';
 import { supabase } from './lib/supabase';
 import { Sentry } from './lib/sentry';
@@ -19,28 +19,48 @@ import { listProductos, createProducto, updateProducto, deleteProducto, registra
 import { listCitas, createCita, updateCita, deleteCita } from './lib/data/citas';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
 import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, OTEstado, Empresa, Producto, Cita } from './types';
-import VehiclesTab from './components/VehiclesTab';
-import OrdenesTrabajoTab from './components/OrdenesTrabajoTab';
-import CrmTab from './components/CrmTab';
-import AnalyticsTab from './components/AnalyticsTab';
-import AlertsNotificationsTab from './components/AlertsNotificationsTab';
-import FacturasTab from './components/FacturasTab';
-import InventarioTab from './components/InventarioTab';
-import AgendaTab from './components/AgendaTab';
 import HomeTab from './components/HomeTab';
+import Cargando from './components/Cargando';
+import { lazyConReintento } from './lib/lazy';
 import LoginScreen from './components/LoginScreen';
 import ResetPasswordScreen from './components/ResetPasswordScreen';
-import MfaChallenge from './components/MfaChallenge';
-import SeguridadModal from './components/SeguridadModal';
 import SuscripcionBanner from './components/SuscripcionBanner';
-import SuscripcionPanel from './components/SuscripcionPanel';
 import type { TabId as PestanaEmpresa } from './components/CompanySettingsPanel';
-import AdminPanel from './components/AdminPanel';
-import SuperAdminPanel from './components/SuperAdminPanel';
 import {
   Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home, ShieldCheck, CreditCard
 } from 'lucide-react';
-import CompanySettingsPanel from './components/CompanySettingsPanel';
+
+// Cada pestaña y cada ventana grande es un trozo aparte: quien entra a Inicio no descarga el taller,
+// las facturas ni las gráficas hasta que las abre (o hasta que la aplicación las precarga en un
+// momento libre, ver `precargarPantallas`).
+const cargarVehiculos = () => import('./components/VehiclesTab');
+const cargarTaller = () => import('./components/OrdenesTrabajoTab');
+const cargarClientes = () => import('./components/CrmTab');
+const cargarRentabilidad = () => import('./components/AnalyticsTab');
+const cargarAlertas = () => import('./components/AlertsNotificationsTab');
+const cargarFacturas = () => import('./components/FacturasTab');
+const cargarInventario = () => import('./components/InventarioTab');
+const cargarAgenda = () => import('./components/AgendaTab');
+const VehiclesTab = lazyConReintento(cargarVehiculos);
+const OrdenesTrabajoTab = lazyConReintento(cargarTaller);
+const CrmTab = lazyConReintento(cargarClientes);
+const AnalyticsTab = lazyConReintento(cargarRentabilidad);
+const AlertsNotificationsTab = lazyConReintento(cargarAlertas);
+const FacturasTab = lazyConReintento(cargarFacturas);
+const InventarioTab = lazyConReintento(cargarInventario);
+const AgendaTab = lazyConReintento(cargarAgenda);
+const MfaChallenge = lazyConReintento(() => import('./components/MfaChallenge'));
+const SeguridadModal = lazyConReintento(() => import('./components/SeguridadModal'));
+const SuscripcionPanel = lazyConReintento(() => import('./components/SuscripcionPanel'));
+const CompanySettingsPanel = lazyConReintento(() => import('./components/CompanySettingsPanel'));
+const AdminPanel = lazyConReintento(() => import('./components/AdminPanel'));
+const SuperAdminPanel = lazyConReintento(() => import('./components/SuperAdminPanel'));
+
+/** Las pantallas por módulo, para precargarlas en un momento libre y que abrir una pestaña sea instantáneo. */
+const PANTALLAS_POR_MODULO: Partial<Record<ModuloId, () => Promise<unknown>>> = {
+  taller: cargarTaller, clientes: cargarClientes, vehiculos: cargarVehiculos, citas: cargarAgenda,
+  facturas: cargarFacturas, alertas: cargarAlertas, inventario: cargarInventario, rentabilidad: cargarRentabilidad,
+};
 
 type TabId = ModuloId;
 
@@ -337,6 +357,19 @@ export default function App() {
     return () => { supabase.removeChannel(canal); };
   }, [currentUser]);
 
+  // Cuando ya está todo cargado y el navegador respira, se bajan en segundo plano las pantallas a las
+  // que este usuario puede entrar: así la primera visita a cada pestaña no espera a la red. Si falla
+  // alguna (sin conexión) no pasa nada: se pedirá al abrirla.
+  useEffect(() => {
+    if (!currentUser || !datosListos) return;
+    const precargar = () => {
+      for (const modulo of currentUser.modulos) void PANTALLAS_POR_MODULO[modulo]?.().catch(() => undefined);
+    };
+    const idle = (window as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    const id = idle ? idle(precargar, { timeout: 4000 }) : window.setTimeout(precargar, 2000);
+    return () => { if (!idle) window.clearTimeout(id); };
+  }, [currentUser, datosListos]);
+
   // Corrige la pestaña activa si el usuario no tiene permiso sobre ella —
   // 'inicio' queda fuera de esta comprobación: no es un módulo con permiso
   // propio, es la pantalla de aterrizaje válida para cualquier usuario.
@@ -582,7 +615,7 @@ export default function App() {
   }
 
   // Contraseña correcta pero falta el código de la verificación en dos pasos.
-  if (mfaRequerido) return <MfaChallenge />;
+  if (mfaRequerido) return <Suspense fallback={<Cargando pantallaCompleta />}><MfaChallenge /></Suspense>;
 
   // Show login if no user
   if (!currentUser) {
@@ -591,7 +624,7 @@ export default function App() {
 
   // El super admin gestiona empresas clientes — no opera datos de negocio.
   if (currentUser.rol === 'super_admin') {
-    return <SuperAdminPanel currentUser={currentUser} onLogout={handleLogout} onUserUpdated={recargarPerfil} />;
+    return <Suspense fallback={<Cargando pantallaCompleta />}><SuperAdminPanel currentUser={currentUser} onLogout={handleLogout} onUserUpdated={recargarPerfil} /></Suspense>;
   }
 
   // Datos de la propia empresa aún cargando.
@@ -850,6 +883,7 @@ export default function App() {
 
         {/* CORE WORKSPACE */}
         <main className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 ${tallerVistaAmplia ? 'max-w-[1440px]' : 'max-w-7xl'}`}>
+        <Suspense fallback={<Cargando />}>
         {activeTab === 'inicio' && (
           <HomeTab
             currentUser={currentUser}
@@ -963,6 +997,7 @@ export default function App() {
             onImportado={recargarProductos}
           />
         )}
+        </Suspense>
       </main>
 
         {/* PIE — contacto de la empresa + copyright (antes vivía en la cabecera) */}
@@ -1024,6 +1059,7 @@ export default function App() {
         </div>
       )}
 
+      <Suspense fallback={null}>
       {seguridadOpen && <SeguridadModal onClose={() => setSeguridadOpen(false)} />}
       {suscripcionOpen && suscripcion && (
         <SuscripcionPanel suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onClose={() => setSuscripcionOpen(false)} />
@@ -1044,6 +1080,7 @@ export default function App() {
           onClose={() => setAdminPanelOpen(false)}
         />
       )}
+      </Suspense>
     </div>
   );
 }
