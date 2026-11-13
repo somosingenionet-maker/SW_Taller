@@ -24,6 +24,16 @@ export function vistosActualizados(ordenes: OrdenVista[], vistos: string[] | nul
   return [...new Set([...(vistos ?? ordenes.map((o) => o.id)), ...recienVistos])].filter((id) => vivos.has(id));
 }
 
+/**
+ * Dentro de un grupo, los coches que van llegando salen ARRIBA: del más reciente al más antiguo según
+ * la hora real de ingreso. Un coche sin hora de ingreso va al final. El orden es estable (a igual
+ * hora, se respeta el que ya traía la lista) y no modifica la lista original.
+ */
+export function ordenarPorLlegada<T extends { ingreso: string | null }>(ordenes: T[]): T[] {
+  const marca = (o: T) => { const t = o.ingreso ? new Date(o.ingreso).getTime() : NaN; return Number.isNaN(t) ? -Infinity : t; };
+  return ordenes.map((o, i) => ({ o, i, t: marca(o) })).sort((a, b) => (b.t === a.t ? a.i - b.i : b.t > a.t ? 1 : -1)).map((x) => x.o);
+}
+
 /** «10 nov. 2026 · 12:27», en la hora del móvil del mecánico. */
 export function fechaHora(iso: string | null): string {
   if (!iso) return '—';

@@ -160,9 +160,9 @@ test('mecánico: un coche asignado después aparece solo y marcado como nuevo', 
   await expect(page.getByText('Renault Clio')).toBeVisible();
   await expect(page.getByText('Nuevo', { exact: true })).toHaveCount(1);
   await expect(page).toHaveTitle('(1) Mis vehículos');
-  // El que entró antes va primero.
+  // Los que van llegando, arriba: el Clio llegó después que el Seat y sale primero.
   const titulos = await page.getByRole('region', { name: 'Por empezar' }).getByTestId('nombre-vehiculo').allInnerTexts();
-  expect(titulos).toEqual(['Seat Ibiza', 'Renault Clio']);
+  expect(titulos).toEqual(['Renault Clio', 'Seat Ibiza']);
 });
 
 test('mecánico: si el servidor rechaza una acción, se explica y la tarea no queda marcada', async ({ page }) => {

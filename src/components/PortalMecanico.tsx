@@ -7,7 +7,7 @@ import {
   type PortalMecanicoData, type PortalMecanicoOrden, type PortalMecanicoTarea,
 } from '../lib/data/portalMecanico';
 import { OPCIONES_DURACION, textoDuracion } from '../utils/duracionTarea';
-import { GRUPOS, fechaHora, ordenesNuevas, vistosActualizados } from '../utils/portalMecanico';
+import { GRUPOS, fechaHora, ordenarPorLlegada, ordenesNuevas, vistosActualizados } from '../utils/portalMecanico';
 import { FILTROS, sumarMeses } from '../utils/aceite';
 import { formatDate } from '../utils/dateFormat';
 import { formatKm } from '../utils/moneda';
@@ -611,7 +611,8 @@ export default function PortalMecanico({ token }: Props) {
           </div>
         ) : (
           GRUPOS.map((g) => {
-            const delGrupo = ordenes.filter((o) => o.estado === g.estado);
+            // Los que van llegando, arriba (la lista del servidor viene del más antiguo al más reciente).
+            const delGrupo = ordenarPorLlegada(ordenes.filter((o) => o.estado === g.estado));
             if (delGrupo.length === 0) return null;
             return (
               <section key={g.estado} className="space-y-3" aria-label={g.titulo}>
