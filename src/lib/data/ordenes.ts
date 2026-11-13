@@ -171,20 +171,11 @@ export async function getOrden(id: string): Promise<OrdenTrabajo> {
   return mapOrden(data as unknown as OrdenRow);
 }
 
-export async function listOrdenes(): Promise<OrdenTrabajo[]> {
-  const { data, error } = await supabase
-    .from('ordenes_trabajo')
-    .select(SELECT)
-    .order('updated_at', { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => mapOrden(r as unknown as OrdenRow));
-}
-
 const TABLERO_ENTREGADO_DIAS = 30;
 
 /**
  * Datos completos (líneas + historial) para el Tablero (Kanban) — a
- * diferencia de listOrdenes(), no crece con el histórico de la empresa:
+ * diferencia de cargar todas las órdenes, no crece con el histórico de la empresa:
  * presupuesto/recibido/en_reparación/listo están naturalmente acotados (lo
  * que hay físicamente en curso), y "entregado" se limita a los últimos 30
  * días para no arrastrar años de entregas ya cerradas en una columna que
@@ -214,7 +205,7 @@ export interface OrdenActiva {
 
 /**
  * Solo las OTs con trabajo activo (recibido/en_reparación/listo) — a
- * diferencia de listOrdenes(), no crece con el histórico de la empresa: el
+ * diferencia de cargar todas las órdenes, no crece con el histórico de la empresa: el
  * número de vehículos físicamente en el taller a la vez está naturalmente
  * acotado. Pensada para paneles como Inicio, que no necesitan líneas ni
  * historial completos, solo lo mínimo para mostrar la lista.
@@ -263,7 +254,7 @@ type BuscarOrdenesRow = {
 
 /**
  * Búsqueda + paginación reales para la vista Lista — a diferencia de
- * listOrdenes(), no trae toda la tabla ni las líneas/eventos de cada OT:
+ * cargar todas las órdenes, no trae toda la tabla ni las líneas/eventos de cada OT:
  * solo la página visible con lo mínimo para mostrar la fila, filtrado y
  * buscado en el propio Postgres (buscar_ordenes).
  */
@@ -272,7 +263,7 @@ export async function buscarOrdenes(params: {
 }): Promise<{ data: OrdenListaRow[]; count: number }> {
   const { data, error } = await supabase.rpc('buscar_ordenes', {
     p_termino: params.termino ?? '',
-    p_estado: params.estado ?? null,
+    p_estado: params.estado ?? undefined,
     p_limit: params.limit,
     p_offset: params.offset,
   });
@@ -503,7 +494,7 @@ export interface OrdenVehiculoRow {
 }
 
 /**
- * Historial de OTs de UN vehículo — a diferencia de listOrdenes(), se pide
+ * Historial de OTs de UN vehículo — a diferencia de cargar todas las órdenes, se pide
  * solo cuando el panel de detalle de ese vehículo está abierto, y sin
  * líneas/eventos (VehiclesTab solo los necesita al expandir una OT concreta,
  * ver getHistorialOT). El histórico de un vehículo es legítimamente
@@ -549,7 +540,7 @@ export interface OrdenFacturable {
 
 /**
  * OTs de UN vehículo listas para facturar (listo/entregado, con líneas) —
- * usada solo por el modal "Nueva Factura". A diferencia de listOrdenes(),
+ * usada solo por el modal "Nueva Factura". A diferencia de cargar todas las órdenes,
  * no trae eventos_ot (nunca se muestran ahí) y está acotada a un vehículo.
  */
 type FacturableRow = {
