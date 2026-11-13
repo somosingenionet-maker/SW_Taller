@@ -329,6 +329,9 @@ export type Database = {
         Row: {
           acceso_hasta: string | null
           activo: boolean
+          borrado_aviso1_en: string | null
+          borrado_aviso2_en: string | null
+          borrado_previsto_en: string | null
           brand_color: string
           cancelar_al_final: boolean
           ciudad: string
@@ -366,6 +369,9 @@ export type Database = {
         Insert: {
           acceso_hasta?: string | null
           activo?: boolean
+          borrado_aviso1_en?: string | null
+          borrado_aviso2_en?: string | null
+          borrado_previsto_en?: string | null
           brand_color?: string
           cancelar_al_final?: boolean
           ciudad?: string
@@ -403,6 +409,9 @@ export type Database = {
         Update: {
           acceso_hasta?: string | null
           activo?: boolean
+          borrado_aviso1_en?: string | null
+          borrado_aviso2_en?: string | null
+          borrado_previsto_en?: string | null
           brand_color?: string
           cancelar_al_final?: boolean
           ciudad?: string
@@ -436,6 +445,57 @@ export type Database = {
           verifactu_envio_activo?: boolean
           verifactu_numero_instalacion?: string
           web?: string
+        }
+        Relationships: []
+      }
+      empresas_borradas: {
+        Row: {
+          acceso_hasta: string | null
+          archivos: number
+          aviso1_en: string | null
+          aviso2_en: string | null
+          borrada_en: string
+          clientes: number
+          creada_en: string | null
+          estado: string | null
+          id: string
+          motivo: string
+          nombre: string
+          ordenes: number
+          usuarios: number
+          vehiculos: number
+        }
+        Insert: {
+          acceso_hasta?: string | null
+          archivos?: number
+          aviso1_en?: string | null
+          aviso2_en?: string | null
+          borrada_en?: string
+          clientes?: number
+          creada_en?: string | null
+          estado?: string | null
+          id: string
+          motivo?: string
+          nombre: string
+          ordenes?: number
+          usuarios?: number
+          vehiculos?: number
+        }
+        Update: {
+          acceso_hasta?: string | null
+          archivos?: number
+          aviso1_en?: string | null
+          aviso2_en?: string | null
+          borrada_en?: string
+          clientes?: number
+          creada_en?: string | null
+          estado?: string | null
+          id?: string
+          motivo?: string
+          nombre?: string
+          ordenes?: number
+          usuarios?: number
+          vehiculos?: number
         }
         Relationships: []
       }
@@ -1061,14 +1121,17 @@ export type Database = {
       }
       plataforma_config: {
         Row: {
+          borrado_automatico_activo: boolean
           id: string
           logo_base64: string | null
         }
         Insert: {
+          borrado_automatico_activo?: boolean
           id?: string
           logo_base64?: string | null
         }
         Update: {
+          borrado_automatico_activo?: boolean
           id?: string
           logo_base64?: string | null
         }
@@ -1470,6 +1533,27 @@ export type Database = {
         Returns: boolean
       }
       contar_clientes_con_ot_abierta: { Args: never; Returns: number }
+      cuentas_terminadas: {
+        Args: never
+        Returns: {
+          acceso_hasta: string
+          aviso1_en: string
+          aviso2_en: string
+          borrado_previsto_en: string
+          clientes: number
+          correos_aviso: string[]
+          creada_en: string
+          empresa_id: string
+          estado: string
+          facturas_emitidas: number
+          fin_conservacion: string
+          nombre: string
+          ordenes: number
+          retencion: string
+          usuarios: number
+          vehiculos: number
+        }[]
+      }
       es_super_admin: { Args: never; Returns: boolean }
       estado_de_ot: { Args: { p_ot_id: string }; Returns: string }
       extender_acceso: {
@@ -1562,8 +1646,8 @@ export type Database = {
         }[]
       }
       sesion_sin_segundo_factor: { Args: never; Returns: boolean }
-      siguiente_numero_ot: { Args: never; Returns: string }
       suscripcion_activa: { Args: never; Returns: boolean }
+      tiene_modulo: { Args: { p_modulo: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

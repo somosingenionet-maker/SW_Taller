@@ -13,6 +13,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { errorPassword, esSuperAdmin } from './logic.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
 import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
+import { borrarEmpresaCompleta } from '../_shared/borradoEmpresa.ts';
 
 initSentry('manage-empresas');
 
@@ -112,24 +113,14 @@ Deno.serve(conSentry(async (req) => {
       const id = String(body.id ?? '');
       if (!id) return json({ error: 'Falta el id de la empresa.' }, 400);
 
-      const { data: usuarios, error: usuariosErr } = await admin
-        .from('perfiles')
-        .select('id')
-        .eq('empresa_id', id);
-      if (usuariosErr) return json({ error: usuariosErr.message }, 400);
-
-      // Borrar cada usuario de Auth cascada su fila en `perfiles`. Después se
-      // borra la empresa, que cascada el resto de tablas de negocio (FK
-      // on delete cascade en vehiculos/clientes/ordenes_trabajo/...).
-      for (const u of usuarios ?? []) {
-        const { error: delUserErr } = await admin.auth.admin.deleteUser(u.id);
-        if (delUserErr) return json({ error: `Error eliminando usuario ${u.id}: ${delUserErr.message}` }, 400);
+      // Archivos (logos y fotos de recepción) → usuarios de Auth (su `perfiles` cae en cascada) →
+      // empresa (cae en cascada el resto de tablas de negocio). Antes los archivos no se borraban.
+      try {
+        const { usuarios, archivos } = await borrarEmpresaCompleta(admin, id);
+        return json({ ok: true, usuarios, archivos });
+      } catch (e) {
+        return json({ error: e instanceof Error ? e.message : 'No se pudo eliminar la empresa.' }, 400);
       }
-
-      const { error: delEmpresaErr } = await admin.from('empresas').delete().eq('id', id);
-      if (delEmpresaErr) return json({ error: delEmpresaErr.message }, 400);
-
-      return json({ ok: true });
     }
 
     return json({ error: 'Acción no soportada.' }, 400);

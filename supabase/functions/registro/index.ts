@@ -19,7 +19,7 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const APP_URL = (Deno.env.get('APP_URL') ?? 'https://motor.doonty.com').replace(/\/+$/, '');
 
 /** Versión de los textos legales aceptados en el alta (fecha de «Última actualización»). */
-const TERMINOS_VERSION = '2026-10-13';
+const TERMINOS_VERSION = '2026-11-13';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',

@@ -13,7 +13,7 @@ const TITULOS: Record<LegalPageProps['page'], string> = {
 };
 
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '13 de octubre de 2026';
+const ULTIMA_ACTUALIZACION = '13 de noviembre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -268,6 +268,12 @@ function Privacidad() {
           mientras dure la obligación legal de conservarlos; si un cliente tuyo ejerce su derecho de
           supresión, sus datos de contacto pueden anonimizarse, pero la factura se conserva.
         </p>
+        <p>
+          Las cuentas cuyo acceso terminó (fin de la prueba o baja) y no se retoman se eliminan de forma
+          automática y definitiva pasados 90 días, previo aviso por correo a sus administradores. Las
+          cuentas con facturas emitidas no se eliminan automáticamente: se conservan en modo solo lectura
+          mientras dure la obligación legal de conservar esas facturas.
+        </p>
       </Section>
 
       <Section title="8. Tus derechos">
@@ -421,8 +427,13 @@ function Terminos() {
           <b>Prueba gratuita.</b> Al registrarte tienes 14 días de prueba con todas las funciones, sin
           tarjeta y sin compromiso. Al terminar, si no te suscribes, tu cuenta pasa a <b>modo solo
           lectura</b>: puedes seguir viendo y exportando tus datos, pero no crear, modificar ni borrar
-          nada hasta que te suscribas. Conservamos tus datos al menos 90 días desde que termina la
-          prueba, para que puedas retomarlo; pasado ese plazo podremos eliminarlos.
+          nada hasta que te suscribas. Conservamos tus datos 90 días desde que termina la prueba, para
+          que puedas retomarlo. Antes de eliminarlos te avisamos por correo a los administradores de la
+          cuenta: un primer aviso con al menos 14 días de antelación y un último aviso 7 días antes.
+          Pasado ese plazo, los datos se eliminan de forma definitiva y no se pueden recuperar; para
+          conservarlos basta con suscribirte antes de esa fecha. Si ya has emitido facturas desde la
+          aplicación, tu cuenta no se elimina automáticamente: se conserva en modo solo lectura mientras
+          la ley obligue a conservar esas facturas.
         </p>
         <p>
           <b>Precio.</b> El plan de pago cuesta 89 € al mes o 961,20 € al año (10 % de descuento), más el
@@ -474,8 +485,10 @@ function Terminos() {
           <a href={`mailto:${CONTACTO}`} className="text-blue-600 hover:underline">{CONTACTO}</a>. La
           cancelación surte efecto al final del periodo ya pagado: hasta entonces sigues teniendo acceso
           completo, y no se devuelve el importe del periodo en curso, salvo que la ley disponga otra cosa.
-          Tras la baja dispones de 30 días para exportar tus datos; después se eliminarán según el
-          contrato de encargo de tratamiento, salvo obligación legal de conservarlos.
+          Tras la baja tu cuenta pasa a modo solo lectura: dispones de 30 días para exportar tus datos y,
+          pasados 90 días desde el fin del periodo pagado y previo aviso por correo, se eliminan de forma
+          definitiva según el contrato de encargo de tratamiento, salvo que la ley obligue a conservarlos
+          (por ejemplo, las facturas emitidas, que obligan a conservar la cuenta en solo lectura).
         </p>
       </Section>
 
@@ -562,7 +575,11 @@ function EncargoTratamiento() {
           El contrato dura lo que dure la prestación del servicio. Al terminar, el Responsable dispone de{' '}
           <b>30 días</b> para exportar sus datos (funciones de exportación CSV o solicitándolo por correo).
           Pasado ese plazo, el Encargado los elimina de forma definitiva en un máximo de <b>90 días</b> desde
-          la baja, y lo confirma por escrito si se le pide, salvo que una norma obligue a conservarlos.
+          la baja, y lo confirma por escrito si se le pide, salvo que una norma obligue a conservarlos. El
+          borrado es automático: el Encargado avisa antes por correo a los administradores de la cuenta (un
+          primer aviso con al menos 14 días de antelación y un último aviso 7 días antes) y elimina la cuenta,
+          sus usuarios y sus archivos. Una cuenta con facturas emitidas no se elimina automáticamente, sino
+          que se conserva en solo lectura mientras la ley obligue a conservar esas facturas.
         </p>
         <p>
           Las facturas emitidas y sus registros de facturación son inalterables y el Responsable debe

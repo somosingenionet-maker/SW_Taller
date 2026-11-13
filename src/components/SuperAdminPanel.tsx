@@ -9,6 +9,7 @@ import type { Empresa } from '../types';
 import ConfirmDialog from './ConfirmDialog';
 import AdminPanel from './AdminPanel';
 import SeguridadModal from './SeguridadModal';
+import CuentasTerminadasCard from './CuentasTerminadasCard';
 
 interface SuperAdminPanelProps {
   currentUser: Perfil;
@@ -251,6 +252,8 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
                 ))}
               </div>
             )}
+
+            <CuentasTerminadasCard />
           </>
         )}
 

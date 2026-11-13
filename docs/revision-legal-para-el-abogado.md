@@ -43,15 +43,25 @@ enlace de baja que funcione solo.**
 
 **Correo de bienvenida** (plantilla de Supabase): 14 días gratis, sin tarjeta.
 
+**Avisos de borrado de cuenta** (correo a los administradores del taller, desde `send@doonty.com`): primer
+aviso y «último aviso», con la fecha exacta de eliminación, qué se pierde («esto no se puede deshacer»),
+cómo conservarla (suscribirse) y cómo llevarse los datos (exportar a CSV). Texto en
+`supabase/functions/limpiar-empresas/logic.ts` (`construirAviso`).
+
 ## 3. Preguntas concretas
 
-1. **Plazos de borrado, incoherentes entre sí.** Términos §8: tras terminar la prueba «conservamos tus
-   datos **al menos** 90 días… pasado ese plazo **podremos** eliminarlos». Encargo §4: tras la baja, 30
-   días para exportar y eliminación «en un **máximo** de 90 días». Si una prueba abandonada cuenta como
-   «baja», «al menos 90» y «como máximo 90» chocan. Además, las facturas emitidas son inalterables y el
-   taller debe conservarlas por ley (se le dice que las exporte antes de la baja, apartado 4 del
-   encargo): ¿puede Doonty borrar automáticamente una cuenta que tiene facturas emitidas? ¿Qué plazo y
-   qué avisos previos recomienda? (Hoy **no se borra nada solo**; se quiere automatizar.)
+1. **Borrado automático de cuentas abandonadas (YA implementado, textos ya actualizados el 13-11-2026).**
+   Lo que hace el sistema: una cuenta sin acceso (fin de la prueba o de la suscripción) se **elimina de
+   forma definitiva a los 90 días** —cuentas, usuarios, clientes, vehículos, órdenes y fotos—, tras avisar
+   por correo a los administradores del taller: primer aviso (entre 30 y 14 días antes como mínimo) y
+   último aviso 7 días antes. Nunca se borra sin el último aviso enviado y 3 días de espera tras él. **No se
+   borra** una cuenta con facturas emitidas ni con suscripción «activa»: queda en solo lectura. Lo que se
+   borra se anota (id, nombre del taller y recuentos, sin datos personales) para poder confirmarlo por
+   escrito. Los Términos (§7, §8 y §12) y el Encargo (§4) se han reescrito para que digan exactamente esto
+   (antes decían «al menos 90 días… podremos eliminarlos» y «como máximo 90 días»). Preguntas: ¿es
+   suficiente este aviso previo? ¿Conviene un plazo o unos avisos distintos? ¿Es correcto retener
+   indefinidamente (en solo lectura) las cuentas con facturas emitidas, o debe fijarse un plazo máximo y
+   un aviso específico? ¿Hay que conservar la constancia del borrado un tiempo concreto?
 2. **Firma en pantalla.** ¿Basta este texto y esta firma electrónica simple como aceptación del
    presupuesto y conformidad de entrega en un taller? ¿Hay requisitos propios de la normativa de
    reparación de vehículos (presupuesto, aceptación, orden de reparación, factura) que deba cumplir
@@ -84,7 +94,7 @@ enlace de baja que funcione solo.**
 
 - Verificación en dos pasos opcional; datos separados por taller en la base de datos; permisos por
   módulo; copias de seguridad (pendiente de plan de pago en Supabase).
-- Aceptación de los Términos al registrarse, con su versión (`2026-10-13`).
+- Aceptación de los Términos al registrarse, con su versión (`2026-11-13`).
 - Las facturas guardan una copia congelada de los datos del cliente; los datos de contacto se pueden
   anonimizar sin tocar la factura.
 - Exportación a CSV de clientes, vehículos, facturas y más, desde la propia aplicación.
