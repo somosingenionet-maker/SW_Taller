@@ -65,10 +65,10 @@ async function manejarGet(admin: SupabaseClient, tecnico: Tecnico) {
       ? admin.from('lineas_ot').select('id, ot_id, descripcion, completado, duracion_min, posicion')
           .in('ot_id', otIds).eq('tipo', 'mano_de_obra').order('posicion')
       : Promise.resolve({ data: [] }),
-    // Del historial solo hacen falta el ingreso al taller y las notas de este técnico.
+    // Del historial solo hacen falta el ingreso al taller, cuándo se marcó «listo» y las notas de este técnico.
     otIds.length
       ? admin.from('eventos_ot').select('ot_id, fecha, descripcion').in('ot_id', otIds)
-          .or(`descripcion.ilike.*recibido en taller*,descripcion.like.Nota de *`).order('fecha')
+          .or(`descripcion.ilike.*recibido en taller*,descripcion.like.Nota de *,descripcion.ilike.*vehículo como listo*,descripcion.ilike.*trabajo completado*`).order('fecha')
       : Promise.resolve({ data: [] }),
   ]);
 

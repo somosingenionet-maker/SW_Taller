@@ -8,6 +8,7 @@ import {
   textoDuracion,
   limpiarNota,
   ingresoDe,
+  listoEnDe,
   notasDe,
   EVENTOS,
   esFiltro,
@@ -231,4 +232,27 @@ Deno.test('EVENTOS de aceite', () => {
   assertEquals(EVENTOS.filtro('Ana', 'aire', 'cambiado'), 'Ana: filtro de aire cambiado.');
   assertEquals(EVENTOS.filtro('Ana', 'habitaculo', 'no_cambiado'), 'Ana: filtro de habitáculo NO se cambió.');
   assertEquals(EVENTOS.aceite('Ana', true), 'Ana marcó la orden como cambio de aceite.');
+});
+
+// -------- listoEnDe --------
+Deno.test('listoEnDe: la última vez que se marcó listo, lo hiciera el mecánico o el taller', () => {
+  const ev = (ot_id: string, fecha: string, descripcion: string) => ({ ot_id, fecha, descripcion });
+  const eventos = [
+    ev('ot-1', '2026-11-10T10:00:00Z', 'Ana marcó el vehículo como listo: todas las tareas hechas.'),
+    ev('ot-1', '2026-11-11T09:00:00Z', 'Ana reabrió la orden: vuelve a estar en reparación.'),
+    ev('ot-1', '2026-11-12T16:30:00Z', 'Trabajo completado'),
+    ev('ot-2', '2026-11-13T08:00:00Z', 'Trabajo completado'),
+    ev('ot-1', '2026-11-12T17:00:00Z', 'Nota de Ana: falta la junta'),
+  ];
+  assertEquals(listoEnDe('ot-1', eventos), '2026-11-12T16:30:00Z');
+  assertEquals(listoEnDe('ot-2', eventos), '2026-11-13T08:00:00Z');
+  assertEquals(listoEnDe('ot-3', eventos), null);
+});
+
+Deno.test('formatearOrdenesPortal: listoEn solo para las órdenes que están listas', () => {
+  const ev = [{ ot_id: 'a', fecha: '2026-11-12T10:00:00Z', descripcion: 'Trabajo completado' }, { ot_id: 'b', fecha: '2026-11-12T11:00:00Z', descripcion: 'Trabajo completado' }];
+  const o = (id: string, estado: string) => ({ id, numero: id, vehiculo_id: 'v', estado, descripcion_problema: '', created_at: '2026-11-01T00:00:00Z' });
+  const r = formatearOrdenesPortal([o('a', 'listo'), o('b', 'en_reparacion')], [], [], ev, 'Ana');
+  assertEquals(r.find((x) => x.id === 'a')!.listoEn, '2026-11-12T10:00:00Z');
+  assertEquals(r.find((x) => x.id === 'b')!.listoEn, null);
 });

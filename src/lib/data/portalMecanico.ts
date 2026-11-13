@@ -21,6 +21,8 @@ export interface PortalMecanicoOrden {
   fechaEstimadaEntrega: string | null;
   /** Momento real en que el coche entró al taller (ISO). */
   ingreso: string | null;
+  /** Solo en los coches «listos»: cuándo se marcaron como listos. Nulo con una versión antigua de la función. */
+  listoEn?: string | null;
   vehiculo: { marca: string; modelo: string; matricula: string } | null;
   tareas: PortalMecanicoTarea[];
   /** Notas que dejó este mismo técnico en la orden. */

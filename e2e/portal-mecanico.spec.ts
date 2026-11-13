@@ -160,9 +160,9 @@ test('mecánico: un coche asignado después aparece solo y marcado como nuevo', 
   await expect(page.getByText('Renault Clio')).toBeVisible();
   await expect(page.getByText('Nuevo', { exact: true })).toHaveCount(1);
   await expect(page).toHaveTitle('(1) Mis vehículos');
-  // Los que van llegando, arriba: el Clio llegó después que el Seat y sale primero.
+  // El Seat tiene entrega prevista (20 nov.) y el Clio recién llegado no tiene fecha: lo urgente va primero.
   const titulos = await page.getByRole('region', { name: 'Por empezar' }).getByTestId('nombre-vehiculo').allInnerTexts();
-  expect(titulos).toEqual(['Renault Clio', 'Seat Ibiza']);
+  expect(titulos).toEqual(['Seat Ibiza', 'Renault Clio']);
 });
 
 test('mecánico: si el servidor rechaza una acción, se explica y la tarea no queda marcada', async ({ page }) => {
@@ -297,4 +297,33 @@ test('mecánico: la cabecera queda centrada y alineada con las tarjetas también
   // Los botones de la cabecera caen dentro de la columna de las tarjetas, no pegados al borde de la pantalla.
   const boton = (await page.getByRole('button', { name: 'Actualizar' }).boundingBox())!;
   expect(boton.x + boton.width).toBeLessThan(pantalla + 224 + 1);
+});
+
+test('mecánico: orden por urgencia dentro de cada grupo y el último terminado arriba en listos', async ({ page }) => {
+  const servidor = servidorDeMentira();
+  const hoy = new Date();
+  const dia = (mas: number) => { const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + mas); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const con = (o: Orden, extra: Partial<Orden> & { listoEn?: string | null }) => Object.assign(o, extra);
+  servidor.ordenes.length = 0;
+  servidor.ordenes.push(
+    con(ordenExtra('r1', 'OT-1', 'Seat', 'Leon', '1111AAA', 0, 1), { fechaEstimadaEntrega: dia(5), ingreso: '2026-11-01T08:00:00Z' }),
+    con(ordenExtra('r2', 'OT-2', 'Ford', 'Focus', '2222BBB', 0, 1), { fechaEstimadaEntrega: dia(-2), ingreso: '2026-11-08T08:00:00Z' }),
+    con(ordenExtra('r3', 'OT-3', 'Opel', 'Astra', '3333CCC', 0, 1), { fechaEstimadaEntrega: null, ingreso: '2026-11-02T08:00:00Z' }),
+    con(ordenExtra('r4', 'OT-4', 'Kia', 'Ceed', '4444DDD', 0, 1), { fechaEstimadaEntrega: dia(0), ingreso: '2026-11-10T08:00:00Z' }),
+    con(ordenExtra('l1', 'OT-5', 'Mini', 'One', '5555EEE', 1, 1), { estado: 'listo', ingreso: '2026-11-01T08:00:00Z', listoEn: '2026-11-12T17:00:00Z' } as Partial<Orden>),
+    con(ordenExtra('l2', 'OT-6', 'Fiat', 'Panda', '6666FFF', 1, 1), { estado: 'listo', ingreso: '2026-11-09T08:00:00Z', listoEn: '2026-11-13T09:00:00Z' } as Partial<Orden>),
+  );
+  await abrir(page, servidor);
+
+  const nombres = (grupo: string) => page.getByRole('region', { name: grupo }).getByTestId('nombre-vehiculo').allInnerTexts();
+  // En reparación: retrasado (hace 2 días), hoy, dentro de 5 días, y sin fecha al final.
+  expect(await nombres('En reparación')).toEqual(['Ford Focus', 'Kia Ceed', 'Seat Leon', 'Opel Astra']);
+  // Listos: el último terminado arriba, aunque llegara después.
+  expect(await nombres('Listos')).toEqual(['Fiat Panda', 'Mini One']);
+
+  // El plazo se ve en el resumen plegado para que se entienda el orden.
+  const plazos = page.getByTestId('plazo-vehiculo');
+  await expect(plazos.filter({ hasText: 'Retrasado 2 días' })).toHaveCount(1);
+  await expect(plazos.filter({ hasText: 'Entrega hoy' })).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Listos' }).getByTestId('plazo-vehiculo')).toHaveCount(0);
 });

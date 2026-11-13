@@ -24,14 +24,52 @@ export function vistosActualizados(ordenes: OrdenVista[], vistos: string[] | nul
   return [...new Set([...(vistos ?? ordenes.map((o) => o.id)), ...recienVistos])].filter((id) => vivos.has(id));
 }
 
+type Ordenable = { ingreso: string | null; fechaEstimadaEntrega: string | null; listoEn?: string | null };
+
+const aMs = (iso: string | null | undefined): number | null => {
+  if (!iso) return null;
+  const t = new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso).getTime();
+  return Number.isNaN(t) ? null : t;
+};
+
 /**
- * Dentro de un grupo, los coches que van llegando salen ARRIBA: del más reciente al más antiguo según
- * la hora real de ingreso. Un coche sin hora de ingreso va al final. El orden es estable (a igual
- * hora, se respeta el que ya traía la lista) y no modifica la lista original.
+ * Orden de los coches dentro de cada grupo (lo que haría un jefe de taller):
+ *   · Por empezar y En reparación: primero lo más urgente, es decir, la entrega prevista más cercana
+ *     (las ya vencidas van las primeras); a igual fecha, el que llegó antes (por turno). Sin fecha
+ *     prevista, al final de su grupo y también por turno.
+ *   · Listos: el último en terminarse, arriba (es lo que acaba de dejar y quizá haya que avisar al
+ *     cliente). Si no se sabe cuándo se terminó, se usa la hora de llegada.
+ * El orden es estable y no modifica la lista original.
  */
-export function ordenarPorLlegada<T extends { ingreso: string | null }>(ordenes: T[]): T[] {
-  const marca = (o: T) => { const t = o.ingreso ? new Date(o.ingreso).getTime() : NaN; return Number.isNaN(t) ? -Infinity : t; };
-  return ordenes.map((o, i) => ({ o, i, t: marca(o) })).sort((a, b) => (b.t === a.t ? a.i - b.i : b.t > a.t ? 1 : -1)).map((x) => x.o);
+export function ordenarGrupo<T extends Ordenable>(estado: string, ordenes: T[]): T[] {
+  const BIEN_LEJOS = Number.POSITIVE_INFINITY;
+  const clave = (o: T): [number, number] => estado === 'listo'
+    // más reciente primero → se ordena por el negativo; sin dato, al final
+    ? [-(aMs(o.listoEn) ?? aMs(o.ingreso) ?? -BIEN_LEJOS), 0]
+    : [aMs(o.fechaEstimadaEntrega) ?? BIEN_LEJOS, aMs(o.ingreso) ?? BIEN_LEJOS];
+  return ordenes
+    .map((o, i) => ({ o, i, k: clave(o) }))
+    .sort((a, b) => (a.k[0] - b.k[0] || a.k[1] - b.k[1] || a.i - b.i) || 0)
+    .map((x) => x.o);
+}
+
+/** Hoy en la hora local del móvil, «AAAA-MM-DD». */
+export function hoyLocal(ahora: Date = new Date()): string {
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${ahora.getFullYear()}-${dos(ahora.getMonth() + 1)}-${dos(ahora.getDate())}`;
+}
+
+export interface PlazoEntrega { tipo: 'vencida' | 'hoy' | 'manana' | 'futura'; texto: string }
+
+/** Cómo va el plazo de entrega prevista respecto a hoy, para avisar al mecánico de lo urgente. */
+export function plazoEntrega(fecha: string | null, hoy: string): PlazoEntrega | null {
+  if (!fecha) return null;
+  const dias = Math.round((Date.parse(`${fecha.slice(0, 10)}T00:00:00Z`) - Date.parse(`${hoy}T00:00:00Z`)) / 86_400_000);
+  if (Number.isNaN(dias)) return null;
+  if (dias < 0) return { tipo: 'vencida', texto: dias === -1 ? 'Debía entregarse ayer' : `Retrasado ${-dias} días` };
+  if (dias === 0) return { tipo: 'hoy', texto: 'Entrega hoy' };
+  if (dias === 1) return { tipo: 'manana', texto: 'Entrega mañana' };
+  return { tipo: 'futura', texto: `Entrega ${fecha.slice(8, 10).replace(/^0/, '')}/${fecha.slice(5, 7).replace(/^0/, '')}` };
 }
 
 /** «10 nov. 2026 · 12:27», en la hora del móvil del mecánico. */

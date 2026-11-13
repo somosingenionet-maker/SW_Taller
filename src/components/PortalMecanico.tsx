@@ -7,7 +7,7 @@ import {
   type PortalMecanicoData, type PortalMecanicoOrden, type PortalMecanicoTarea,
 } from '../lib/data/portalMecanico';
 import { OPCIONES_DURACION, textoDuracion } from '../utils/duracionTarea';
-import { GRUPOS, fechaHora, ordenarPorLlegada, ordenesNuevas, vistosActualizados } from '../utils/portalMecanico';
+import { GRUPOS, fechaHora, hoyLocal, ordenarGrupo, ordenesNuevas, plazoEntrega, vistosActualizados } from '../utils/portalMecanico';
 import { FILTROS, sumarMeses } from '../utils/aceite';
 import { formatDate } from '../utils/dateFormat';
 import { formatKm } from '../utils/moneda';
@@ -168,6 +168,9 @@ function OrdenCard({ orden, color, token, nuevo, abierta, onAlternar, onVisto, o
     if (ok) setProximoAbierto(false);
   };
 
+  // El plazo solo importa mientras el coche sigue en el taller por terminar.
+  const plazo = orden.estado === 'listo' ? null : plazoEntrega(orden.fechaEstimadaEntrega, hoyLocal());
+
   const chip = orden.estado === 'en_reparacion' ? 'bg-orange-50 text-orange-700'
     : orden.estado === 'listo' ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-600';
   const etiqueta = orden.estado === 'en_reparacion' ? 'En reparación' : orden.estado === 'listo' ? 'Listo' : 'Por empezar';
@@ -212,6 +215,11 @@ function OrdenCard({ orden, color, token, nuevo, abierta, onAlternar, onVisto, o
           {orden.esCambioAceite && <Droplet className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-label="Cambio de aceite" />}
           <span className="shrink-0">Ingreso {fechaHora(orden.ingreso)}</span>
         </div>
+      )}
+      {!abierta && plazo && (
+        <p className={`mt-2 text-[11px] font-bold ${plazo.tipo === 'vencida' ? 'text-rose-600' : plazo.tipo === 'hoy' ? 'text-amber-600' : 'text-slate-500'}`} data-testid="plazo-vehiculo">
+          {plazo.tipo === 'vencida' ? '⚠ ' : ''}{plazo.texto}
+        </p>
       )}
 
       {abierta && (
@@ -611,8 +619,8 @@ export default function PortalMecanico({ token }: Props) {
           </div>
         ) : (
           GRUPOS.map((g) => {
-            // Los que van llegando, arriba (la lista del servidor viene del más antiguo al más reciente).
-            const delGrupo = ordenarPorLlegada(ordenes.filter((o) => o.estado === g.estado));
+            // Lo más urgente arriba (entrega más cercana, y por turno); en «Listos», el último terminado.
+            const delGrupo = ordenarGrupo(g.estado, ordenes.filter((o) => o.estado === g.estado));
             if (delGrupo.length === 0) return null;
             return (
               <section key={g.estado} className="space-y-3" aria-label={g.titulo}>

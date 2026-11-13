@@ -146,6 +146,19 @@ export function ingresoDe(ot: Pick<OtRow, 'id' | 'created_at'>, eventos: EventoR
   return primero ?? ot.created_at ?? null;
 }
 
+/**
+ * Momento en que el coche se marcó como listo: el ÚLTIMO evento del historial que lo dice, sea porque
+ * lo marcó el mecánico («… marcó el vehículo como listo…») o el taller («Trabajo completado»). Si
+ * se reabrió y se volvió a terminar, vale la última vez. Sin evento, null.
+ */
+export function listoEnDe(otId: string, eventos: EventoRow[]): string | null {
+  const ultimo = eventos
+    .filter((e) => e.ot_id === otId && /vehículo como listo|trabajo completado/i.test(e.descripcion))
+    .map((e) => e.fecha)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0];
+  return ultimo ?? null;
+}
+
 /** Solo las notas que dejó ESTE técnico (para que las vea al volver a abrir el coche). */
 export function notasDe(otId: string, tecnico: string, eventos: EventoRow[]): { fecha: string; texto: string }[] {
   const prefijo = `Nota de ${tecnico}: `;
@@ -180,6 +193,7 @@ export function formatearOrdenesPortal(
         kilometrajeEntrada: o.kilometraje_entrada ?? null,
         fechaEstimadaEntrega: o.fecha_estimada_entrega ?? null,
         ingreso: ingresoDe(o, eventos),
+        listoEn: o.estado === 'listo' ? listoEnDe(o.id, eventos) : null,
         vehiculo: v ? { marca: v.marca, modelo: v.modelo, matricula: v.matricula } : null,
         esCambioAceite: o.es_cambio_aceite === true,
         filtros: {
