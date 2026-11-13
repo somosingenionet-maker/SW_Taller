@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { invocarPortal } from './invocarPortal';
 import type { EstadoFiltro, FiltroAceite, FiltrosAceite } from '../../types';
 
 export interface PortalMecanicoTarea {
@@ -39,31 +39,7 @@ export interface PortalMecanicoData {
   ordenes: PortalMecanicoOrden[];
 }
 
-const SIN_CONEXION = 'No hay conexión. Comprueba tu internet y vuelve a intentarlo.';
-
-/** Mensaje para el mecánico: nunca el texto técnico en inglés de la librería. */
-export function mensajePortal(mensaje: string): string {
-  return /failed to send a request|failed to fetch|networkerror|load failed|relay error/i.test(mensaje) ? SIN_CONEXION : mensaje;
-}
-
-async function invokePortalMecanico<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('portal-mecanico', { body });
-  if (error) {
-    let message = error.message;
-    const context = (error as { context?: Response }).context;
-    if (context && typeof context.clone === 'function') {
-      try {
-        const parsed = await context.clone().json();
-        if (parsed?.error) message = parsed.error;
-      } catch {
-        // el cuerpo de error no era JSON; se mantiene el mensaje genérico
-      }
-    }
-    throw new Error(mensajePortal(message));
-  }
-  if (data?.error) throw new Error(data.error as string);
-  return data as T;
-}
+const invokePortalMecanico = <T,>(body: Record<string, unknown>) => invocarPortal<T>('portal-mecanico', body);
 
 export async function getPortalMecanicoData(token: string): Promise<PortalMecanicoData> {
   return invokePortalMecanico<PortalMecanicoData>({ token });

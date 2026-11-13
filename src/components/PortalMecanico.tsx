@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff, Droplet, Download, ChevronDown } from 'lucide-react';
 import { useInstalar, usarManifiestoMecanico } from '../lib/pwa';
+import { ErrorPortal } from '../lib/data/invocarPortal';
+import ErrorPortalPantalla from './ErrorPortalPantalla';
 import {
   getPortalMecanicoData, marcarTareaMecanico, cambiarDuracionMecanico, cambiarEstadoMecanico, dejarNotaMecanico,
   marcarCambioAceiteMecanico, marcarFiltroMecanico, anotarProximoCambioMecanico,
@@ -444,7 +446,7 @@ function OrdenCard({ orden, color, token, nuevo, abierta, onAlternar, onVisto, o
 export default function PortalMecanico({ token }: Props) {
   const [data, setData] = useState<PortalMecanicoData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<ErrorPortal | null>(null);
   const [sinConexion, setSinConexion] = useState(false);
   const [refrescando, setRefrescando] = useState(false);
 
@@ -465,11 +467,14 @@ export default function PortalMecanico({ token }: Props) {
     setSinConexion(false);
   }, [token]);
 
-  useEffect(() => {
+  const primeraCarga = useCallback(() => {
+    setLoading(true);
+    setError(null);
     cargar()
-      .catch((err) => setError(err instanceof Error ? err.message : 'No se pudo cargar tu información.'))
+      .catch((err) => setError(err instanceof ErrorPortal ? err : new ErrorPortal('No se pudo cargar tu información.', 'temporal')))
       .finally(() => setLoading(false));
   }, [cargar]);
+  useEffect(() => { primeraCarga(); }, [primeraCarga]);
 
   // Refresco automático: cada 20 s con la página a la vista, y al volver a ella.
   useEffect(() => {
@@ -551,15 +556,7 @@ export default function PortalMecanico({ token }: Props) {
   }
 
   if (error || !data) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 max-w-sm text-center">
-          <ShieldAlert className="w-10 h-10 text-rose-400 mx-auto mb-3" />
-          <h1 className="text-base font-extrabold text-slate-800 mb-1.5">Enlace no válido</h1>
-          <p className="text-sm text-slate-500">{error || 'Este enlace ha caducado o no existe. Pide al taller que te envíe uno nuevo.'}</p>
-        </div>
-      </div>
-    );
+    return <ErrorPortalPantalla tipo={error?.tipo ?? 'enlace'} mensaje={error?.message ?? 'Este enlace ha caducado o no existe.'} onReintentar={primeraCarga} />;
   }
 
   const color = data.empresa?.brandColor || '#2563eb';

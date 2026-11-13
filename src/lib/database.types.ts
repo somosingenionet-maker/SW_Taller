@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -45,6 +50,7 @@ export type Database = {
           kilometraje_limite: number | null
           recordatorio_enviado_en: string | null
           tipo: string
+          ultimo_aviso_enviado_en: string | null
           updated_at: string
           vehiculo_id: string
         }
@@ -58,6 +64,7 @@ export type Database = {
           kilometraje_limite?: number | null
           recordatorio_enviado_en?: string | null
           tipo: string
+          ultimo_aviso_enviado_en?: string | null
           updated_at?: string
           vehiculo_id: string
         }
@@ -71,6 +78,7 @@ export type Database = {
           kilometraje_limite?: number | null
           recordatorio_enviado_en?: string | null
           tipo?: string
+          ultimo_aviso_enviado_en?: string | null
           updated_at?: string
           vehiculo_id?: string
         }
@@ -225,6 +233,7 @@ export type Database = {
           fecha_registro: string
           id: string
           nif_nie_pasaporte: string
+          no_avisar: boolean
           nombre: string
           pais: string | null
           portal_token: string | null
@@ -241,6 +250,7 @@ export type Database = {
           fecha_registro?: string
           id?: string
           nif_nie_pasaporte: string
+          no_avisar?: boolean
           nombre: string
           pais?: string | null
           portal_token?: string | null
@@ -257,6 +267,7 @@ export type Database = {
           fecha_registro?: string
           id?: string
           nif_nie_pasaporte?: string
+          no_avisar?: boolean
           nombre?: string
           pais?: string | null
           portal_token?: string | null
@@ -273,14 +284,58 @@ export type Database = {
           },
         ]
       }
+      empresa_certificados_verifactu: {
+        Row: {
+          clave_cifrada: string
+          empresa_id: string
+          p12_cifrado: string
+          subido_en: string
+          titular_nif: string | null
+          titular_nombre: string | null
+          valido_desde: string | null
+          valido_hasta: string | null
+        }
+        Insert: {
+          clave_cifrada: string
+          empresa_id: string
+          p12_cifrado: string
+          subido_en?: string
+          titular_nif?: string | null
+          titular_nombre?: string | null
+          valido_desde?: string | null
+          valido_hasta?: string | null
+        }
+        Update: {
+          clave_cifrada?: string
+          empresa_id?: string
+          p12_cifrado?: string
+          subido_en?: string
+          titular_nif?: string | null
+          titular_nombre?: string | null
+          valido_desde?: string | null
+          valido_hasta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresa_certificados_verifactu_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
+          acceso_hasta: string | null
           activo: boolean
           brand_color: string
+          cancelar_al_final: boolean
           ciudad: string
           correo: string
           created_at: string
           direccion_fiscal: string
+          estado_suscripcion: string
           factura_mostrar_qr: boolean
           factura_prefijo: string
           id: string
@@ -288,12 +343,19 @@ export type Database = {
           logo_url: string | null
           nif: string
           nombre: string
+          periodo_fin: string | null
+          plan_facturacion: string | null
           plantillas_recordatorios: Json
+          prueba_hasta: string | null
           razon_social: string
           recordatorios_automaticos_activos: boolean
           siguiente_numero_factura: number
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
           tagline: string
           telefono: string
+          terminos_aceptados_en: string | null
+          terminos_version: string | null
           ultimo_hash_factura: string | null
           updated_at: string
           verifactu_entorno: string
@@ -302,12 +364,15 @@ export type Database = {
           web: string
         }
         Insert: {
+          acceso_hasta?: string | null
           activo?: boolean
           brand_color?: string
+          cancelar_al_final?: boolean
           ciudad?: string
           correo?: string
           created_at?: string
           direccion_fiscal?: string
+          estado_suscripcion?: string
           factura_mostrar_qr?: boolean
           factura_prefijo?: string
           id?: string
@@ -315,12 +380,19 @@ export type Database = {
           logo_url?: string | null
           nif?: string
           nombre: string
+          periodo_fin?: string | null
+          plan_facturacion?: string | null
           plantillas_recordatorios?: Json
+          prueba_hasta?: string | null
           razon_social?: string
           recordatorios_automaticos_activos?: boolean
           siguiente_numero_factura?: number
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           tagline?: string
           telefono?: string
+          terminos_aceptados_en?: string | null
+          terminos_version?: string | null
           ultimo_hash_factura?: string | null
           updated_at?: string
           verifactu_entorno?: string
@@ -329,12 +401,15 @@ export type Database = {
           web?: string
         }
         Update: {
+          acceso_hasta?: string | null
           activo?: boolean
           brand_color?: string
+          cancelar_al_final?: boolean
           ciudad?: string
           correo?: string
           created_at?: string
           direccion_fiscal?: string
+          estado_suscripcion?: string
           factura_mostrar_qr?: boolean
           factura_prefijo?: string
           id?: string
@@ -342,12 +417,19 @@ export type Database = {
           logo_url?: string | null
           nif?: string
           nombre?: string
+          periodo_fin?: string | null
+          plan_facturacion?: string | null
           plantillas_recordatorios?: Json
+          prueba_hasta?: string | null
           razon_social?: string
           recordatorios_automaticos_activos?: boolean
           siguiente_numero_factura?: number
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
           tagline?: string
           telefono?: string
+          terminos_aceptados_en?: string | null
+          terminos_version?: string | null
           ultimo_hash_factura?: string | null
           updated_at?: string
           verifactu_entorno?: string
@@ -607,6 +689,7 @@ export type Database = {
           completado: boolean
           costo_unitario: number | null
           descripcion: string
+          duracion_min: number | null
           id: string
           notificado_cliente: boolean
           ot_id: string
@@ -621,6 +704,7 @@ export type Database = {
           completado?: boolean
           costo_unitario?: number | null
           descripcion?: string
+          duracion_min?: number | null
           id?: string
           notificado_cliente?: boolean
           ot_id: string
@@ -635,6 +719,7 @@ export type Database = {
           completado?: boolean
           costo_unitario?: number | null
           descripcion?: string
+          duracion_min?: number | null
           id?: string
           notificado_cliente?: boolean
           ot_id?: string
@@ -775,6 +860,8 @@ export type Database = {
       }
       ordenes_trabajo: {
         Row: {
+          aceite_anotado_en: string | null
+          aceite_resumen_enviado_en: string | null
           checklist_observaciones: string | null
           checklist_recepcion: Json | null
           cliente_id: string
@@ -782,15 +869,28 @@ export type Database = {
           descripcion_problema: string
           diagnostico: string | null
           empresa_id: string
+          es_cambio_aceite: boolean
           estado: string
           fecha_entrega: string | null
           fecha_estimada_entrega: string | null
           fecha_recepcion: string
+          filtro_aceite: string | null
+          filtro_aire: string | null
+          filtro_combustible: string | null
+          filtro_habitaculo: string | null
+          firma_entrega: string | null
+          firma_entrega_en: string | null
+          firma_entrega_nombre: string | null
+          firma_presupuesto: string | null
+          firma_presupuesto_en: string | null
+          firma_presupuesto_nombre: string | null
+          firma_presupuesto_total: number | null
           fotos_recepcion: string[]
           id: string
           iva_pct: number
           kilometraje_entrada: number
           kilometraje_salida: number | null
+          mecanico_actualizado_en: string | null
           notas: string | null
           notificacion_enviada: boolean | null
           numero: string
@@ -804,6 +904,8 @@ export type Database = {
           vehiculo_id: string
         }
         Insert: {
+          aceite_anotado_en?: string | null
+          aceite_resumen_enviado_en?: string | null
           checklist_observaciones?: string | null
           checklist_recepcion?: Json | null
           cliente_id: string
@@ -811,15 +913,28 @@ export type Database = {
           descripcion_problema?: string
           diagnostico?: string | null
           empresa_id: string
+          es_cambio_aceite?: boolean
           estado: string
           fecha_entrega?: string | null
           fecha_estimada_entrega?: string | null
           fecha_recepcion?: string
+          filtro_aceite?: string | null
+          filtro_aire?: string | null
+          filtro_combustible?: string | null
+          filtro_habitaculo?: string | null
+          firma_entrega?: string | null
+          firma_entrega_en?: string | null
+          firma_entrega_nombre?: string | null
+          firma_presupuesto?: string | null
+          firma_presupuesto_en?: string | null
+          firma_presupuesto_nombre?: string | null
+          firma_presupuesto_total?: number | null
           fotos_recepcion?: string[]
           id?: string
           iva_pct?: number
           kilometraje_entrada?: number
           kilometraje_salida?: number | null
+          mecanico_actualizado_en?: string | null
           notas?: string | null
           notificacion_enviada?: boolean | null
           numero: string
@@ -833,6 +948,8 @@ export type Database = {
           vehiculo_id: string
         }
         Update: {
+          aceite_anotado_en?: string | null
+          aceite_resumen_enviado_en?: string | null
           checklist_observaciones?: string | null
           checklist_recepcion?: Json | null
           cliente_id?: string
@@ -840,15 +957,28 @@ export type Database = {
           descripcion_problema?: string
           diagnostico?: string | null
           empresa_id?: string
+          es_cambio_aceite?: boolean
           estado?: string
           fecha_entrega?: string | null
           fecha_estimada_entrega?: string | null
           fecha_recepcion?: string
+          filtro_aceite?: string | null
+          filtro_aire?: string | null
+          filtro_combustible?: string | null
+          filtro_habitaculo?: string | null
+          firma_entrega?: string | null
+          firma_entrega_en?: string | null
+          firma_entrega_nombre?: string | null
+          firma_presupuesto?: string | null
+          firma_presupuesto_en?: string | null
+          firma_presupuesto_nombre?: string | null
+          firma_presupuesto_total?: number | null
           fotos_recepcion?: string[]
           id?: string
           iva_pct?: number
           kilometraje_entrada?: number
           kilometraje_salida?: number | null
+          mecanico_actualizado_en?: string | null
           notas?: string | null
           notificacion_enviada?: boolean | null
           numero?: string
@@ -1000,6 +1130,144 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      registros_facturacion: {
+        Row: {
+          anterior_fecha_expedicion: string | null
+          anterior_num_serie: string | null
+          codigo_error: string | null
+          creado_en: string
+          csv_aeat: string | null
+          cuota_total: number | null
+          descripcion_error: string | null
+          empresa_id: string
+          enviado_en: string | null
+          estado_envio: string
+          factura_id: string
+          fecha_expedicion: string
+          fecha_hora_huso: string
+          huella: string
+          huella_anterior: string | null
+          id: string
+          importe_total: number | null
+          intentos: number
+          nif_emisor: string
+          nombre_razon_emisor: string
+          num_serie: string
+          proximo_intento: string
+          secuencia: number
+          tipo: string
+          tipo_factura: string | null
+          ultimo_intento: string | null
+        }
+        Insert: {
+          anterior_fecha_expedicion?: string | null
+          anterior_num_serie?: string | null
+          codigo_error?: string | null
+          creado_en?: string
+          csv_aeat?: string | null
+          cuota_total?: number | null
+          descripcion_error?: string | null
+          empresa_id: string
+          enviado_en?: string | null
+          estado_envio?: string
+          factura_id: string
+          fecha_expedicion: string
+          fecha_hora_huso: string
+          huella: string
+          huella_anterior?: string | null
+          id?: string
+          importe_total?: number | null
+          intentos?: number
+          nif_emisor: string
+          nombre_razon_emisor: string
+          num_serie: string
+          proximo_intento?: string
+          secuencia: number
+          tipo: string
+          tipo_factura?: string | null
+          ultimo_intento?: string | null
+        }
+        Update: {
+          anterior_fecha_expedicion?: string | null
+          anterior_num_serie?: string | null
+          codigo_error?: string | null
+          creado_en?: string
+          csv_aeat?: string | null
+          cuota_total?: number | null
+          descripcion_error?: string | null
+          empresa_id?: string
+          enviado_en?: string | null
+          estado_envio?: string
+          factura_id?: string
+          fecha_expedicion?: string
+          fecha_hora_huso?: string
+          huella?: string
+          huella_anterior?: string | null
+          id?: string
+          importe_total?: number | null
+          intentos?: number
+          nif_emisor?: string
+          nombre_razon_emisor?: string
+          num_serie?: string
+          proximo_intento?: string
+          secuencia?: number
+          tipo?: string
+          tipo_factura?: string | null
+          ultimo_intento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_facturacion_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_facturacion_factura_id_fkey"
+            columns: ["factura_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_eventos: {
+        Row: {
+          id: string
+          procesado_en: string
+          tipo: string
+        }
+        Insert: {
+          id: string
+          procesado_en?: string
+          tipo: string
+        }
+        Update: {
+          id?: string
+          procesado_en?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       tecnicos: {
         Row: {
           activo: boolean
@@ -1046,6 +1314,10 @@ export type Database = {
       }
       vehiculos: {
         Row: {
+          aceite_proxima_fecha: string | null
+          aceite_proximo_km: number | null
+          aceite_ultima_fecha: string | null
+          aceite_ultimo_km: number | null
           anio: number | null
           bastidor: string
           color: string | null
@@ -1064,6 +1336,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          aceite_proxima_fecha?: string | null
+          aceite_proximo_km?: number | null
+          aceite_ultima_fecha?: string | null
+          aceite_ultimo_km?: number | null
           anio?: number | null
           bastidor: string
           color?: string | null
@@ -1082,6 +1358,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          aceite_proxima_fecha?: string | null
+          aceite_proximo_km?: number | null
+          aceite_ultima_fecha?: string | null
+          aceite_ultimo_km?: number | null
           anio?: number | null
           bastidor?: string
           color?: string | null
@@ -1114,107 +1394,176 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      aeat_encadenar_registro: {
+        Args: {
+          p_cuota_total: number
+          p_empresa_id: string
+          p_factura_id: string
+          p_fecha: string
+          p_importe_total: number
+          p_nif: string
+          p_nombre_emisor: string
+          p_num_serie: string
+          p_tipo: string
+          p_tipo_factura: string
+          p_ts: string
+        }
+        Returns: {
+          huella: string
+          huella_anterior: string
+        }[]
+      }
+      aeat_fecha_hora_huso: { Args: { p: string }; Returns: string }
+      aeat_nif_normalizado: { Args: { p: string }; Returns: string }
+      aeat_url_encode: { Args: { p: string }; Returns: string }
+      anotar_cambio_aceite: {
+        Args: {
+          p_autor?: string
+          p_ot_id: string
+          p_proxima_fecha: string
+          p_proximo_km?: number
+        }
+        Returns: undefined
+      }
+      buscar_ordenes: {
+        Args: {
+          p_estado?: string
+          p_limit?: number
+          p_offset?: number
+          p_termino?: string
+        }
+        Returns: {
+          cliente_apellidos: string
+          cliente_nombre: string
+          estado: string
+          fecha_recepcion: string
+          id: string
+          notificacion_enviada: boolean
+          numero: string
+          presupuesto_aprobado: boolean
+          presupuesto_estado: string
+          tareas_hechas: number
+          tareas_total: number
+          total: number
+          total_count: number
+          vehiculo_marca: string
+          vehiculo_matricula: string
+          vehiculo_modelo: string
+        }[]
+      }
       certificado_verifactu_estado: {
         Args: never
         Returns: {
           existe: boolean
-          titular_nif: string | null
-          titular_nombre: string | null
-          valido_desde: string | null
-          valido_hasta: string | null
+          titular_nif: string
+          titular_nombre: string
+          valido_desde: string
+          valido_hasta: string
         }[]
       }
+      check_rate_limit: {
+        Args: {
+          p_key: string
+          p_max_requests: number
+          p_window_seconds: number
+        }
+        Returns: boolean
+      }
+      contar_clientes_con_ot_abierta: { Args: never; Returns: number }
       es_super_admin: { Args: never; Returns: boolean }
       estado_de_ot: { Args: { p_ot_id: string }; Returns: string }
-      mi_empresa_id: { Args: never; Returns: string }
-      facturas_resumen: {
-        Args: { mes_actual?: string }
-        Returns: {
-          total_facturas: number
-          facturas_pagadas: number
-          importe_pendiente: number
-          importe_cobrado: number
-          facturas_mes_actual: number
-          importe_mes_actual: number
-          facturas_vencidas: number
-          importe_vencido: number
-        }[]
+      extender_acceso: {
+        Args: { p_empresa_id: string; p_hasta: string }
+        Returns: undefined
       }
       facturas_por_periodo: {
         Args: { agrupacion: string }
-        Returns: { clave: string; cantidad: number; total: number }[]
-      }
-      rentabilidad_periodo: {
-        Args: { p_start: string; p_end: string }
         Returns: {
-          facturacion: number
-          entregadas: number
-          tiempo_medio_dias: number | null
-          mano_obra_total: number
-          mano_obra_costo: number
-          producto_total: number
-          producto_costo: number
-          canceladas: number
-          ots_total: number
-          presupuestos_total: number
-          presupuestos_convertidos: number
+          cantidad: number
+          clave: string
+          total: number
+        }[]
+      }
+      facturas_resumen: {
+        Args: { mes_actual?: string }
+        Returns: {
+          facturas_mes_actual: number
+          facturas_pagadas: number
+          facturas_vencidas: number
+          importe_cobrado: number
+          importe_mes_actual: number
+          importe_pendiente: number
+          importe_vencido: number
+          total_facturas: number
+        }[]
+      }
+      firmar_orden: {
+        Args: {
+          p_nombre: string
+          p_ot_id: string
+          p_png: string
+          p_tipo: string
+        }
+        Returns: undefined
+      }
+      mi_empresa_id: { Args: never; Returns: string }
+      mi_suscripcion: { Args: never; Returns: Json }
+      ordenes_por_rango_recepcion: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: {
+          cliente_apellidos: string
+          cliente_nombre: string
+          estado: string
+          fecha_recepcion: string
+          id: string
+          numero: string
+          vehiculo_marca: string
+          vehiculo_matricula: string
+          vehiculo_modelo: string
         }[]
       }
       rentabilidad_estado_actual: {
         Args: never
-        Returns: { estado: string; cantidad: number }[]
+        Returns: {
+          cantidad: number
+          estado: string
+        }[]
+      }
+      rentabilidad_periodo: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          canceladas: number
+          entregadas: number
+          facturacion: number
+          mano_obra_costo: number
+          mano_obra_total: number
+          ots_total: number
+          presupuestos_convertidos: number
+          presupuestos_total: number
+          producto_costo: number
+          producto_total: number
+          tiempo_medio_dias: number
+        }[]
       }
       rentabilidad_tecnicos: {
-        Args: { p_start: string; p_end: string }
-        Returns: { nombre: string; ots: number; facturado: number }[]
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          facturado: number
+          nombre: string
+          ots: number
+        }[]
       }
       rentabilidad_top_clientes: {
         Args: { p_limit?: number }
-        Returns: { cliente_id: string; visitas: number; facturado: number }[]
-      }
-      buscar_ordenes: {
-        Args: { p_termino?: string; p_estado?: string | null; p_limit?: number; p_offset?: number }
         Returns: {
-          id: string
-          numero: string
-          estado: string
-          fecha_recepcion: string
-          presupuesto_estado: string | null
-          presupuesto_aprobado: boolean | null
-          notificacion_enviada: boolean | null
-          total: number
-          vehiculo_marca: string
-          vehiculo_modelo: string
-          vehiculo_matricula: string
-          cliente_nombre: string
-          cliente_apellidos: string
-          tareas_total: number
-          tareas_hechas: number
-          total_count: number
+          cliente_id: string
+          facturado: number
+          visitas: number
         }[]
       }
-      siguiente_numero_ot: {
-        Args: never
-        Returns: string
-      }
-      contar_clientes_con_ot_abierta: {
-        Args: never
-        Returns: number
-      }
-      ordenes_por_rango_recepcion: {
-        Args: { p_desde: string; p_hasta: string }
-        Returns: {
-          id: string
-          numero: string
-          estado: string
-          fecha_recepcion: string
-          vehiculo_marca: string
-          vehiculo_modelo: string
-          vehiculo_matricula: string
-          cliente_nombre: string
-          cliente_apellidos: string
-        }[]
-      }
+      sesion_sin_segundo_factor: { Args: never; Returns: boolean }
+      siguiente_numero_ot: { Args: never; Returns: string }
+      suscripcion_activa: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
@@ -1233,12 +1582,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1262,11 +1611,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1287,11 +1636,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1312,11 +1661,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1329,11 +1678,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1350,4 +1699,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

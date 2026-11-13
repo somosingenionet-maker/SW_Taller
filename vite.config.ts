@@ -15,7 +15,6 @@ export default defineConfig(() => {
             if (!id.includes('node_modules')) return undefined;
             if (id.includes('@sentry')) return 'vendor-sentry';
             if (id.includes('@supabase')) return 'vendor-supabase';
-            if (id.includes('recharts') || id.includes('/d3-') || id.includes('victory-vendor')) return 'vendor-graficas';
             if (id.includes('/motion') || id.includes('framer-motion')) return 'vendor-animacion';
             if (id.includes('/react-dom/') || id.includes('/react/') || id.includes('/scheduler/')) return 'vendor-react';
             return undefined;
