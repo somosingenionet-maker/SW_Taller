@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  categoriasDe, moverCategoria, moverPunto, nombreValido, renumerar, sugerenciaPendiente,
   agruparPorCategoria, descripcionLinea, necesitaDetalle, parsearPrecio, puntosPendientesDeAnadir, resumenPuntos,
   totalPuntos, urgentesSinPrecio, type PuntoAprobable,
 } from './inspeccion';
@@ -65,5 +66,56 @@ describe('descripcionLinea / totales / precio', () => {
     expect(parsearPrecio('-5')).toBeUndefined();
     expect(parsearPrecio('1.234,56')).toBeUndefined();
     expect(parsearPrecio('5.555')).toBeUndefined();
+  });
+});
+
+
+describe('edición de plantillas', () => {
+  const L = [
+    { id: 'a', categoria: 'Frenos', nombre: 'Pastillas', posicion: 1 }, { id: 'b', categoria: 'Frenos', nombre: 'Discos', posicion: 2 },
+    { id: 'c', categoria: 'Luces', nombre: 'Delanteras', posicion: 3 }, { id: 'd', categoria: 'Luces', nombre: 'Traseras', posicion: 4 },
+  ];
+  const ids = (l: { id: string }[]) => l.map((p) => p.id).join('');
+
+  it('renumera 1..n y lista las categorías en orden', () => {
+    expect(renumerar([{ posicion: 9 }, { posicion: 2 }]).map((p) => p.posicion)).toEqual([1, 2]);
+    expect(categoriasDe(L)).toEqual(['Frenos', 'Luces']);
+  });
+  it('mover un punto lo intercambia con su vecino de la misma categoría', () => {
+    expect(ids(moverPunto(L, 'b', -1))).toBe('bacd');
+    expect(ids(moverPunto(L, 'c', 1))).toBe('abdc');
+  });
+  it('en el extremo de su categoría no cambia nada (no salta a otra categoría)', () => {
+    expect(ids(moverPunto(L, 'a', -1))).toBe('abcd');
+    expect(ids(moverPunto(L, 'b', 1))).toBe('abcd');
+    expect(ids(moverPunto(L, 'zzz', 1))).toBe('abcd');
+  });
+  it('mover una categoría arrastra todos sus puntos', () => {
+    expect(ids(moverCategoria(L, 'Luces', -1))).toBe('cdab');
+    expect(moverCategoria(L, 'Luces', -1).map((p) => p.posicion)).toEqual([1, 2, 3, 4]);
+    expect(ids(moverCategoria(L, 'Frenos', -1))).toBe('abcd');
+    expect(ids(moverCategoria(L, 'Luces', 1))).toBe('abcd');
+  });
+  it('mover no muta la lista original', () => {
+    moverPunto(L, 'b', -1);
+    expect(ids(L)).toBe('abcd');
+  });
+  it('nombreValido recorta, junta espacios y respeta el máximo', () => {
+    expect(nombreValido('  Pastillas   delanteras ', 80)).toBe('Pastillas delanteras');
+    expect(nombreValido('   ', 80)).toBeNull();
+    expect(nombreValido('x'.repeat(81), 80)).toBeNull();
+    expect(nombreValido('x'.repeat(80), 80)).toBe('x'.repeat(80));
+  });
+});
+
+describe('sugerenciaPendiente', () => {
+  const base = { estado: 'urgente' as const, precio: null, precioSugerido: 64, reparacion: null, reparacionSugerida: 'Cambio' };
+  it('solo con problema, sin precio puesto y con precio sugerido', () => {
+    expect(sugerenciaPendiente(base)).toBe(true);
+    expect(sugerenciaPendiente({ ...base, estado: 'bien' })).toBe(false);
+    expect(sugerenciaPendiente({ ...base, estado: null })).toBe(false);
+    expect(sugerenciaPendiente({ ...base, precio: 70 })).toBe(false);
+    expect(sugerenciaPendiente({ ...base, precioSugerido: null })).toBe(false);
+    expect(sugerenciaPendiente({ ...base, precioSugerido: 0 })).toBe(false);
   });
 });

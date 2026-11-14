@@ -1,17 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Camera, CheckCircle2, ClipboardCheck, Copy, Mail, Send, Trash2 } from 'lucide-react';
-import type { OrdenTrabajo } from '../types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Camera, CheckCircle2, ClipboardCheck, Copy, Mail, Printer, Send, Sparkles, Trash2 } from 'lucide-react';
+import type { Empresa, OrdenTrabajo } from '../types';
 import { supabase } from '../lib/supabase';
 import { getOrden } from '../lib/data/ordenes';
+import { listServicios, type Servicio } from '../lib/data/servicios';
+import { listPlantillas, type PlantillaResumen } from '../lib/data/plantillasInspeccion';
+import { tipoDispositivo } from '../lib/data/firmas';
+import InformeInspeccionImpreso from './InformeInspeccionImpreso';
 import {
-  anadirAprobadasAOrden, borrarFotoPunto, crearInspeccion, devolverAlMecanico, enviarInspeccion, getConservarFotos,
+  aplicarSugerencia, anadirAprobadasAOrden, borrarFotoPunto, crearInspeccion, devolverAlMecanico, enviarInspeccion, getConservarFotos,
   getInspeccionDeOrden, guardarNotaGeneral, guardarPunto, reabrirInspeccion, setConservarFotos, urlsFotos,
   type Inspeccion, type InspeccionPunto,
 } from '../lib/data/inspecciones';
 import { mensajeDeError } from '../lib/errores';
 import {
   agruparPorCategoria, ESTADOS_PUNTO, ETIQUETA_ESTADO, ETIQUETA_ESTADO_INSPECCION, necesitaDetalle, parsearPrecio,
-  puntosPendientesDeAnadir, resumenPuntos, totalPuntos, urgentesSinPrecio, type EstadoPunto,
+  puntosPendientesDeAnadir, resumenPuntos, sugerenciaPendiente, totalPuntos, urgentesSinPrecio, type EstadoPunto,
 } from '../utils/inspeccion';
 import { fmt2 } from '../utils/moneda';
 import { formatDate } from '../utils/dateFormat';
@@ -20,6 +24,10 @@ interface Props {
   ot: OrdenTrabajo;
   /** Meses que el taller conserva las fotos (Ajustes de empresa). */
   retencionMeses: number;
+  /** Para el informe imprimible: la empresa, el nombre del cliente y el vehículo. */
+  empresa: Pick<Empresa, 'nombre' | 'logoBase64' | 'ciudad' | 'correo' | 'telefono' | 'web'>;
+  clienteNombre: string;
+  vehiculoDescripcion: string;
   /** La orden tal como quedó en el servidor tras añadir reparaciones (cambian líneas y totales). */
   onCambioOrden: (ot: OrdenTrabajo) => void;
 }
@@ -36,8 +44,9 @@ const CHIP_INSPECCION: Record<Inspeccion['estado'], string> = {
 };
 
 /** Un punto con problema, para revisar: estado, nota, reparación, precio y fotos. */
-function PuntoRevision({ punto, urls, editable, onGuardar, onBorrarFoto }: {
-  punto: InspeccionPunto; urls: Record<string, string>; editable: boolean;
+function PuntoRevision({ punto, urls, editable, servicios, onGuardar, onBorrarFoto, onUsarSugerencia }: {
+  punto: InspeccionPunto; urls: Record<string, string>; editable: boolean; servicios: Servicio[];
+  onUsarSugerencia: () => Promise<void>;
   onGuardar: (cambios: Partial<Pick<InspeccionPunto, 'estado' | 'nota' | 'reparacion' | 'precio'>>) => Promise<void>;
   onBorrarFoto: (ruta: string) => Promise<void>;
 }) {
@@ -45,6 +54,26 @@ function PuntoRevision({ punto, urls, editable, onGuardar, onBorrarFoto }: {
   const [reparacion, setReparacion] = useState(punto.reparacion ?? '');
   const [precio, setPrecio] = useState(punto.precio != null ? String(punto.precio).replace('.', ',') : '');
   const [errorPrecio, setErrorPrecio] = useState(false);
+
+  // Si el servidor trae otro valor (se aplicó una sugerencia o un servicio, o lo cambió otra persona) se refleja,
+  // salvo que el campo tenga cambios sin guardar: lo que se está escribiendo no se pisa.
+  const textoPrecio = (v: number | null) => (v != null ? String(v).replace('.', ',') : '');
+  const servidor = useRef({ nota: punto.nota ?? '', reparacion: punto.reparacion ?? '', precio: textoPrecio(punto.precio) });
+  useEffect(() => {
+    const nuevo = punto.nota ?? '';
+    setNota((actual) => (actual === servidor.current.nota ? nuevo : actual));
+    servidor.current.nota = nuevo;
+  }, [punto.nota]);
+  useEffect(() => {
+    const nuevo = punto.reparacion ?? '';
+    setReparacion((actual) => (actual === servidor.current.reparacion ? nuevo : actual));
+    servidor.current.reparacion = nuevo;
+  }, [punto.reparacion]);
+  useEffect(() => {
+    const nuevo = textoPrecio(punto.precio);
+    setPrecio((actual) => (actual === servidor.current.precio ? nuevo : actual));
+    servidor.current.precio = nuevo;
+  }, [punto.precio]);
 
   const guardarTextos = () => {
     const n = nota.trim() || null; const r = reparacion.trim() || null;
@@ -99,6 +128,15 @@ function PuntoRevision({ punto, urls, editable, onGuardar, onBorrarFoto }: {
         </div>
       )}
 
+      {editable && sugerenciaPendiente(punto) && (
+        <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-xs" data-testid="sugerencia">
+          <span className="text-blue-800 min-w-0">
+            <Sparkles size={11} className="inline -mt-0.5 mr-1" />Sugerido: <span className="font-semibold">{punto.servicioNombre}</span> · {fmt2(punto.precioSugerido ?? 0)} €
+          </span>
+          <button type="button" onClick={() => void onUsarSugerencia()} className="shrink-0 px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold cursor-pointer">Usar</button>
+        </div>
+      )}
+
       {editable ? (
         <>
           <textarea value={nota} onChange={(e) => setNota(e.target.value)} onBlur={guardarTextos} rows={2} maxLength={500}
@@ -107,6 +145,13 @@ function PuntoRevision({ punto, urls, editable, onGuardar, onBorrarFoto }: {
           <input value={reparacion} onChange={(e) => setReparacion(e.target.value)} onBlur={guardarTextos} maxLength={300}
             aria-label={`Reparación propuesta de ${punto.nombre}`} placeholder="Reparación propuesta"
             className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          {servicios.some((x) => x.activo) && (
+            <select value="" aria-label={`Poner un servicio en ${punto.nombre}`} className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              onChange={(e) => { const sv = servicios.find((x) => x.id === e.target.value); if (!sv) return; setReparacion(sv.reparacion); setPrecio(String(sv.precio).replace('.', ',')); void onGuardar({ reparacion: sv.reparacion, precio: sv.precio }); }}>
+              <option value="">Poner un servicio del catálogo…</option>
+              {servicios.filter((x) => x.activo).map((x) => <option key={x.id} value={x.id}>{x.nombre} · {fmt2(x.precio)} €</option>)}
+            </select>
+          )}
           <div className="flex items-center gap-2">
             <label className="text-xs font-semibold text-slate-600" htmlFor={`precio-${punto.id}`}>Precio (sin IVA)</label>
             <input id={`precio-${punto.id}`} value={precio} onChange={(e) => { setPrecio(e.target.value); setErrorPrecio(false); }} onBlur={guardarPrecio}
@@ -127,7 +172,7 @@ function PuntoRevision({ punto, urls, editable, onGuardar, onBorrarFoto }: {
   );
 }
 
-export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: Props) {
+export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNombre, vehiculoDescripcion, onCambioOrden }: Props) {
   const [insp, setInsp] = useState<Inspeccion | null | undefined>(undefined);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [conservar, setConservar] = useState(false);
@@ -136,6 +181,10 @@ export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: P
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
   const [notaGeneral, setNotaGeneral] = useState('');
+  const [plantillas, setPlantillas] = useState<PlantillaResumen[]>([]);
+  const [plantillaElegida, setPlantillaElegida] = useState('');
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [imprimiendo, setImprimiendo] = useState(false);
 
   const cerrada = ot.estado === 'cancelado';
 
@@ -148,6 +197,12 @@ export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: P
     const c = await getConservarFotos(ot.id).catch(() => null);
     if (c) { setConservar(c.conservar); setFotosBorradas(c.borradasEn); }
   }, [ot.id]);
+
+  // Plantillas (para elegir al iniciar) y servicios (para sugerir precio) del taller.
+  useEffect(() => {
+    listPlantillas().then((l) => { setPlantillas(l); setPlantillaElegida(l.find((p) => p.esDefecto)?.id ?? l[0]?.id ?? ''); }).catch(() => setPlantillas([]));
+    listServicios().then(setServicios).catch(() => setServicios([]));
+  }, []);
 
   useEffect(() => {
     setInsp(undefined); setError(''); setAviso('');
@@ -197,8 +252,14 @@ export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: P
         <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><ClipboardCheck size={11} /> Inspección digital</p>
         <p className="text-xs text-slate-500">Lista de comprobaciones con semáforo y fotos. El mecánico la rellena desde su móvil y tú la revisas, pones precio y se la envías al cliente.</p>
         {error && <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-3 py-2 rounded-xl">{error}</div>}
+        {plantillas.length > 1 && (
+          <select value={plantillaElegida} onChange={(e) => setPlantillaElegida(e.target.value)} aria-label="Plantilla de inspección"
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            {plantillas.map((p) => <option key={p.id} value={p.id}>{p.nombre}{p.esDefecto ? ' (por defecto)' : ''}</option>)}
+          </select>
+        )}
         <button type="button" disabled={ocupado} data-testid="iniciar-inspeccion"
-          onClick={() => void ejecutar(async () => { setInsp(await crearInspeccion(ot.id)); }, 'No se pudo iniciar la inspección.', false)}
+          onClick={() => void ejecutar(async () => { setInsp(await crearInspeccion(ot.id, plantillas.length > 1 ? plantillaElegida || undefined : undefined)); }, 'No se pudo iniciar la inspección.', false)}
           className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-60 cursor-pointer">
           {ocupado ? 'Abriendo…' : 'Iniciar inspección'}
         </button>
@@ -241,6 +302,7 @@ export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: P
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${CHIP_INSPECCION[insp.estado]}`}>{ETIQUETA_ESTADO_INSPECCION[insp.estado]}</span>
       </div>
 
+      {insp.plantillaNombre && <p className="text-[11px] text-slate-400 -mt-1">Plantilla: {insp.plantillaNombre}</p>}
       <div className="flex gap-1.5 flex-wrap text-[11px] font-semibold">
         <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">{r.urgente} urgente{r.urgente === 1 ? '' : 's'}</span>
         <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{r.atencion} en atención</span>
@@ -259,7 +321,8 @@ export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: P
       {conProblema.length > 0 && (
         <div className="space-y-2">
           {agruparPorCategoria(conProblema).map((g) => g.puntos.map((p) => (
-            <PuntoRevision key={p.id} punto={p} urls={urls} editable={revisable}
+            <PuntoRevision key={p.id} punto={p} urls={urls} editable={revisable} servicios={servicios}
+              onUsarSugerencia={() => ejecutar(() => aplicarSugerencia(p), 'No se pudo aplicar la sugerencia.').then(() => undefined)}
               onGuardar={(c) => ejecutar(() => guardarPunto(p.id, c), 'No se pudo guardar el cambio.').then(() => undefined)}
               onBorrarFoto={(ruta) => ejecutar(() => borrarFotoPunto(p, ruta), 'No se pudo quitar la foto.').then(() => undefined)} />
           )))}
@@ -272,6 +335,14 @@ export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: P
         <textarea value={notaGeneral} onChange={(e) => setNotaGeneral(e.target.value)} rows={2} maxLength={500} aria-label="Nota general de la inspección"
           onBlur={() => { const n = notaGeneral.trim() || null; if (n !== insp.notaGeneral) void ejecutar(() => guardarNotaGeneral(insp.id, n), 'No se pudo guardar la nota.'); }}
           placeholder="Nota general para el cliente (opcional)" className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      )}
+
+      {revisable && conProblema.some(sugerenciaPendiente) && (
+        <button type="button" disabled={ocupado} data-testid="usar-sugerencias"
+          onClick={() => void ejecutar(async () => { for (const p of conProblema.filter(sugerenciaPendiente)) await aplicarSugerencia(p); }, 'No se pudieron aplicar las sugerencias.')}
+          className="px-3 py-2 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 disabled:opacity-60 cursor-pointer flex items-center gap-1.5">
+          <Sparkles size={12} /> Usar todas las sugerencias ({conProblema.filter(sugerenciaPendiente).length})
+        </button>
       )}
 
       {aprobables.length > 0 && <p className="text-xs text-slate-600">Reparaciones propuestas: <span className="font-bold text-slate-800">{fmt2(totalPuntos(aprobables))} € + IVA</span> ({aprobables.length})</p>}
@@ -322,6 +393,12 @@ export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: P
       {insp.estado === 'respondida' && (
         <div className="space-y-2">
           <p className="text-xs text-slate-500">El cliente respondió el {formatDate((insp.respondidaEn ?? '').slice(0, 10))}.</p>
+          {insp.aceptacion ? (
+            <div className="text-[11px] text-slate-500 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 space-y-0.5" data-testid="aceptacion-inspeccion">
+              <p><span className="font-semibold text-slate-700">Aceptado por {insp.aceptacion.nombre}</span> · {fmt2(insp.aceptacion.total)} € + IVA · {tipoDispositivo(insp.aceptacion.dispositivo)}{insp.aceptacion.ip ? ` · IP ${insp.aceptacion.ip}` : ''}</p>
+              <p className="text-slate-400">{insp.aceptacion.texto}</p>
+            </div>
+          ) : <p className="text-[11px] text-slate-400">El cliente rechazó todas las reparaciones propuestas.</p>}
           {puedeAnadir && (
             <button type="button" disabled={ocupado} data-testid="anadir-aprobadas"
               onClick={() => void ejecutar(async () => {
@@ -336,6 +413,14 @@ export default function InspeccionOrden({ ot, retencionMeses, onCambioOrden }: P
           {!puedeAnadir && pendientesAnadir.length > 0 && <p className="text-xs text-amber-700">Hay reparaciones aprobadas sin añadir, pero la orden ya no está en el taller.</p>}
         </div>
       )}
+
+      {insp.estado !== 'borrador' && (
+        <button type="button" onClick={() => setImprimiendo(true)} data-testid="imprimir-informe"
+          className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5">
+          <Printer size={13} /> Ver / imprimir informe
+        </button>
+      )}
+      {imprimiendo && <InformeInspeccionImpreso insp={insp} ot={ot} empresa={empresa} clienteNombre={clienteNombre} vehiculoDescripcion={vehiculoDescripcion} km={insp.km} urls={urls} onCerrar={() => setImprimiendo(false)} />}
 
       {bloqueConservar && <div className="border-t border-slate-100 pt-3">{bloqueConservar}</div>}
     </div>

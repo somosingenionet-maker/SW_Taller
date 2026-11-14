@@ -23,7 +23,7 @@ export interface Ayudas {
 
 interface PuntoRow {
   id: string; inspeccion_id: string; empresa_id: string; categoria: string; nombre: string; posicion: number;
-  estado: string | null; nota: string | null; fotos: string[]; reparacion: string | null;
+  estado: string | null; nota: string | null; fotos: string[]; reparacion: string | null; reparacion_sugerida: string | null;
 }
 interface InspeccionRow { id: string; empresa_id: string; orden_id: string; estado: string; nota_general: string | null }
 
@@ -82,7 +82,7 @@ async function inspeccionEditable(admin: SupabaseClient, a: Ayudas, inspeccionId
 async function puntoDe(admin: SupabaseClient, inspeccionId: string, puntoId: unknown): Promise<PuntoRow | null> {
   if (typeof puntoId !== 'string' || !puntoId) return null;
   const { data } = await admin.from('inspeccion_puntos')
-    .select('id, inspeccion_id, empresa_id, categoria, nombre, posicion, estado, nota, fotos, reparacion')
+    .select('id, inspeccion_id, empresa_id, categoria, nombre, posicion, estado, nota, fotos, reparacion, reparacion_sugerida')
     .eq('id', puntoId).eq('inspeccion_id', inspeccionId).maybeSingle();
   return (data as PuntoRow | null) ?? null;
 }
@@ -114,7 +114,10 @@ export async function manejarPunto(
   const cambios: Record<string, unknown> = { estado: e };
   if (necesitaDetalle(e)) {
     const n = limpiarTexto(nota, NOTA_PUNTO_MAX);
-    const r = limpiarTexto(reparacion, REPARACION_MAX);
+    let r = limpiarTexto(reparacion, REPARACION_MAX);
+    // Al marcar un punto con problema por primera vez, el texto de la reparación sale ya escrito si la
+    // plantilla del taller le asocia un servicio (el mecánico puede cambiarlo o dejarlo).
+    if (r === null && !necesitaDetalle(p.estado as never) && p.reparacion_sugerida) r = p.reparacion_sugerida;
     if (n === undefined) return a.json({ error: `La nota admite hasta ${NOTA_PUNTO_MAX} caracteres.` }, 400);
     if (r === undefined) return a.json({ error: `La reparación admite hasta ${REPARACION_MAX} caracteres.` }, 400);
     cambios.nota = n; cambios.reparacion = r;

@@ -155,3 +155,21 @@ daños) es una pregunta para el abogado; el plazo por defecto es configurable pr
   «conservar», orden reciente, huérfanos, aviso por correo y registro en el historial).
 - PENDIENTE: activar el cron diario del borrado (`20261114130000`), que hasta el 14-12-2026 solo avisa (margen de 30 días).
 - Fase B: aprobación punto por punto, plantillas editables, servicios predefinidos para poner precio, PDF imprimible.
+
+## 12. Estado de la fase B (15-11-2026)
+- HECHO y desplegado (migración `20261115100000`, funciones `portal-cliente` y `portal-mecanico`):
+  - **Servicios predefinidos** (nombre, texto de la reparación, precio sin IVA) en Ajustes → Inspección. Solo los usa la
+    inspección por ahora (decisión de Daniel); el catálogo queda listo para las órdenes.
+  - **Plantillas editables y varias** por taller (una por defecto; se crean desde la estándar o duplicando otra),
+    con categorías y puntos reordenables y un servicio opcional por punto. Cada inspección copia la plantilla y la
+    sugerencia como FOTO FIJA. Si el taller no tiene plantillas propias se sigue usando la estándar de 28 puntos.
+  - **Sugerencias en la revisión:** «Usar» en cada punto, «Usar todas las sugerencias» y un selector del catálogo; el
+    precio nunca se pone solo (lo decide recepción). Al marcar un punto con problema por primera vez, el texto de la
+    reparación del servicio asociado sale ya escrito para el mecánico.
+  - **Aprobación punto por punto con prueba:** el cliente marca las reparaciones que aprueba (urgentes con precio vienen
+    marcadas; las de atención las elige), con nombre y casilla; se guarda texto, importe, hora, IP y dispositivo,
+    inmutable. Lo no marcado queda rechazado y la respuesta es definitiva (decisión de Daniel). Aprobar ninguna no pide datos.
+  - **Informe imprimible / PDF** desde la ficha, con fotos, decisiones y la aceptación.
+- Probado contra Supabase real con datos de prueba (borrados): 48 comprobaciones del servidor, pantalla del taller
+  (sugerencias, aceptación parcial, añadir solo lo aprobado, informe, ajustes) y 32 de la migración en transacción revertida.
+- Fase C (según uso): vídeo, métricas, avisos automáticos desde puntos en «atención», WhatsApp.

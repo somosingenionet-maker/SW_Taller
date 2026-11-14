@@ -19,6 +19,9 @@ import {
   validarAceptacion,
   dispositivoDe,
   ipDeCabecera,
+  puntosElegibles,
+  validarAceptacionInspeccion,
+  textoAceptacionInspeccion,
 } from './logic.ts';
 import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
 import { initSentry, conSentry } from '../_shared/sentry.ts';
@@ -79,33 +82,57 @@ async function cargarInformes(admin: SupabaseClient, cliente: Cliente) {
   });
 }
 
-async function manejarResponderInspeccion(admin: SupabaseClient, cliente: Cliente, inspeccionId: string, aprobado: boolean) {
+async function manejarResponderInspeccion(
+  admin: SupabaseClient, cliente: Cliente, inspeccionId: string,
+  entrada: { aprobados: unknown; nombre: unknown; acepta: unknown; totalVisto: unknown }, req: Request,
+) {
   const { data: insp } = await admin.from('inspecciones')
-    .select('id, orden_id, cliente_id, estado').eq('id', inspeccionId).maybeSingle();
+    .select('id, orden_id, vehiculo_id, cliente_id, estado, enviada_en').eq('id', inspeccionId).maybeSingle();
   if (!insp) return json({ error: 'Informe no encontrado.' }, 404);
   if (insp.cliente_id !== cliente.id) return json({ error: 'No autorizado.' }, 403);
   if (!puedeResponderInspeccion(cliente, insp)) return json({ error: 'Este informe ya no está pendiente de respuesta.' }, 400);
 
-  const { data: puntos } = await admin.from('inspeccion_puntos').select('id, estado, precio').eq('inspeccion_id', inspeccionId);
-  const aprobables = (puntos ?? []).filter((p) => (p.estado === 'urgente' || p.estado === 'atencion') && p.precio !== null && Number(p.precio) > 0);
-  if (aprobables.length === 0) return json({ error: 'Este informe no tiene reparaciones con precio que responder.' }, 400);
+  const { data: puntos } = await admin.from('inspeccion_puntos').select('id, nombre, estado, precio').eq('inspeccion_id', inspeccionId);
+  const elegibles = puntosElegibles(puntos ?? []);
+  if (elegibles.length === 0) return json({ error: 'Este informe no tiene reparaciones con precio que responder.' }, 400);
 
-  const decision = aprobado ? 'aprobado' : 'rechazado';
-  const { error: pErr } = await admin.from('inspeccion_puntos').update({ decision }).in('id', aprobables.map((p) => p.id));
-  if (pErr) return json({ error: 'No se pudo guardar la respuesta.' }, 500);
-  const { error: iErr } = await admin.from('inspecciones')
-    .update({ estado: 'respondida', respondida_en: new Date().toISOString() }).eq('id', inspeccionId).eq('estado', 'enviada');
+  const v = validarAceptacionInspeccion(entrada, elegibles);
+  if (!v.ok) return json({ error: v.error }, v.status);
+
+  // Primero se cierra el informe (solo si seguía «enviada»): dos pulsaciones seguidas no registran dos respuestas.
+  const ahora = new Date().toISOString();
+  const cambios: Record<string, unknown> = { estado: 'respondida', respondida_en: ahora };
+  if (v.aprobados.length > 0) {
+    const { data: veh } = await admin.from('vehiculos').select('marca, modelo, matricula').eq('id', insp.vehiculo_id).maybeSingle();
+    const descripcionVehiculo = veh ? `${veh.marca} ${veh.modelo} (${veh.matricula})` : 'el vehículo';
+    cambios.aceptacion_nombre = v.nombre;
+    cambios.aceptacion_en = ahora;
+    cambios.aceptacion_total = v.total;
+    cambios.aceptacion_texto = textoAceptacionInspeccion(descripcionVehiculo, insp.enviada_en, elegibles.filter((e) => v.aprobados.includes(e.id)), v.total);
+    cambios.aceptacion_ip = ipDeCabecera(req.headers.get('x-forwarded-for'));
+    cambios.aceptacion_dispositivo = dispositivoDe(req.headers.get('user-agent'));
+  }
+  const { data: cerrada, error: iErr } = await admin.from('inspecciones').update(cambios).eq('id', inspeccionId).eq('estado', 'enviada').select('id');
   if (iErr) return json({ error: 'No se pudo guardar la respuesta.' }, 500);
+  if (!cerrada?.length) return json({ error: 'Este informe ya no está pendiente de respuesta.' }, 400);
 
-  const total = Math.round(aprobables.reduce((s, p) => s + Number(p.precio), 0) * 100) / 100;
-  const eur = total.toFixed(2).replace('.', ',');
+  if (v.aprobados.length) {
+    const { error } = await admin.from('inspeccion_puntos').update({ decision: 'aprobado' }).in('id', v.aprobados);
+    if (error) return json({ error: 'No se pudo guardar la respuesta.' }, 500);
+  }
+  if (v.rechazados.length) {
+    const { error } = await admin.from('inspeccion_puntos').update({ decision: 'rechazado' }).in('id', v.rechazados);
+    if (error) return json({ error: 'No se pudo guardar la respuesta.' }, 500);
+  }
+
+  const eur = (n: number) => n.toFixed(2).replace('.', ',');
   await admin.from('eventos_ot').insert({
     ot_id: insp.orden_id,
-    descripcion: aprobado
-      ? `El cliente aprobó desde el portal ${aprobables.length} reparación(es) de la inspección (${eur} € + IVA). Pendiente de añadirlas a la orden.`
-      : `El cliente rechazó desde el portal las ${aprobables.length} reparación(es) propuestas en la inspección.`,
+    descripcion: v.aprobados.length
+      ? `${v.nombre} aprobó desde el portal ${v.aprobados.length} de ${elegibles.length} reparación(es) de la inspección (${eur(v.total)} € + IVA)${v.rechazados.length ? `; rechazó ${v.rechazados.length}` : ''}. Pendiente de añadirlas a la orden.`
+      : `El cliente rechazó desde el portal ${elegibles.length === 1 ? 'la reparación propuesta' : `las ${elegibles.length} reparaciones propuestas`} en la inspección.`,
   });
-  await admin.from('ordenes_trabajo').update({ mecanico_actualizado_en: new Date().toISOString() }).eq('id', insp.orden_id);
+  await admin.from('ordenes_trabajo').update({ mecanico_actualizado_en: ahora }).eq('id', insp.orden_id);
   return json({ ok: true });
 }
 
@@ -290,7 +317,8 @@ Deno.serve(conSentry(async (req) => {
   }
 
   if (body.action === 'responder_inspeccion') {
-    return manejarResponderInspeccion(admin, cliente, String(body.inspeccionId ?? ''), body.aprobado === true);
+    return manejarResponderInspeccion(admin, cliente, String(body.inspeccionId ?? ''),
+      { aprobados: body.aprobados, nombre: body.nombre, acepta: body.acepta, totalVisto: body.totalVisto }, req);
   }
 
   return manejarGet(admin, cliente);

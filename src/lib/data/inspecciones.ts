@@ -17,6 +17,15 @@ export interface InspeccionPunto {
   reparacion: string | null;
   precio: number | null;
   decision: 'aprobado' | 'rechazado' | null;
+  /** Servicio que la plantilla asociaba a este punto al crear la inspección (foto fija). */
+  servicioNombre: string | null;
+  reparacionSugerida: string | null;
+  precioSugerido: number | null;
+}
+
+/** Prueba de que el cliente aceptó desde su portal (la IP y el dispositivo solo se leen aquí, en el taller). */
+export interface AceptacionInspeccion {
+  nombre: string; en: string; total: number; texto: string; ip: string | null; dispositivo: string | null;
 }
 
 export interface Inspeccion {
@@ -32,23 +41,30 @@ export interface Inspeccion {
   enviadaEn: string | null;
   respondidaEn: string | null;
   fotosBorradasEn: string | null;
+  plantillaNombre: string | null;
+  aceptacion: AceptacionInspeccion | null;
   puntos: InspeccionPunto[];
 }
 
 const BUCKET = 'inspecciones';
-const SELECT_PUNTOS = 'id, categoria, nombre, posicion, estado, nota, fotos, reparacion, precio, decision';
+const SELECT_PUNTOS = 'id, categoria, nombre, posicion, estado, nota, fotos, reparacion, precio, decision, servicio_nombre, reparacion_sugerida, precio_sugerido';
 const SELECT =
-  'id, orden_id, vehiculo_id, cliente_id, estado, km, realizada_por, nota_general, terminada_en, enviada_en, respondida_en, fotos_borradas_en, ' +
+  'id, orden_id, vehiculo_id, cliente_id, estado, km, realizada_por, nota_general, terminada_en, enviada_en, respondida_en, fotos_borradas_en, plantilla_nombre, ' +
+  'aceptacion_nombre, aceptacion_en, aceptacion_total, aceptacion_texto, aceptacion_ip, aceptacion_dispositivo, ' +
   `inspeccion_puntos ( ${SELECT_PUNTOS} )`;
 
 type PuntoRow = {
   id: string; categoria: string; nombre: string; posicion: number; estado: string | null; nota: string | null;
   fotos: string[]; reparacion: string | null; precio: number | string | null; decision: string | null;
+  servicio_nombre: string | null; reparacion_sugerida: string | null; precio_sugerido: number | string | null;
 };
 type InspeccionRow = {
   id: string; orden_id: string; vehiculo_id: string; cliente_id: string; estado: string; km: number | null;
   realizada_por: string | null; nota_general: string | null; terminada_en: string | null; enviada_en: string | null;
-  respondida_en: string | null; fotos_borradas_en: string | null; inspeccion_puntos: PuntoRow[] | null;
+  respondida_en: string | null; fotos_borradas_en: string | null; plantilla_nombre: string | null;
+  aceptacion_nombre: string | null; aceptacion_en: string | null; aceptacion_total: number | string | null; aceptacion_texto: string | null;
+  aceptacion_ip: string | null; aceptacion_dispositivo: string | null;
+  inspeccion_puntos: PuntoRow[] | null;
 };
 
 function mapPunto(p: PuntoRow): InspeccionPunto {
@@ -56,6 +72,8 @@ function mapPunto(p: PuntoRow): InspeccionPunto {
     id: p.id, categoria: p.categoria, nombre: p.nombre, posicion: p.posicion, estado: p.estado as EstadoPunto | null,
     nota: p.nota, fotos: p.fotos ?? [], reparacion: p.reparacion,
     precio: p.precio === null ? null : Number(p.precio), decision: p.decision as InspeccionPunto['decision'],
+    servicioNombre: p.servicio_nombre, reparacionSugerida: p.reparacion_sugerida,
+    precioSugerido: p.precio_sugerido === null ? null : Number(p.precio_sugerido),
   };
 }
 
@@ -63,7 +81,11 @@ function mapInspeccion(r: InspeccionRow): Inspeccion {
   return {
     id: r.id, ordenId: r.orden_id, vehiculoId: r.vehiculo_id, clienteId: r.cliente_id, estado: r.estado as EstadoInspeccion,
     km: r.km, realizadaPor: r.realizada_por, notaGeneral: r.nota_general, terminadaEn: r.terminada_en, enviadaEn: r.enviada_en,
-    respondidaEn: r.respondida_en, fotosBorradasEn: r.fotos_borradas_en,
+    respondidaEn: r.respondida_en, fotosBorradasEn: r.fotos_borradas_en, plantillaNombre: r.plantilla_nombre,
+    aceptacion: r.aceptacion_en ? {
+      nombre: r.aceptacion_nombre ?? '', en: r.aceptacion_en, total: Number(r.aceptacion_total ?? 0), texto: r.aceptacion_texto ?? '',
+      ip: r.aceptacion_ip, dispositivo: r.aceptacion_dispositivo,
+    } : null,
     puntos: (r.inspeccion_puntos ?? []).map(mapPunto).sort((a, b) => a.posicion - b.posicion),
   };
 }
@@ -74,9 +96,9 @@ export async function getInspeccionDeOrden(otId: string): Promise<Inspeccion | n
   return data ? mapInspeccion(data as unknown as InspeccionRow) : null;
 }
 
-/** Abre la inspección de la orden con la plantilla estándar (o devuelve la que ya tiene). */
-export async function crearInspeccion(otId: string): Promise<Inspeccion> {
-  const { error } = await supabase.rpc('crear_inspeccion', { p_orden_id: otId });
+/** Abre la inspección de la orden con la plantilla elegida, la de por defecto o la estándar (o devuelve la que ya tiene). */
+export async function crearInspeccion(otId: string, plantillaId?: string): Promise<Inspeccion> {
+  const { error } = await supabase.rpc('crear_inspeccion', { p_orden_id: otId, p_plantilla_id: plantillaId });
   if (error) throw new Error(error.message);
   const insp = await getInspeccionDeOrden(otId);
   if (!insp) throw new Error('No se pudo abrir la inspección.');
@@ -109,6 +131,15 @@ export async function guardarPunto(
 ): Promise<void> {
   const { error } = await supabase.from('inspeccion_puntos').update(cambios).eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+/** Pone en un punto la reparación y el precio del servicio que sugería la plantilla. */
+export async function aplicarSugerencia(punto: Pick<InspeccionPunto, 'id' | 'reparacion' | 'reparacionSugerida' | 'precioSugerido'>): Promise<void> {
+  await guardarPunto(punto.id, {
+    precio: punto.precioSugerido,
+    // Si el mecánico ya escribió su propio texto, se respeta; solo se completa si estaba vacío.
+    reparacion: punto.reparacion?.trim() ? punto.reparacion : punto.reparacionSugerida,
+  });
 }
 
 export async function guardarNotaGeneral(inspeccionId: string, nota: string | null): Promise<void> {

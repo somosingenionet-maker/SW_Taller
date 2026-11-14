@@ -51,6 +51,11 @@ presupuesto en un taller (normativa de reparación de vehículos: presupuesto pr
 ¿Es proporcionado guardar la IP y el dispositivo, y hasta cuándo? Texto en `supabase/functions/portal-cliente/logic.ts`
 (`textoAceptacion`).
 
+**Aceptación de las reparaciones de una inspección, punto por punto:** igual que la del presupuesto (nombre, casilla,
+texto con la lista de reparaciones aceptadas y su importe sin IVA, hora, IP y dispositivo, inmutable). Lo que el cliente
+no marca queda como rechazado y la respuesta es definitiva. Mismas preguntas que para el presupuesto. Texto en
+`supabase/functions/portal-cliente/logic.ts` (`textoAceptacionInspeccion`).
+
 **Avisos de borrado de cuenta** (correo a los administradores del taller, desde `send@doonty.com`): primer
 aviso y «último aviso», con la fecha exacta de eliminación, qué se pierde («esto no se puede deshacer»),
 cómo conservarla (suscribirse) y cómo llevarse los datos (exportar a CSV). Texto en

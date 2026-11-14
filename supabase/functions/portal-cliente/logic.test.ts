@@ -11,6 +11,9 @@ import {
   validarAceptacion,
   dispositivoDe,
   ipDeCabecera,
+  puntosElegibles,
+  validarAceptacionInspeccion,
+  textoAceptacionInspeccion,
   type Cliente,
   type OtCliente,
 } from './logic.ts';
@@ -155,4 +158,49 @@ Deno.test('dispositivoDe e ipDeCabecera: recortan y devuelven null si no hay dat
   assertEquals(ipDeCabecera('83.45.1.2, 10.0.0.1'), '83.45.1.2');
   assertEquals(ipDeCabecera(null), null);
   assertEquals(ipDeCabecera('  '), null);
+});
+
+const EL = [{ id: 'a', nombre: 'Pastillas', precio: 64 }, { id: 'b', nombre: 'Discos', precio: 120 }, { id: 'c', nombre: 'Neumático', precio: 85.5 }];
+
+Deno.test('puntosElegibles: solo problemas con precio', () => {
+  const r = puntosElegibles([
+    { id: '1', nombre: 'A', estado: 'urgente', precio: '64.00' }, { id: '2', nombre: 'B', estado: 'atencion', precio: null },
+    { id: '3', nombre: 'C', estado: 'bien', precio: 50 }, { id: '4', nombre: 'D', estado: 'atencion', precio: 0 }, { id: '5', nombre: 'E', estado: 'atencion', precio: 10 },
+  ]);
+  assertEquals(r, [{ id: '1', nombre: 'A', precio: 64 }, { id: '5', nombre: 'E', precio: 10 }]);
+});
+
+Deno.test('inspección punto por punto: aprobar un subconjunto exige nombre, casilla e importe de lo marcado', () => {
+  const ok = validarAceptacionInspeccion({ aprobados: ['a', 'c'], nombre: ' Ana  García ', acepta: true, totalVisto: 149.5 }, EL);
+  assertEquals(ok, { ok: true, aprobados: ['a', 'c'], rechazados: ['b'], total: 149.5, nombre: 'Ana García' });
+  const sinCasilla = validarAceptacionInspeccion({ aprobados: ['a'], nombre: 'Ana', acepta: false, totalVisto: 64 }, EL);
+  assertEquals(sinCasilla.ok === false && sinCasilla.status, 400);
+  assertEquals(validarAceptacionInspeccion({ aprobados: ['a'], nombre: 'A', acepta: true, totalVisto: 64 }, EL).ok, false);
+  assertEquals(validarAceptacionInspeccion({ aprobados: ['a'], nombre: 'Ana', acepta: 'true', totalVisto: 64 }, EL).ok, false);
+});
+
+Deno.test('inspección punto por punto: el importe visto debe ser la suma de lo marcado (409 si no)', () => {
+  const mal = validarAceptacionInspeccion({ aprobados: ['a', 'b'], nombre: 'Ana', acepta: true, totalVisto: 64 }, EL);
+  assertEquals(mal.ok === false && mal.status, 409);
+  assertEquals(validarAceptacionInspeccion({ aprobados: ['a'], nombre: 'Ana', acepta: true, totalVisto: '64' }, EL).ok, false);
+  assertEquals(validarAceptacionInspeccion({ aprobados: ['a', 'b', 'c'], nombre: 'Ana', acepta: true, totalVisto: 269.5 }, EL).ok, true);
+});
+
+Deno.test('inspección punto por punto: no aprobar ninguna es rechazarlo todo y no pide datos', () => {
+  assertEquals(validarAceptacionInspeccion({ aprobados: [], nombre: undefined, acepta: undefined, totalVisto: undefined }, EL),
+    { ok: true, aprobados: [], rechazados: ['a', 'b', 'c'], total: 0, nombre: null });
+});
+
+Deno.test('inspección punto por punto: ids inventados, repetidos o mal formados', () => {
+  assertEquals(validarAceptacionInspeccion({ aprobados: ['zzz'], nombre: 'Ana', acepta: true, totalVisto: 1 }, EL).ok, false);
+  assertEquals(validarAceptacionInspeccion({ aprobados: 'a', nombre: 'Ana', acepta: true, totalVisto: 64 }, EL).ok, false);
+  assertEquals(validarAceptacionInspeccion({ aprobados: [1], nombre: 'Ana', acepta: true, totalVisto: 64 }, EL).ok, false);
+  assertEquals(validarAceptacionInspeccion({ aprobados: undefined, nombre: 'Ana', acepta: true, totalVisto: 64 }, EL).ok, false);   // cliente antiguo
+  const rep = validarAceptacionInspeccion({ aprobados: ['a', 'a'], nombre: 'Ana', acepta: true, totalVisto: 64 }, EL);
+  assertEquals(rep.ok && rep.total, 64);   // un id repetido no suma dos veces
+});
+
+Deno.test('textoAceptacionInspeccion lista lo aceptado con importes y total', () => {
+  const t = textoAceptacionInspeccion('Seat León (1234ABC)', '2026-11-14T10:00:00Z', [{ nombre: 'Pastillas', precio: 64 }, { nombre: 'Neumático', precio: 85.5 }], 149.5);
+  assertEquals(t, 'Acepto las siguientes reparaciones del informe de inspección del 14 de noviembre de 2026 de Seat León (1234ABC): Pastillas (64,00 €); Neumático (85,50 €). Importe total: 149,50 € (IVA no incluido), y autorizo su realización.');
 });

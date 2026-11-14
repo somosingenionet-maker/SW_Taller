@@ -1285,6 +1285,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 <InspeccionOrden
                   ot={selected}
                   retencionMeses={empresa.fotosRetencionMeses}
+                  empresa={empresa}
+                  clienteNombre={(() => { const c = clientes.find(x => x.id === selected.clienteId); return c ? `${c.nombre} ${c.apellidos}`.trim() : ''; })()}
+                  vehiculoDescripcion={(() => { const v = vehiculos.find(x => x.id === selected.vehiculoId); return v ? `${v.marca} ${v.modelo}${v.matricula ? ` (${v.matricula})` : ''}` : ''; })()}
                   onCambioOrden={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
                 />
 

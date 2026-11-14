@@ -95,6 +95,15 @@ export async function responderPresupuesto(
   });
 }
 
-export async function responderInspeccion(token: string, inspeccionId: string, aprobado: boolean): Promise<void> {
-  await invokePortal<{ ok: true }>({ token, action: 'responder_inspeccion', inspeccionId, aprobado });
+/**
+ * Responde al informe de inspección: `aprobados` son las reparaciones que el cliente marca (las demás con precio
+ * quedan rechazadas). Aprobar alguna exige nombre y el importe que tenía delante; no aprobar ninguna no pide nada.
+ */
+export async function responderInspeccion(
+  token: string, inspeccionId: string, aprobados: string[], aceptacion?: { nombre: string; totalVisto: number },
+): Promise<void> {
+  await invokePortal<{ ok: true }>({
+    token, action: 'responder_inspeccion', inspeccionId, aprobados,
+    ...(aprobados.length && aceptacion ? { nombre: aceptacion.nombre, acepta: true, totalVisto: aceptacion.totalVisto } : {}),
+  });
 }

@@ -177,54 +177,77 @@ function PresupuestoCard({ p, color, token, nombreCliente, onRespondido }: {
   );
 }
 
-function PuntoInforme({ p, tono }: { p: PortalInformePunto; tono: 'urgente' | 'atencion' }) {
+function PuntoInforme({ p, tono, elegible, marcado, onMarcar }: {
+  p: PortalInformePunto; tono: 'urgente' | 'atencion'; elegible: boolean; marcado: boolean; onMarcar: (marcar: boolean) => void;
+}) {
   const colores = tono === 'urgente' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50';
   const texto = tono === 'urgente' ? 'text-rose-800' : 'text-amber-800';
   return (
     <div className={`rounded-2xl border p-3 ${colores}`} data-testid="informe-punto">
-      <div className="flex items-start justify-between gap-2">
-        <p className={`text-sm font-bold ${texto}`}>{p.nombre} <span className="font-normal opacity-70">· {p.categoria}</span></p>
-        {p.precio != null && p.precio > 0 && <span className={`text-sm font-black whitespace-nowrap ${texto}`}>{fmt(p.precio)} €</span>}
-      </div>
-      {p.nota && <p className={`text-xs mt-1 ${texto}`}>{p.nota}</p>}
-      {p.reparacion && <p className="text-xs mt-1 text-slate-600">Propuesta: {p.reparacion}</p>}
-      {p.fotos.length > 0 && (
-        <div className="flex gap-2 mt-2 flex-wrap">
-          {p.fotos.map((u, i) => (
-            <a key={u} href={u} target="_blank" rel="noopener noreferrer" aria-label={`Ver foto ${i + 1} de ${p.nombre}`}>
-              <img src={u} alt={`Foto ${i + 1} de ${p.nombre}`} className="w-20 h-20 rounded-xl object-cover border border-white" />
-            </a>
-          ))}
+      <div className="flex items-start gap-2.5">
+        {elegible && (
+          <input type="checkbox" checked={marcado} onChange={(e) => onMarcar(e.target.checked)} aria-label={`Aprobar: ${p.nombre}`}
+            className="mt-0.5 w-4 h-4 shrink-0 cursor-pointer" data-testid="marcar-punto" />
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <p className={`text-sm font-bold ${texto}`}>{p.nombre} <span className="font-normal opacity-70">· {p.categoria}</span></p>
+            {p.precio != null && p.precio > 0 && <span className={`text-sm font-black whitespace-nowrap ${texto}`}>{fmt(p.precio)} €</span>}
+          </div>
+          {p.nota && <p className={`text-xs mt-1 ${texto}`}>{p.nota}</p>}
+          {p.reparacion && <p className="text-xs mt-1 text-slate-600">Propuesta: {p.reparacion}</p>}
+          {p.fotos.length > 0 && (
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {p.fotos.map((u, i) => (
+                <a key={u} href={u} target="_blank" rel="noopener noreferrer" aria-label={`Ver foto ${i + 1} de ${p.nombre}`}>
+                  <img src={u} alt={`Foto ${i + 1} de ${p.nombre}`} className="w-20 h-20 rounded-xl object-cover border border-white" />
+                </a>
+              ))}
+            </div>
+          )}
+          {p.decision && (
+            <p className={`text-[11px] font-bold mt-2 ${p.decision === 'aprobado' ? 'text-green-700' : 'text-slate-500'}`}>
+              {p.decision === 'aprobado' ? '✓ Aprobado' : 'No aprobado'}
+            </p>
+          )}
         </div>
-      )}
-      {p.decision && (
-        <p className={`text-[11px] font-bold mt-2 ${p.decision === 'aprobado' ? 'text-green-700' : 'text-slate-500'}`}>
-          {p.decision === 'aprobado' ? '✓ Aprobado' : 'Rechazado'}
-        </p>
-      )}
+      </div>
     </div>
   );
 }
 
-function InformeCard({ inf, color, token, onRespondido }: { inf: PortalInforme; color: string; token: string; onRespondido: () => void }) {
-  const [enviando, setEnviando] = useState<'aprobar' | 'rechazar' | null>(null);
+function InformeCard({ inf, color, token, nombreCliente, onRespondido }: { inf: PortalInforme; color: string; token: string; nombreCliente: string; onRespondido: () => void }) {
+  const elegibles = [...inf.urgentes, ...inf.atencion].filter((p) => p.precio != null && p.precio > 0);
+  // Por defecto vienen marcadas las urgentes; las que solo requieren atención las elige el cliente.
+  const [marcados, setMarcados] = useState<Set<string>>(() => new Set(inf.urgentes.filter((p) => p.precio != null && p.precio > 0).map((p) => p.id)));
+  const [nombre, setNombre] = useState(nombreCliente);
+  const [acepta, setAcepta] = useState(false);
+  const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState('');
 
-  const responder = async (aprobado: boolean) => {
-    setEnviando(aprobado ? 'aprobar' : 'rechazar');
+  const aprobados = elegibles.filter((p) => marcados.has(p.id));
+  const total = Math.round(aprobados.reduce((s, p) => s + (p.precio ?? 0), 0) * 100) / 100;
+
+  const marcar = (id: string, marcar: boolean) => setMarcados((m) => { const n = new Set(m); if (marcar) n.add(id); else n.delete(id); return n; });
+
+  const responder = async () => {
+    setEnviando(true);
     setError('');
     try {
-      await responderInspeccion(token, inf.id, aprobado);
+      await responderInspeccion(token, inf.id, aprobados.map((p) => p.id), aprobados.length ? { nombre, totalVisto: total } : undefined);
       onRespondido();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo enviar tu respuesta.');
+      if (err instanceof Error && /importe .* ha cambiado/.test(err.message)) onRespondido();
     } finally {
-      setEnviando(null);
+      setEnviando(false);
     }
   };
 
   const hayProblemas = inf.urgentes.length + inf.atencion.length > 0;
   const aprobada = [...inf.urgentes, ...inf.atencion].some((p) => p.decision === 'aprobado');
+  const puedeEnviar = !enviando && (aprobados.length === 0 || (acepta && nombre.trim().length >= 2));
+  const respondible = inf.estado === 'enviada' && elegibles.length > 0;
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3" data-testid="informe-inspeccion">
@@ -242,40 +265,49 @@ function InformeCard({ inf, color, token, onRespondido }: { inf: PortalInforme; 
       {inf.urgentes.length > 0 && (
         <div className="space-y-2">
           <p className="text-[11px] font-extrabold uppercase tracking-wide text-rose-600">Urgente ({inf.urgentes.length})</p>
-          {inf.urgentes.map((p) => <PuntoInforme key={p.id} p={p} tono="urgente" />)}
+          {inf.urgentes.map((p) => <PuntoInforme key={p.id} p={p} tono="urgente" elegible={respondible && p.precio != null && p.precio > 0} marcado={marcados.has(p.id)} onMarcar={(v) => marcar(p.id, v)} />)}
         </div>
       )}
       {inf.atencion.length > 0 && (
         <div className="space-y-2">
           <p className="text-[11px] font-extrabold uppercase tracking-wide text-amber-600">Requiere atención ({inf.atencion.length})</p>
-          {inf.atencion.map((p) => <PuntoInforme key={p.id} p={p} tono="atencion" />)}
+          {inf.atencion.map((p) => <PuntoInforme key={p.id} p={p} tono="atencion" elegible={respondible && p.precio != null && p.precio > 0} marcado={marcados.has(p.id)} onMarcar={(v) => marcar(p.id, v)} />)}
         </div>
       )}
       {inf.bien > 0 && <p className="text-xs text-slate-500">El resto está bien ({inf.bien} punto{inf.bien === 1 ? '' : 's'}).</p>}
       {inf.fotosEliminadas && <p className="text-[11px] text-slate-400">Las fotos de este informe ya se eliminaron por el plazo de conservación.</p>}
 
-      {inf.estado === 'enviada' && inf.puntosAprobables > 0 && (
+      {respondible && (
         <>
-          <div className="flex justify-between text-sm font-black text-slate-900 border-t border-slate-200 pt-2.5">
-            <span>Reparaciones propuestas ({inf.puntosAprobables})</span>
-            <span>{fmt(inf.totalAprobable)} € + IVA</span>
+          <div className="flex justify-between text-sm font-black text-slate-900 border-t border-slate-200 pt-2.5" data-testid="total-marcado">
+            <span>{aprobados.length === 0 ? 'No apruebas ninguna reparación' : (aprobados.length === 1 ? 'Apruebas 1 reparación' : `Apruebas ${aprobados.length} reparaciones`)}</span>
+            <span>{fmt(total)} € + IVA</span>
           </div>
-          <div className="flex gap-2.5">
-            <button onClick={() => responder(false)} disabled={enviando !== null}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition cursor-pointer disabled:opacity-50">
-              <X className="w-3.5 h-3.5" /> {enviando === 'rechazar' ? 'Enviando…' : 'Rechazar'}
-            </button>
-            <button onClick={() => responder(true)} disabled={enviando !== null} data-testid="aprobar-informe"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-xs font-bold transition cursor-pointer disabled:opacity-50" style={{ backgroundColor: color }}>
-              <Check className="w-3.5 h-3.5" /> {enviando === 'aprobar' ? 'Enviando…' : 'Aprobar reparaciones'}
-            </button>
-          </div>
+          {aprobados.length > 0 && (
+            <div className="rounded-2xl bg-slate-50 border border-slate-100 p-3 space-y-2.5">
+              <div>
+                <label htmlFor={`insp-nombre-${inf.id}`} className="block text-[11px] font-semibold text-slate-600 mb-1">Tu nombre</label>
+                <input id={`insp-nombre-${inf.id}`} value={nombre} onChange={e => setNombre(e.target.value)} maxLength={120}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+                <input type="checkbox" checked={acepta} onChange={e => setAcepta(e.target.checked)} className="mt-0.5 w-4 h-4 cursor-pointer" data-testid="acepta-informe" />
+                <span>He leído el informe y acepto las reparaciones marcadas por {fmt(total)} € + IVA.</span>
+              </label>
+            </div>
+          )}
+          <button onClick={responder} disabled={!puedeEnviar} data-testid="enviar-respuesta-informe"
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
+            style={{ backgroundColor: aprobados.length ? color : '#64748b' }}>
+            {aprobados.length ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+            {enviando ? 'Enviando…' : aprobados.length ? 'Aceptar lo marcado' : 'Enviar sin aprobar nada'}
+          </button>
           {error && <p className="text-[11px] text-rose-500 font-semibold text-center">{error}</p>}
         </>
       )}
       {inf.estado === 'respondida' && hayProblemas && (
         <div className={`rounded-xl px-3 py-2.5 text-xs font-bold text-center ${aprobada ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-          {aprobada ? '✓ Reparaciones aprobadas — el taller se pone con ello' : 'Reparaciones rechazadas. Contacta con el taller si tienes dudas.'}
+          {aprobada ? '✓ Reparaciones aprobadas — el taller se pone con ello' : 'No aprobaste ninguna reparación. Contacta con el taller si cambias de idea.'}
         </div>
       )}
     </div>
@@ -334,7 +366,7 @@ export default function PortalCliente({ token }: Props) {
         {data.vehiculos.map(v => <VehiculoStatus key={v.id} v={v} color={color} />)}
 
         {(data.informes ?? []).map(inf => (
-          <InformeCard key={inf.id} inf={inf} color={color} token={token} onRespondido={cargarSinParpadeo} />
+          <InformeCard key={inf.id} inf={inf} color={color} token={token} nombreCliente={`${data.cliente.nombre} ${data.cliente.apellidos}`.trim()} onRespondido={cargarSinParpadeo} />
         ))}
 
         {data.presupuestosPendientes.map(p => (

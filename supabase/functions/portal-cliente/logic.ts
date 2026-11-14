@@ -140,3 +140,51 @@ export function ipDeCabecera(xForwardedFor: string | null): string | null {
   const ip = (xForwardedFor?.split(',')[0] ?? '').trim().slice(0, 64);
   return ip === '' ? null : ip;
 }
+
+// ---- Aceptación de la inspección punto por punto ----
+
+export type PuntoElegible = { id: string; nombre: string; precio: number };
+
+/** Puntos sobre los que el cliente puede decidir: con problema y con precio. */
+export function puntosElegibles(puntos: { id: string; nombre: string; estado: string | null; precio: number | string | null }[]): PuntoElegible[] {
+  return puntos
+    .filter((p) => (p.estado === 'urgente' || p.estado === 'atencion') && p.precio !== null && Number(p.precio) > 0)
+    .map((p) => ({ id: p.id, nombre: p.nombre, precio: Number(p.precio) }));
+}
+
+export type ResultadoAceptacionInspeccion =
+  | { ok: true; aprobados: string[]; rechazados: string[]; total: number; nombre: string | null }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Valida lo que envía el cliente: qué reparaciones aprueba (las demás con precio quedan rechazadas). Si aprueba
+ * alguna hace falta nombre, casilla y el importe que tenía delante (suma de lo marcado). Aprobar ninguna es
+ * rechazarlo todo y no pide datos.
+ */
+export function validarAceptacionInspeccion(
+  entrada: { aprobados: unknown; nombre: unknown; acepta: unknown; totalVisto: unknown }, elegibles: PuntoElegible[],
+): ResultadoAceptacionInspeccion {
+  if (!Array.isArray(entrada.aprobados) || entrada.aprobados.some((x) => typeof x !== 'string')) {
+    return { ok: false, error: 'Actualiza la página e inténtalo de nuevo.', status: 400 };
+  }
+  const ids = [...new Set(entrada.aprobados as string[])];
+  const validos = new Set(elegibles.map((e) => e.id));
+  if (ids.some((id) => !validos.has(id))) return { ok: false, error: 'Alguna de las reparaciones marcadas no existe en este informe.', status: 400 };
+  const rechazados = elegibles.map((e) => e.id).filter((id) => !ids.includes(id));
+  if (ids.length === 0) return { ok: true, aprobados: [], rechazados, total: 0, nombre: null };
+
+  if (entrada.acepta !== true) return { ok: false, error: 'Marca la casilla para aceptar las reparaciones.', status: 400 };
+  const nombre = typeof entrada.nombre === 'string' ? entrada.nombre.replace(/\s+/g, ' ').trim() : '';
+  if (nombre.length < 2 || nombre.length > 120) return { ok: false, error: 'Escribe tu nombre (entre 2 y 120 caracteres).', status: 400 };
+  const total = redondear2(elegibles.filter((e) => ids.includes(e.id)).reduce((s, e) => s + e.precio, 0));
+  const visto = typeof entrada.totalVisto === 'number' ? redondear2(entrada.totalVisto) : NaN;
+  if (visto !== total) return { ok: false, error: 'El importe del informe ha cambiado. Recarga la página y revísalo antes de aceptar.', status: 409 };
+  return { ok: true, aprobados: ids, rechazados, total, nombre };
+}
+
+/** Texto que queda guardado como prueba: qué reparaciones se aceptaron y por cuánto. */
+export function textoAceptacionInspeccion(vehiculo: string, fechaIso: string | null, aprobados: { nombre: string; precio: number }[], total: number): string {
+  const fecha = fechaIso ? new Date(fechaIso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' }) : '';
+  const lista = aprobados.map((a) => `${a.nombre} (${fmtEuros(a.precio)} €)`).join('; ');
+  return `Acepto las siguientes reparaciones del informe de inspección${fecha ? ` del ${fecha}` : ''} de ${vehiculo}: ${lista}. Importe total: ${fmtEuros(total)} € (IVA no incluido), y autorizo su realización.`;
+}
