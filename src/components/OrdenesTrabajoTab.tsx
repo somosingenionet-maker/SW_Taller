@@ -1,3 +1,4 @@
+import { comprimirImagen, OPCIONES_FOTO } from '../utils/imagen';
 import { useState, useMemo, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
@@ -75,10 +76,6 @@ const CHECKLIST_RECEPCION_ITEMS = [
   'Documentación entregada (permiso, ITV)',
   'Objetos personales retirados',
 ];
-
-const FOTO_MIME_EXT: Record<string, string> = {
-  'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/heic': 'heic',
-};
 
 const MAX_FOTOS_RECEPCION = 4;
 
@@ -722,12 +719,13 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setSubiendoFoto(true);
     void (async () => {
       try {
-        for (const file of files) {
-          const ext = FOTO_MIME_EXT[file.type] || file.name.split('.').pop() || 'jpg';
+        for (const original of files) {
+          // Se reduce en el móvil antes de subir: una foto de cámara pesa 3-8 MB y aquí basta con ~300 KB.
+          const { blob, ext, tipo } = await comprimirImagen(original, OPCIONES_FOTO);
           const path = `${empresa.id}/${crypto.randomUUID()}.${ext}`;
           const { error } = await supabase.storage
             .from('fotos-recepcion')
-            .upload(path, file, { cacheControl: '3600' });
+            .upload(path, blob, { cacheControl: '3600', contentType: tipo });
           if (error) throw error;
           const { data } = supabase.storage.from('fotos-recepcion').getPublicUrl(path);
           onFotoSubida(data.publicUrl);

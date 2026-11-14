@@ -1,3 +1,4 @@
+import { blobADataUrl, comprimirImagen, OPCIONES_LOGO } from '../utils/imagen';
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw } from 'lucide-react';
 import { AlertaTipo, Tecnico, Empresa } from '../types';
@@ -154,36 +155,38 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState('');
 
-  const MIME_EXT: Record<string, string> = {
-    'image/png': 'png', 'image/jpeg': 'jpg', 'image/svg+xml': 'svg', 'image/webp': 'webp', 'image/gif': 'gif',
-  };
-
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     setLogoError('');
 
-    // Base64 — se usa dentro de la app (header, PDF de factura, impresión de OT).
-    const reader = new FileReader();
-    reader.onload = ev => set('logoBase64', ev.target?.result as string);
-    reader.readAsDataURL(file);
-
-    // Además se sube a Storage: los emails de recordatorio necesitan una URL
-    // real (un logo en base64 incrustado en el HTML del correo dispara los
-    // filtros de spam), así que referencian este archivo en vez del base64.
     void (async () => {
       setLogoUploading(true);
       try {
-        const ext = MIME_EXT[file.type] || file.name.split('.').pop() || 'png';
-        const path = `${config.id}/logo.${ext}`;
-        const { error } = await supabase.storage
-          .from('logos-empresas')
-          .upload(path, file, { upsert: true, cacheControl: '3600' });
-        if (error) throw error;
-        const { data } = supabase.storage.from('logos-empresas').getPublicUrl(path);
-        set('logoUrl', `${data.publicUrl}?v=${Date.now()}`);
+        // Se reduce antes de guardarlo: el logo en base64 viaja con la empresa en cada sesión, así que un
+        // logo de varios MB ralentizaría la app para todos los usuarios del taller.
+        const { blob, ext, tipo } = await comprimirImagen(file, OPCIONES_LOGO);
+
+        // Base64 — se usa dentro de la app (header, PDF de factura, impresión de OT).
+        set('logoBase64', await blobADataUrl(blob));
+
+        // Además se sube a Storage: los emails de recordatorio necesitan una URL
+        // real (un logo en base64 incrustado en el HTML del correo dispara los
+        // filtros de spam), así que referencian este archivo en vez del base64.
+        try {
+          const path = `${config.id}/logo.${ext}`;
+          const { error } = await supabase.storage
+            .from('logos-empresas')
+            .upload(path, blob, { upsert: true, cacheControl: '3600', contentType: tipo });
+          if (error) throw error;
+          const { data } = supabase.storage.from('logos-empresas').getPublicUrl(path);
+          set('logoUrl', `${data.publicUrl}?v=${Date.now()}`);
+        } catch {
+          setLogoError('No se pudo subir el logo para los emails — se guardará igualmente el de la app.');
+        }
       } catch {
-        setLogoError('No se pudo subir el logo para los emails — se guardará igualmente el de la app.');
+        setLogoError('No se pudo leer la imagen del logo.');
       } finally {
         setLogoUploading(false);
       }

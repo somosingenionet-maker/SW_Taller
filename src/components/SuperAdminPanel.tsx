@@ -1,3 +1,4 @@
+import { blobADataUrl, comprimirImagen, OPCIONES_LOGO } from '../utils/imagen';
 import { useEffect, useState, useRef, ChangeEvent } from 'react';
 import { Building2, Plus, Trash2, LogOut, Shield, ShieldCheck, Check, X, Users, Pencil, Image, Upload } from 'lucide-react';
 import { Perfil } from '../types';
@@ -406,10 +407,13 @@ function LogoPlataformaModal({ logoActual, onClose, onSaved }: LogoPlataformaMod
 
   const handleUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setDraft(ev.target?.result as string);
-    reader.readAsDataURL(file);
+    setError('');
+    void comprimirImagen(file, OPCIONES_LOGO)
+      .then(({ blob }) => blobADataUrl(blob))
+      .then(setDraft)
+      .catch(() => setError('No se pudo leer la imagen del logo.'));
   };
 
   const handleSave = async () => {
