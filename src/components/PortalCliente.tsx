@@ -80,7 +80,11 @@ function VehiculoStatus({ v, color }: { v: PortalData['vehiculos'][number]; colo
   );
 }
 
-function PresupuestoCard({ p, color, token }: { p: PortalData['presupuestosPendientes'][number]; color: string; token: string }) {
+function PresupuestoCard({ p, color, token, nombreCliente, onRespondido }: {
+  p: PortalData['presupuestosPendientes'][number]; color: string; token: string; nombreCliente: string; onRespondido: () => void;
+}) {
+  const [nombre, setNombre] = useState(nombreCliente);
+  const [acepta, setAcepta] = useState(false);
   const [enviando, setEnviando] = useState<'aprobar' | 'rechazar' | null>(null);
   const [respondido, setRespondido] = useState<'aprobado' | 'rechazado' | null>(null);
   const [error, setError] = useState('');
@@ -89,12 +93,14 @@ function PresupuestoCard({ p, color, token }: { p: PortalData['presupuestosPendi
     setEnviando(aprobado ? 'aprobar' : 'rechazar');
     setError('');
     try {
-      await responderPresupuesto(token, p.otId, aprobado);
+      await responderPresupuesto(token, p.otId, aprobado, aprobado ? { nombre, totalVisto: p.total } : undefined);
       // Deliberadamente no se quita de la lista del padre: así la tarjeta se
       // queda mostrando la confirmación en vez de desaparecer sin que el
       // cliente llegue a verla.
       setRespondido(aprobado ? 'aprobado' : 'rechazado');
     } catch (err) {
+      // Si el importe cambió mientras decidía, se vuelve a leer para que vea el vigente.
+      if (err instanceof Error && /importe .* ha cambiado/.test(err.message)) onRespondido();
       setError(err instanceof Error ? err.message : 'No se pudo enviar tu respuesta.');
     } finally {
       setEnviando(null);
@@ -128,11 +134,25 @@ function PresupuestoCard({ p, color, token }: { p: PortalData['presupuestosPendi
 
       {respondido ? (
         <div className={`mt-4 rounded-xl px-3 py-2.5 text-xs font-bold text-center ${respondido === 'aprobado' ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-          {respondido === 'aprobado' ? '✓ Presupuesto aprobado — gracias' : 'Presupuesto rechazado. Contacta con el taller si tienes dudas.'}
+          {respondido === 'aprobado' ? '✓ Presupuesto aceptado — gracias' : 'Presupuesto rechazado. Contacta con el taller si tienes dudas.'}
         </div>
       ) : (
         <>
-          <div className="flex gap-2.5 mt-4">
+          <div className="mt-4 rounded-2xl bg-slate-50 border border-slate-100 p-3 space-y-2.5">
+            <p className="text-[11px] text-slate-500 leading-relaxed" data-testid="texto-aceptacion">{p.textoAceptacion}</p>
+            <div>
+              <label htmlFor={`acepta-nombre-${p.otId}`} className="block text-[11px] font-semibold text-slate-600 mb-1">Tu nombre</label>
+              <input
+                id={`acepta-nombre-${p.otId}`} value={nombre} onChange={e => setNombre(e.target.value)} maxLength={120}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+            <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+              <input type="checkbox" checked={acepta} onChange={e => setAcepta(e.target.checked)} className="mt-0.5 w-4 h-4 cursor-pointer" data-testid="acepta-casilla" />
+              <span>He leído el presupuesto y lo acepto.</span>
+            </label>
+          </div>
+          <div className="flex gap-2.5 mt-3">
             <button
               onClick={() => responder(false)}
               disabled={enviando !== null}
@@ -142,11 +162,12 @@ function PresupuestoCard({ p, color, token }: { p: PortalData['presupuestosPendi
             </button>
             <button
               onClick={() => responder(true)}
-              disabled={enviando !== null}
+              disabled={enviando !== null || !acepta || nombre.trim().length < 2}
+              data-testid="aceptar-presupuesto"
               className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
               style={{ backgroundColor: color }}
             >
-              <Check className="w-3.5 h-3.5" /> {enviando === 'aprobar' ? 'Enviando…' : 'Aprobar presupuesto'}
+              <Check className="w-3.5 h-3.5" /> {enviando === 'aprobar' ? 'Enviando…' : 'Aceptar presupuesto'}
             </button>
           </div>
           {error && <p className="text-[11px] text-rose-500 font-semibold mt-2 text-center">{error}</p>}
@@ -317,7 +338,7 @@ export default function PortalCliente({ token }: Props) {
         ))}
 
         {data.presupuestosPendientes.map(p => (
-          <PresupuestoCard key={p.otId} p={p} color={color} token={token} />
+          <PresupuestoCard key={p.otId} p={p} color={color} token={token} nombreCliente={`${data.cliente.nombre} ${data.cliente.apellidos}`.trim()} onRespondido={cargarSinParpadeo} />
         ))}
 
         {data.alertas.length > 0 && (

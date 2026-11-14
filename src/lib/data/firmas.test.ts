@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../supabase', () => ({ supabase: {} }));
-const { mapFirmas } = await import('./firmas');
+const { mapFirmas, tipoDispositivo } = await import('./firmas');
 
 const VACIA = { firma_presupuesto: null, firma_presupuesto_nombre: null, firma_presupuesto_en: null, firma_presupuesto_total: null, firma_entrega: null, firma_entrega_nombre: null, firma_entrega_en: null };
 
@@ -18,5 +18,16 @@ describe('mapFirmas', () => {
     const f = mapFirmas({ ...VACIA, firma_entrega: 'data:image/png;base64,BBB', firma_entrega_nombre: 'Luis', firma_entrega_en: '2026-11-14T09:00:00Z' });
     expect(f.entrega).toEqual({ png: 'data:image/png;base64,BBB', nombre: 'Luis', en: '2026-11-14T09:00:00Z' });
     expect(f.entrega && 'total' in f.entrega && f.entrega.total).toBeFalsy();
+  });
+});
+
+describe('tipoDispositivo', () => {
+  it('distingue móvil, tableta y ordenador, y avisa si no hay dato', () => {
+    expect(tipoDispositivo('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit Mobile/15E148')).toBe('Móvil');
+    expect(tipoDispositivo('Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit Chrome Mobile Safari')).toBe('Móvil');
+    expect(tipoDispositivo('Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit')).toBe('Tableta');
+    expect(tipoDispositivo('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120 Safari/537')).toBe('Ordenador');
+    expect(tipoDispositivo(null)).toBe('dispositivo desconocido');
+    expect(tipoDispositivo('')).toBe('dispositivo desconocido');
   });
 });

@@ -13,7 +13,7 @@ export function puedeResponderPresupuesto(cliente: Cliente, ot: { cliente_id: st
 export const ESTADOS_OT_ACTIVOS = new Set(['presupuesto', 'recibido', 'en_reparacion', 'listo']);
 
 export type OtCliente = {
-  id: string; vehiculo_id: string; estado: string; fecha_estimada_entrega: string | null; created_at: string;
+  id: string; numero: string; vehiculo_id: string; estado: string; fecha_estimada_entrega: string | null; created_at: string;
   total: number; presupuesto_estado: string | null; presupuesto_aprobado: boolean | null;
 };
 
@@ -94,4 +94,49 @@ export function formatearInforme(
     totalAprobable: Math.round(aprobables.reduce((s, p) => s + (p.precio ?? 0), 0) * 100) / 100,
     puntosAprobables: aprobables.length,
   };
+}
+
+// ---- Aceptación del presupuesto con prueba ----
+
+const fmtEuros = (n: number) => n.toFixed(2).replace('.', ',');
+
+/** Texto que el cliente lee y acepta. Lo construye el SERVIDOR y es exactamente lo que se guarda como prueba. */
+export function textoAceptacion(numero: string, vehiculo: string, total: number): string {
+  return `Acepto el presupuesto ${numero} para ${vehiculo} por un importe de ${fmtEuros(total)} € (IVA incluido) y autorizo la realización de los trabajos descritos.`;
+}
+
+export const redondear2 = (n: number) => Math.round(n * 100) / 100;
+
+export type ResultadoAceptacion =
+  | { ok: true; nombre: string }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Valida lo que envía el cliente al aceptar. `totalVisto` es el importe que tenía en pantalla: si el taller lo
+ * cambió mientras decidía, se rechaza (nadie acepta una cifra distinta de la que vio).
+ */
+export function validarAceptacion(
+  entrada: { nombre: unknown; acepta: unknown; totalVisto: unknown }, totalActual: number,
+): ResultadoAceptacion {
+  if (entrada.acepta !== true) return { ok: false, error: 'Marca la casilla para aceptar el presupuesto.', status: 400 };
+  const nombre = typeof entrada.nombre === 'string' ? entrada.nombre.replace(/\s+/g, ' ').trim() : '';
+  if (nombre.length < 2 || nombre.length > 120) return { ok: false, error: 'Escribe tu nombre (entre 2 y 120 caracteres).', status: 400 };
+  const visto = typeof entrada.totalVisto === 'number' ? redondear2(entrada.totalVisto) : NaN;
+  if (!(totalActual > 0)) return { ok: false, error: 'Este presupuesto no tiene importe.', status: 400 };
+  if (visto !== redondear2(totalActual)) {
+    return { ok: false, error: 'El importe del presupuesto ha cambiado. Recarga la página y revísalo antes de aceptar.', status: 409 };
+  }
+  return { ok: true, nombre };
+}
+
+/** Navegador y sistema del cliente, recortado y sin saltos de línea (para guardarlo como prueba). */
+export function dispositivoDe(userAgent: string | null): string | null {
+  const ua = (userAgent ?? '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 300);
+  return ua === '' ? null : ua;
+}
+
+/** IP del cliente tal como llega del proxy; null si no se conoce (no se guarda «desconocida»). */
+export function ipDeCabecera(xForwardedFor: string | null): string | null {
+  const ip = (xForwardedFor?.split(',')[0] ?? '').trim().slice(0, 64);
+  return ip === '' ? null : ip;
 }

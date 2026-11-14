@@ -13,7 +13,7 @@ const TITULOS: Record<LegalPageProps['page'], string> = {
 };
 
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '13 de noviembre de 2026';
+const ULTIMA_ACTUALIZACION = '14 de noviembre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -200,6 +200,11 @@ function Privacidad() {
           electrónico de tu empresa (archivo y contraseña), que se guarda cifrado.
         </p>
         <p>Datos técnicos: dirección IP, tipo de navegador, y registros de error técnico.</p>
+        <p>
+          Aceptación de presupuestos: cuando un cliente de tu taller acepta un presupuesto desde su portal, se guarda como
+          prueba su nombre, la fecha y hora, el importe aceptado, su dirección IP y el tipo de dispositivo. Son datos de los
+          clientes de tu taller, que tratamos por tu encargo, y se conservan mientras exista la orden.
+        </p>
       </Section>
 
       <Section title="4. Para qué usamos tus datos">

@@ -43,6 +43,14 @@ enlace de baja que funcione solo.**
 
 **Correo de bienvenida** (plantilla de Supabase): 14 días gratis, sin tarjeta.
 
+**Aceptación del presupuesto desde el portal del cliente** (sin firma dibujada): el cliente lee el texto «Acepto el
+presupuesto OT-… para … por un importe de … € (IVA incluido) y autorizo la realización de los trabajos descritos», escribe
+su nombre y marca una casilla. Se guarda, sin posibilidad de cambio, el texto exacto, el nombre, la hora, el importe, la
+**IP y el dispositivo** (Política de privacidad §3, añadido el 14-11-2026). Preguntas: ¿basta como aceptación del
+presupuesto en un taller (normativa de reparación de vehículos: presupuesto previo, plazo de validez, copia al cliente)?
+¿Es proporcionado guardar la IP y el dispositivo, y hasta cuándo? Texto en `supabase/functions/portal-cliente/logic.ts`
+(`textoAceptacion`).
+
 **Avisos de borrado de cuenta** (correo a los administradores del taller, desde `send@doonty.com`): primer
 aviso y «último aviso», con la fecha exacta de eliminación, qué se pierde («esto no se puede deshacer»),
 cómo conservarla (suscribirse) y cómo llevarse los datos (exportar a CSV). Texto en

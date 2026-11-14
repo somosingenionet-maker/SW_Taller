@@ -101,6 +101,8 @@ export interface OrdenTrabajo {
   aceiteAnotadoEn?: string;
   /** Firma en pantalla del presupuesto (sin el dibujo, que se pide aparte): quién, cuándo y por qué importe. */
   firmaPresupuesto?: { nombre: string; en: string; total: number };
+  /** El cliente aceptó el presupuesto desde su portal (sin dibujar firma): quién, cuándo y por qué importe. */
+  aceptacionPresupuesto?: { nombre: string; en: string; total: number };
   /** Firma en pantalla de la entrega del vehículo (sin el dibujo). */
   firmaEntrega?: { nombre: string; en: string };
   /** Registro cronológico de eventos de esta OT. */

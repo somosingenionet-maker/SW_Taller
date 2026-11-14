@@ -45,3 +45,31 @@ export async function getFirmas(otId: string): Promise<FirmasOrden> {
   if (error) throw new Error(error.message);
   return mapFirmas(data as unknown as FilaFirmas);
 }
+
+export interface AceptacionDetalle {
+  nombre: string; en: string; total: number; texto: string; ip: string | null; dispositivo: string | null;
+}
+
+/** Prueba completa de la aceptación hecha desde el portal (texto, IP y dispositivo): solo se pide al ver la ficha. */
+export async function getAceptacion(otId: string): Promise<AceptacionDetalle | null> {
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .select('aceptacion_presupuesto_nombre, aceptacion_presupuesto_en, aceptacion_presupuesto_total, aceptacion_presupuesto_texto, aceptacion_presupuesto_ip, aceptacion_presupuesto_dispositivo')
+    .eq('id', otId)
+    .single();
+  if (error) throw new Error(error.message);
+  if (!data.aceptacion_presupuesto_en) return null;
+  return {
+    nombre: data.aceptacion_presupuesto_nombre ?? '', en: data.aceptacion_presupuesto_en, total: Number(data.aceptacion_presupuesto_total ?? 0),
+    texto: data.aceptacion_presupuesto_texto ?? '', ip: data.aceptacion_presupuesto_ip, dispositivo: data.aceptacion_presupuesto_dispositivo,
+  };
+}
+
+/** «Móvil», «Ordenador»… a partir del navegador que dejó el cliente (solo para enseñarlo en la ficha). */
+export function tipoDispositivo(userAgent: string | null): string {
+  const ua = userAgent ?? '';
+  if (!ua) return 'dispositivo desconocido';
+  if (/iPad|Tablet/i.test(ua)) return 'Tableta';
+  if (/Mobile|iPhone|Android/i.test(ua)) return 'Móvil';
+  return 'Ordenador';
+}

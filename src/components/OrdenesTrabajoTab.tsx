@@ -19,6 +19,8 @@ import { resumenFiltros } from '../utils/aceite';
 import { formatDate as fechaLarga } from '../utils/dateFormat';
 import CambioAceiteOrden from './CambioAceiteOrden';
 import InspeccionOrden from './InspeccionOrden';
+import EnviarPresupuesto from './EnviarPresupuesto';
+import { fechaHoraFirma } from '../utils/firma';
 import FirmasOrden, { FirmaImpresa } from './FirmasOrden';
 import FirmaOrdenModal from './FirmaOrdenModal';
 import { getFirmas, type FirmasOrden as Firmas, type TipoFirma } from '../lib/data/firmas';
@@ -1333,9 +1335,16 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                           {enviado ? 'Enviado' : 'Pendiente de envío'}
                         </span>
                       </div>
-                      {!enviado && (
-                        <p className="text-xs text-slate-500">Genera el PDF del presupuesto y envíaselo al cliente para que apruebe.</p>
-                      )}
+                      <p className="text-xs text-slate-500">
+                        {enviado
+                          ? 'Esperando la respuesta del cliente. Puede aceptarlo o rechazarlo desde su portal.'
+                          : 'Envíaselo al cliente: recibe un enlace a su portal donde lo acepta o lo rechaza desde el móvil.'}
+                      </p>
+                      <EnviarPresupuesto
+                        ot={selected}
+                        clienteId={selected.clienteId}
+                        onCambio={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
+                      />
                       <div className="flex gap-2">
                         <button
                           onClick={() => setPresupuestoPDF(selected)}
@@ -1348,7 +1357,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                             onClick={() => handleEnviarPresupuesto(selected)}
                             className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
                           >
-                            <Check size={13} /> Marcar enviado
+                            <Check size={13} /> Ya lo envié yo
                           </button>
                         )}
                       </div>
@@ -2519,6 +2528,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     )}
 
                     {/* Firmas del cliente en pantalla: aceptación del presupuesto y, en el resumen de reparación, la entrega. */}
+                    {presupuestoPDF.aceptacionPresupuesto && !firmasPDF.presupuesto && (
+                      <p className="text-xs text-slate-600 pt-2">
+                        <span className="font-semibold">Aceptación del presupuesto:</span> aceptado por {presupuestoPDF.aceptacionPresupuesto.nombre} desde el portal del cliente
+                        el {fechaHoraFirma(presupuestoPDF.aceptacionPresupuesto.en)} (importe {fmt2(presupuestoPDF.aceptacionPresupuesto.total)} €).
+                      </p>
+                    )}
                     {(firmasPDF.presupuesto || (esListo && firmasPDF.entrega)) && (
                       <div className="grid grid-cols-2 gap-8 pt-2">
                         {firmasPDF.presupuesto && (

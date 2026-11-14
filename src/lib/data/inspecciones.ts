@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { invocarFuncion } from './funciones';
 import {
   descripcionLinea, puntosPendientesDeAnadir, redondear2, totalPuntos,
   type EstadoInspeccion, type EstadoPunto, type PuntoAprobable,
@@ -134,23 +135,10 @@ export async function devolverAlMecanico(inspeccion: Pick<Inspeccion, 'id' | 'or
   await anotarEvento(inspeccion.ordenId, 'Inspección devuelta al mecánico para revisarla.');
 }
 
-async function mensajeDeFuncion(error: { message: string; context?: unknown }): Promise<string> {
-  const contexto = error.context as Response | undefined;
-  if (contexto && typeof contexto.clone === 'function') {
-    try {
-      const parsed = await contexto.clone().json();
-      if (typeof parsed?.error === 'string') return parsed.error;
-    } catch { /* el cuerpo no era JSON */ }
-  }
-  return error.message;
-}
-
 /** Marca la inspección como enviada y, si se pide, manda el correo con el enlace del portal. Devuelve el enlace. */
 export async function enviarInspeccion(inspeccionId: string, porCorreo: boolean): Promise<{ enlace: string; correo: boolean }> {
-  const { data, error } = await supabase.functions.invoke('inspeccion-enviar', { body: { inspeccionId, porCorreo } });
-  if (error) throw new Error(await mensajeDeFuncion(error));
-  if (data?.error) throw new Error(String(data.error));
-  return { enlace: String(data.enlace), correo: data.correo === true };
+  const r = await invocarFuncion<{ enlace: string; correo: boolean }>('inspeccion-enviar', { inspeccionId, porCorreo });
+  return { enlace: String(r.enlace), correo: r.correo === true };
 }
 
 /** Enlaces de lectura (1 hora) de las fotos privadas. */

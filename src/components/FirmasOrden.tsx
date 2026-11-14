@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Check, PenTool } from 'lucide-react';
 import type { OrdenTrabajo } from '../types';
-import { getFirmas, type FirmasOrden as Firmas } from '../lib/data/firmas';
+import { getAceptacion, getFirmas, tipoDispositivo, type AceptacionDetalle, type FirmasOrden as Firmas } from '../lib/data/firmas';
 import { fechaHoraFirma, importeCambiadoTrasFirma } from '../utils/firma';
 import { fmt2 } from '../utils/moneda';
 
@@ -14,6 +14,7 @@ interface Props {
 export default function FirmasOrden({ ot, onFirmar }: Props) {
   const [firmas, setFirmas] = useState<Firmas>({});
   const [error, setError] = useState(false);
+  const [aceptacion, setAceptacion] = useState<AceptacionDetalle | null>(null);
 
   // El dibujo no viaja con la orden: se pide solo si hay algo firmado, y se repite si cambia la firma.
   const hayFirma = !!ot.firmaPresupuesto || !!ot.firmaEntrega;
@@ -26,12 +27,24 @@ export default function FirmasOrden({ ot, onFirmar }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clave]);
 
-  if (ot.estado === 'cancelado' && !hayFirma) return null;
+  // La prueba de la aceptación desde el portal (IP, dispositivo) se pide solo si existe.
+  const hayAceptacion = !!ot.aceptacionPresupuesto;
+  useEffect(() => {
+    if (!hayAceptacion) { setAceptacion(null); return; }
+    let vivo = true;
+    getAceptacion(ot.id).then((a) => { if (vivo) setAceptacion(a); }).catch(() => { if (vivo) setAceptacion(null); });
+    return () => { vivo = false; };
+  }, [ot.id, ot.aceptacionPresupuesto?.en, hayAceptacion]);
+
+  if (ot.estado === 'cancelado' && !hayFirma && !hayAceptacion) return null;
 
   const fp = ot.firmaPresupuesto;
   const fe = ot.firmaEntrega;
   const importeCambiado = importeCambiadoTrasFirma(fp?.total, ot.total);
-  const puedeFirmarPresupuesto = !fp && ot.estado !== 'cancelado' && ot.total > 0;
+  const ap = ot.aceptacionPresupuesto;
+  const importeCambiadoAceptacion = !!ap && importeCambiadoTrasFirma(ap.total, ot.total);
+  // Si el cliente ya aceptó desde su móvil, no hace falta pedirle además la firma dibujada.
+  const puedeFirmarPresupuesto = !fp && !ap && ot.estado !== 'cancelado' && ot.total > 0;
   const puedeFirmarEntrega = !fe && (ot.estado === 'listo' || ot.estado === 'entregado');
 
   const fila = (titulo: string, firmada: { nombre: string; en: string } | undefined, png: string | undefined, extra?: React.ReactNode) => (
@@ -56,6 +69,25 @@ export default function FirmasOrden({ ot, onFirmar }: Props) {
     <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-3" data-testid="firmas-orden">
       <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><PenTool size={11} /> Firmas del cliente</p>
 
+      {ap && (
+        <div className="flex items-start gap-3" data-testid="aceptacion-portal">
+          <span className="w-5 h-5 rounded-full border-2 bg-teal-500 border-teal-500 text-white flex items-center justify-center shrink-0 mt-0.5" aria-hidden="true"><Check className="w-3 h-3" /></span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-slate-700">Presupuesto aceptado desde el portal</p>
+            <p className="text-xs text-slate-500">Por <span className="font-semibold text-slate-700">{ap.nombre}</span> · {fechaHoraFirma(ap.en)}</p>
+            <p className="text-[11px] text-slate-400">
+              Importe aceptado: {fmt2(ap.total)} €
+              {aceptacion ? ` · ${tipoDispositivo(aceptacion.dispositivo)}${aceptacion.ip ? ` · IP ${aceptacion.ip}` : ''}` : ''}
+            </p>
+            {importeCambiadoAceptacion && (
+              <p role="alert" className="mt-1 flex items-start gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
+                <AlertTriangle size={12} className="shrink-0 mt-0.5" /> El importe ha cambiado desde la aceptación ({fmt2(ap.total)} € aceptados, {fmt2(ot.total)} € ahora). La aceptación no cubre la diferencia.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {fila('Presupuesto', fp, firmas.presupuesto?.png,
         <>
           {fp && <p className="text-[11px] text-slate-400">Importe firmado: {fmt2(fp.total)} €</p>}
@@ -65,10 +97,11 @@ export default function FirmasOrden({ ot, onFirmar }: Props) {
             </p>
           )}
           {puedeFirmarPresupuesto && <p className="text-[11px] text-slate-400">Sin firmar.</p>}
+          {ap && !fp && <p className="text-[11px] text-slate-400">Sin firma dibujada (no hace falta: ya aceptó desde su móvil).</p>}
           {puedeFirmarPresupuesto && (
             <button type="button" onClick={() => onFirmar('presupuesto')} className="mt-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">Firmar presupuesto en pantalla</button>
           )}
-          {!fp && !puedeFirmarPresupuesto && <p className="text-[11px] text-slate-400">{ot.total > 0 ? 'Sin firmar.' : 'Añade líneas con importe para poder firmarlo.'}</p>}
+          {!fp && !ap && !puedeFirmarPresupuesto && <p className="text-[11px] text-slate-400">{ot.total > 0 ? 'Sin firmar.' : 'Añade líneas con importe para poder firmarlo.'}</p>}
         </>)}
 
       {fila('Entrega del vehículo', fe, firmas.entrega?.png,

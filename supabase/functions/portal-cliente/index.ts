@@ -15,6 +15,10 @@ import {
   type OtCliente,
   type InspeccionCliente,
   type PuntoCliente,
+  textoAceptacion,
+  validarAceptacion,
+  dispositivoDe,
+  ipDeCabecera,
 } from './logic.ts';
 import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
 import { initSentry, conSentry } from '../_shared/sentry.ts';
@@ -126,7 +130,7 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
   // — nunca solo de cliente_vehiculo, o ese caso se queda sin nombre de vehículo.
   const { data: ordenesCliente } = await admin
     .from('ordenes_trabajo')
-    .select('id, vehiculo_id, estado, fecha_estimada_entrega, created_at, total, presupuesto_estado, presupuesto_aprobado')
+    .select('id, numero, vehiculo_id, estado, fecha_estimada_entrega, created_at, total, presupuesto_estado, presupuesto_aprobado')
     .eq('cliente_id', cliente.id)
     .order('created_at', { ascending: false });
   const ordenes = (ordenesCliente ?? []) as OtCliente[];
@@ -149,10 +153,14 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
       .eq('ot_id', ot.id)
       .order('posicion');
     const vehiculo = (vehiculos ?? []).find(v => v.id === ot.vehiculo_id);
+    const descripcionVehiculo = vehiculo ? `${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.matricula})` : '';
     presupuestos.push({
       otId: ot.id,
-      vehiculo: vehiculo ? `${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.matricula})` : '',
+      numero: ot.numero,
+      vehiculo: descripcionVehiculo,
       total: ot.total,
+      // El texto que se acepta lo escribe el servidor: es exactamente lo que se guardará como prueba.
+      textoAceptacion: textoAceptacion(ot.numero, descripcionVehiculo, Number(ot.total)),
       lineas: (lineas ?? []).map(l => ({
         descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precio_unitario, subtotal: l.subtotal,
       })),
@@ -201,22 +209,45 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
   });
 }
 
-async function manejarResponderPresupuesto(admin: SupabaseClient, cliente: Cliente, otId: string, aprobado: boolean) {
+async function manejarResponderPresupuesto(
+  admin: SupabaseClient, cliente: Cliente, otId: string, aprobado: boolean,
+  aceptacion: { nombre: unknown; acepta: unknown; totalVisto: unknown }, req: Request,
+) {
   const { data: ot, error: otErr } = await admin
     .from('ordenes_trabajo')
-    .select('id, cliente_id, presupuesto_estado')
+    .select('id, numero, cliente_id, vehiculo_id, total, presupuesto_estado, presupuesto_aprobado, aceptacion_presupuesto_en')
     .eq('id', otId)
     .maybeSingle();
   if (otErr || !ot) return json({ error: 'Presupuesto no encontrado.' }, 404);
   if (!puedeResponderPresupuesto(cliente, ot)) return json({ error: 'No autorizado.' }, 403);
-  if (ot.presupuesto_estado !== 'enviado') return json({ error: 'Este presupuesto ya no está pendiente de respuesta.' }, 400);
+  if (ot.presupuesto_estado !== 'enviado' || ot.presupuesto_aprobado != null) return json({ error: 'Este presupuesto ya no está pendiente de respuesta.' }, 400);
 
-  const { error: updErr } = await admin.from('ordenes_trabajo').update({ presupuesto_aprobado: aprobado }).eq('id', otId);
+  const cambios: Record<string, unknown> = { presupuesto_aprobado: aprobado };
+  let eventoAceptado = '';
+  if (aprobado) {
+    // Aceptar exige nombre, casilla y haber visto el importe vigente; el servidor guarda la prueba.
+    const v = validarAceptacion(aceptacion, Number(ot.total));
+    if (!v.ok) return json({ error: v.error }, v.status);
+    const { data: veh } = await admin.from('vehiculos').select('marca, modelo, matricula').eq('id', ot.vehiculo_id).maybeSingle();
+    const descripcionVehiculo = veh ? `${veh.marca} ${veh.modelo} (${veh.matricula})` : '';
+    const total = Number(ot.total);
+    cambios.aceptacion_presupuesto_nombre = v.nombre;
+    cambios.aceptacion_presupuesto_en = new Date().toISOString();
+    cambios.aceptacion_presupuesto_total = total;
+    cambios.aceptacion_presupuesto_texto = textoAceptacion(ot.numero, descripcionVehiculo, total);
+    cambios.aceptacion_presupuesto_ip = ipDeCabecera(req.headers.get('x-forwarded-for'));
+    cambios.aceptacion_presupuesto_dispositivo = dispositivoDe(req.headers.get('user-agent'));
+    eventoAceptado = `Presupuesto aceptado por ${v.nombre} desde el portal (importe ${total.toFixed(2).replace('.', ',')} €).`;
+  }
+
+  // Solo si seguía pendiente: dos pulsaciones seguidas no registran dos respuestas.
+  const { data: actualizadas, error: updErr } = await admin.from('ordenes_trabajo').update(cambios).eq('id', otId).is('presupuesto_aprobado', null).select('id');
   if (updErr) return json({ error: 'No se pudo guardar la respuesta.' }, 500);
+  if (!actualizadas?.length) return json({ error: 'Este presupuesto ya no está pendiente de respuesta.' }, 400);
 
   await admin.from('eventos_ot').insert({
     ot_id: otId,
-    descripcion: aprobado ? 'Presupuesto aprobado por el cliente desde el portal.' : 'Presupuesto rechazado por el cliente desde el portal.',
+    descripcion: aprobado ? eventoAceptado : 'Presupuesto rechazado por el cliente desde el portal.',
   });
 
   return json({ ok: true });
@@ -254,7 +285,8 @@ Deno.serve(conSentry(async (req) => {
   if (!cliente) return json({ error: 'Este enlace no es válido.' }, 404);
 
   if (body.action === 'responder_presupuesto') {
-    return manejarResponderPresupuesto(admin, cliente, String(body.otId ?? ''), Boolean(body.aprobado));
+    return manejarResponderPresupuesto(admin, cliente, String(body.otId ?? ''), body.aprobado === true,
+      { nombre: body.nombre, acepta: body.acepta, totalVisto: body.totalVisto }, req);
   }
 
   if (body.action === 'responder_inspeccion') {

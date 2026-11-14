@@ -1087,6 +1087,12 @@ export type Database = {
         Row: {
           aceite_anotado_en: string | null
           aceite_resumen_enviado_en: string | null
+          aceptacion_presupuesto_dispositivo: string | null
+          aceptacion_presupuesto_en: string | null
+          aceptacion_presupuesto_ip: string | null
+          aceptacion_presupuesto_nombre: string | null
+          aceptacion_presupuesto_texto: string | null
+          aceptacion_presupuesto_total: number | null
           checklist_observaciones: string | null
           checklist_recepcion: Json | null
           cliente_id: string
@@ -1133,6 +1139,12 @@ export type Database = {
         Insert: {
           aceite_anotado_en?: string | null
           aceite_resumen_enviado_en?: string | null
+          aceptacion_presupuesto_dispositivo?: string | null
+          aceptacion_presupuesto_en?: string | null
+          aceptacion_presupuesto_ip?: string | null
+          aceptacion_presupuesto_nombre?: string | null
+          aceptacion_presupuesto_texto?: string | null
+          aceptacion_presupuesto_total?: number | null
           checklist_observaciones?: string | null
           checklist_recepcion?: Json | null
           cliente_id: string
@@ -1179,6 +1191,12 @@ export type Database = {
         Update: {
           aceite_anotado_en?: string | null
           aceite_resumen_enviado_en?: string | null
+          aceptacion_presupuesto_dispositivo?: string | null
+          aceptacion_presupuesto_en?: string | null
+          aceptacion_presupuesto_ip?: string | null
+          aceptacion_presupuesto_nombre?: string | null
+          aceptacion_presupuesto_texto?: string | null
+          aceptacion_presupuesto_total?: number | null
           checklist_observaciones?: string | null
           checklist_recepcion?: Json | null
           cliente_id?: string

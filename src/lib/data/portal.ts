@@ -18,8 +18,11 @@ export interface PortalPresupuestoLinea {
 
 export interface PortalPresupuesto {
   otId: string;
+  numero: string;
   vehiculo: string;
   total: number;
+  /** Texto que el cliente acepta, escrito por el servidor: es exactamente lo que se guarda como prueba. */
+  textoAceptacion: string;
   lineas: PortalPresupuestoLinea[];
 }
 
@@ -82,8 +85,14 @@ export async function getPortalData(token: string): Promise<PortalData> {
   return invokePortal<PortalData>({ token });
 }
 
-export async function responderPresupuesto(token: string, otId: string, aprobado: boolean): Promise<void> {
-  await invokePortal<{ ok: true }>({ token, action: 'responder_presupuesto', otId, aprobado });
+/** Rechazar no pide datos; aceptar exige nombre, casilla marcada y el importe que el cliente tenía delante. */
+export async function responderPresupuesto(
+  token: string, otId: string, aprobado: boolean, aceptacion?: { nombre: string; totalVisto: number },
+): Promise<void> {
+  await invokePortal<{ ok: true }>({
+    token, action: 'responder_presupuesto', otId, aprobado,
+    ...(aprobado && aceptacion ? { nombre: aceptacion.nombre, acepta: true, totalVisto: aceptacion.totalVisto } : {}),
+  });
 }
 
 export async function responderInspeccion(token: string, inspeccionId: string, aprobado: boolean): Promise<void> {
