@@ -173,3 +173,21 @@ daños) es una pregunta para el abogado; el plazo por defecto es configurable pr
 - Probado contra Supabase real con datos de prueba (borrados): 48 comprobaciones del servidor, pantalla del taller
   (sugerencias, aceptación parcial, añadir solo lo aprobado, informe, ajustes) y 32 de la migración en transacción revertida.
 - Fase C (según uso): vídeo, métricas, avisos automáticos desde puntos en «atención», WhatsApp.
+
+## 13. Estado de la fase C (15-11-2026)
+- HECHO y desplegado (migraciones `20261115140000` y `20261115150000`, función `seguimiento-inspecciones`, cron diario 08:30 UTC):
+  - **Métricas** en Rentabilidad (mismo selector de periodo): informes enviados, respondidos (%), propuesto y aprobado (%),
+    reparto por mecánico y lo que más se rechaza. Solo con el módulo Rentabilidad.
+  - **Seguimiento automático por correo, una vez por informe:** a los 5 días si el cliente no ha respondido (con el
+    enlace al informe) y a los 30 días de la respuesta si quedaron urgentes rechazados o puntos en «atención» sin resolver
+    (lista y datos de contacto). Solo con los recordatorios automáticos del taller activados y nunca a clientes con «No
+    enviarle avisos»; cada informe muestra cuándo se mandó y tiene su propio interruptor para desactivarlo.
+  - **WhatsApp asistido** para el informe y el presupuesto: abre WhatsApp con el mensaje y el enlace escritos (lo envía la
+    persona; sin API de pago). Si aún no estaban enviados, los marca como enviados.
+- Decisiones de Daniel: plazos 5/30 días, mismo interruptor de recordatorios automáticos, **sin vídeo** por ahora (pesa
+  20-60 MB y el navegador no puede reducirlo; se retoma si los talleres lo piden).
+- Probado contra Supabase real con datos de prueba (borrados): simulación y envío real (2 correos), un cliente «no avisar»
+  omitido, no reenvía en la segunda ejecución, métricas iguales a un cálculo SQL independiente, ficha y WhatsApp en pantalla;
+  migración 25/25 en transacción revertida.
+- Pendiente (futuro): API oficial de WhatsApp (proveedor, plantillas aprobadas, coste por mensaje), plazos por taller,
+  avisos al taller cuando un informe lleva días sin respuesta.

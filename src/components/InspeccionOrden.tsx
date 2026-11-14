@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, CheckCircle2, ClipboardCheck, Copy, Mail, Printer, Send, Sparkles, Trash2 } from 'lucide-react';
+import { BellRing, Camera, CheckCircle2, ClipboardCheck, Copy, Mail, MessageCircle, Printer, Send, Sparkles, Trash2 } from 'lucide-react';
 import type { Empresa, OrdenTrabajo } from '../types';
 import { supabase } from '../lib/supabase';
 import { getOrden } from '../lib/data/ordenes';
@@ -8,7 +8,7 @@ import { listPlantillas, type PlantillaResumen } from '../lib/data/plantillasIns
 import { tipoDispositivo } from '../lib/data/firmas';
 import InformeInspeccionImpreso from './InformeInspeccionImpreso';
 import {
-  aplicarSugerencia, anadirAprobadasAOrden, borrarFotoPunto, crearInspeccion, devolverAlMecanico, enviarInspeccion, getConservarFotos,
+  aplicarSugerencia, anadirAprobadasAOrden, getEnlaceCliente, setSeguimientoDesactivado, borrarFotoPunto, crearInspeccion, devolverAlMecanico, enviarInspeccion, getConservarFotos,
   getInspeccionDeOrden, guardarNotaGeneral, guardarPunto, reabrirInspeccion, setConservarFotos, urlsFotos,
   type Inspeccion, type InspeccionPunto,
 } from '../lib/data/inspecciones';
@@ -18,6 +18,7 @@ import {
   puntosPendientesDeAnadir, resumenPuntos, sugerenciaPendiente, totalPuntos, urgentesSinPrecio, type EstadoPunto,
 } from '../utils/inspeccion';
 import { fmt2 } from '../utils/moneda';
+import { abrirEnPestana, mensajeInforme, waHref } from '../utils/whatsapp';
 import { formatDate } from '../utils/dateFormat';
 
 interface Props {
@@ -27,6 +28,7 @@ interface Props {
   /** Para el informe imprimible: la empresa, el nombre del cliente y el vehículo. */
   empresa: Pick<Empresa, 'nombre' | 'logoBase64' | 'ciudad' | 'correo' | 'telefono' | 'web'>;
   clienteNombre: string;
+  clienteTelefono?: string;
   vehiculoDescripcion: string;
   /** La orden tal como quedó en el servidor tras añadir reparaciones (cambian líneas y totales). */
   onCambioOrden: (ot: OrdenTrabajo) => void;
@@ -172,7 +174,7 @@ function PuntoRevision({ punto, urls, editable, servicios, onGuardar, onBorrarFo
   );
 }
 
-export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNombre, vehiculoDescripcion, onCambioOrden }: Props) {
+export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNombre, clienteTelefono, vehiculoDescripcion, onCambioOrden }: Props) {
   const [insp, setInsp] = useState<Inspeccion | null | undefined>(undefined);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [conservar, setConservar] = useState(false);
@@ -278,9 +280,9 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
   const aprobables = conProblema.filter((p) => p.precio != null && p.precio > 0);
 
   const enlaceCliente = async (): Promise<string> => {
-    const { data, error: e } = await supabase.from('clientes').select('portal_token').eq('id', insp.clienteId).single();
-    if (e || !data?.portal_token) throw new Error('El cliente aún no tiene enlace a su portal.');
-    return `${window.location.origin}/portal/${data.portal_token}`;
+    const enlace = await getEnlaceCliente(insp.clienteId);
+    if (!enlace) throw new Error('El cliente aún no tiene enlace a su portal.');
+    return enlace;
   };
 
   const enviar = (porCorreo: boolean) => void ejecutar(async () => {
@@ -288,6 +290,16 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
     if (!porCorreo) { try { await navigator.clipboard.writeText(enlace); setAviso('Marcada como enviada. Enlace copiado: pégalo en el mensaje al cliente.'); } catch { setAviso(`Marcada como enviada. Enlace: ${enlace}`); } }
     else setAviso('Informe enviado al cliente por correo.');
   }, 'No se pudo enviar la inspección.');
+
+  /** WhatsApp con el mensaje y el enlace ya escritos. Si el informe aún no se había enviado, lo marca como enviado. */
+  const porWhatsApp = () => void ejecutar(async () => {
+    const resultado = await abrirEnPestana(async () => {
+      const enlace = insp.estado === 'terminada' ? (await enviarInspeccion(insp.id, false)).enlace : await enlaceCliente();
+      return waHref(clienteTelefono, mensajeInforme(clienteNombre || 'cliente', vehiculoDescripcion, empresa.nombre, enlace));
+    });
+    if (resultado === 'sin_enlace') throw new Error('El cliente no tiene teléfono en su ficha: no se puede abrir WhatsApp.');
+    setAviso(resultado === 'bloqueado' ? 'Tu navegador bloqueó la ventana de WhatsApp. Usa «Copiar enlace» y pégalo en el mensaje.' : 'WhatsApp abierto con el mensaje escrito: pulsa enviar.');
+  }, 'No se pudo preparar el mensaje de WhatsApp.');
 
   const copiarEnlace = () => void ejecutar(async () => {
     const enlace = await enlaceCliente();
@@ -370,6 +382,10 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
               className="flex-1 min-w-[10rem] flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-50 cursor-pointer">
               <Mail size={13} /> Enviar por correo
             </button>
+            <button type="button" disabled={ocupado || sinPrecio > 0 || !clienteTelefono} onClick={porWhatsApp} data-testid="enviar-whatsapp" title={clienteTelefono ? undefined : 'El cliente no tiene teléfono'}
+              className="flex-1 min-w-[10rem] flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-50 cursor-pointer">
+              <MessageCircle size={13} /> Enviar por WhatsApp
+            </button>
             <button type="button" disabled={ocupado || sinPrecio > 0} onClick={() => enviar(false)}
               className="flex-1 min-w-[10rem] flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer">
               <Copy size={13} /> Copiar enlace y marcar enviada
@@ -385,6 +401,7 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
           <p className="text-xs text-slate-500 flex items-center gap-1"><Send size={11} /> Enviada el {formatDate((insp.enviadaEn ?? '').slice(0, 10))}. Esperando la respuesta del cliente.</p>
           <div className="flex gap-3 flex-wrap">
             <button type="button" disabled={ocupado} onClick={copiarEnlace} className="text-xs font-semibold text-blue-600 underline cursor-pointer disabled:opacity-50">Copiar enlace del cliente</button>
+            {clienteTelefono && <button type="button" disabled={ocupado} onClick={porWhatsApp} className="text-xs font-semibold text-green-700 underline cursor-pointer disabled:opacity-50">Enviar por WhatsApp</button>}
             <button type="button" disabled={ocupado} onClick={() => void ejecutar(() => reabrirInspeccion(insp), 'No se pudo reabrir.')} className="text-xs font-semibold text-slate-500 underline cursor-pointer disabled:opacity-50">Reabrir para corregir</button>
           </div>
         </div>
@@ -411,6 +428,18 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
             </button>
           )}
           {!puedeAnadir && pendientesAnadir.length > 0 && <p className="text-xs text-amber-700">Hay reparaciones aprobadas sin añadir, pero la orden ya no está en el taller.</p>}
+        </div>
+      )}
+
+      {(insp.estado === 'enviada' || insp.estado === 'respondida') && (
+        <div className="text-[11px] text-slate-500 space-y-1" data-testid="seguimiento-inspeccion">
+          {insp.seguimientoSinResponderEn && <p className="flex items-center gap-1"><BellRing size={11} /> Recordatorio automático enviado el {formatDate(insp.seguimientoSinResponderEn.slice(0, 10))} (informe sin responder).</p>}
+          {insp.seguimientoPendientesEn && <p className="flex items-center gap-1"><BellRing size={11} /> Seguimiento automático enviado el {formatDate(insp.seguimientoPendientesEn.slice(0, 10))} (puntos sin resolver).</p>}
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input type="checkbox" className="accent-blue-600" checked={insp.seguimientoDesactivado} disabled={ocupado}
+              onChange={(e) => void ejecutar(() => setSeguimientoDesactivado(insp.id, e.target.checked), 'No se pudo cambiar el seguimiento.')} />
+            No enviar recordatorios automáticos de este informe
+          </label>
         </div>
       )}
 

@@ -56,6 +56,13 @@ texto con la lista de reparaciones aceptadas y su importe sin IVA, hora, IP y di
 no marca queda como rechazado y la respuesta es definitiva. Mismas preguntas que para el presupuesto. Texto en
 `supabase/functions/portal-cliente/logic.ts` (`textoAceptacionInspeccion`).
 
+**Seguimiento automático de inspecciones** (correo al cliente del taller, una sola vez por informe): a los 5 días si no
+respondió al informe y a los 30 días si quedaron reparaciones urgentes rechazadas o puntos en «atención» («Hace un mes
+revisamos tu vehículo y quedaron estas cosas pendientes… llámanos o responde a este correo»). Solo si el taller activó
+los recordatorios automáticos y el cliente no pidió no recibir avisos; el pie dice que se puede responder para no recibir
+más. Misma duda que los recordatorios de ITV/aceite: ¿servicio o comunicación comercial, y hace falta enlace de baja?
+Texto en `supabase/functions/seguimiento-inspecciones/logic.ts`.
+
 **Avisos de borrado de cuenta** (correo a los administradores del taller, desde `send@doonty.com`): primer
 aviso y «último aviso», con la fecha exacta de eliminación, qué se pierde («esto no se puede deshacer»),
 cómo conservarla (suscribirse) y cómo llevarse los datos (exportar a CSV). Texto en

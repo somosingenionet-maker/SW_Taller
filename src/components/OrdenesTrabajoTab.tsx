@@ -12,7 +12,7 @@ import { getOrden, buscarOrdenes, OrdenListaRow } from '../lib/data/ordenes';
 import { supabase } from '../lib/supabase';
 import { avisarError } from '../lib/avisos';
 import { mensajeDeError } from '../lib/errores';
-import { telefonoWhatsApp } from '../utils/telefono';
+import { waHref } from '../utils/whatsapp';
 import { fmt2, formatKm } from '../utils/moneda';
 import { resumenTiempos, textoDuracion, textoHoras } from '../utils/duracionTarea';
 import { resumenFiltros } from '../utils/aceite';
@@ -62,10 +62,7 @@ const ESTADO_FLOW: OTEstado[] = [
 /** Estados donde añadir una línea no implica avisar de un extra al cliente. */
 export const ESTADOS_SIN_AVISO_EXTRA: OTEstado[] = ['presupuesto', 'cancelado', 'entregado'];
 
-export function waHref(telefono: string | undefined, mensaje: string): string | null {
-  const numero = telefonoWhatsApp(telefono);
-  return numero ? `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}` : null;
-}
+export { waHref };
 
 export function mailHref(correo: string | undefined, asunto: string, mensaje: string): string | null {
   return correo ? `mailto:${correo}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(mensaje)}` : null;
@@ -1287,6 +1284,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   retencionMeses={empresa.fotosRetencionMeses}
                   empresa={empresa}
                   clienteNombre={(() => { const c = clientes.find(x => x.id === selected.clienteId); return c ? `${c.nombre} ${c.apellidos}`.trim() : ''; })()}
+                  clienteTelefono={clientes.find(x => x.id === selected.clienteId)?.telefono || undefined}
                   vehiculoDescripcion={(() => { const v = vehiculos.find(x => x.id === selected.vehiculoId); return v ? `${v.marca} ${v.modelo}${v.matricula ? ` (${v.matricula})` : ''}` : ''; })()}
                   onCambioOrden={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
                 />
@@ -1346,6 +1344,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       <EnviarPresupuesto
                         ot={selected}
                         clienteId={selected.clienteId}
+                        clienteNombre={(() => { const c = clientes.find(x => x.id === selected.clienteId); return c ? `${c.nombre} ${c.apellidos}`.trim() : ''; })()}
+                        clienteTelefono={clientes.find(x => x.id === selected.clienteId)?.telefono || undefined}
+                        vehiculoDescripcion={(() => { const v = vehiculos.find(x => x.id === selected.vehiculoId); return v ? `${v.marca} ${v.modelo}${v.matricula ? ` (${v.matricula})` : ''}` : ''; })()}
+                        empresaNombre={empresa.nombre}
                         onCambio={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
                       />
                       <div className="flex gap-2">

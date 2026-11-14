@@ -1,3 +1,4 @@
+import InspeccionesMetricasCard from './InspeccionesMetricasCard';
 import { useState, useEffect, useMemo } from 'react';
 import { Cliente, OTEstado } from '../types';
 import {
@@ -408,6 +409,11 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
               ))}
             </div>
           )}
+        </div>
+
+        {/* 8. Inspecciones */}
+        <div className="lg:col-span-2">
+          <InspeccionesMetricasCard desde={start} hasta={end} />
         </div>
       </div>
     </div>

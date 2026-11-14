@@ -1,20 +1,25 @@
 import { useState } from 'react';
-import { CheckCircle2, Copy, Mail } from 'lucide-react';
+import { CheckCircle2, Copy, Mail, MessageCircle } from 'lucide-react';
 import type { OrdenTrabajo } from '../types';
-import { supabase } from '../lib/supabase';
+import { getEnlaceCliente } from '../lib/data/inspecciones';
 import { getOrden } from '../lib/data/ordenes';
 import { enviarPresupuesto } from '../lib/data/presupuestos';
 import { mensajeDeError } from '../lib/errores';
+import { abrirEnPestana, mensajePresupuesto, waHref } from '../utils/whatsapp';
 
 interface Props {
   ot: OrdenTrabajo;
   clienteId: string;
+  clienteNombre: string;
+  clienteTelefono?: string;
+  vehiculoDescripcion: string;
+  empresaNombre: string;
   /** La orden tal como quedó en el servidor tras enviar el presupuesto. */
   onCambio: (ot: OrdenTrabajo) => void;
 }
 
 /** Envío real del presupuesto: correo con el enlace al portal del cliente, donde lo acepta o lo rechaza. */
-export default function EnviarPresupuesto({ ot, clienteId, onCambio }: Props) {
+export default function EnviarPresupuesto({ ot, clienteId, clienteNombre, clienteTelefono, vehiculoDescripcion, empresaNombre, onCambio }: Props) {
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState('');
   const [aviso, setAviso] = useState('');
@@ -48,12 +53,34 @@ export default function EnviarPresupuesto({ ot, clienteId, onCambio }: Props) {
     return 'Enlace copiado: pégalo en el mensaje al cliente (WhatsApp, SMS…).';
   }, 'No se pudo preparar el enlace.');
 
+  /** WhatsApp con el mensaje y el enlace ya escritos; si el presupuesto no estaba enviado, lo marca como enviado. */
+  const porWhatsApp = async () => {
+    setError(''); setAviso(''); setOcupado(true);
+    try {
+      const resultado = await abrirEnPestana(async () => {
+        const enlace = enviado && !rechazado ? await enlaceDelCliente(clienteId) : (await enviarPresupuesto(ot.id, false)).enlace;
+        return waHref(clienteTelefono, mensajePresupuesto(clienteNombre || 'cliente', vehiculoDescripcion, empresaNombre, ot.numero, enlace));
+      });
+      if (resultado === 'sin_enlace') throw new Error('El cliente no tiene teléfono en su ficha: no se puede abrir WhatsApp.');
+      onCambio(await getOrden(ot.id));
+      setAviso(resultado === 'bloqueado' ? 'Tu navegador bloqueó la ventana de WhatsApp. Usa «Copiar enlace» y pégalo en el mensaje.' : 'WhatsApp abierto con el mensaje escrito: pulsa enviar.');
+    } catch (e) {
+      setError(mensajeDeError(e, 'No se pudo preparar el mensaje de WhatsApp.'));
+    } finally {
+      setOcupado(false);
+    }
+  };
+
   return (
     <div className="space-y-2" data-testid="enviar-presupuesto">
       <div className="flex gap-2 flex-wrap">
         <button type="button" disabled={ocupado} onClick={() => void enviarPorCorreo()} data-testid="enviar-presupuesto-correo"
           className="flex-1 min-w-[9rem] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold disabled:opacity-60 cursor-pointer">
           <Mail size={13} /> {enviado ? 'Reenviar por correo' : 'Enviar por correo'}
+        </button>
+        <button type="button" disabled={ocupado || !clienteTelefono} onClick={() => void porWhatsApp()} data-testid="enviar-presupuesto-whatsapp" title={clienteTelefono ? undefined : 'El cliente no tiene teléfono'}
+          className="flex-1 min-w-[9rem] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-bold disabled:opacity-50 cursor-pointer">
+          <MessageCircle size={13} /> Enviar por WhatsApp
         </button>
         <button type="button" disabled={ocupado} onClick={() => void copiarEnlace()}
           className="flex-1 min-w-[9rem] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 cursor-pointer">
@@ -68,7 +95,7 @@ export default function EnviarPresupuesto({ ot, clienteId, onCambio }: Props) {
 }
 
 async function enlaceDelCliente(clienteId: string): Promise<string> {
-  const { data, error } = await supabase.from('clientes').select('portal_token').eq('id', clienteId).single();
-  if (error || !data?.portal_token) throw new Error('El cliente aún no tiene enlace a su portal.');
-  return `${window.location.origin}/portal/${data.portal_token}`;
+  const enlace = await getEnlaceCliente(clienteId);
+  if (!enlace) throw new Error('El cliente aún no tiene enlace a su portal.');
+  return enlace;
 }

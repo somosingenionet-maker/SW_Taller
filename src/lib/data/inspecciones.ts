@@ -42,6 +42,10 @@ export interface Inspeccion {
   respondidaEn: string | null;
   fotosBorradasEn: string | null;
   plantillaNombre: string | null;
+  /** Cuándo se mandó el recordatorio automático (null = aún no). */
+  seguimientoSinResponderEn: string | null;
+  seguimientoPendientesEn: string | null;
+  seguimientoDesactivado: boolean;
   aceptacion: AceptacionInspeccion | null;
   puntos: InspeccionPunto[];
 }
@@ -49,7 +53,7 @@ export interface Inspeccion {
 const BUCKET = 'inspecciones';
 const SELECT_PUNTOS = 'id, categoria, nombre, posicion, estado, nota, fotos, reparacion, precio, decision, servicio_nombre, reparacion_sugerida, precio_sugerido';
 const SELECT =
-  'id, orden_id, vehiculo_id, cliente_id, estado, km, realizada_por, nota_general, terminada_en, enviada_en, respondida_en, fotos_borradas_en, plantilla_nombre, ' +
+  'id, orden_id, vehiculo_id, cliente_id, estado, km, realizada_por, nota_general, terminada_en, enviada_en, respondida_en, fotos_borradas_en, plantilla_nombre, seguimiento_sin_responder_en, seguimiento_pendientes_en, seguimiento_desactivado, ' +
   'aceptacion_nombre, aceptacion_en, aceptacion_total, aceptacion_texto, aceptacion_ip, aceptacion_dispositivo, ' +
   `inspeccion_puntos ( ${SELECT_PUNTOS} )`;
 
@@ -62,6 +66,7 @@ type InspeccionRow = {
   id: string; orden_id: string; vehiculo_id: string; cliente_id: string; estado: string; km: number | null;
   realizada_por: string | null; nota_general: string | null; terminada_en: string | null; enviada_en: string | null;
   respondida_en: string | null; fotos_borradas_en: string | null; plantilla_nombre: string | null;
+  seguimiento_sin_responder_en: string | null; seguimiento_pendientes_en: string | null; seguimiento_desactivado: boolean;
   aceptacion_nombre: string | null; aceptacion_en: string | null; aceptacion_total: number | string | null; aceptacion_texto: string | null;
   aceptacion_ip: string | null; aceptacion_dispositivo: string | null;
   inspeccion_puntos: PuntoRow[] | null;
@@ -82,6 +87,8 @@ function mapInspeccion(r: InspeccionRow): Inspeccion {
     id: r.id, ordenId: r.orden_id, vehiculoId: r.vehiculo_id, clienteId: r.cliente_id, estado: r.estado as EstadoInspeccion,
     km: r.km, realizadaPor: r.realizada_por, notaGeneral: r.nota_general, terminadaEn: r.terminada_en, enviadaEn: r.enviada_en,
     respondidaEn: r.respondida_en, fotosBorradasEn: r.fotos_borradas_en, plantillaNombre: r.plantilla_nombre,
+    seguimientoSinResponderEn: r.seguimiento_sin_responder_en, seguimientoPendientesEn: r.seguimiento_pendientes_en,
+    seguimientoDesactivado: r.seguimiento_desactivado,
     aceptacion: r.aceptacion_en ? {
       nombre: r.aceptacion_nombre ?? '', en: r.aceptacion_en, total: Number(r.aceptacion_total ?? 0), texto: r.aceptacion_texto ?? '',
       ip: r.aceptacion_ip, dispositivo: r.aceptacion_dispositivo,
@@ -235,4 +242,17 @@ export async function anadirAprobadasAOrden(otId: string, puntos: PuntoAprobable
   const anadido = totalPuntos(nuevos as { precio: number | null }[]);
   await anotarEvento(otId, `Añadidas ${nuevos.length} reparación(es) aprobadas de la inspección (${anadido.toFixed(2).replace('.', ',')} € + IVA).`);
   return { anadidas: nuevos.length, total: anadido };
+}
+
+/** Activa o desactiva los recordatorios automáticos de este informe. */
+export async function setSeguimientoDesactivado(inspeccionId: string, desactivado: boolean): Promise<void> {
+  const { error } = await supabase.from('inspecciones').update({ seguimiento_desactivado: desactivado }).eq('id', inspeccionId);
+  if (error) throw new Error(error.message);
+}
+
+/** Enlace del portal del cliente de esta inspección (null si el cliente aún no tiene). */
+export async function getEnlaceCliente(clienteId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('clientes').select('portal_token').eq('id', clienteId).single();
+  if (error) throw new Error(error.message);
+  return data.portal_token ? `${window.location.origin}/portal/${data.portal_token}` : null;
 }

@@ -772,6 +772,9 @@ export type Database = {
           plantilla_nombre: string | null
           realizada_por: string | null
           respondida_en: string | null
+          seguimiento_desactivado: boolean
+          seguimiento_pendientes_en: string | null
+          seguimiento_sin_responder_en: string | null
           terminada_en: string | null
           updated_at: string
           vehiculo_id: string
@@ -796,6 +799,9 @@ export type Database = {
           plantilla_nombre?: string | null
           realizada_por?: string | null
           respondida_en?: string | null
+          seguimiento_desactivado?: boolean
+          seguimiento_pendientes_en?: string | null
+          seguimiento_sin_responder_en?: string | null
           terminada_en?: string | null
           updated_at?: string
           vehiculo_id: string
@@ -820,6 +826,9 @@ export type Database = {
           plantilla_nombre?: string | null
           realizada_por?: string | null
           respondida_en?: string | null
+          seguimiento_desactivado?: boolean
+          seguimiento_pendientes_en?: string | null
+          seguimiento_sin_responder_en?: string | null
           terminada_en?: string | null
           updated_at?: string
           vehiculo_id?: string
@@ -1970,6 +1979,33 @@ export type Database = {
           referencia: string
         }[]
       }
+      inspecciones_mas_rechazadas: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: {
+          punto: string
+          rechazados: number
+          total: number
+        }[]
+      }
+      inspecciones_metricas: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: {
+          aprobado: number
+          con_aprobacion: number
+          enviadas: number
+          propuesto: number
+          respondidas: number
+        }[]
+      }
+      inspecciones_metricas_mecanicos: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: {
+          aprobado: number
+          informes: number
+          mecanico: string
+          propuesto: number
+        }[]
+      }
       mi_empresa_id: { Args: never; Returns: string }
       mi_suscripcion: { Args: never; Returns: Json }
       ordenes_por_rango_recepcion: {
@@ -2031,6 +2067,20 @@ export type Database = {
           cliente_id: string
           facturado: number
           visitas: number
+        }[]
+      }
+      seguimientos_inspeccion_pendientes: {
+        Args: never
+        Returns: {
+          cliente_id: string
+          empresa_id: string
+          enviada_en: string
+          inspeccion_id: string
+          orden_id: string
+          puntos: Json
+          respondida_en: string
+          tipo: string
+          vehiculo_id: string
         }[]
       }
       sesion_sin_segundo_factor: { Args: never; Returns: boolean }
