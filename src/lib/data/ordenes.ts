@@ -14,7 +14,7 @@ const SELECT =
   // De las firmas solo quién, cuándo y por cuánto: el dibujo (PNG) no viaja en los listados.
   'firma_presupuesto_nombre, firma_presupuesto_en, firma_presupuesto_total, firma_entrega_nombre, firma_entrega_en, ' +
   'checklist_recepcion, checklist_observaciones, fotos_recepcion, ' +
-  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, duracion_min, notificado_cliente ), ' +
+  'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, duracion_min, notificado_cliente, inspeccion_punto_id ), ' +
   'eventos_ot ( fecha, descripcion )';
 
 type LineaRow = {
@@ -23,6 +23,7 @@ type LineaRow = {
   completado: boolean; notificado_cliente: boolean;
   /** Opcional: no todas las consultas lo piden (p. ej. las líneas facturables). */
   duracion_min?: number | null;
+  inspeccion_punto_id?: string | null;
 };
 type EventoRow = { fecha: string; descripcion: string };
 type ChecklistItemRow = { item: string; ok: boolean };
@@ -56,6 +57,7 @@ export function mapLinea(l: LineaRow): LineaOT {
     completado: l.completado,
     duracionMin: l.duracion_min ?? undefined,
     notificadoCliente: l.notificado_cliente,
+    inspeccionPuntoId: l.inspeccion_punto_id ?? undefined,
   };
 }
 
@@ -154,6 +156,8 @@ export function lineaToRow(l: LineaOT, otId: string, posicion: number) {
     // recién añadida a una OT ya recibida como pendiente de avisar al
     // cliente — cualquier otro caso (línea original, o ya avisada) es `true`.
     notificado_cliente: l.notificadoCliente ?? true,
+    // Línea nacida de un punto de la inspección: se conserva el vínculo al editar la orden.
+    inspeccion_punto_id: l.inspeccionPuntoId ?? null,
   };
 }
 

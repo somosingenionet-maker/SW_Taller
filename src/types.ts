@@ -55,6 +55,8 @@ export interface LineaOT {
   completado?: boolean;
   /** Minutos reales que el mecánico anotó al terminar la tarea (Portal del Mecánico). */
   duracionMin?: number;
+  /** Si la línea nace de un punto de la inspección digital que el cliente aprobó: de cuál (evita duplicarla). */
+  inspeccionPuntoId?: string;
   /** false cuando la línea se añadió tras la recepción y el taller todavía no le avisó al cliente del cargo extra. true por defecto (líneas originales del presupuesto/recepción). */
   notificadoCliente?: boolean;
 }
@@ -233,6 +235,8 @@ export interface Empresa {
   verifactuEntorno: 'pruebas' | 'produccion';
   /** Identificador único e inmutable de la instalación de esta empresa ante la AEAT. */
   verifactuNumeroInstalacion: string;
+  /** Meses desde la entrega de una orden tras los que se borran sus fotos (recepción e inspección). */
+  fotosRetencionMeses: 3 | 6 | 12 | 24;
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */

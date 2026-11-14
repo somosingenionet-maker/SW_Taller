@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { esFormatoIntocable, tamanoEscalado, yaEstaOptimizada } from './imagen';
+import { esFormatoIntocable, formatearBytes, tamanoEscalado, yaEstaOptimizada } from './imagen';
 
 describe('tamanoEscalado', () => {
   it('reduce el lado largo conservando proporciones', () => {
@@ -32,5 +32,16 @@ describe('yaEstaOptimizada', () => {
   it('una foto grande o pesada se comprime', () => {
     expect(yaEstaOptimizada(5 * 1024 * 1024, 4000, 3000, 1600)).toBe(false);
     expect(yaEstaOptimizada(2 * 1024 * 1024, 1500, 1000, 1600)).toBe(false);
+  });
+});
+
+describe('formatearBytes', () => {
+  it('elige la unidad adecuada', () => {
+    expect(formatearBytes(0)).toBe('0 KB');
+    expect(formatearBytes(100)).toBe('1 KB');
+    expect(formatearBytes(320 * 1024)).toBe('320 KB');
+    expect(formatearBytes(1.45 * 1024 * 1024)).toBe('1,4 MB');
+    expect(formatearBytes(3 * 1024 * 1024 * 1024)).toBe('3,00 GB');
+    expect(formatearBytes(NaN)).toBe('0 KB');
   });
 });

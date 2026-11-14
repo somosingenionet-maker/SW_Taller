@@ -11,6 +11,7 @@ import ConfirmDialog from './ConfirmDialog';
 import AdminPanel from './AdminPanel';
 import SeguridadModal from './SeguridadModal';
 import CuentasTerminadasCard from './CuentasTerminadasCard';
+import FotosPlataformaCard from './FotosPlataformaCard';
 
 interface SuperAdminPanelProps {
   currentUser: Perfil;
@@ -254,6 +255,7 @@ export default function SuperAdminPanel({ currentUser, onLogout, onUserUpdated }
               </div>
             )}
 
+            <FotosPlataformaCard nombres={Object.fromEntries(empresas.map((e) => [e.id, e.nombre]))} />
             <CuentasTerminadasCard />
           </>
         )}

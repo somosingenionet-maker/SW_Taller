@@ -4,6 +4,9 @@ import {
   calcularVehiculosAMostrar,
   otActivaPorVehiculo,
   presupuestosPendientes,
+  puedeResponderInspeccion,
+  formatearInforme,
+  puntosAprobables,
   type Cliente,
   type OtCliente,
 } from './logic.ts';
@@ -81,4 +84,42 @@ Deno.test('presupuestosPendientes: incluye solo presupuestos enviados sin respue
   ];
   const resultado = presupuestosPendientes(ordenes);
   assertEquals(resultado.map((o) => o.id), ['ot-pendiente']);
+});
+
+Deno.test('puedeResponderInspeccion: solo el dueño y solo mientras está enviada', () => {
+  const c = { id: 'c1', empresa_id: 'e', nombre: 'A', apellidos: 'B' };
+  assertEquals(puedeResponderInspeccion(c, { cliente_id: 'c1', estado: 'enviada' }), true);
+  assertEquals(puedeResponderInspeccion(c, { cliente_id: 'c2', estado: 'enviada' }), false);
+  assertEquals(puedeResponderInspeccion(c, { cliente_id: 'c1', estado: 'respondida' }), false);
+  assertEquals(puedeResponderInspeccion(c, { cliente_id: 'c1', estado: 'terminada' }), false);
+  assertEquals(puedeResponderInspeccion(c, { cliente_id: 'c1', estado: 'borrador' }), false);
+});
+
+const INSP = { id: 'i1', orden_id: 'o1', vehiculo_id: 'v1', cliente_id: 'c1', estado: 'enviada', nota_general: null, enviada_en: '2026-11-14T10:00:00Z', respondida_en: null, fotos_borradas_en: null };
+const P = (id: string, estado: string | null, pos: number, extra: Record<string, unknown> = {}) =>
+  ({ id, categoria: 'Frenos', nombre: id, posicion: pos, estado, nota: null, fotos: [], reparacion: null, precio: null, decision: null, ...extra });
+
+Deno.test('formatearInforme: urgentes primero, atención después, el resto solo cuenta; sin «no aplica» ni sin marcar', () => {
+  const puntos = [
+    P('a', 'bien', 1), P('b', 'urgente', 3, { precio: 64, nota: 'Sin margen' }), P('c', 'atencion', 2, { precio: 30.5 }),
+    P('d', 'no_aplica', 4), P('e', null, 5), P('f', 'urgente', 0, { precio: 10 }),
+  ];
+  const r = formatearInforme(INSP, 'Seat León (1234ABC)', puntos, new Map());
+  assertEquals(r.urgentes.map((p) => p.id), ['f', 'b']);        // ordenados por posición
+  assertEquals(r.atencion.map((p) => p.id), ['c']);
+  assertEquals(r.bien, 1);
+  assertEquals(r.totalAprobable, 104.5);
+  assertEquals(r.puntosAprobables, 3);
+  assertEquals(r.fotosEliminadas, false);
+});
+
+Deno.test('formatearInforme: fotos solo con enlace disponible; fotos eliminadas se avisa; atención sin precio no es aprobable', () => {
+  const urls = new Map([['r1', 'https://firmada/1']]);
+  const puntos = [P('a', 'urgente', 1, { fotos: ['r1', 'r-borrada'], precio: 20 }), P('b', 'atencion', 2)];
+  const r = formatearInforme({ ...INSP, fotos_borradas_en: '2027-05-01T00:00:00Z' }, 'X', puntos, urls);
+  assertEquals(r.urgentes[0].fotos, ['https://firmada/1']);
+  assertEquals(r.fotosEliminadas, true);
+  assertEquals(r.puntosAprobables, 1);
+  assertEquals(puntosAprobables(puntos), 1);
+  assertEquals(puntosAprobables([{ estado: 'urgente', precio: 0 }, { estado: 'bien', precio: 50 }]), 0);
 });

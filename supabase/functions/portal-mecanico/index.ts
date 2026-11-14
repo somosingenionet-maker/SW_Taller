@@ -14,6 +14,9 @@ import {
   esFiltro, normalizarEstadoFiltro, fechaValida, normalizarKm,
 } from './logic.ts';
 import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
+import {
+  cargarInspecciones, manejarCrear, manejarPunto, manejarFotoUrl, manejarFotoRegistrar, manejarFotoBorrar, manejarTerminar, manejarReabrir, type Ayudas,
+} from './inspeccion.ts';
 import { initSentry, conSentry } from '../_shared/sentry.ts';
 
 initSentry('portal-mecanico');
@@ -21,7 +24,8 @@ initSentry('portal-mecanico');
 // Límite por IP: generoso para un uso normal (un técnico recargando o
 // marcando varias tareas), suficiente para frenar fuerza bruta del token o
 // abuso automatizado del endpoint.
-const RATE_LIMIT_MAX = 30;
+// (la inspección digital añade muchas peticiones seguidas: un toque por punto y dos por foto)
+const RATE_LIMIT_MAX = 120;
 const RATE_LIMIT_VENTANA_SEGUNDOS = 60;
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -76,6 +80,8 @@ async function manejarGet(admin: SupabaseClient, tecnico: Tecnico) {
     empresa: empresa ? { nombre: empresa.nombre, brandColor: empresa.brand_color, logoUrl: empresa.logo_url } : null,
     tecnico: { nombre: tecnico.nombre },
     ordenes: formatearOrdenesPortal(ordenes, vehiculos ?? [], lineas ?? [], eventos ?? [], tecnico.nombre),
+    // Inspecciones abiertas, por id de orden (con enlaces de lectura de las fotos que caducan en 1 hora).
+    inspecciones: await cargarInspecciones(admin, tecnico.empresa_id, otIds),
   });
 }
 
@@ -283,6 +289,23 @@ Deno.serve(conSentry(async (req) => {
   if (accion === 'aceite') return manejarAceite(admin, tecnico, String(body.otId ?? ''), body.activo === true);
   if (accion === 'filtro') return manejarFiltro(admin, tecnico, String(body.otId ?? ''), body.filtro, body.estado);
   if (accion === 'aceite_proximo') return manejarAceiteProximo(admin, tecnico, String(body.otId ?? ''), body.fecha, body.km);
+  if (accion.startsWith('inspeccion_')) {
+    const ayudas: Ayudas = {
+      json,
+      ordenDelTecnico: (otId) => ordenDelTecnico(admin, tecnico, otId),
+      registrar: (otId, descripcion) => registrar(admin, otId, descripcion),
+      editable: (estado) => (ESTADOS_EDITABLES as readonly string[]).includes(estado),
+      mensajeSoloEnTaller: SOLO_EN_TALLER,
+    };
+    const insp = String(body.inspeccionId ?? '');
+    if (accion === 'inspeccion_crear') return manejarCrear(admin, ayudas, String(body.otId ?? ''));
+    if (accion === 'inspeccion_punto') return manejarPunto(admin, ayudas, insp, body.puntoId, body.estado ?? null, body.nota, body.reparacion);
+    if (accion === 'inspeccion_foto_url') return manejarFotoUrl(admin, ayudas, insp, body.puntoId, body.mime);
+    if (accion === 'inspeccion_foto_registrar') return manejarFotoRegistrar(admin, ayudas, insp, body.puntoId, body.ruta);
+    if (accion === 'inspeccion_foto_borrar') return manejarFotoBorrar(admin, ayudas, insp, body.puntoId, body.ruta);
+    if (accion === 'inspeccion_terminar') return manejarTerminar(admin, ayudas, tecnico, insp, body.notaGeneral);
+    if (accion === 'inspeccion_reabrir') return manejarReabrir(admin, ayudas, tecnico, insp);
+  }
   if (accion) return json({ error: 'Acción no reconocida.' }, 400);
 
   return manejarGet(admin, tecnico);

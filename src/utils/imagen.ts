@@ -89,3 +89,11 @@ export function blobADataUrl(blob: Blob): Promise<string> {
     lector.readAsDataURL(blob);
   });
 }
+
+/** «1,4 MB», «320 KB»… para enseñar espacio ocupado. */
+export function formatearBytes(bytes: number): string {
+  if (!(bytes > 0)) return '0 KB';
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1).replace('.', ',')} MB`;
+  return `${(bytes / 1024 / 1024 / 1024).toFixed(2).replace('.', ',')} GB`;
+}

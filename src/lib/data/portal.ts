@@ -36,11 +36,42 @@ export interface PortalFactura {
   total: number;
 }
 
+export interface PortalInformePunto {
+  id: string;
+  categoria: string;
+  nombre: string;
+  nota: string | null;
+  reparacion: string | null;
+  precio: number | null;
+  decision: 'aprobado' | 'rechazado' | null;
+  /** Enlaces de lectura que caducan a la hora (cada visita pide los suyos). */
+  fotos: string[];
+}
+
+/** Informe de inspección digital que el taller le envió al cliente. */
+export interface PortalInforme {
+  id: string;
+  otId: string;
+  vehiculo: string;
+  estado: 'enviada' | 'respondida';
+  enviadaEn: string | null;
+  respondidaEn: string | null;
+  notaGeneral: string | null;
+  fotosEliminadas: boolean;
+  urgentes: PortalInformePunto[];
+  atencion: PortalInformePunto[];
+  bien: number;
+  totalAprobable: number;
+  puntosAprobables: number;
+}
+
 export interface PortalData {
   empresa: { nombre: string; brandColor: string; logoUrl: string | null } | null;
   cliente: { nombre: string; apellidos: string };
   vehiculos: PortalVehiculo[];
   presupuestosPendientes: PortalPresupuesto[];
+  /** Ausente con una versión antigua de la función. */
+  informes?: PortalInforme[];
   alertas: PortalAlerta[];
   facturas: PortalFactura[];
 }
@@ -53,4 +84,8 @@ export async function getPortalData(token: string): Promise<PortalData> {
 
 export async function responderPresupuesto(token: string, otId: string, aprobado: boolean): Promise<void> {
   await invokePortal<{ ok: true }>({ token, action: 'responder_presupuesto', otId, aprobado });
+}
+
+export async function responderInspeccion(token: string, inspeccionId: string, aprobado: boolean): Promise<void> {
+  await invokePortal<{ ok: true }>({ token, action: 'responder_inspeccion', inspeccionId, aprobado });
 }

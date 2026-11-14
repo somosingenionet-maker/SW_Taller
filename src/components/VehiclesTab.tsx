@@ -11,6 +11,7 @@ import { downloadCsv } from '../utils/csvExport';
 import { avisarError } from '../lib/avisos';
 import type { AceiteVehiculo } from '../lib/data/vehiculos';
 import AceiteVehiculoCard from './AceiteVehiculoCard';
+import InspeccionesVehiculo from './InspeccionesVehiculo';
 import { mensajeDeError } from '../lib/errores';
 import { formatEuros, formatKm } from '../utils/moneda';
 import { listOrdenesPorVehiculo, getHistorialOT, OrdenVehiculoRow } from '../lib/data/ordenes';
@@ -464,6 +465,8 @@ export default function VehiclesTab({
                   vehiculo={vehiculos.find(v => v.id === selectedVehiculo.id) ?? selectedVehiculo}
                   onGuardar={onGuardarAceite}
                 />
+
+                <InspeccionesVehiculo vehiculoId={selectedVehiculo.id} />
               </div>
 
               {/* Historial de Órdenes de Trabajo */}

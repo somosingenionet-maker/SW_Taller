@@ -18,6 +18,7 @@ import { resumenTiempos, textoDuracion, textoHoras } from '../utils/duracionTare
 import { resumenFiltros } from '../utils/aceite';
 import { formatDate as fechaLarga } from '../utils/dateFormat';
 import CambioAceiteOrden from './CambioAceiteOrden';
+import InspeccionOrden from './InspeccionOrden';
 import FirmasOrden, { FirmaImpresa } from './FirmasOrden';
 import FirmaOrdenModal from './FirmaOrdenModal';
 import { getFirmas, type FirmasOrden as Firmas, type TipoFirma } from '../lib/data/firmas';
@@ -1277,6 +1278,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   ot={selected}
                   vehiculo={vehiculos.find(v => v.id === selected.vehiculoId)}
                   onCambio={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
+                />
+
+                <InspeccionOrden
+                  ot={selected}
+                  retencionMeses={empresa.fotosRetencionMeses}
+                  onCambioOrden={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
                 />
 
                 <FirmasOrden ot={selected} onFirmar={setFirmando} />

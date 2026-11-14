@@ -1,6 +1,6 @@
 import { blobADataUrl, comprimirImagen, OPCIONES_LOGO } from '../utils/imagen';
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw } from 'lucide-react';
+import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw, Camera } from 'lucide-react';
 import { AlertaTipo, Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { supabase } from '../lib/supabase';
@@ -8,6 +8,7 @@ import { avisarError } from '../lib/avisos';
 import { contrastText } from '../utils/color';
 import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioTemplates';
 import VerifactuSettings from './VerifactuSettings';
+import { formatearBytes } from '../utils/imagen';
 
 interface Props {
   config: Empresa;
@@ -24,18 +25,19 @@ const TIPO_LABEL: Record<AlertaTipo, string> = {
   aceite: 'Cambio de aceite (recordatorio)',
 };
 
-export type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'tecnicos';
+export type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'fotos' | 'tecnicos';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'identidad', label: 'Identidad', icon: <IdCard className="w-3.5 h-3.5" /> },
   { id: 'fiscal', label: 'Fiscal y Contacto', icon: <Landmark className="w-3.5 h-3.5" /> },
   { id: 'marca', label: 'Marca', icon: <Palette className="w-3.5 h-3.5" /> },
   { id: 'recordatorios', label: 'Recordatorios', icon: <Bell className="w-3.5 h-3.5" /> },
+  { id: 'fotos', label: 'Fotos', icon: <Camera className="w-3.5 h-3.5" /> },
   { id: 'tecnicos', label: 'Técnicos', icon: <Wrench className="w-3.5 h-3.5" /> },
 ];
 
 /** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo/recordatorios/numeración de facturas se conservan). */
-const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura' | 'facturaMostrarQr' | 'verifactuEnvioActivo' | 'verifactuEntorno' | 'verifactuNumeroInstalacion'> = {
+const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura' | 'facturaMostrarQr' | 'verifactuEnvioActivo' | 'verifactuEntorno' | 'verifactuNumeroInstalacion' | 'fotosRetencionMeses'> = {
   nombre: 'Mi Empresa',
   tagline: '',
   razonSocial: '',
@@ -154,6 +156,16 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
 
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState('');
+  const [uso, setUso] = useState<{ bytes: number; archivos: number } | null>(null);
+
+  // Espacio que ocupan las fotos y logos de este taller (solo se pide al abrir la pestaña «Fotos»).
+  useEffect(() => {
+    if (activeTab !== 'fotos' || uso !== null) return;
+    void supabase.rpc('uso_almacenamiento').then(({ data }) => {
+      const filas = (data ?? []) as { empresa_id: string; bytes: number; archivos: number }[];
+      setUso({ bytes: filas.reduce((s, f) => s + Number(f.bytes), 0), archivos: filas.reduce((s, f) => s + Number(f.archivos), 0) });
+    });
+  }, [activeTab, uso]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -501,6 +513,33 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
                   </div>
                 ))}
               </div>
+            </section>
+          )}
+
+          {activeTab === 'fotos' && (
+            <section className="space-y-4" data-testid="ajustes-fotos">
+              <div>
+                <label htmlFor="fotos-retencion" className="block text-xs font-semibold text-slate-600 mb-1">Conservar las fotos de cada orden</label>
+                <select
+                  id="fotos-retencion"
+                  value={draft.fotosRetencionMeses}
+                  onChange={e => setDraft(prev => ({ ...prev, fotosRetencionMeses: Number(e.target.value) as Empresa['fotosRetencionMeses'] }))}
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value={3}>3 meses después de la entrega</option>
+                  <option value={6}>6 meses después de la entrega (recomendado)</option>
+                  <option value={12}>12 meses después de la entrega</option>
+                  <option value={24}>24 meses después de la entrega</option>
+                </select>
+              </div>
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl px-3 py-3 text-xs text-slate-600 space-y-1.5">
+                <p>Pasado ese plazo se borran solas las <b>fotos</b> de recepción y de inspección: así no se acumulan archivos con matrículas y personas más tiempo del necesario.</p>
+                <p>Se conservan siempre el texto, los estados, las notas, los precios y lo que respondió el cliente.</p>
+                <p>Antes de borrar, te avisamos por correo (como mucho una vez por semana) con las órdenes afectadas. En cada orden puedes marcar «Conservar las fotos» si hay una reclamación abierta.</p>
+              </div>
+              <p className="text-xs text-slate-500" data-testid="uso-almacenamiento">
+                {uso === null ? 'Calculando el espacio ocupado…' : uso.archivos === 0 ? 'Aún no hay fotos ni logos guardados.' : <>Espacio ocupado por fotos y logos: <b>{formatearBytes(uso.bytes)}</b> en {uso.archivos} archivo{uso.archivos === 1 ? '' : 's'}.</>}
+              </p>
             </section>
           )}
 

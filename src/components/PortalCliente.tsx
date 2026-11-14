@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Car, Bell, Receipt, ClipboardList, Check, X } from 'lucide-react';
-import { getPortalData, responderPresupuesto, PortalData } from '../lib/data/portal';
+import { Car, Bell, Receipt, ClipboardList, ClipboardCheck, Check, X } from 'lucide-react';
+import { getPortalData, responderPresupuesto, responderInspeccion, PortalData, type PortalInforme, type PortalInformePunto } from '../lib/data/portal';
 import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';
 import { formatDate } from '../utils/dateFormat';
@@ -156,6 +156,111 @@ function PresupuestoCard({ p, color, token }: { p: PortalData['presupuestosPendi
   );
 }
 
+function PuntoInforme({ p, tono }: { p: PortalInformePunto; tono: 'urgente' | 'atencion' }) {
+  const colores = tono === 'urgente' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50';
+  const texto = tono === 'urgente' ? 'text-rose-800' : 'text-amber-800';
+  return (
+    <div className={`rounded-2xl border p-3 ${colores}`} data-testid="informe-punto">
+      <div className="flex items-start justify-between gap-2">
+        <p className={`text-sm font-bold ${texto}`}>{p.nombre} <span className="font-normal opacity-70">· {p.categoria}</span></p>
+        {p.precio != null && p.precio > 0 && <span className={`text-sm font-black whitespace-nowrap ${texto}`}>{fmt(p.precio)} €</span>}
+      </div>
+      {p.nota && <p className={`text-xs mt-1 ${texto}`}>{p.nota}</p>}
+      {p.reparacion && <p className="text-xs mt-1 text-slate-600">Propuesta: {p.reparacion}</p>}
+      {p.fotos.length > 0 && (
+        <div className="flex gap-2 mt-2 flex-wrap">
+          {p.fotos.map((u, i) => (
+            <a key={u} href={u} target="_blank" rel="noopener noreferrer" aria-label={`Ver foto ${i + 1} de ${p.nombre}`}>
+              <img src={u} alt={`Foto ${i + 1} de ${p.nombre}`} className="w-20 h-20 rounded-xl object-cover border border-white" />
+            </a>
+          ))}
+        </div>
+      )}
+      {p.decision && (
+        <p className={`text-[11px] font-bold mt-2 ${p.decision === 'aprobado' ? 'text-green-700' : 'text-slate-500'}`}>
+          {p.decision === 'aprobado' ? '✓ Aprobado' : 'Rechazado'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function InformeCard({ inf, color, token, onRespondido }: { inf: PortalInforme; color: string; token: string; onRespondido: () => void }) {
+  const [enviando, setEnviando] = useState<'aprobar' | 'rechazar' | null>(null);
+  const [error, setError] = useState('');
+
+  const responder = async (aprobado: boolean) => {
+    setEnviando(aprobado ? 'aprobar' : 'rechazar');
+    setError('');
+    try {
+      await responderInspeccion(token, inf.id, aprobado);
+      onRespondido();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo enviar tu respuesta.');
+    } finally {
+      setEnviando(null);
+    }
+  };
+
+  const hayProblemas = inf.urgentes.length + inf.atencion.length > 0;
+  const aprobada = [...inf.urgentes, ...inf.atencion].some((p) => p.decision === 'aprobado');
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3" data-testid="informe-inspeccion">
+      <div className="flex items-center gap-3">
+        <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600"><ClipboardCheck className="w-4 h-4" /></span>
+        <div>
+          <p className="text-sm font-extrabold text-slate-800">Informe de inspección</p>
+          <p className="text-xs text-slate-400">{inf.vehiculo}{inf.enviadaEn ? ` · ${formatDate(inf.enviadaEn.slice(0, 10))}` : ''}</p>
+        </div>
+      </div>
+
+      {inf.notaGeneral && <p className="text-sm text-slate-600">{inf.notaGeneral}</p>}
+      {!hayProblemas && <p className="text-sm font-semibold text-green-700">Todo lo revisado está en buen estado.</p>}
+
+      {inf.urgentes.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-extrabold uppercase tracking-wide text-rose-600">Urgente ({inf.urgentes.length})</p>
+          {inf.urgentes.map((p) => <PuntoInforme key={p.id} p={p} tono="urgente" />)}
+        </div>
+      )}
+      {inf.atencion.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[11px] font-extrabold uppercase tracking-wide text-amber-600">Requiere atención ({inf.atencion.length})</p>
+          {inf.atencion.map((p) => <PuntoInforme key={p.id} p={p} tono="atencion" />)}
+        </div>
+      )}
+      {inf.bien > 0 && <p className="text-xs text-slate-500">El resto está bien ({inf.bien} punto{inf.bien === 1 ? '' : 's'}).</p>}
+      {inf.fotosEliminadas && <p className="text-[11px] text-slate-400">Las fotos de este informe ya se eliminaron por el plazo de conservación.</p>}
+
+      {inf.estado === 'enviada' && inf.puntosAprobables > 0 && (
+        <>
+          <div className="flex justify-between text-sm font-black text-slate-900 border-t border-slate-200 pt-2.5">
+            <span>Reparaciones propuestas ({inf.puntosAprobables})</span>
+            <span>{fmt(inf.totalAprobable)} € + IVA</span>
+          </div>
+          <div className="flex gap-2.5">
+            <button onClick={() => responder(false)} disabled={enviando !== null}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition cursor-pointer disabled:opacity-50">
+              <X className="w-3.5 h-3.5" /> {enviando === 'rechazar' ? 'Enviando…' : 'Rechazar'}
+            </button>
+            <button onClick={() => responder(true)} disabled={enviando !== null} data-testid="aprobar-informe"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-white text-xs font-bold transition cursor-pointer disabled:opacity-50" style={{ backgroundColor: color }}>
+              <Check className="w-3.5 h-3.5" /> {enviando === 'aprobar' ? 'Enviando…' : 'Aprobar reparaciones'}
+            </button>
+          </div>
+          {error && <p className="text-[11px] text-rose-500 font-semibold text-center">{error}</p>}
+        </>
+      )}
+      {inf.estado === 'respondida' && hayProblemas && (
+        <div className={`rounded-xl px-3 py-2.5 text-xs font-bold text-center ${aprobada ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
+          {aprobada ? '✓ Reparaciones aprobadas — el taller se pone con ello' : 'Reparaciones rechazadas. Contacta con el taller si tienes dudas.'}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PortalCliente({ token }: Props) {
   const [data, setData] = useState<PortalData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -170,6 +275,8 @@ export default function PortalCliente({ token }: Props) {
       .finally(() => setLoading(false));
   }, [token]);
   useEffect(() => { cargar(); }, [cargar]);
+  // Tras responder se relee sin tapar la pantalla con el indicador de carga.
+  const cargarSinParpadeo = useCallback(() => { getPortalData(token).then(setData).catch(() => undefined); }, [token]);
 
   if (loading) {
     return (
@@ -204,6 +311,10 @@ export default function PortalCliente({ token }: Props) {
 
       <div className="max-w-md mx-auto px-4 -mt-6 space-y-4">
         {data.vehiculos.map(v => <VehiculoStatus key={v.id} v={v} color={color} />)}
+
+        {(data.informes ?? []).map(inf => (
+          <InformeCard key={inf.id} inf={inf} color={color} token={token} onRespondido={cargarSinParpadeo} />
+        ))}
 
         {data.presupuestosPendientes.map(p => (
           <PresupuestoCard key={p.otId} p={p} color={color} token={token} />

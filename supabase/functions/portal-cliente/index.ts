@@ -10,7 +10,11 @@ import {
   calcularVehiculosAMostrar,
   otActivaPorVehiculo,
   presupuestosPendientes,
+  puedeResponderInspeccion,
+  formatearInforme,
   type OtCliente,
+  type InspeccionCliente,
+  type PuntoCliente,
 } from './logic.ts';
 import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
 import { initSentry, conSentry } from '../_shared/sentry.ts';
@@ -36,6 +40,69 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
   });
+}
+
+const BUCKET_INSPECCIONES = 'inspecciones';
+const CADUCIDAD_FOTOS = 3600; // los enlaces de las fotos caducan a la hora: cada visita pide los suyos
+
+/** Informes de inspección que el taller le ha enviado a este cliente (los 5 más recientes). */
+async function cargarInformes(admin: SupabaseClient, cliente: Cliente) {
+  const { data: insps } = await admin.from('inspecciones')
+    .select('id, orden_id, vehiculo_id, cliente_id, estado, nota_general, enviada_en, respondida_en, fotos_borradas_en')
+    .eq('cliente_id', cliente.id).in('estado', ['enviada', 'respondida'])
+    .order('enviada_en', { ascending: false }).limit(5);
+  const lista = (insps ?? []) as InspeccionCliente[];
+  if (!lista.length) return [];
+
+  const [{ data: puntos }, { data: vehiculos }] = await Promise.all([
+    admin.from('inspeccion_puntos')
+      .select('id, inspeccion_id, categoria, nombre, posicion, estado, nota, fotos, reparacion, precio, decision')
+      .in('inspeccion_id', lista.map((i) => i.id)),
+    admin.from('vehiculos').select('id, marca, modelo, matricula').in('id', [...new Set(lista.map((i) => i.vehiculo_id))]),
+  ]);
+  const filas = (puntos ?? []) as (PuntoCliente & { inspeccion_id: string })[];
+
+  const rutas = [...new Set(filas.filter((p) => p.estado === 'urgente' || p.estado === 'atencion').flatMap((p) => p.fotos))];
+  const urls = new Map<string, string>();
+  if (rutas.length) {
+    const { data: firmadas } = await admin.storage.from(BUCKET_INSPECCIONES).createSignedUrls(rutas, CADUCIDAD_FOTOS);
+    for (const f of firmadas ?? []) if (f.path && f.signedUrl) urls.set(f.path, f.signedUrl);
+  }
+
+  return lista.map((i) => {
+    const v = (vehiculos ?? []).find((x) => x.id === i.vehiculo_id);
+    return formatearInforme(i, v ? `${v.marca} ${v.modelo} (${v.matricula})` : '', filas.filter((p) => p.inspeccion_id === i.id), urls);
+  });
+}
+
+async function manejarResponderInspeccion(admin: SupabaseClient, cliente: Cliente, inspeccionId: string, aprobado: boolean) {
+  const { data: insp } = await admin.from('inspecciones')
+    .select('id, orden_id, cliente_id, estado').eq('id', inspeccionId).maybeSingle();
+  if (!insp) return json({ error: 'Informe no encontrado.' }, 404);
+  if (insp.cliente_id !== cliente.id) return json({ error: 'No autorizado.' }, 403);
+  if (!puedeResponderInspeccion(cliente, insp)) return json({ error: 'Este informe ya no está pendiente de respuesta.' }, 400);
+
+  const { data: puntos } = await admin.from('inspeccion_puntos').select('id, estado, precio').eq('inspeccion_id', inspeccionId);
+  const aprobables = (puntos ?? []).filter((p) => (p.estado === 'urgente' || p.estado === 'atencion') && p.precio !== null && Number(p.precio) > 0);
+  if (aprobables.length === 0) return json({ error: 'Este informe no tiene reparaciones con precio que responder.' }, 400);
+
+  const decision = aprobado ? 'aprobado' : 'rechazado';
+  const { error: pErr } = await admin.from('inspeccion_puntos').update({ decision }).in('id', aprobables.map((p) => p.id));
+  if (pErr) return json({ error: 'No se pudo guardar la respuesta.' }, 500);
+  const { error: iErr } = await admin.from('inspecciones')
+    .update({ estado: 'respondida', respondida_en: new Date().toISOString() }).eq('id', inspeccionId).eq('estado', 'enviada');
+  if (iErr) return json({ error: 'No se pudo guardar la respuesta.' }, 500);
+
+  const total = Math.round(aprobables.reduce((s, p) => s + Number(p.precio), 0) * 100) / 100;
+  const eur = total.toFixed(2).replace('.', ',');
+  await admin.from('eventos_ot').insert({
+    ot_id: insp.orden_id,
+    descripcion: aprobado
+      ? `El cliente aprobó desde el portal ${aprobables.length} reparación(es) de la inspección (${eur} € + IVA). Pendiente de añadirlas a la orden.`
+      : `El cliente rechazó desde el portal las ${aprobables.length} reparación(es) propuestas en la inspección.`,
+  });
+  await admin.from('ordenes_trabajo').update({ mecanico_actualizado_en: new Date().toISOString() }).eq('id', insp.orden_id);
+  return json({ ok: true });
 }
 
 async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
@@ -109,9 +176,12 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
     .order('fecha', { ascending: false })
     .limit(10);
 
+  const informes = await cargarInformes(admin, cliente);
+
   return json({
     empresa: empresa ? { nombre: empresa.nombre, brandColor: empresa.brand_color, logoUrl: empresa.logo_url } : null,
     cliente: { nombre: cliente.nombre, apellidos: cliente.apellidos },
+    informes,
     vehiculos: (vehiculos ?? []).map(v => {
       const ot = otPorVehiculo.get(v.id);
       return {
@@ -185,6 +255,10 @@ Deno.serve(conSentry(async (req) => {
 
   if (body.action === 'responder_presupuesto') {
     return manejarResponderPresupuesto(admin, cliente, String(body.otId ?? ''), Boolean(body.aprobado));
+  }
+
+  if (body.action === 'responder_inspeccion') {
+    return manejarResponderInspeccion(admin, cliente, String(body.inspeccionId ?? ''), body.aprobado === true);
   }
 
   return manejarGet(admin, cliente);

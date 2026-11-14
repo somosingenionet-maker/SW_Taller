@@ -40,17 +40,19 @@ Deno.test('borrarArchivosDeEmpresa borra los de la empresa en todos los buckets 
   const buckets: Record<string, ReturnType<typeof falso>> = {
     'logos-empresas': falso(['emp1/logo.png', 'emp2/logo.png']),
     'fotos-recepcion': falso(['emp1/a.jpg', 'emp1/b.jpg', 'emp2/c.jpg']),
+    'inspecciones': falso(['emp1/ins1/f.jpg', 'emp2/ins2/g.jpg']),
   };
   const n = await borrarArchivosDeEmpresa((b) => buckets[b], 'emp1');
-  assertEquals(n, 3);
+  assertEquals(n, 4);
   assertEquals(buckets['logos-empresas'].borrados, ['emp1/logo.png']);
   assertEquals(buckets['fotos-recepcion'].borrados.sort(), ['emp1/a.jpg', 'emp1/b.jpg']);
+  assertEquals(buckets['inspecciones'].borrados, ['emp1/ins1/f.jpg']); // el bucket de inspecciones también se limpia
 });
 
 Deno.test('borrarArchivosDeEmpresa con muchos archivos los borra por lotes', async () => {
   const muchos = Array.from({ length: 250 }, (_, i) => `emp1/f${i}.jpg`);
   const almacen = falso(muchos);
-  const buckets: Record<string, ReturnType<typeof falso>> = { 'logos-empresas': falso([]), 'fotos-recepcion': almacen };
+  const buckets: Record<string, ReturnType<typeof falso>> = { 'logos-empresas': falso([]), 'fotos-recepcion': almacen, 'inspecciones': falso([]) };
   assertEquals(await borrarArchivosDeEmpresa((b) => buckets[b], 'emp1'), 250);
   assertEquals(almacen.borrados.length, 250);
 });

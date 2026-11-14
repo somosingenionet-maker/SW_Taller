@@ -3,10 +3,11 @@ import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag,
 import { useInstalar, usarManifiestoMecanico } from '../lib/pwa';
 import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';
+import InspeccionMecanico from './InspeccionMecanico';
 import {
   getPortalMecanicoData, marcarTareaMecanico, cambiarDuracionMecanico, cambiarEstadoMecanico, dejarNotaMecanico,
   marcarCambioAceiteMecanico, marcarFiltroMecanico, anotarProximoCambioMecanico,
-  type PortalMecanicoData, type PortalMecanicoOrden, type PortalMecanicoTarea,
+  type PortalInspeccion, type PortalMecanicoData, type PortalMecanicoOrden, type PortalMecanicoTarea,
 } from '../lib/data/portalMecanico';
 import { OPCIONES_DURACION, textoDuracion } from '../utils/duracionTarea';
 import { GRUPOS, fechaHora, hoyLocal, ordenarGrupo, ordenesNuevas, plazoEntrega, vistosActualizados } from '../utils/portalMecanico';
@@ -85,8 +86,8 @@ function SelectorDuracion({ tarea, color, ocupado, onElegir, onDesmarcar, onCerr
   );
 }
 
-function OrdenCard({ orden, color, token, nuevo, abierta, onAlternar, onVisto, onCambio }: {
-  orden: PortalMecanicoOrden; color: string; token: string; nuevo: boolean;
+function OrdenCard({ orden, inspeccion, color, token, nuevo, abierta, onAlternar, onVisto, onCambio }: {
+  orden: PortalMecanicoOrden; inspeccion?: PortalInspeccion; color: string; token: string; nuevo: boolean;
   /** Qué coches están desplegados lo decide la página, no cada tarjeta: al marcar la primera tarea el coche
    *  cambia de grupo («Por empezar» → «En reparación»), la tarjeta se vuelve a montar y se plegaría sola. */
   abierta: boolean;
@@ -359,6 +360,8 @@ function OrdenCard({ orden, color, token, nuevo, abierta, onAlternar, onVisto, o
         </button>
       )}
 
+      <InspeccionMecanico token={token} ordenId={orden.id} inspeccion={inspeccion} editable={editable} ejecutar={ejecutar} ocupado={ocupado} />
+
       {orden.notas.length > 0 && (
         <div className="mt-3 space-y-1.5">
           <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Tus notas</p>
@@ -625,7 +628,7 @@ export default function PortalMecanico({ token }: Props) {
                   <Clock className="w-3 h-3" /> {g.titulo} · {delGrupo.length}
                 </h2>
                 {delGrupo.map((o) => (
-                  <OrdenCard key={o.id} orden={o} color={color} token={token} nuevo={nuevas.includes(o.id)} abierta={estaAbierta(o.id)} onAlternar={() => alternar(o.id)} onVisto={() => marcarVisto(o.id)} onCambio={cargar} />
+                  <OrdenCard key={o.id} orden={o} inspeccion={data.inspecciones?.[o.id]} color={color} token={token} nuevo={nuevas.includes(o.id)} abierta={estaAbierta(o.id)} onAlternar={() => alternar(o.id)} onVisto={() => marcarVisto(o.id)} onCambio={cargar} />
                 ))}
               </section>
             );

@@ -41,3 +41,57 @@ export function otActivaPorVehiculo(ordenes: OtCliente[]): Map<string, OtCliente
 export function presupuestosPendientes(ordenes: OtCliente[]): OtCliente[] {
   return ordenes.filter((o) => o.presupuesto_estado === 'enviado' && o.presupuesto_aprobado == null);
 }
+
+// ---- Informe de inspección digital ----
+
+export type InspeccionCliente = {
+  id: string; orden_id: string; vehiculo_id: string; cliente_id: string; estado: string;
+  nota_general: string | null; enviada_en: string | null; respondida_en: string | null; fotos_borradas_en: string | null;
+};
+export type PuntoCliente = {
+  id: string; categoria: string; nombre: string; posicion: number; estado: string | null;
+  nota: string | null; fotos: string[]; reparacion: string | null; precio: number | null; decision: string | null;
+};
+
+// Un cliente solo responde a SUS inspecciones, y solo mientras estén «enviadas» (una vez respondida, no se cambia).
+export function puedeResponderInspeccion(cliente: Cliente, insp: Pick<InspeccionCliente, 'cliente_id' | 'estado'>): boolean {
+  return insp.cliente_id === cliente.id && insp.estado === 'enviada';
+}
+
+/** Puntos sobre los que el cliente decide: con problema y con precio. */
+export function puntosAprobables(puntos: Pick<PuntoCliente, 'estado' | 'precio'>[]): number {
+  return puntos.filter((p) => (p.estado === 'urgente' || p.estado === 'atencion') && p.precio !== null && p.precio > 0).length;
+}
+
+/**
+ * Lo que ve el cliente: primero lo urgente, luego lo que requiere atención y, de lo demás, solo cuántos
+ * puntos están bien. Los «sin marcar» y «no aplica» no se enseñan. Las fotos llegan como enlaces que caducan.
+ */
+export function formatearInforme(
+  insp: InspeccionCliente, vehiculo: string, puntos: PuntoCliente[], urls: Map<string, string>,
+) {
+  const detalle = (p: PuntoCliente) => ({
+    id: p.id, categoria: p.categoria, nombre: p.nombre, nota: p.nota, reparacion: p.reparacion, precio: p.precio,
+    decision: p.decision,
+    fotos: p.fotos.map((r) => urls.get(r)).filter((u): u is string => !!u),
+  });
+  const ordenados = [...puntos].sort((a, b) => a.posicion - b.posicion);
+  const urgentes = ordenados.filter((p) => p.estado === 'urgente').map(detalle);
+  const atencion = ordenados.filter((p) => p.estado === 'atencion').map(detalle);
+  const aprobables = ordenados.filter((p) => (p.estado === 'urgente' || p.estado === 'atencion') && p.precio !== null && p.precio > 0);
+  return {
+    id: insp.id,
+    otId: insp.orden_id,
+    vehiculo,
+    estado: insp.estado,
+    enviadaEn: insp.enviada_en,
+    respondidaEn: insp.respondida_en,
+    notaGeneral: insp.nota_general,
+    fotosEliminadas: insp.fotos_borradas_en !== null,
+    urgentes,
+    atencion,
+    bien: ordenados.filter((p) => p.estado === 'bien').length,
+    totalAprobable: Math.round(aprobables.reduce((s, p) => s + (p.precio ?? 0), 0) * 100) / 100,
+    puntosAprobables: aprobables.length,
+  };
+}

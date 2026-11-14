@@ -341,6 +341,8 @@ export type Database = {
           estado_suscripcion: string
           factura_mostrar_qr: boolean
           factura_prefijo: string
+          fotos_aviso_enviado_en: string | null
+          fotos_retencion_meses: number
           id: string
           logo_base64: string
           logo_url: string | null
@@ -381,6 +383,8 @@ export type Database = {
           estado_suscripcion?: string
           factura_mostrar_qr?: boolean
           factura_prefijo?: string
+          fotos_aviso_enviado_en?: string | null
+          fotos_retencion_meses?: number
           id?: string
           logo_base64?: string
           logo_url?: string | null
@@ -421,6 +425,8 @@ export type Database = {
           estado_suscripcion?: string
           factura_mostrar_qr?: boolean
           factura_prefijo?: string
+          fotos_aviso_enviado_en?: string | null
+          fotos_retencion_meses?: number
           id?: string
           logo_base64?: string
           logo_url?: string | null
@@ -670,6 +676,155 @@ export type Database = {
           },
         ]
       }
+      inspeccion_puntos: {
+        Row: {
+          categoria: string
+          created_at: string
+          decision: string | null
+          empresa_id: string
+          estado: string | null
+          fotos: string[]
+          id: string
+          inspeccion_id: string
+          nombre: string
+          nota: string | null
+          posicion: number
+          precio: number | null
+          reparacion: string | null
+          updated_at: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          decision?: string | null
+          empresa_id: string
+          estado?: string | null
+          fotos?: string[]
+          id?: string
+          inspeccion_id: string
+          nombre: string
+          nota?: string | null
+          posicion: number
+          precio?: number | null
+          reparacion?: string | null
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          decision?: string | null
+          empresa_id?: string
+          estado?: string | null
+          fotos?: string[]
+          id?: string
+          inspeccion_id?: string
+          nombre?: string
+          nota?: string | null
+          posicion?: number
+          precio?: number | null
+          reparacion?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspeccion_puntos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspeccion_puntos_inspeccion_id_fkey"
+            columns: ["inspeccion_id"]
+            isOneToOne: false
+            referencedRelation: "inspecciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inspecciones: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          empresa_id: string
+          enviada_en: string | null
+          estado: string
+          fotos_borradas_en: string | null
+          id: string
+          km: number | null
+          nota_general: string | null
+          orden_id: string
+          realizada_por: string | null
+          respondida_en: string | null
+          terminada_en: string | null
+          updated_at: string
+          vehiculo_id: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          empresa_id: string
+          enviada_en?: string | null
+          estado?: string
+          fotos_borradas_en?: string | null
+          id?: string
+          km?: number | null
+          nota_general?: string | null
+          orden_id: string
+          realizada_por?: string | null
+          respondida_en?: string | null
+          terminada_en?: string | null
+          updated_at?: string
+          vehiculo_id: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          empresa_id?: string
+          enviada_en?: string | null
+          estado?: string
+          fotos_borradas_en?: string | null
+          id?: string
+          km?: number | null
+          nota_general?: string | null
+          orden_id?: string
+          realizada_por?: string | null
+          respondida_en?: string | null
+          terminada_en?: string | null
+          updated_at?: string
+          vehiculo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspecciones_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspecciones_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspecciones_orden_id_fkey"
+            columns: ["orden_id"]
+            isOneToOne: true
+            referencedRelation: "ordenes_trabajo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspecciones_vehiculo_id_fkey"
+            columns: ["vehiculo_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interacciones_cliente: {
         Row: {
           cliente_id: string
@@ -751,6 +906,7 @@ export type Database = {
           descripcion: string
           duracion_min: number | null
           id: string
+          inspeccion_punto_id: string | null
           notificado_cliente: boolean
           ot_id: string
           posicion: number
@@ -766,6 +922,7 @@ export type Database = {
           descripcion?: string
           duracion_min?: number | null
           id?: string
+          inspeccion_punto_id?: string | null
           notificado_cliente?: boolean
           ot_id: string
           posicion?: number
@@ -781,6 +938,7 @@ export type Database = {
           descripcion?: string
           duracion_min?: number | null
           id?: string
+          inspeccion_punto_id?: string | null
           notificado_cliente?: boolean
           ot_id?: string
           posicion?: number
@@ -790,6 +948,13 @@ export type Database = {
           tipo?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lineas_ot_inspeccion_punto_id_fkey"
+            columns: ["inspeccion_punto_id"]
+            isOneToOne: false
+            referencedRelation: "inspeccion_puntos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lineas_ot_ot_id_fkey"
             columns: ["ot_id"]
@@ -925,6 +1090,7 @@ export type Database = {
           checklist_observaciones: string | null
           checklist_recepcion: Json | null
           cliente_id: string
+          conservar_fotos: boolean
           created_at: string
           descripcion_problema: string
           diagnostico: string | null
@@ -945,6 +1111,7 @@ export type Database = {
           firma_presupuesto_en: string | null
           firma_presupuesto_nombre: string | null
           firma_presupuesto_total: number | null
+          fotos_borradas_en: string | null
           fotos_recepcion: string[]
           id: string
           iva_pct: number
@@ -969,6 +1136,7 @@ export type Database = {
           checklist_observaciones?: string | null
           checklist_recepcion?: Json | null
           cliente_id: string
+          conservar_fotos?: boolean
           created_at?: string
           descripcion_problema?: string
           diagnostico?: string | null
@@ -989,6 +1157,7 @@ export type Database = {
           firma_presupuesto_en?: string | null
           firma_presupuesto_nombre?: string | null
           firma_presupuesto_total?: number | null
+          fotos_borradas_en?: string | null
           fotos_recepcion?: string[]
           id?: string
           iva_pct?: number
@@ -1013,6 +1182,7 @@ export type Database = {
           checklist_observaciones?: string | null
           checklist_recepcion?: Json | null
           cliente_id?: string
+          conservar_fotos?: boolean
           created_at?: string
           descripcion_problema?: string
           diagnostico?: string | null
@@ -1033,6 +1203,7 @@ export type Database = {
           firma_presupuesto_en?: string | null
           firma_presupuesto_nombre?: string | null
           firma_presupuesto_total?: number | null
+          fotos_borradas_en?: string | null
           fotos_recepcion?: string[]
           id?: string
           iva_pct?: number
@@ -1122,16 +1293,22 @@ export type Database = {
       plataforma_config: {
         Row: {
           borrado_automatico_activo: boolean
+          fotos_borrado_activo: boolean
+          fotos_borrado_no_antes_de: string
           id: string
           logo_base64: string | null
         }
         Insert: {
           borrado_automatico_activo?: boolean
+          fotos_borrado_activo?: boolean
+          fotos_borrado_no_antes_de?: string
           id?: string
           logo_base64?: string | null
         }
         Update: {
           borrado_automatico_activo?: boolean
+          fotos_borrado_activo?: boolean
+          fotos_borrado_no_antes_de?: string
           id?: string
           logo_base64?: string | null
         }
@@ -1533,6 +1710,7 @@ export type Database = {
         Returns: boolean
       }
       contar_clientes_con_ot_abierta: { Args: never; Returns: number }
+      crear_inspeccion: { Args: { p_orden_id: string }; Returns: string }
       cuentas_terminadas: {
         Args: never
         Returns: {
@@ -1590,6 +1768,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      fotos_por_caducar: {
+        Args: never
+        Returns: {
+          borrar_en: string
+          empresa_id: string
+          estado: string
+          fotos_inspeccion: string[]
+          fotos_recepcion: string[]
+          inspeccion_id: string
+          numero: string
+          orden_id: string
+          referencia: string
+        }[]
+      }
       mi_empresa_id: { Args: never; Returns: string }
       mi_suscripcion: { Args: never; Returns: Json }
       ordenes_por_rango_recepcion: {
@@ -1604,6 +1796,14 @@ export type Database = {
           vehiculo_marca: string
           vehiculo_matricula: string
           vehiculo_modelo: string
+        }[]
+      }
+      plantilla_inspeccion_estandar: {
+        Args: never
+        Returns: {
+          categoria: string
+          nombre: string
+          posicion: number
         }[]
       }
       rentabilidad_estado_actual: {
@@ -1648,6 +1848,14 @@ export type Database = {
       sesion_sin_segundo_factor: { Args: never; Returns: boolean }
       suscripcion_activa: { Args: never; Returns: boolean }
       tiene_modulo: { Args: { p_modulo: string }; Returns: boolean }
+      uso_almacenamiento: {
+        Args: never
+        Returns: {
+          archivos: number
+          bytes: number
+          empresa_id: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

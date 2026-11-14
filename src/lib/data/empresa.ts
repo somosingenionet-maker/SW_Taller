@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import type { AlertaTipo, Empresa } from '../../types';
 
 const SELECT =
-  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura, factura_mostrar_qr, verifactu_envio_activo, verifactu_entorno, verifactu_numero_instalacion';
+  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura, factura_mostrar_qr, verifactu_envio_activo, verifactu_entorno, verifactu_numero_instalacion, fotos_retencion_meses';
 
 type EmpresaRow = {
   id: string; nombre: string; tagline: string; razon_social: string; nif: string;
@@ -16,6 +16,7 @@ type EmpresaRow = {
   verifactu_envio_activo: boolean;
   verifactu_entorno: string;
   verifactu_numero_instalacion: string;
+  fotos_retencion_meses: number;
 };
 
 function mapEmpresa(r: EmpresaRow): Empresa {
@@ -42,6 +43,7 @@ function mapEmpresa(r: EmpresaRow): Empresa {
     verifactuEnvioActivo: r.verifactu_envio_activo,
     verifactuEntorno: r.verifactu_entorno === 'produccion' ? 'produccion' : 'pruebas',
     verifactuNumeroInstalacion: r.verifactu_numero_instalacion,
+    fotosRetencionMeses: ([3, 6, 12, 24] as const).find((m) => m === r.fotos_retencion_meses) ?? 6,
   };
 }
 
@@ -67,6 +69,7 @@ function toRow(c: Partial<Empresa>) {
   if (c.facturaMostrarQr !== undefined) row.factura_mostrar_qr = c.facturaMostrarQr;
   if (c.verifactuEnvioActivo !== undefined) row.verifactu_envio_activo = c.verifactuEnvioActivo;
   if (c.verifactuEntorno !== undefined) row.verifactu_entorno = c.verifactuEntorno;
+  if (c.fotosRetencionMeses !== undefined) row.fotos_retencion_meses = c.fotosRetencionMeses;
   return row;
 }
 
