@@ -23,11 +23,16 @@ export interface DatosReserva {
   /** Campo señuelo: siempre vacío en una persona. */
   web: string;
 }
-export interface ResultadoReserva { ok: true; estado: 'confirmada' | 'pendiente'; cuando: string; enlace: string; tipo?: string }
+export interface ResultadoReserva { ok: true; estado: 'confirmada' | 'pendiente'; cuando: string; enlace: string; tipo?: string; /** Archivo de calendario (.ics) de la cita. */ ics?: string }
 export interface CitaPublicaDatos {
   empresa: ReservaEmpresa;
-  cita: { cuando: string; estado: 'pendiente' | 'confirmada' | 'cancelada' | 'convertida'; tipo: string | null; vehiculo: string | null; motivo: string; duracionMin: number; cancelable: boolean };
+  cita: { cuando: string; estado: 'pendiente' | 'confirmada' | 'cancelada' | 'convertida'; tipo: string | null; vehiculo: string | null; motivo: string; duracionMin: number; cancelable: boolean;
+    /** Se puede cambiar el día u hora desde el enlace (cita abierta y sin agotar los cambios). */
+    reprogramable?: boolean;
+    /** Archivo de calendario (.ics); null si la cita está cancelada. */
+    ics?: string | null };
 }
+export interface ResultadoReprogramar { ok: true; estado: 'confirmada' | 'pendiente'; cuando: string; ics?: string }
 
 const llamar = <T,>(body: Record<string, unknown>) => invocarPortal<T>('reservas-publicas', body);
 
@@ -36,3 +41,5 @@ export const getDisponibilidad = (slug: string, tipoId: string) => llamar<Dispon
 export const reservarCita = (d: DatosReserva) => llamar<ResultadoReserva>({ action: 'reservar', ...d });
 export const getCitaPublica = (token: string) => llamar<CitaPublicaDatos>({ action: 'cita', token });
 export const cancelarCitaPublica = (token: string) => llamar<{ ok: true }>({ action: 'cancelar', token });
+export const getDisponibilidadCita = (token: string) => llamar<DisponibilidadReservas>({ action: 'disponibilidad_cita', token });
+export const reprogramarCita = (token: string, fecha: string, hora: string) => llamar<ResultadoReprogramar>({ action: 'reprogramar', token, fecha, hora });

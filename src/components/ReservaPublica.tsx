@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarCheck, ChevronLeft, ChevronRight, Check, Clock, Phone } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { CalendarCheck, CalendarPlus, Check, MessageCircle, Phone } from 'lucide-react';
 import {
   getDisponibilidad, getInfoReservas, reservarCita, type DisponibilidadReservas, type InfoReservas, type ResultadoReserva, type TipoReserva,
 } from '../lib/data/reservas';
@@ -7,7 +7,10 @@ import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';
 import Turnstile, { CLAVE_TURNSTILE } from './Turnstile';
 import { aclarar, CLASE_TARJETA, ColumnaExterna, HeroExterno, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
-import { cuadriculaMes, etiquetaDia, mesesConHueco, NOMBRES_DIA_CORTO, NOMBRES_MES, partirHoras, textoDuracionCita } from '../utils/reservas';
+import { etiquetaDia, textoDuracionCita } from '../utils/reservas';
+import { descargarIcs } from '../utils/calendario';
+import { mensajeCitaAlTaller, waHref } from '../utils/whatsapp';
+import { CalendarioHuecos, HorasHuecos } from './externo/Huecos';
 
 const campo = 'w-full px-3.5 py-3 border border-slate-200 rounded-2xl text-sm bg-slate-50/60 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--marca)] focus:border-transparent transition';
 
@@ -34,7 +37,6 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   const [cargandoDisp, setCargandoDisp] = useState(false);
   const [fecha, setFecha] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
-  const [mesIdx, setMesIdx] = useState(0);
   const [nombre, setNombre] = useState('');
   const [apellidos, setApellidos] = useState('');
   const [telefono, setTelefono] = useState('');
@@ -60,13 +62,12 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   const cargarDisp = useCallback((t: TipoReserva) => {
     setCargandoDisp(true);
     getDisponibilidad(slug, t.id)
-      .then((d) => { setDisp(d); setMesIdx(0); })
+      .then((d) => { setDisp(d); })
       .catch((e) => { setDisp({ dias: {}, duracionMin: t.duracionMin }); setError(e instanceof Error ? e.message : 'No se pudo cargar la disponibilidad.'); })
       .finally(() => setCargandoDisp(false));
   }, [slug]);
   useEffect(() => { setDisp(null); setFecha(null); setHora(null); if (tipo) cargarDisp(tipo); }, [tipo, cargarDisp]);
 
-  const meses = useMemo(() => mesesConHueco(Object.keys(disp?.dias ?? {})), [disp]);
   const color = info?.empresa.brandColor && /^#[0-9a-fA-F]{6}$/.test(info.empresa.brandColor) ? info.empresa.brandColor : '#2563eb';
 
   if (errorCarga) return <ErrorPortalPantalla tipo={errorCarga.tipo} mensaje={errorCarga.message} onReintentar={cargarInfo} />;
@@ -98,6 +99,7 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   );
 
   if (hecho) {
+    const waTaller = waHref(info.empresa.telefono, mensajeCitaAlTaller(nombre.trim() || null, info.empresa.nombre, hecho.cuando));
     return (
       <PaginaExterna color={color}>
         {Cabecera}
@@ -112,7 +114,19 @@ export default function ReservaPublica({ slug }: { slug: string }) {
                 ? 'Te hemos enviado la confirmación por correo, con un enlace por si necesitas cancelarla.'
                 : 'El taller la revisará y te confirmará por correo en cuanto pueda.'}
             </p>
-            <a href={hecho.enlace} className="inline-flex items-center justify-center mt-1 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-sm" style={{ backgroundColor: color }}>Ver o cancelar mi cita</a>
+            <div className="flex flex-col gap-2 pt-1 max-w-xs mx-auto">
+              {hecho.ics && (
+                <button type="button" onClick={() => descargarIcs(hecho.ics as string)} data-testid="añadir-calendario"
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-sm cursor-pointer" style={{ backgroundColor: color }}>
+                  <CalendarPlus className="w-4 h-4" /> Añadir a mi calendario
+                </button>
+              )}
+              <a href={hecho.enlace} className="flex items-center justify-center px-5 py-3 rounded-2xl border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50">Ver, cambiar o cancelar mi cita</a>
+              {waTaller && (
+                <a href={waTaller} target="_blank" rel="noopener noreferrer" data-testid="whatsapp-taller"
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl text-emerald-700 text-sm font-bold hover:bg-emerald-50"><MessageCircle className="w-4 h-4" /> Escribir al taller por WhatsApp</a>
+              )}
+            </div>
           </div>
           <PieExterno />
         </ColumnaExterna>
@@ -120,9 +134,6 @@ export default function ReservaPublica({ slug }: { slug: string }) {
     );
   }
 
-  const mes = meses[mesIdx];
-  const celdas = mes && disp ? cuadriculaMes(mes.año, mes.mes, disp.dias) : [];
-  const horas = fecha && disp ? partirHoras(disp.dias[fecha] ?? []) : { manana: [], tarde: [] };
   return (
     <PaginaExterna color={color} style={{ '--marca': color } as React.CSSProperties}>
       {Cabecera}
@@ -147,47 +158,13 @@ export default function ReservaPublica({ slug }: { slug: string }) {
 
             {tipo && (
               <Seccion n={2} color={color} titulo="Elige día">
-                {cargandoDisp && <p className="text-xs text-slate-400">Buscando huecos…</p>}
-                {!cargandoDisp && disp && meses.length === 0 && (
-                  <p className="text-sm text-slate-600" data-testid="sin-huecos">No hay huecos disponibles en los próximos días.{info.empresa.telefono ? ` Llama al ${info.empresa.telefono} y buscamos uno.` : ''}</p>
-                )}
-                {mes && (
-                  <div data-testid="calendario">
-                    <div className="flex items-center justify-between mb-2">
-                      <button type="button" aria-label="Mes anterior" disabled={mesIdx === 0} onClick={() => setMesIdx((i) => i - 1)} className="p-1.5 rounded-lg disabled:opacity-30 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
-                      <p className="text-sm font-bold text-slate-800 capitalize">{NOMBRES_MES[mes.mes]} {mes.año}</p>
-                      <button type="button" aria-label="Mes siguiente" disabled={mesIdx >= meses.length - 1} onClick={() => setMesIdx((i) => i + 1)} className="p-1.5 rounded-lg disabled:opacity-30 cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
-                    </div>
-                    <div className="grid grid-cols-7 gap-1 text-center">
-                      {NOMBRES_DIA_CORTO.map((d) => <span key={d} className="text-[10px] font-bold text-slate-400">{d}</span>)}
-                      {celdas.map((c, i) => c.fecha === null ? <span key={i} /> : (
-                        <button key={c.fecha} type="button" disabled={!c.disponible} aria-pressed={fecha === c.fecha} aria-label={c.disponible ? etiquetaDia(c.fecha) : undefined}
-                          onClick={() => { setError(''); setFecha(c.fecha); setHora(null); }}
-                          className={`py-2.5 rounded-xl text-sm font-bold transition ${c.disponible ? 'cursor-pointer' : 'text-slate-300 cursor-default font-medium'} ${fecha === c.fecha ? 'text-white shadow-md' : c.disponible ? 'text-slate-800' : ''}`}
-                          style={fecha === c.fecha ? { backgroundColor: color } : c.disponible ? { backgroundColor: aclarar(color, 90) } : undefined}>
-                          {c.dia}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <CalendarioHuecos disp={disp} cargando={cargandoDisp} fecha={fecha} color={color} telefono={info.empresa.telefono} onFecha={(f) => { setError(''); setFecha(f); setHora(null); }} />
               </Seccion>
             )}
 
             {tipo && fecha && (
               <Seccion n={3} color={color} titulo={`Elige hora · ${etiquetaDia(fecha)}`}>
-                {([['Mañana', horas.manana], ['Tarde', horas.tarde]] as const).filter(([, h]) => h.length > 0).map(([titulo, hs]) => (
-                  <div key={titulo}>
-                    <p className="text-[11px] font-semibold text-slate-400 mb-1.5 flex items-center gap-1"><Clock className="w-3 h-3" />{titulo}</p>
-                    <div className="flex flex-wrap gap-2" role="group" aria-label={titulo}>
-                      {hs.map((h) => (
-                        <button key={h} type="button" aria-pressed={hora === h} onClick={() => { setError(''); setHora(h); }}
-                          className={`px-4 py-2.5 rounded-2xl border text-sm font-bold cursor-pointer transition ${hora === h ? 'text-white border-transparent shadow-md' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
-                          style={hora === h ? { backgroundColor: color } : undefined}>{h}</button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                <HorasHuecos horas={fecha && disp ? (disp.dias[fecha] ?? []) : []} hora={hora} color={color} onHora={(h) => { setError(''); setHora(h); }} />
               </Seccion>
             )}
 

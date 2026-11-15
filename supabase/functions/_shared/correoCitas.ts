@@ -10,7 +10,9 @@ export type TipoCorreoCita =
   | 'taller_cancelada'        // el cliente canceló: aviso al taller
   | 'cliente_confirmada_taller' // el taller confirmó una cita pendiente
   | 'cliente_cancelada_taller'  // el taller canceló la cita
-  | 'cliente_recordatorio';   // recordatorio del día anterior
+  | 'cliente_recordatorio'    // recordatorio del día anterior
+  | 'cliente_reprogramada'    // el cliente cambió el día u hora: acuse para él
+  | 'taller_reprogramada';    // el cliente cambió el día u hora: aviso al taller
 
 export interface DatosCita {
   empresa: EmpresaCorreo;
@@ -27,6 +29,12 @@ export interface DatosCita {
   duracionMin?: number | null;
   /** Enlace para ver o cancelar la cita (solo en los correos al cliente). */
   enlace?: string | null;
+  /** Fecha anterior (solo al reprogramar). */
+  cuandoAntes?: string | null;
+  /** Enlace «añadir a Google Calendar» (solo en correos al cliente con cita confirmada). */
+  calendario?: string | null;
+  /** El correo lleva el .ics adjunto (Apple, Outlook). */
+  conAdjunto?: boolean;
 }
 
 const fila = (et: string, valor: string) => `<tr><td style="padding:3px 12px 3px 0;color:#64748b;font-size:13px;vertical-align:top;">${escaparHtml(et)}</td><td style="padding:3px 0;color:#0f172a;font-size:14px;font-weight:600;">${valor}</td></tr>`;
@@ -47,13 +55,16 @@ export function construirCorreoCita(tipo: TipoCorreoCita, d: DatosCita): { asunt
   const saludo = parrafo(`Hola ${escaparHtml(d.nombre)},`);
   const pieCliente = `Mensaje de ${taller}. Puedes responder a este correo.`;
   const cancelar = d.enlace ? parrafo(`Si no puedes venir, <a href="${escaparHtml(d.enlace)}" style="color:#2563eb;">cancela o revisa tu cita aquí</a> para dejar el hueco a otra persona.`) : '';
+  const calendario = d.calendario
+    ? parrafo(`<a href="${escaparHtml(d.calendario)}" style="color:#2563eb;">Añadir a mi calendario</a> (Google)${d.conAdjunto ? ' · el archivo adjunto la añade a Apple, Outlook y otros' : ''}.`)
+    : '';
   const llamar = contacto ? parrafo(`¿Dudas? ${contacto}.`) : '';
 
   let asunto: string; let cuerpo: string; let pie = pieCliente;
   switch (tipo) {
     case 'cliente_confirmada':
       asunto = `Cita confirmada en ${taller}: ${d.cuando}`;
-      cuerpo = saludo + parrafo('Tu cita está <strong>confirmada</strong>. Te esperamos:') + detalle(d) + cancelar + llamar;
+      cuerpo = saludo + parrafo('Tu cita está <strong>confirmada</strong>. Te esperamos:') + detalle(d) + calendario + cancelar + llamar;
       break;
     case 'cliente_pendiente':
       asunto = `Hemos recibido tu solicitud de cita en ${taller}`;
@@ -61,7 +72,7 @@ export function construirCorreoCita(tipo: TipoCorreoCita, d: DatosCita): { asunt
       break;
     case 'cliente_confirmada_taller':
       asunto = `${taller} ha confirmado tu cita: ${d.cuando}`;
-      cuerpo = saludo + parrafo('Tu cita está <strong>confirmada</strong>. Te esperamos:') + detalle(d) + cancelar + llamar;
+      cuerpo = saludo + parrafo('Tu cita está <strong>confirmada</strong>. Te esperamos:') + detalle(d) + calendario + cancelar + llamar;
       break;
     case 'cliente_cancelada_taller':
       asunto = `${taller} ha cancelado tu cita del ${d.cuando}`;
@@ -75,6 +86,17 @@ export function construirCorreoCita(tipo: TipoCorreoCita, d: DatosCita): { asunt
       asunto = `Recordatorio: mañana tienes cita en ${taller}`;
       cuerpo = saludo + parrafo('Te recordamos tu cita de <strong>mañana</strong>:') + detalle(d) + cancelar + llamar;
       pie = `Aviso automático de ${taller}, solo uno por cita. Si no quieres recibir más avisos, responde a este correo y dejaremos de enviártelos.`;
+      break;
+    case 'cliente_reprogramada':
+      asunto = `Cita cambiada en ${taller}: ${d.cuando}`;
+      cuerpo = saludo + parrafo(`Hemos cambiado tu cita${d.cuandoAntes ? ` del ${escaparHtml(d.cuandoAntes)}` : ''}. Estos son los datos <strong>nuevos</strong>:`) + detalle(d) + calendario + cancelar + llamar;
+      break;
+    case 'taller_reprogramada':
+      asunto = `Cita cambiada por el cliente: ${completo} · ${d.cuando}`;
+      cuerpo = parrafo(`El cliente ha <strong>cambiado el día u hora</strong> de su cita${d.cuandoAntes ? ` (antes: ${escaparHtml(d.cuandoAntes)})` : ''}:`) + detalle(d)
+        + parrafo(`<strong>${escaparHtml(completo)}</strong>${d.telefono ? ` · ${escaparHtml(d.telefono)}` : ''}${d.correo ? ` · ${escaparHtml(d.correo)}` : ''}`)
+        + parrafo('El hueco anterior vuelve a estar libre.');
+      pie = 'Aviso automático de Doonty Motor.';
       break;
     case 'taller_nueva':
       asunto = `Nueva reserva online: ${completo} · ${d.cuando}`;

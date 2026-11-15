@@ -65,3 +65,27 @@ Deno.test('los avisos al taller llevan nombre y apellidos; al cliente se le salu
   assertEquals(cliente.html.includes('García Ruiz'), false);
   assertEquals(construirCorreoCita('taller_nueva', { ...BASE, nombre: 'Ana' }).asunto.includes('undefined'), false);
 });
+
+Deno.test('reprogramada: dice cuándo era antes, lleva el enlace de calendario y el aviso al taller incluye al cliente', () => {
+  const d = { ...BASE, nombre: 'Ana', apellidos: 'García', cuandoAntes: 'lunes, 16 de noviembre a las 09:00', calendario: 'https://calendar.google.com/calendar/render?x=1&y=2', conAdjunto: true, telefono: '600' };
+  const c = construirCorreoCita('cliente_reprogramada', d);
+  assertStringIncludes(c.asunto, 'Cita cambiada');
+  assertStringIncludes(c.html, 'lunes, 16 de noviembre a las 09:00');
+  assertStringIncludes(c.html, 'Añadir a mi calendario');
+  assertStringIncludes(c.html, 'x=1&amp;y=2');
+  assertStringIncludes(c.html, 'archivo adjunto');
+  const t = construirCorreoCita('taller_reprogramada', d);
+  assertStringIncludes(t.asunto, 'Ana García');
+  assertStringIncludes(t.html, 'antes: lunes, 16 de noviembre a las 09:00');
+  assertEquals(construirCorreoCita('cliente_reprogramada', { ...BASE }).html.includes('Añadir a mi calendario'), false);
+  assertEquals(construirCorreoCita('cliente_reprogramada', { ...BASE }).html.includes('undefined'), false);
+});
+
+Deno.test('las citas confirmadas llevan el enlace de calendario cuando se les da', () => {
+  const cal = 'https://calendar.google.com/calendar/render?a=b';
+  for (const tipo of ['cliente_confirmada', 'cliente_confirmada_taller'] as const) {
+    assertStringIncludes(construirCorreoCita(tipo, { ...BASE, calendario: cal }).html, 'Añadir a mi calendario');
+    assertEquals(construirCorreoCita(tipo, { ...BASE }).html.includes('Añadir a mi calendario'), false);
+  }
+  assertEquals(construirCorreoCita('cliente_pendiente', { ...BASE, calendario: cal }).html.includes('Añadir a mi calendario'), false);
+});

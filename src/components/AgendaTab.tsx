@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   CalendarClock, Plus, ChevronLeft, ChevronRight, X, Check, Trash2, Pencil,
-  Clock, User, Car, Wrench, AlertTriangle, ClipboardCheck, Ban, ArrowRightCircle, Loader2,
+  Clock, User, Car, Wrench, AlertTriangle, ClipboardCheck, Ban, ArrowRightCircle, Loader2, MessageCircle,
 } from 'lucide-react';
+import { cuandoLargo, mensajeCita, waHref } from '../utils/whatsapp';
 import { Cita, Vehiculo, Cliente, Tecnico, OrdenTrabajo, OTEstado, EventoOT } from '../types';
 import { listTecnicos } from '../lib/data/tecnicos';
 import { getNumerosOT, listOrdenesPorRangoRecepcion, listOrdenesActivas, OrdenAgendaRow } from '../lib/data/ordenes';
@@ -20,6 +21,8 @@ interface Props {
   onDeleteCita: (id: string) => void | Promise<void>;
   onCreateOT: (ot: OrdenTrabajo) => void | Promise<OrdenTrabajo>;
   onAddCliente: (c: NuevoCliente) => Promise<Cliente>;
+  /** Para firmar los mensajes de WhatsApp a los clientes. */
+  nombreTaller?: string;
 }
 
 const ESTADO_META: Record<Cita['estado'], { label: string; color: string; bg: string }> = {
@@ -149,7 +152,7 @@ function seSolapan(a: [number, number], b: [number, number]): boolean {
   return a[0] < b[1] && b[0] < a[1];
 }
 
-export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpdateCita, onDeleteCita, onCreateOT, onAddCliente }: Props) {
+export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpdateCita, onDeleteCita, onCreateOT, onAddCliente, nombreTaller = 'el taller' }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
 
@@ -236,6 +239,16 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
     if (!id) return null;
     const c = clientes.find((x) => x.id === id);
     return c ? `${c.nombre} ${c.apellidos}` : null;
+  };
+
+  /** Enlace de WhatsApp con el aviso de la cita ya escrito (lo envía la persona). null: cita cerrada o sin teléfono. */
+  const avisoWhatsApp = (c: Cita): string | null => {
+    if (c.estado !== 'pendiente' && c.estado !== 'confirmada') return null;
+    const cli = c.clienteId ? clientes.find((x) => x.id === c.clienteId) : undefined;
+    const telefono = c.contactoTelefono || cli?.telefono;
+    const nombre = cli?.nombre ?? c.contactoNombre ?? '';
+    const enlace = c.tokenCliente ? `${window.location.origin}/cita/${c.tokenCliente}` : null;
+    return waHref(telefono, mensajeCita(nombre, nombreTaller, cuandoLargo(c.fechaHora), c.estado, enlace));
   };
 
   const openCreate = () => {
@@ -509,6 +522,12 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
+                    {avisoWhatsApp(c) && (
+                      <a href={avisoWhatsApp(c) as string} target="_blank" rel="noopener noreferrer" title="Avisar al cliente por WhatsApp" data-testid="cita-whatsapp"
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition cursor-pointer">
+                        <MessageCircle className="w-4 h-4" />
+                      </a>
+                    )}
                     {(c.estado === 'pendiente' || c.estado === 'confirmada') && (
                       <button onClick={() => setConvertirCita(c)} title="Convertir en OT" className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition cursor-pointer">
                         <ArrowRightCircle className="w-3.5 h-3.5" />

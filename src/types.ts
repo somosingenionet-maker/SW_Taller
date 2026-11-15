@@ -195,6 +195,8 @@ export interface Cita {
   vehiculoId?: string;
   contactoNombre?: string;
   contactoApellidos?: string;
+  /** Clave del enlace público de la cita (/cita/<clave>); solo las reservadas online la tienen. */
+  tokenCliente?: string;
   contactoTelefono?: string;
   vehiculoDescripcion?: string;
   motivo: string;

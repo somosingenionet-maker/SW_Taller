@@ -5,6 +5,7 @@ import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
 import { perfilTieneModulo, mensajeSinModulo } from '../_shared/modulos.ts';
 import { CORREO_VALIDO } from '../_shared/correo.ts';
+import { construirIcs, enlaceGoogleCalendar } from '../_shared/ics.ts';
 import { construirCorreoCita } from '../_shared/correoCitas.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
 import { fechaHoraLarga } from '../reservas-publicas/logic.ts';
@@ -38,12 +39,12 @@ async function manejar(admin: SupabaseClient, req: Request, accion: string, cita
   if (!citaId) return json({ error: 'Falta la cita.' }, 400);
 
   const { data: cita } = await admin.from('citas')
-    .select('id, empresa_id, fecha_hora, duracion_minutos, estado, origen, contacto_nombre, contacto_correo, vehiculo_descripcion, motivo, token_cliente, tipo_cita_id')
+    .select('id, empresa_id, fecha_hora, duracion_minutos, estado, origen, contacto_nombre, contacto_correo, vehiculo_descripcion, motivo, token_cliente, tipo_cita_id, reprogramaciones')
     .eq('id', citaId).maybeSingle();
   if (!cita) return json({ error: 'Cita no encontrada.' }, 404);
   if (cita.empresa_id !== perfil.empresa_id) return json({ error: 'No autorizado' }, 403);
 
-  const { data: empresa } = await admin.from('empresas').select('nombre, brand_color, logo_url, correo, telefono, acceso_hasta').eq('id', cita.empresa_id).single();
+  const { data: empresa } = await admin.from('empresas').select('nombre, brand_color, logo_url, correo, telefono, ciudad, direccion_fiscal, acceso_hasta').eq('id', cita.empresa_id).single();
   if (!empresa) return json({ error: 'Empresa no encontrada.' }, 404);
   // Las funciones con service role se saltan el bloqueo de solo lectura de la base: aquí se respeta igual.
   if (empresa.acceso_hasta && new Date(empresa.acceso_hasta) < new Date()) {
@@ -65,10 +66,20 @@ async function manejar(admin: SupabaseClient, req: Request, accion: string, cita
   const correo = cita.contacto_correo as string | null;
   if (correo && CORREO_VALIDO.test(correo)) {
     const tipo = cita.tipo_cita_id ? (await admin.from('tipos_cita').select('nombre').eq('id', cita.tipo_cita_id).maybeSingle()).data?.nombre ?? null : null;
+    // Al confirmar, el correo lleva «añadir a mi calendario» (enlace de Google + archivo .ics adjunto).
+    const inicio = new Date(cita.fecha_hora).getTime();
+    const datosIcs = {
+      uid: cita.id as string, inicio, fin: inicio + (cita.duracion_minutos as number) * 60_000, resumen: `${tipo ?? 'Cita'} · ${empresa.nombre}`,
+      descripcion: [cita.vehiculo_descripcion && `Vehículo: ${cita.vehiculo_descripcion}`, cita.motivo && `Motivo: ${cita.motivo}`, cita.token_cliente && `Ver, cambiar o cancelar la cita: ${APP_URL}/cita/${cita.token_cliente}`, empresa.telefono && `Teléfono del taller: ${empresa.telefono}`].filter(Boolean).join('\n'),
+      ubicacion: [empresa.direccion_fiscal, empresa.ciudad].filter(Boolean).join(', ') || null,
+      secuencia: (cita.reprogramaciones as number) ?? 0, confirmada: true,
+    };
+    const conCalendario = accion === 'confirmar';
     const { asunto, html } = construirCorreoCita(accion === 'confirmar' ? 'cliente_confirmada_taller' : 'cliente_cancelada_taller', {
-      empresa, nombre: cita.contacto_nombre ?? 'cliente', cuando: fechaHoraLarga(new Date(cita.fecha_hora).getTime()), tipo,
+      empresa, nombre: cita.contacto_nombre ?? 'cliente', cuando: fechaHoraLarga(inicio), tipo,
       vehiculo: cita.vehiculo_descripcion, motivo: cita.motivo, duracionMin: cita.duracion_minutos,
       enlace: accion === 'confirmar' && cita.token_cliente ? `${APP_URL}/cita/${cita.token_cliente}` : null,
+      ...(conCalendario ? { calendario: enlaceGoogleCalendar(datosIcs), conAdjunto: true } : {}),
     });
     try {
       const r = await fetch('https://api.resend.com/emails', {
@@ -77,6 +88,7 @@ async function manejar(admin: SupabaseClient, req: Request, accion: string, cita
         body: JSON.stringify({
           from: `${empresa.nombre.replace(/[<>"]/g, '').trim() || 'Taller'} <${RESEND_FROM_EMAIL}>`, to: [correo], subject: asunto, html,
           ...(empresa.correo && CORREO_VALIDO.test(empresa.correo) ? { reply_to: empresa.correo } : {}),
+          ...(conCalendario ? { attachments: [{ filename: 'cita.ics', content: btoa(String.fromCharCode(...new TextEncoder().encode(construirIcs(datosIcs)))), content_type: 'text/calendar; method=PUBLISH' }] } : {}),
         }),
       });
       avisado = r.ok;

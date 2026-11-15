@@ -911,6 +911,7 @@ export default function App() {
             onDeleteCita={handleDeleteCita}
             onCreateOT={handleAddOT}
             onAddCliente={handleAddCliente}
+            nombreTaller={empresa.nombre}
           />
         )}
 

@@ -13,10 +13,12 @@ function fechasFuturas() {
   return [f(0), f(1), f(2)];
 }
 
-function servidor(opciones: { confirmacion?: 'automatica' | 'manual'; tipos?: boolean; primerReservaOcupada?: boolean } = {}) {
+function servidor(opciones: { confirmacion?: 'automatica' | 'manual'; tipos?: boolean; primerReservaOcupada?: boolean; reprogramable?: boolean; primerCambioOcupado?: boolean } = {}) {
   const [d1, d2, d3] = fechasFuturas();
   const peticiones: Record<string, unknown>[] = [];
   let reservasIntentadas = 0;
+  let cambiosIntentados = 0;
+  let cuandoCita = 'martes, 17 de noviembre de 2026 a las 10:00';
   let estadoCita: 'confirmada' | 'cancelada' = 'confirmada';
   const responder = (b: Record<string, unknown>): { status: number; json: unknown } => {
     peticiones.push(b);
@@ -33,13 +35,20 @@ function servidor(opciones: { confirmacion?: 'automatica' | 'manual'; tipos?: bo
       case 'reservar':
         reservasIntentadas++;
         if (opciones.primerReservaOcupada && reservasIntentadas === 1) return { status: 409, json: { error: 'Ese hueco acaba de ocuparse. Elige otra hora.' } };
-        return { status: 200, json: { ok: true, estado: opciones.confirmacion === 'manual' ? 'pendiente' : 'confirmada', cuando: 'martes, 17 de noviembre de 2026 a las 10:00', enlace: 'http://localhost/cita/token-de-prueba-0123456789', tipo: 'Revisión' } };
+        return { status: 200, json: { ok: true, estado: opciones.confirmacion === 'manual' ? 'pendiente' : 'confirmada', cuando: 'martes, 17 de noviembre de 2026 a las 10:00', enlace: 'http://localhost/cita/token-de-prueba-0123456789', tipo: 'Revisión', ics: 'BEGIN:VCALENDAR\\r\\nUID:x@doonty.com\\r\\nEND:VCALENDAR\\r\\n' } };
       case 'cita':
         if (b.token === 'token-invalido') return { status: 404, json: { error: 'Este enlace no es válido.' } };
         return { status: 200, json: {
           empresa: { nombre: 'Taller Ruiz', brandColor: '#2563eb', logoUrl: null, telefono: '600 111 222', correo: null, ciudad: null },
-          cita: { cuando: 'martes, 17 de noviembre de 2026 a las 10:00', estado: estadoCita, tipo: 'Revisión', vehiculo: 'Seat León · 1234ABC', motivo: 'Frenos', duracionMin: 60, cancelable: estadoCita === 'confirmada' },
+          cita: { cuando: cuandoCita, estado: estadoCita, tipo: 'Revisión', vehiculo: 'Seat León · 1234ABC', motivo: 'Frenos', duracionMin: 60, cancelable: estadoCita === 'confirmada', reprogramable: estadoCita === 'confirmada' && opciones.reprogramable !== false, ics: estadoCita === 'cancelada' ? null : 'BEGIN:VCALENDAR\\r\\nUID:x@doonty.com\\r\\nEND:VCALENDAR\\r\\n' },
         } };
+      case 'disponibilidad_cita':
+        return { status: 200, json: { duracionMin: 60, dias: { [d1]: ['09:00', '10:00', '16:30'], [d2]: ['09:30'] } } };
+      case 'reprogramar':
+        cambiosIntentados++;
+        if (opciones.primerCambioOcupado && cambiosIntentados === 1) return { status: 409, json: { error: 'Ese hueco acaba de ocuparse. Elige otra hora.' } };
+        cuandoCita = `el ${b.fecha} a las ${b.hora}`;
+        return { status: 200, json: { ok: true, estado: opciones.confirmacion === 'manual' ? 'pendiente' : 'confirmada', cuando: cuandoCita, ics: 'BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n' } };
       case 'cancelar': estadoCita = 'cancelada'; return { status: 200, json: { ok: true } };
       default: return { status: 400, json: { error: 'Acción no reconocida.' } };
     }
@@ -95,6 +104,11 @@ test('reservar: servicio → día → hora → datos, con consentimiento y captc
 
   await expect(page.getByTestId('reserva-hecha')).toContainText('¡Cita confirmada!');
   await expect(page.getByTestId('reserva-hecha')).toContainText('Revisión');
+  // Calendario y WhatsApp al taller desde la confirmación
+  await expect(page.getByTestId('añadir-calendario')).toBeVisible();
+  const wa = await page.getByTestId('whatsapp-taller').getAttribute('href');
+  expect(wa).toMatch(/^https:\/\/wa\.me\/34600111222\?text=/);
+  expect(decodeURIComponent(wa!)).toContain('soy Ana');
   const envio = s.peticiones.find((p) => p.action === 'reservar')!;
   expect(envio).toMatchObject({ slug: 'taller-ruiz', tipoId: 't1', hora: '10:00', nombre: 'Ana', apellidos: 'García Ruiz', telefono: '600 000 001', correo: 'ana@mail.es', matricula: '1234abc', consentimiento: true, captchaToken: 'token-de-prueba', web: '' });
 });
@@ -172,4 +186,75 @@ test('mi cita: un enlace inválido muestra el error, no una pantalla en blanco',
   await preparar(page, s);
   await page.goto('/cita/token-invalido');
   await expect(page.getByText('Este enlace no es válido')).toBeVisible({ timeout: 10_000 });
+});
+
+test('mi cita: se añade al calendario (descarga el .ics) y se puede escribir al taller por WhatsApp', async ({ page }) => {
+  const s = servidor();
+  await preparar(page, s);
+  await page.goto('/cita/token-de-prueba-0123456789');
+  const descarga = page.waitForEvent('download');
+  await page.getByTestId('añadir-calendario').click();
+  const d = await descarga;
+  expect(d.suggestedFilename()).toBe('cita.ics');
+  const texto = await (await import('node:fs/promises')).readFile((await d.path())!, 'utf8');
+  expect(texto).toContain('BEGIN:VCALENDAR');
+  const wa = await page.getByTestId('whatsapp-taller').getAttribute('href');
+  expect(wa).toMatch(/^https:\/\/wa\.me\/34600111222\?text=/);
+  expect(decodeURIComponent(wa!)).toContain('Taller Ruiz');
+});
+
+test('mi cita: cambiar día u hora — elige hueco, se envía lo elegido y la cita se muestra cambiada', async ({ page }) => {
+  const s = servidor();
+  await preparar(page, s);
+  await page.goto('/cita/token-de-prueba-0123456789');
+  await expect(page.getByTestId('cancelar-cita')).toBeVisible();
+  await page.getByTestId('cambiar-cita').click();
+  await expect(page.getByTestId('cambiar-panel')).toBeVisible();
+  await expect(page.getByTestId('cancelar-cita')).toHaveCount(0);            // mientras se cambia no se ofrece cancelar
+  await expect(page.getByTestId('guardar-cambio')).toBeDisabled();
+  await page.getByTestId('cambiar-panel').locator('[data-testid="calendario"] button:not([disabled])').first().click();
+  await page.getByRole('button', { name: '10:00' }).click();
+  await page.getByTestId('guardar-cambio').click();
+  await expect(page.getByTestId('aviso-cambio')).toContainText('Hemos cambiado tu cita', { timeout: 10_000 });
+  await expect(page.getByTestId('cambiar-panel')).toHaveCount(0);
+  const envio = s.peticiones.find((p) => p.action === 'reprogramar');
+  expect(envio).toMatchObject({ token: 'token-de-prueba-0123456789', hora: '10:00' });
+  expect(String(envio!.fecha)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  await expect(page.getByTestId('cita-publica')).toContainText('a las 10:00');
+});
+
+test('mi cita: si el hueco se ocupó al cambiar, se explica y se pueden pedir otros', async ({ page }) => {
+  const s = servidor({ primerCambioOcupado: true });
+  await preparar(page, s);
+  await page.goto('/cita/token-de-prueba-0123456789');
+  await page.getByTestId('cambiar-cita').click();
+  await page.getByTestId('cambiar-panel').locator('[data-testid="calendario"] button:not([disabled])').first().click();
+  await page.getByRole('button', { name: '10:00' }).click();
+  await page.getByTestId('guardar-cambio').click();
+  await expect(page.getByRole('alert')).toContainText('acaba de ocuparse', { timeout: 10_000 });
+  await expect(page.getByTestId('cambiar-panel')).toBeVisible();              // sigue abierto para elegir otra
+  await expect(page.getByTestId('guardar-cambio')).toBeDisabled();            // la hora se deseleccionó
+  await page.getByRole('button', { name: '09:00' }).click();
+  await page.getByTestId('guardar-cambio').click();
+  await expect(page.getByTestId('aviso-cambio')).toBeVisible({ timeout: 10_000 });
+  expect(s.peticiones.filter((p) => p.action === 'disponibilidad_cita').length).toBeGreaterThanOrEqual(2);   // se volvieron a pedir los huecos
+});
+
+test('mi cita: con confirmación manual el cambio avisa de que el taller lo confirmará; sin cambios restantes no hay botón', async ({ page }) => {
+  const s = servidor({ confirmacion: 'manual' });
+  await preparar(page, s);
+  await page.goto('/cita/token-de-prueba-0123456789');
+  await page.getByTestId('cambiar-cita').click();
+  await page.getByTestId('cambiar-panel').locator('[data-testid="calendario"] button:not([disabled])').first().click();
+  await page.getByRole('button', { name: '10:00' }).click();
+  await page.getByTestId('guardar-cambio').click();
+  await expect(page.getByTestId('aviso-cambio')).toContainText('El taller la confirmará de nuevo', { timeout: 10_000 });
+
+  const s2 = servidor({ reprogramable: false });
+  const page2 = await page.context().newPage();
+  await preparar(page2, s2);
+  await page2.goto('/cita/token-de-prueba-0123456789');
+  await expect(page2.getByTestId('cancelar-cita')).toBeVisible();
+  await expect(page2.getByTestId('cambiar-cita')).toHaveCount(0);
+  await expect(page2.getByText('máximo de veces')).toBeVisible();
 });

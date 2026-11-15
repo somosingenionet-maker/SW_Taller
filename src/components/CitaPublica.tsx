@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarCheck, CalendarX, Phone } from 'lucide-react';
-import { cancelarCitaPublica, getCitaPublica, type CitaPublicaDatos } from '../lib/data/reservas';
+import { CalendarCheck, CalendarPlus, CalendarX, MessageCircle, Phone, RefreshCw } from 'lucide-react';
+import {
+  cancelarCitaPublica, getCitaPublica, getDisponibilidadCita, reprogramarCita, type CitaPublicaDatos, type DisponibilidadReservas,
+} from '../lib/data/reservas';
 import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';
-import { textoDuracionCita } from '../utils/reservas';
+import { etiquetaDia, textoDuracionCita } from '../utils/reservas';
+import { descargarIcs } from '../utils/calendario';
+import { mensajeCitaAlTaller, waHref } from '../utils/whatsapp';
+import { CalendarioHuecos, HorasHuecos } from './externo/Huecos';
 import { aclarar, CabeceraTarjeta, CLASE_TARJETA, ColumnaExterna, HeroExterno, oscurecer, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
@@ -13,13 +18,23 @@ const ESTADO: Record<string, { texto: string; clase: string }> = {
   convertida: { texto: 'Atendida', clase: 'bg-blue-100 text-blue-700' },
 };
 
-/** Página donde el cliente ve su cita y puede cancelarla desde el enlace del correo. */
+const BOTON_SECUNDARIO = 'w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 transition cursor-pointer';
+
+/** Página donde el cliente ve su cita, la añade a su calendario, cambia el día u hora o la cancela, desde el enlace del correo. */
 export default function CitaPublica({ token }: { token: string }) {
   const [datos, setDatos] = useState<CitaPublicaDatos | null>(null);
   const [errorCarga, setErrorCarga] = useState<ErrorPortal | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [cancelando, setCancelando] = useState(false);
   const [error, setError] = useState('');
+  // Cambio de día u hora
+  const [cambiando, setCambiando] = useState(false);
+  const [disp, setDisp] = useState<DisponibilidadReservas | null>(null);
+  const [cargandoDisp, setCargandoDisp] = useState(false);
+  const [fecha, setFecha] = useState<string | null>(null);
+  const [hora, setHora] = useState<string | null>(null);
+  const [guardando, setGuardando] = useState(false);
+  const [aviso, setAviso] = useState('');
 
   const cargar = useCallback(() => {
     setErrorCarga(null);
@@ -35,10 +50,39 @@ export default function CitaPublica({ token }: { token: string }) {
 
   const cancelar = async () => {
     setCancelando(true); setError('');
-    try { await cancelarCitaPublica(token); setConfirmando(false); cargar(); }
+    try { await cancelarCitaPublica(token); setConfirmando(false); setCambiando(false); setAviso(''); cargar(); }
     catch (err) { setError(err instanceof Error ? err.message : 'No se pudo cancelar.'); }
     finally { setCancelando(false); }
   };
+
+  const abrirCambio = () => {
+    setCambiando(true); setConfirmando(false); setError(''); setAviso(''); setFecha(null); setHora(null); setDisp(null); setCargandoDisp(true);
+    getDisponibilidadCita(token)
+      .then(setDisp)
+      .catch((err) => { setDisp({ dias: {}, duracionMin: datos.cita.duracionMin }); setError(err instanceof Error ? err.message : 'No se pudo cargar la disponibilidad.'); })
+      .finally(() => setCargandoDisp(false));
+  };
+
+  const guardarCambio = async () => {
+    if (!fecha || !hora) return;
+    setGuardando(true); setError('');
+    try {
+      const r = await reprogramarCita(token, fecha, hora);
+      setCambiando(false);
+      setAviso(r.estado === 'pendiente' ? 'Hemos cambiado tu cita. El taller la confirmará de nuevo por correo.' : 'Hemos cambiado tu cita y te hemos enviado el correo con los datos nuevos.');
+      cargar();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo cambiar la cita.');
+      // Si el hueco se ocupó o cambió, se piden otra vez los huecos para no dejar uno que ya no existe.
+      setHora(null);
+      getDisponibilidadCita(token).then(setDisp).catch(() => undefined);
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const abierta = datos.cita.estado === 'pendiente' || datos.cita.estado === 'confirmada';
+  const wa = waHref(datos.empresa.telefono, mensajeCitaAlTaller(null, datos.empresa.nombre, datos.cita.cuando));
 
   return (
     <PaginaExterna color={color}>
@@ -59,7 +103,40 @@ export default function CitaPublica({ token }: { token: string }) {
             {datos.cita.motivo && <div className="flex gap-3 py-2"><dt className="text-slate-400 w-20 shrink-0">Motivo</dt><dd>{datos.cita.motivo}</dd></div>}
           </dl>
 
-          {datos.cita.cancelable && !confirmando && (
+          {aviso && <p role="status" data-testid="aviso-cambio" className="rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold px-4 py-3">{aviso}</p>}
+
+          {datos.cita.ics && !cambiando && (
+            <button type="button" onClick={() => descargarIcs(datos.cita.ics as string)} data-testid="añadir-calendario" className={BOTON_SECUNDARIO}>
+              <CalendarPlus className="w-4 h-4" /> Añadir a mi calendario
+            </button>
+          )}
+          {datos.cita.reprogramable && !cambiando && !confirmando && (
+            <button type="button" onClick={abrirCambio} data-testid="cambiar-cita" className={BOTON_SECUNDARIO}>
+              <RefreshCw className="w-4 h-4" /> Cambiar día u hora
+            </button>
+          )}
+
+          {cambiando && (
+            <div className="rounded-2xl border border-slate-200 p-4 space-y-4" data-testid="cambiar-panel">
+              <p className="text-sm font-extrabold text-slate-800">Elige el nuevo día y hora</p>
+              <CalendarioHuecos disp={disp} cargando={cargandoDisp} fecha={fecha} color={color} telefono={datos.empresa.telefono} onFecha={(f) => { setError(''); setFecha(f); setHora(null); }} />
+              {fecha && disp && (
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-slate-500 first-letter:uppercase">{etiquetaDia(fecha)}</p>
+                  <HorasHuecos horas={disp.dias[fecha] ?? []} hora={hora} color={color} onHora={(h) => { setError(''); setHora(h); }} />
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button type="button" disabled={!fecha || !hora || guardando} onClick={() => void guardarCambio()} data-testid="guardar-cambio"
+                  className="flex-1 py-3 rounded-2xl text-white text-sm font-bold shadow-md disabled:opacity-50 disabled:shadow-none cursor-pointer transition" style={{ backgroundColor: color }}>
+                  {guardando ? 'Cambiando…' : fecha && hora ? `Cambiar a ${etiquetaDia(fecha)} a las ${hora}` : 'Elige día y hora'}
+                </button>
+                <button type="button" onClick={() => { setCambiando(false); setError(''); }} className="px-4 py-3 rounded-2xl border border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer">Volver</button>
+              </div>
+            </div>
+          )}
+
+          {datos.cita.cancelable && !confirmando && !cambiando && (
             <button type="button" onClick={() => setConfirmando(true)} data-testid="cancelar-cita" className="w-full py-3 rounded-2xl border border-rose-200 text-rose-600 text-sm font-bold hover:bg-rose-50 transition cursor-pointer">Cancelar esta cita</button>
           )}
           {confirmando && (
@@ -72,12 +149,18 @@ export default function CitaPublica({ token }: { token: string }) {
             </div>
           )}
           {error && <p role="alert" className="text-xs font-semibold text-rose-600">{error}</p>}
-          {!datos.cita.cancelable && datos.cita.estado !== 'cancelada' && datos.cita.estado !== 'convertida' && (
+          {!datos.cita.cancelable && abierta && (
             <p className="text-xs text-slate-400">Esta cita ya no se puede cancelar desde aquí.{datos.empresa.telefono ? ` Llama al ${datos.empresa.telefono}.` : ''}</p>
           )}
+          {abierta && datos.cita.cancelable && datos.cita.reprogramable === false && !cambiando && (
+            <p className="text-xs text-slate-400">Ya has cambiado esta cita el máximo de veces.{datos.empresa.telefono ? ` Si necesitas otro cambio, llama al ${datos.empresa.telefono}.` : ''}</p>
+          )}
         </div>
-        {datos.empresa.telefono && (
-          <a href={`tel:${datos.empresa.telefono.replace(/[^\d+]/g, '')}`} className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700"><Phone className="w-4 h-4" /> {datos.empresa.telefono}</a>
+        {(datos.empresa.telefono || wa) && (
+          <div className="flex items-center justify-center gap-5 text-sm font-semibold text-slate-500">
+            {datos.empresa.telefono && <a href={`tel:${datos.empresa.telefono.replace(/[^\d+]/g, '')}`} className="flex items-center gap-2 hover:text-slate-700"><Phone className="w-4 h-4" /> {datos.empresa.telefono}</a>}
+            {wa && <a href={wa} target="_blank" rel="noopener noreferrer" data-testid="whatsapp-taller" className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700"><MessageCircle className="w-4 h-4" /> WhatsApp</a>}
+          </div>
         )}
         <PieExterno />
       </ColumnaExterna>

@@ -119,6 +119,7 @@ export type Database = {
           origen: string
           ot_id: string | null
           recordatorio_enviado_en: string | null
+          reprogramaciones: number
           tecnico_id: string | null
           tipo_cita_id: string | null
           token_cliente: string | null
@@ -145,6 +146,7 @@ export type Database = {
           origen?: string
           ot_id?: string | null
           recordatorio_enviado_en?: string | null
+          reprogramaciones?: number
           tecnico_id?: string | null
           tipo_cita_id?: string | null
           token_cliente?: string | null
@@ -171,6 +173,7 @@ export type Database = {
           origen?: string
           ot_id?: string | null
           recordatorio_enviado_en?: string | null
+          reprogramaciones?: number
           tecnico_id?: string | null
           tipo_cita_id?: string | null
           token_cliente?: string | null
@@ -2188,6 +2191,18 @@ export type Database = {
           cliente_id: string
           facturado: number
           visitas: number
+        }[]
+      }
+      reprogramar_cita_online: {
+        Args: { p_estado: string; p_fecha_hora: string; p_token: string }
+        Returns: {
+          duracion_minutos: number
+          empresa_id: string
+          estado: string
+          fecha_anterior: string
+          fecha_hora: string
+          id: string
+          reprogramaciones: number
         }[]
       }
       reservar_cita_online: {

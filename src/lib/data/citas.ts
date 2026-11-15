@@ -7,7 +7,7 @@ type CitaInsert = Database['public']['Tables']['citas']['Insert'];
 type CitaUpdate = Database['public']['Tables']['citas']['Update'];
 
 const SELECT =
-  'id, fecha_hora, duracion_minutos, cliente_id, vehiculo_id, contacto_nombre, contacto_apellidos, contacto_telefono, vehiculo_descripcion, motivo, tecnico_id, estado, notas, ot_id, origen, contacto_correo, tipo_cita_id';
+  'id, fecha_hora, duracion_minutos, cliente_id, vehiculo_id, contacto_nombre, contacto_apellidos, contacto_telefono, vehiculo_descripcion, motivo, tecnico_id, estado, notas, ot_id, origen, contacto_correo, tipo_cita_id, token_cliente';
 
 type CitaRow = {
   id: string;
@@ -27,6 +27,7 @@ type CitaRow = {
   origen: string;
   contacto_correo: string | null;
   tipo_cita_id: string | null;
+  token_cliente: string | null;
 };
 
 function mapCita(r: CitaRow): Cita {
@@ -48,6 +49,7 @@ function mapCita(r: CitaRow): Cita {
     origen: r.origen === 'online' ? 'online' : 'taller',
     contactoCorreo: r.contacto_correo ?? undefined,
     tipoCitaId: r.tipo_cita_id ?? undefined,
+    tokenCliente: r.token_cliente ?? undefined,
   };
 }
 
