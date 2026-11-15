@@ -104,6 +104,7 @@ export type Database = {
           cancelada_por: string | null
           cliente_id: string | null
           consentimiento_en: string | null
+          contacto_apellidos: string | null
           contacto_correo: string | null
           contacto_nombre: string | null
           contacto_telefono: string | null
@@ -129,6 +130,7 @@ export type Database = {
           cancelada_por?: string | null
           cliente_id?: string | null
           consentimiento_en?: string | null
+          contacto_apellidos?: string | null
           contacto_correo?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
@@ -154,6 +156,7 @@ export type Database = {
           cancelada_por?: string | null
           cliente_id?: string | null
           consentimiento_en?: string | null
+          contacto_apellidos?: string | null
           contacto_correo?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
@@ -2189,6 +2192,7 @@ export type Database = {
       }
       reservar_cita_online: {
         Args: {
+          p_apellidos: string
           p_correo: string
           p_duracion: number
           p_empresa_id: string

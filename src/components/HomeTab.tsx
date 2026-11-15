@@ -235,7 +235,7 @@ export default function HomeTab({
                 )}
                 {citasHoy.map(c => {
                   const cliente = c.clienteId ? clientePorId.get(c.clienteId) : undefined;
-                  const nombre = cliente ? `${cliente.nombre} ${cliente.apellidos}` : (c.contactoNombre || 'Sin nombre');
+                  const nombre = cliente ? `${cliente.nombre} ${cliente.apellidos}` : ([c.contactoNombre, c.contactoApellidos].filter(Boolean).join(' ') || 'Sin nombre');
                   return (
                     <div key={c.id} className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-slate-50">
                       <div className="w-14 shrink-0 text-center text-xs font-extrabold rounded-lg py-1.5" style={{ backgroundColor: brandSoft, color: brandColor }}>

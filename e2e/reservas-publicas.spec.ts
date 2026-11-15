@@ -82,7 +82,8 @@ test('reservar: servicio → día → hora → datos, con consentimiento y captc
 
   const reservar = page.getByTestId('reservar');
   await expect(reservar).toBeDisabled();                                     // faltan datos
-  await page.getByLabel('Nombre', { exact: true }).fill('Ana García');
+  await page.getByLabel('Nombre', { exact: true }).fill('Ana');
+  await page.getByLabel('Apellidos', { exact: true }).fill('García Ruiz');
   await page.getByLabel('Teléfono').fill('600 000 001');
   await page.getByLabel('Correo').fill('ana@mail.es');
   await page.getByLabel('Matrícula').fill('1234abc');
@@ -94,7 +95,7 @@ test('reservar: servicio → día → hora → datos, con consentimiento y captc
   await expect(page.getByTestId('reserva-hecha')).toContainText('¡Cita confirmada!');
   await expect(page.getByTestId('reserva-hecha')).toContainText('Revisión');
   const envio = s.peticiones.find((p) => p.action === 'reservar')!;
-  expect(envio).toMatchObject({ slug: 'taller-ruiz', tipoId: 't1', hora: '10:00', nombre: 'Ana García', telefono: '600 000 001', correo: 'ana@mail.es', matricula: '1234abc', consentimiento: true, captchaToken: 'token-de-prueba', web: '' });
+  expect(envio).toMatchObject({ slug: 'taller-ruiz', tipoId: 't1', hora: '10:00', nombre: 'Ana', apellidos: 'García Ruiz', telefono: '600 000 001', correo: 'ana@mail.es', matricula: '1234abc', consentimiento: true, captchaToken: 'token-de-prueba', web: '' });
 });
 
 test('reservar: si el hueco se ocupó, se explica, se pide la disponibilidad otra vez y se puede elegir otra hora', async ({ page }) => {
@@ -104,7 +105,8 @@ test('reservar: si el hueco se ocupó, se explica, se pide la disponibilidad otr
   await page.getByRole('button', { name: /Cambio de aceite/ }).click();
   await page.locator('[data-testid="calendario"] button:not([disabled])[aria-pressed]').first().click();
   await page.getByRole('button', { name: '09:00' }).click();
-  await page.getByLabel('Nombre', { exact: true }).fill('Ana García');
+  await page.getByLabel('Nombre', { exact: true }).fill('Ana');
+  await page.getByLabel('Apellidos', { exact: true }).fill('García Ruiz');
   await page.getByLabel('Teléfono').fill('600000001');
   await page.getByLabel('Correo').fill('ana@mail.es');
   await page.getByTestId('consentimiento').check();
@@ -125,7 +127,8 @@ test('reservar: con confirmación manual el cliente ve «solicitud recibida»', 
   await page.locator('[data-testid="calendario"] button:not([disabled])[aria-pressed]').first().click();
   await page.getByRole('button', { name: '10:00' }).click();
   await expect(page.getByText('El taller confirmará tu cita por correo.')).toBeVisible();
-  await page.getByLabel('Nombre', { exact: true }).fill('Ana García');
+  await page.getByLabel('Nombre', { exact: true }).fill('Ana');
+  await page.getByLabel('Apellidos', { exact: true }).fill('García Ruiz');
   await page.getByLabel('Teléfono').fill('600000001');
   await page.getByLabel('Correo').fill('ana@mail.es');
   await page.getByTestId('consentimiento').check();

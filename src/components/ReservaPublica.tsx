@@ -33,6 +33,7 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   const [hora, setHora] = useState<string | null>(null);
   const [mesIdx, setMesIdx] = useState(0);
   const [nombre, setNombre] = useState('');
+  const [apellidos, setApellidos] = useState('');
   const [telefono, setTelefono] = useState('');
   const [correo, setCorreo] = useState('');
   const [vehiculo, setVehiculo] = useState('');
@@ -69,14 +70,14 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   if (!info) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-3 border-slate-300 border-t-blue-600 rounded-full" /></div>;
 
   const sinCaptcha = !CLAVE_TURNSTILE;
-  const listo = !!tipo && !!fecha && !!hora && nombre.trim().length >= 2 && telefono.replace(/\D/g, '').length >= 9 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo.trim())
+  const listo = !!tipo && !!fecha && !!hora && nombre.trim().length >= 2 && apellidos.trim().length >= 2 && telefono.replace(/\D/g, '').length >= 9 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo.trim())
     && consentimiento && !!captcha && !enviando;
 
   const reservar = async () => {
     if (!tipo || !fecha || !hora) return;
     setEnviando(true); setError('');
     try {
-      const r = await reservarCita({ slug, tipoId: tipo.id, fecha, hora, nombre, telefono, correo, vehiculo, matricula, motivo, consentimiento, captchaToken: captcha, web });
+      const r = await reservarCita({ slug, tipoId: tipo.id, fecha, hora, nombre, apellidos, telefono, correo, vehiculo, matricula, motivo, consentimiento, captchaToken: captcha, web });
       setHecho(r);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar la reserva.');
@@ -196,7 +197,10 @@ export default function ReservaPublica({ slug }: { slug: string }) {
             {tipo && fecha && hora && (
               <Seccion n={4} color={color} titulo="Tus datos">
                 <div className="space-y-2.5">
-                  <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre y apellidos" aria-label="Nombre" maxLength={80} autoComplete="name" className={campo} />
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre" aria-label="Nombre" maxLength={80} autoComplete="given-name" className={campo} />
+                    <input value={apellidos} onChange={(e) => setApellidos(e.target.value)} placeholder="Apellidos" aria-label="Apellidos" maxLength={80} autoComplete="family-name" className={campo} />
+                  </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Teléfono" aria-label="Teléfono" inputMode="tel" autoComplete="tel" maxLength={20} className={campo} />
                     <input value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="Correo" aria-label="Correo" inputMode="email" autoComplete="email" maxLength={254} className={campo} />

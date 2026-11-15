@@ -150,7 +150,7 @@ async function manejarReservar(admin: SupabaseClient, req: Request, body: Record
   const token = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, '').slice(0, 12);
   const { error } = await admin.rpc('reservar_cita_online', {
     p_empresa_id: e.id, p_fecha_hora: new Date(inicio).toISOString(), p_duracion: tipo.duracion_minutos, p_tipo_id: tipo.id,
-    p_nombre: d.nombre, p_telefono: d.telefono, p_correo: d.correo, p_vehiculo: descripcionVehiculo(d.vehiculo, d.matricula),
+    p_nombre: d.nombre, p_apellidos: d.apellidos, p_telefono: d.telefono, p_correo: d.correo, p_vehiculo: descripcionVehiculo(d.vehiculo, d.matricula),
     p_motivo: d.motivo, p_estado: estado, p_token: token,
   });
   if (error) {
@@ -165,20 +165,20 @@ async function manejarReservar(admin: SupabaseClient, req: Request, body: Record
 
   const cuando = fechaHoraLarga(inicio);
   const enlace = `${APP_URL}/cita/${token}`;
-  const datos = { empresa: e, nombre: d.nombre, cuando, tipo: tipo.nombre, vehiculo: descripcionVehiculo(d.vehiculo, d.matricula), motivo: d.motivo, telefono: d.telefono, correo: d.correo, duracionMin: tipo.duracion_minutos };
+  const datos = { empresa: e, nombre: d.nombre, apellidos: d.apellidos, cuando, tipo: tipo.nombre, vehiculo: descripcionVehiculo(d.vehiculo, d.matricula), motivo: d.motivo, telefono: d.telefono, correo: d.correo, duracionMin: tipo.duracion_minutos };
   await enviarSeguro(e, d.correo, estado === 'confirmada' ? 'cliente_confirmada' : 'cliente_pendiente', { ...datos, enlace });
   await enviarSeguro(e, e.correo, 'taller_nueva', datos);
   return json({ ok: true, estado, cuando, enlace, tipo: tipo.nombre });
 }
 
 interface CitaPublica {
-  id: string; empresa_id: string; fecha_hora: string; duracion_minutos: number; estado: string; contacto_nombre: string | null;
+  id: string; empresa_id: string; fecha_hora: string; duracion_minutos: number; estado: string; contacto_nombre: string | null; contacto_apellidos: string | null;
   vehiculo_descripcion: string | null; motivo: string; tipo_cita_id: string | null; token_cliente: string;
 }
 
 async function citaPorToken(admin: SupabaseClient, token: unknown): Promise<CitaPublica | null> {
   if (typeof token !== 'string' || token.length < 20 || token.length > 80) return null;
-  const { data } = await admin.from('citas').select('id, empresa_id, fecha_hora, duracion_minutos, estado, contacto_nombre, vehiculo_descripcion, motivo, tipo_cita_id, token_cliente').eq('token_cliente', token).maybeSingle();
+  const { data } = await admin.from('citas').select('id, empresa_id, fecha_hora, duracion_minutos, estado, contacto_nombre, contacto_apellidos, vehiculo_descripcion, motivo, tipo_cita_id, token_cliente').eq('token_cliente', token).maybeSingle();
   return (data as CitaPublica | null) ?? null;
 }
 
@@ -214,7 +214,7 @@ async function manejarCancelar(admin: SupabaseClient, token: unknown) {
     const { data: emp } = await admin.from('empresas').select(COLUMNAS_EMPRESA).eq('id', c.empresa_id).single();
     const e = emp as EmpresaFila | null;
     if (e) {
-      const datos = { empresa: e, nombre: fila.contacto_nombre ?? 'Cliente', cuando: fechaHoraLarga(new Date(fila.fecha_hora).getTime()), vehiculo: fila.vehiculo_descripcion, motivo: fila.motivo, correo: fila.contacto_correo };
+      const datos = { empresa: e, nombre: fila.contacto_nombre ?? 'Cliente', apellidos: c.contacto_apellidos, cuando: fechaHoraLarga(new Date(fila.fecha_hora).getTime()), vehiculo: fila.vehiculo_descripcion, motivo: fila.motivo, correo: fila.contacto_correo };
       await enviarSeguro(e, fila.contacto_correo, 'cliente_cancelada', datos);
       await enviarSeguro(e, e.correo, 'taller_cancelada', datos);
     }

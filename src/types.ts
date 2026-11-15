@@ -194,6 +194,7 @@ export interface Cita {
   clienteId?: string;
   vehiculoId?: string;
   contactoNombre?: string;
+  contactoApellidos?: string;
   contactoTelefono?: string;
   vehiculoDescripcion?: string;
   motivo: string;

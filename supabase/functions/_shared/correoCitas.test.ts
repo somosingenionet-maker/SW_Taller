@@ -53,3 +53,15 @@ Deno.test('los campos opcionales ausentes no dejan filas vacías ni «undefined�
   assertEquals(html.includes('Vehículo'), false);
   assertEquals(html.includes('Motivo'), false);
 });
+
+Deno.test('los avisos al taller llevan nombre y apellidos; al cliente se le saluda solo por el nombre', () => {
+  const d = { ...BASE, nombre: 'Ana', apellidos: 'García Ruiz' };
+  const nueva = construirCorreoCita('taller_nueva', d);
+  assertStringIncludes(nueva.asunto, 'Ana García Ruiz');
+  assertStringIncludes(nueva.html, 'Ana García Ruiz');
+  assertStringIncludes(construirCorreoCita('taller_cancelada', d).asunto, 'Ana García Ruiz');
+  const cliente = construirCorreoCita('cliente_confirmada', d);
+  assertStringIncludes(cliente.html, 'Hola Ana,');
+  assertEquals(cliente.html.includes('García Ruiz'), false);
+  assertEquals(construirCorreoCita('taller_nueva', { ...BASE, nombre: 'Ana' }).asunto.includes('undefined'), false);
+});

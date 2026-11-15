@@ -140,6 +140,11 @@ function rango(fechaHora: string, duracionMinutos: number): [number, number] {
   return [inicio, inicio + duracionMinutos * 60000];
 }
 
+/** «Nombre Apellidos» de quien pidió la cita sin ser cliente registrado (reserva online o cita suelta). */
+function nombreContacto(c: Pick<Cita, 'contactoNombre' | 'contactoApellidos'>): string | undefined {
+  return [c.contactoNombre, c.contactoApellidos].filter(Boolean).join(' ') || undefined;
+}
+
 function seSolapan(a: [number, number], b: [number, number]): boolean {
   return a[0] < b[1] && b[0] < a[1];
 }
@@ -470,7 +475,7 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
               const meta = ESTADO_META[c.estado];
               const tecnico = tecnicos.find((t) => t.id === c.tecnicoId);
               const veh = vehiculoLabel(c.vehiculoId) ?? c.vehiculoDescripcion;
-              const cli = clienteLabel(c.clienteId) ?? c.contactoNombre;
+              const cli = clienteLabel(c.clienteId) ?? nombreContacto(c);
               return (
                 <div key={c.id} className="px-5 py-4 flex items-start justify-between gap-4 hover:bg-slate-50/60 transition">
                   <div className="flex items-start gap-3 min-w-0">
@@ -756,8 +761,9 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
           vehiculos={vehiculos}
           clientes={clientes}
           onCreateOT={onCreateOT}
-          onConvertida={async (otId) => {
-            await onUpdateCita(convertirCita.id, { estado: 'convertida', otId });
+          onAddCliente={onAddCliente}
+          onConvertida={async (otId, clienteId) => {
+            await onUpdateCita(convertirCita.id, { estado: 'convertida', otId, clienteId });
             setConvertirCita(null);
           }}
           onClose={() => setConvertirCita(null)}
@@ -782,17 +788,42 @@ interface ConvertirModalProps {
   vehiculos: Vehiculo[];
   clientes: Cliente[];
   onCreateOT: (ot: OrdenTrabajo) => void | Promise<OrdenTrabajo>;
-  onConvertida: (otId: string) => void | Promise<void>;
+  onConvertida: (otId: string, clienteId: string) => void | Promise<void>;
+  onAddCliente: (c: NuevoCliente) => Promise<Cliente>;
   onClose: () => void;
 }
 
-function ConvertirEnOTModal({ cita, vehiculos, clientes, onCreateOT, onConvertida, onClose }: ConvertirModalProps) {
+function ConvertirEnOTModal({ cita, vehiculos, clientes, onCreateOT, onAddCliente, onConvertida, onClose }: ConvertirModalProps) {
   const [vehiculoId, setVehiculoId] = useState(cita.vehiculoId ?? '');
   const [clienteId, setClienteId] = useState(cita.clienteId ?? '');
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
   const [kilometraje, setKilometraje] = useState<number | ''>('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [creandoCliente, setCreandoCliente] = useState(false);
+
+  // Cita pedida por alguien que aún no es cliente (p. ej. reserva online): se le crea la ficha con lo que dejó,
+  // cada dato en su campo (nombre, apellidos, teléfono, correo).
+  const puedeCrearCliente = !clienteId && !!cita.contactoNombre;
+  const crearClienteDeLaCita = async () => {
+    setError('');
+    setCreandoCliente(true);
+    try {
+      const creado = await onAddCliente({
+        nombre: cita.contactoNombre ?? '',
+        apellidos: cita.contactoApellidos ?? '',
+        nifNiePasaporte: '',
+        correo: cita.contactoCorreo ?? '',
+        telefono: cita.contactoTelefono ?? '',
+        direccion: '',
+      });
+      setClienteId(creado.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudo crear el cliente.');
+    } finally {
+      setCreandoCliente(false);
+    }
+  };
 
   const datosCompletos = !!vehiculoId && !!clienteId;
 
@@ -825,7 +856,7 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, onCreateOT, onConvertid
       };
       const creada = await onCreateOT(ot);
       const otId = creada && typeof creada === 'object' && 'id' in creada ? creada.id : ot.id;
-      await onConvertida(otId);
+      await onConvertida(otId, clienteId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear la orden de trabajo.');
     } finally {
@@ -870,6 +901,12 @@ function ConvertirEnOTModal({ cita, vehiculos, clientes, onCreateOT, onConvertid
             <option value="">Seleccionar cliente...</option>
             {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre} {c.apellidos}</option>)}
           </select>
+          {puedeCrearCliente && (
+            <button type="button" onClick={crearClienteDeLaCita} disabled={creandoCliente} data-testid="crear-cliente-de-cita"
+              className="mt-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 disabled:opacity-60 cursor-pointer">
+              {creandoCliente ? 'Creando cliente…' : `+ Crear cliente «${nombreContacto(cita)}» con los datos de la cita`}
+            </button>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -950,7 +987,7 @@ function VistaSemanal({ weekDays, citas, otsRecepcion, tecnicos, hoy, clienteLab
                     citasDia.map((c) => {
                       const meta = ESTADO_META[c.estado];
                       const tecnico = tecnicos.find((t) => t.id === c.tecnicoId);
-                      const cli = clienteLabel(c.clienteId) ?? c.contactoNombre;
+                      const cli = clienteLabel(c.clienteId) ?? nombreContacto(c);
                       return (
                         <button
                           key={c.id}
@@ -1050,7 +1087,7 @@ function VistaMensual({ mesAncla, citas, otsRecepcion, hoy, clienteLabel, onSele
                 <div className="mt-1 space-y-0.5">
                   {citasDia.slice(0, MAX_CITAS_POR_CELDA).map((c) => {
                     const meta = ESTADO_META[c.estado];
-                    const cli = clienteLabel(c.clienteId) ?? c.contactoNombre;
+                    const cli = clienteLabel(c.clienteId) ?? nombreContacto(c);
                     return (
                       <button
                         key={c.id}

@@ -117,12 +117,12 @@ Deno.test('huecos el día del cambio de hora: las horas siguen siendo las del re
 });
 
 Deno.test('validarSolicitud: acepta lo correcto y normaliza', () => {
-  const r = validarSolicitud({ slug: 'Taller-Ruiz', tipoId: 't1', fecha: '2026-11-17', hora: '10:00', nombre: '  Ana   García ', telefono: '600 000 001', correo: ' ANA@Mail.es ', matricula: '1234 abc', vehiculo: 'Seat León', motivo: ' Frenos ', consentimiento: true });
-  assertEquals(r.ok && r.datos, { slug: 'taller-ruiz', tipoId: 't1', fecha: '2026-11-17', hora: '10:00', nombre: 'Ana García', telefono: '600 000 001', correo: 'ana@mail.es', vehiculo: 'Seat León', matricula: '1234ABC', motivo: 'Frenos' });
+  const r = validarSolicitud({ slug: 'Taller-Ruiz', tipoId: 't1', fecha: '2026-11-17', hora: '10:00', nombre: '  Ana ', apellidos: '  García   Ruiz ', telefono: '600 000 001', correo: ' ANA@Mail.es ', matricula: '1234 abc', vehiculo: 'Seat León', motivo: ' Frenos ', consentimiento: true });
+  assertEquals(r.ok && r.datos, { slug: 'taller-ruiz', tipoId: 't1', fecha: '2026-11-17', hora: '10:00', nombre: 'Ana', apellidos: 'García Ruiz', telefono: '600 000 001', correo: 'ana@mail.es', vehiculo: 'Seat León', matricula: '1234ABC', motivo: 'Frenos' });
 });
 
 Deno.test('validarSolicitud: rechaza lo que falta o está mal', () => {
-  const base = { slug: 's', tipoId: 't', fecha: '2026-11-17', hora: '10:00', nombre: 'Ana', telefono: '600000001', correo: 'a@b.es', consentimiento: true };
+  const base = { slug: 's', tipoId: 't', fecha: '2026-11-17', hora: '10:00', nombre: 'Ana', apellidos: 'García', telefono: '600000001', correo: 'a@b.es', consentimiento: true };
   const mal = (cambios: Record<string, unknown>) => validarSolicitud({ ...base, ...cambios }).ok;
   assertEquals(mal({}), true);
   assertEquals(mal({ consentimiento: false }), false);
@@ -130,6 +130,9 @@ Deno.test('validarSolicitud: rechaza lo que falta o está mal', () => {
   assertEquals(mal({ consentimiento: undefined }), false);
   assertEquals(mal({ nombre: 'A' }), false);
   assertEquals(mal({ nombre: 7 }), false);
+  assertEquals(mal({ apellidos: '' }), false);
+  assertEquals(mal({ apellidos: undefined }), false);
+  assertEquals(mal({ apellidos: 'G' }), false);
   assertEquals(mal({ telefono: '123' }), false);
   assertEquals(mal({ telefono: '6000000012345678' }), false);
   assertEquals(mal({ correo: 'sin-arroba' }), false);
@@ -144,8 +147,9 @@ Deno.test('validarSolicitud: rechaza lo que falta o está mal', () => {
 });
 
 Deno.test('validarSolicitud recorta textos largos', () => {
-  const r = validarSolicitud({ slug: 's', tipoId: 't', fecha: '2026-11-17', hora: '10:00', nombre: 'x'.repeat(200), telefono: '600000001', correo: 'a@b.es', motivo: 'm'.repeat(500), vehiculo: 'v'.repeat(200), consentimiento: true });
+  const r = validarSolicitud({ slug: 's', tipoId: 't', fecha: '2026-11-17', hora: '10:00', nombre: 'x'.repeat(200), apellidos: 'y'.repeat(200), telefono: '600000001', correo: 'a@b.es', motivo: 'm'.repeat(500), vehiculo: 'v'.repeat(200), consentimiento: true });
   assertEquals(r.ok && r.datos.nombre.length, 80);
+  assertEquals(r.ok && r.datos.apellidos.length, 80);
   assertEquals(r.ok && r.datos.motivo.length, 300);
   assertEquals(r.ok && r.datos.vehiculo.length, 80);
 });

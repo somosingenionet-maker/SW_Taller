@@ -129,7 +129,7 @@ export const ultimoDia = (cfg: ConfigReservas, ahora: number) => sumarDias(fecha
 
 export interface SolicitudReserva {
   slug: string; tipoId: string; fecha: string; hora: string;
-  nombre: string; telefono: string; correo: string; vehiculo: string; matricula: string; motivo: string;
+  nombre: string; apellidos: string; telefono: string; correo: string; vehiculo: string; matricula: string; motivo: string;
 }
 
 const reCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -143,6 +143,7 @@ export type ResultadoSolicitud = { ok: true; datos: SolicitudReserva } | { ok: f
 export function validarSolicitud(b: Record<string, unknown>): ResultadoSolicitud {
   if (b.consentimiento !== true) return { ok: false, error: 'Debes aceptar el uso de tus datos para gestionar la cita.' };
   const nombre = recortar(b.nombre, 80);
+  const apellidos = recortar(b.apellidos, 80);
   const telefono = recortar(b.telefono, 20);
   const correo = recortar(b.correo, 254).toLowerCase();
   const matricula = recortar(b.matricula, 12).toUpperCase().replace(/[\s]/g, '');
@@ -151,12 +152,13 @@ export function validarSolicitud(b: Record<string, unknown>): ResultadoSolicitud
   const slug = recortar(b.slug, 40).toLowerCase();
   const tipoId = recortar(b.tipoId, 80);
   if (nombre.length < 2) return { ok: false, error: 'Escribe tu nombre.' };
+  if (apellidos.length < 2) return { ok: false, error: 'Escribe tus apellidos.' };
   if (!telefonoValido(telefono)) return { ok: false, error: 'Escribe un teléfono válido (9 cifras o más).' };
   if (!reCorreo.test(correo)) return { ok: false, error: 'Escribe un correo válido: te enviamos ahí la confirmación.' };
   if (matricula && !matriculaValida(matricula)) return { ok: false, error: 'La matrícula no parece válida. Puedes dejarla en blanco.' };
   if (!slug || !tipoId) return { ok: false, error: 'Faltan datos de la reserva.' };
   if (!fechaValida(b.fecha) || !horaValida(b.hora)) return { ok: false, error: 'Elige un día y una hora.' };
-  return { ok: true, datos: { slug, tipoId, fecha: b.fecha, hora: b.hora, nombre, telefono, correo, vehiculo, matricula, motivo } };
+  return { ok: true, datos: { slug, tipoId, fecha: b.fecha, hora: b.hora, nombre, apellidos, telefono, correo, vehiculo, matricula, motivo } };
 }
 
 /** Texto del vehículo que se guarda en la cita: «Seat León · 1234ABC». */

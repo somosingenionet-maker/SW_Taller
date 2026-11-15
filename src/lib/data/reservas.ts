@@ -18,7 +18,7 @@ export interface DisponibilidadReservas {
 }
 export interface DatosReserva {
   slug: string; tipoId: string; fecha: string; hora: string;
-  nombre: string; telefono: string; correo: string; vehiculo: string; matricula: string; motivo: string;
+  nombre: string; apellidos: string; telefono: string; correo: string; vehiculo: string; matricula: string; motivo: string;
   consentimiento: boolean; captchaToken: string;
   /** Campo señuelo: siempre vacío en una persona. */
   web: string;

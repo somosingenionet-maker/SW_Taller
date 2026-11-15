@@ -15,6 +15,8 @@ export type TipoCorreoCita =
 export interface DatosCita {
   empresa: EmpresaCorreo;
   nombre: string;
+  /** Apellidos: solo para los avisos al taller (al cliente se le saluda por su nombre). */
+  apellidos?: string | null;
   /** Texto largo de la fecha y hora. */
   cuando: string;
   tipo?: string | null;
@@ -41,6 +43,7 @@ function detalle(d: DatosCita): string {
 export function construirCorreoCita(tipo: TipoCorreoCita, d: DatosCita): { asunto: string; html: string } {
   const taller = d.empresa.nombre;
   const contacto = [d.empresa.telefono, d.empresa.correo].filter(Boolean).map((x) => escaparHtml(String(x))).join(' · ');
+  const completo = [d.nombre, d.apellidos].filter(Boolean).join(' ');
   const saludo = parrafo(`Hola ${escaparHtml(d.nombre)},`);
   const pieCliente = `Mensaje de ${taller}. Puedes responder a este correo.`;
   const cancelar = d.enlace ? parrafo(`Si no puedes venir, <a href="${escaparHtml(d.enlace)}" style="color:#2563eb;">cancela o revisa tu cita aquí</a> para dejar el hueco a otra persona.`) : '';
@@ -74,15 +77,15 @@ export function construirCorreoCita(tipo: TipoCorreoCita, d: DatosCita): { asunt
       pie = `Aviso automático de ${taller}, solo uno por cita. Si no quieres recibir más avisos, responde a este correo y dejaremos de enviártelos.`;
       break;
     case 'taller_nueva':
-      asunto = `Nueva reserva online: ${d.nombre} · ${d.cuando}`;
+      asunto = `Nueva reserva online: ${completo} · ${d.cuando}`;
       cuerpo = parrafo('Has recibido una <strong>reserva online</strong>:') + detalle(d)
-        + parrafo(`<strong>${escaparHtml(d.nombre)}</strong>${d.telefono ? ` · ${escaparHtml(d.telefono)}` : ''}${d.correo ? ` · ${escaparHtml(d.correo)}` : ''}`)
+        + parrafo(`<strong>${escaparHtml(completo)}</strong>${d.telefono ? ` · ${escaparHtml(d.telefono)}` : ''}${d.correo ? ` · ${escaparHtml(d.correo)}` : ''}`)
         + parrafo('La encontrarás en la Agenda con la etiqueta «Online».');
       pie = 'Aviso automático de Doonty Motor.';
       break;
     case 'taller_cancelada':
-      asunto = `Cita cancelada por el cliente: ${d.nombre} · ${d.cuando}`;
-      cuerpo = parrafo('El cliente ha <strong>cancelado</strong> su cita:') + detalle(d) + parrafo(`<strong>${escaparHtml(d.nombre)}</strong>${d.telefono ? ` · ${escaparHtml(d.telefono)}` : ''}`) + parrafo('El hueco vuelve a estar libre.');
+      asunto = `Cita cancelada por el cliente: ${completo} · ${d.cuando}`;
+      cuerpo = parrafo('El cliente ha <strong>cancelado</strong> su cita:') + detalle(d) + parrafo(`<strong>${escaparHtml(completo)}</strong>${d.telefono ? ` · ${escaparHtml(d.telefono)}` : ''}`) + parrafo('El hueco vuelve a estar libre.');
       pie = 'Aviso automático de Doonty Motor.';
       break;
   }

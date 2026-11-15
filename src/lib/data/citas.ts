@@ -7,7 +7,7 @@ type CitaInsert = Database['public']['Tables']['citas']['Insert'];
 type CitaUpdate = Database['public']['Tables']['citas']['Update'];
 
 const SELECT =
-  'id, fecha_hora, duracion_minutos, cliente_id, vehiculo_id, contacto_nombre, contacto_telefono, vehiculo_descripcion, motivo, tecnico_id, estado, notas, ot_id, origen, contacto_correo, tipo_cita_id';
+  'id, fecha_hora, duracion_minutos, cliente_id, vehiculo_id, contacto_nombre, contacto_apellidos, contacto_telefono, vehiculo_descripcion, motivo, tecnico_id, estado, notas, ot_id, origen, contacto_correo, tipo_cita_id';
 
 type CitaRow = {
   id: string;
@@ -16,6 +16,7 @@ type CitaRow = {
   cliente_id: string | null;
   vehiculo_id: string | null;
   contacto_nombre: string | null;
+  contacto_apellidos: string | null;
   contacto_telefono: string | null;
   vehiculo_descripcion: string | null;
   motivo: string;
@@ -36,6 +37,7 @@ function mapCita(r: CitaRow): Cita {
     clienteId: r.cliente_id ?? undefined,
     vehiculoId: r.vehiculo_id ?? undefined,
     contactoNombre: r.contacto_nombre ?? undefined,
+    contactoApellidos: r.contacto_apellidos ?? undefined,
     contactoTelefono: r.contacto_telefono ?? undefined,
     vehiculoDescripcion: r.vehiculo_descripcion ?? undefined,
     motivo: r.motivo,
@@ -56,6 +58,7 @@ function toRow(c: Omit<Cita, 'id'>) {
     cliente_id: c.clienteId || null,
     vehiculo_id: c.vehiculoId || null,
     contacto_nombre: c.contactoNombre || null,
+    contacto_apellidos: c.contactoApellidos || null,
     contacto_telefono: c.contactoTelefono || null,
     vehiculo_descripcion: c.vehiculoDescripcion || null,
     motivo: c.motivo,
@@ -88,6 +91,7 @@ export async function updateCita(id: string, cambios: Partial<Omit<Cita, 'id'>>)
   if (cambios.clienteId !== undefined) row.cliente_id = cambios.clienteId || null;
   if (cambios.vehiculoId !== undefined) row.vehiculo_id = cambios.vehiculoId || null;
   if (cambios.contactoNombre !== undefined) row.contacto_nombre = cambios.contactoNombre || null;
+  if (cambios.contactoApellidos !== undefined) row.contacto_apellidos = cambios.contactoApellidos || null;
   if (cambios.contactoTelefono !== undefined) row.contacto_telefono = cambios.contactoTelefono || null;
   if (cambios.vehiculoDescripcion !== undefined) row.vehiculo_descripcion = cambios.vehiculoDescripcion || null;
   if (cambios.motivo !== undefined) row.motivo = cambios.motivo;
