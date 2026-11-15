@@ -4,6 +4,7 @@ import { cancelarCitaPublica, getCitaPublica, type CitaPublicaDatos } from '../l
 import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';
 import { textoDuracionCita } from '../utils/reservas';
+import { aclarar, CabeceraTarjeta, CLASE_TARJETA, ColumnaExterna, HeroExterno, oscurecer, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
   confirmada: { texto: 'Confirmada', clase: 'bg-green-100 text-green-700' },
@@ -27,7 +28,7 @@ export default function CitaPublica({ token }: { token: string }) {
   useEffect(() => { cargar(); }, [cargar]);
 
   if (errorCarga) return <ErrorPortalPantalla tipo={errorCarga.tipo} mensaje={errorCarga.message} onReintentar={cargar} />;
-  if (!datos) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-3 border-slate-300 border-t-blue-600 rounded-full" /></div>;
+  if (!datos) return <CargandoExterno />;
 
   const color = datos.empresa.brandColor && /^#[0-9a-fA-F]{6}$/.test(datos.empresa.brandColor) ? datos.empresa.brandColor : '#2563eb';
   const e = ESTADO[datos.cita.estado] ?? ESTADO.pendiente;
@@ -40,35 +41,33 @@ export default function CitaPublica({ token }: { token: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-12">
-      <div className="px-5 pt-7 pb-9 rounded-b-[28px] text-white" style={{ backgroundColor: color }}>
-        <div className="max-w-xl mx-auto flex items-center gap-3">
-          {datos.empresa.logoUrl && <img src={datos.empresa.logoUrl} alt="" className="w-11 h-11 rounded-xl object-contain bg-white/20" />}
-          <div><h1 className="text-xl font-black leading-tight">{datos.empresa.nombre}</h1><p className="text-xs text-white/80">Tu cita</p></div>
-        </div>
-      </div>
-      <div className="max-w-xl mx-auto px-4 -mt-5 space-y-4" data-testid="cita-publica">
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            {datos.cita.estado === 'cancelada' ? <CalendarX className="w-5 h-5 text-slate-400" /> : <CalendarCheck className="w-5 h-5" style={{ color }} />}
-            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${e.clase}`} data-testid="estado-cita">{e.texto}</span>
-          </div>
-          <p className="text-base font-extrabold text-slate-800 first-letter:uppercase">{datos.cita.cuando}</p>
-          <dl className="text-sm text-slate-600 space-y-1">
-            {datos.cita.tipo && <div className="flex gap-2"><dt className="text-slate-400 w-20">Servicio</dt><dd>{datos.cita.tipo} · {textoDuracionCita(datos.cita.duracionMin)}</dd></div>}
-            {datos.cita.vehiculo && <div className="flex gap-2"><dt className="text-slate-400 w-20">Vehículo</dt><dd>{datos.cita.vehiculo}</dd></div>}
-            {datos.cita.motivo && <div className="flex gap-2"><dt className="text-slate-400 w-20">Motivo</dt><dd>{datos.cita.motivo}</dd></div>}
+    <PaginaExterna color={color}>
+      <HeroExterno color={color} logoUrl={datos.empresa.logoUrl} empresa={datos.empresa.nombre} iniciales={datos.empresa.nombre?.[0]}
+        titulo="Tu cita" subtitulo={datos.empresa.ciudad ? `${datos.empresa.ciudad}` : undefined} testId="cabecera-cita" />
+      <ColumnaExterna ancho="xl">
+        <div className={`${CLASE_TARJETA} p-6 space-y-4`} data-testid="cita-publica">
+          <CabeceraTarjeta
+            color={color}
+            tono={datos.cita.estado === 'cancelada' ? 'gris' : datos.cita.estado === 'pendiente' ? 'ambar' : 'marca'}
+            icono={datos.cita.estado === 'cancelada' ? <CalendarX className="w-[18px] h-[18px]" /> : <CalendarCheck className="w-[18px] h-[18px]" />}
+            titulo="Estado de tu cita"
+            derecha={<span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${e.clase}`} data-testid="estado-cita">{e.texto}</span>} />
+          <p className="rounded-2xl px-4 py-3 text-base font-extrabold first-letter:uppercase" style={{ backgroundColor: aclarar(color, 91), color: oscurecer(color, 25) }}>{datos.cita.cuando}</p>
+          <dl className="text-sm text-slate-600 divide-y divide-slate-100">
+            {datos.cita.tipo && <div className="flex gap-3 py-2"><dt className="text-slate-400 w-20 shrink-0">Servicio</dt><dd className="font-semibold text-slate-700">{datos.cita.tipo} · {textoDuracionCita(datos.cita.duracionMin)}</dd></div>}
+            {datos.cita.vehiculo && <div className="flex gap-3 py-2"><dt className="text-slate-400 w-20 shrink-0">Vehículo</dt><dd className="font-semibold text-slate-700">{datos.cita.vehiculo}</dd></div>}
+            {datos.cita.motivo && <div className="flex gap-3 py-2"><dt className="text-slate-400 w-20 shrink-0">Motivo</dt><dd>{datos.cita.motivo}</dd></div>}
           </dl>
 
           {datos.cita.cancelable && !confirmando && (
-            <button type="button" onClick={() => setConfirmando(true)} data-testid="cancelar-cita" className="text-xs font-bold text-rose-600 underline cursor-pointer">Cancelar esta cita</button>
+            <button type="button" onClick={() => setConfirmando(true)} data-testid="cancelar-cita" className="w-full py-3 rounded-2xl border border-rose-200 text-rose-600 text-sm font-bold hover:bg-rose-50 transition cursor-pointer">Cancelar esta cita</button>
           )}
           {confirmando && (
-            <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3 space-y-2" role="alertdialog" aria-label="Confirmar cancelación">
-              <p className="text-xs text-rose-800 font-semibold">¿Seguro que quieres cancelar la cita? El hueco quedará libre para otra persona.</p>
+            <div className="rounded-2xl bg-rose-50 border border-rose-200 p-4 space-y-3" role="alertdialog" aria-label="Confirmar cancelación">
+              <p className="text-sm text-rose-800 font-semibold">¿Seguro que quieres cancelar la cita? El hueco quedará libre para otra persona.</p>
               <div className="flex gap-2">
-                <button type="button" disabled={cancelando} onClick={() => void cancelar()} data-testid="confirmar-cancelacion" className="px-3 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold disabled:opacity-60 cursor-pointer">{cancelando ? 'Cancelando…' : 'Sí, cancelar'}</button>
-                <button type="button" onClick={() => setConfirmando(false)} className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold cursor-pointer">No, mantenerla</button>
+                <button type="button" disabled={cancelando} onClick={() => void cancelar()} data-testid="confirmar-cancelacion" className="flex-1 px-3 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-bold disabled:opacity-60 cursor-pointer">{cancelando ? 'Cancelando…' : 'Sí, cancelar'}</button>
+                <button type="button" onClick={() => setConfirmando(false)} className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-bold cursor-pointer">No, mantenerla</button>
               </div>
             </div>
           )}
@@ -77,8 +76,11 @@ export default function CitaPublica({ token }: { token: string }) {
             <p className="text-xs text-slate-400">Esta cita ya no se puede cancelar desde aquí.{datos.empresa.telefono ? ` Llama al ${datos.empresa.telefono}.` : ''}</p>
           )}
         </div>
-        {datos.empresa.telefono && <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5"><Phone className="w-3 h-3" /> {datos.empresa.telefono}</p>}
-      </div>
-    </div>
+        {datos.empresa.telefono && (
+          <a href={`tel:${datos.empresa.telefono.replace(/[^\d+]/g, '')}`} className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700"><Phone className="w-4 h-4" /> {datos.empresa.telefono}</a>
+        )}
+        <PieExterno />
+      </ColumnaExterna>
+    </PaginaExterna>
   );
 }

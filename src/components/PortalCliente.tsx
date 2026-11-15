@@ -5,6 +5,7 @@ import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';
 import { formatDate } from '../utils/dateFormat';
 import { fmt2, formatKm } from '../utils/moneda';
+import { aclarar, CabeceraTarjeta, CLASE_TARJETA, ColumnaExterna, HeroExterno, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
 
 interface Props {
   token: string;
@@ -24,13 +25,13 @@ const fmt = fmt2;
 function VehiculoStatus({ v, color }: { v: PortalData['vehiculos'][number]; color: string }) {
   if (!v.estadoOt || v.estadoOt === 'presupuesto') {
     return (
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-        <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}1a`, color }}>
-          <Car className="w-4 h-4" />
+      <div className={`${CLASE_TARJETA} p-4 flex items-center gap-3`}>
+        <span className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: aclarar(color, 88), color }}>
+          <Car className="w-[18px] h-[18px]" />
         </span>
         <div>
-          <p className="text-sm font-extrabold text-slate-800">{v.marca} {v.modelo}</p>
-          <p className="text-xs text-slate-400">{v.matricula}</p>
+          <p className="text-[15px] font-extrabold text-slate-800 leading-tight">{v.marca} {v.modelo}</p>
+          <p className="text-xs font-mono tracking-wider text-slate-400 mt-0.5">{v.matricula}</p>
         </div>
       </div>
     );
@@ -39,14 +40,14 @@ function VehiculoStatus({ v, color }: { v: PortalData['vehiculos'][number]; colo
   const idxActual = PASOS.findIndex(p => p.estado === v.estadoOt);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
+    <div className={`${CLASE_TARJETA} p-5`}>
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}1a`, color }}>
-          <Car className="w-4 h-4" />
+        <span className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style={{ backgroundColor: aclarar(color, 88), color }}>
+          <Car className="w-[18px] h-[18px]" />
         </span>
         <div>
-          <p className="text-sm font-extrabold text-slate-800">{v.marca} {v.modelo}</p>
-          <p className="text-xs text-slate-400">{v.matricula}</p>
+          <p className="text-[15px] font-extrabold text-slate-800 leading-tight">{v.marca} {v.modelo}</p>
+          <p className="text-xs font-mono tracking-wider text-slate-400 mt-0.5">{v.matricula}</p>
         </div>
       </div>
 
@@ -108,16 +109,8 @@ function PresupuestoCard({ p, color, token, nombreCliente, onRespondido }: {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-amber-50 text-amber-600">
-          <ClipboardList className="w-4 h-4" />
-        </span>
-        <div>
-          <p className="text-sm font-extrabold text-slate-800">Presupuesto pendiente</p>
-          <p className="text-xs text-slate-400">{p.vehiculo}</p>
-        </div>
-      </div>
+    <div className={`${CLASE_TARJETA} p-5`}>
+      <div className="mb-3"><CabeceraTarjeta tono="ambar" icono={<ClipboardList className="w-[18px] h-[18px]" />} titulo="Presupuesto pendiente" subtitulo={p.vehiculo} /></div>
 
       <div className="divide-y divide-slate-100">
         {p.lineas.map((l, i) => (
@@ -250,14 +243,9 @@ function InformeCard({ inf, color, token, nombreCliente, onRespondido }: { inf: 
   const respondible = inf.estado === 'enviada' && elegibles.length > 0;
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3" data-testid="informe-inspeccion">
-      <div className="flex items-center gap-3">
-        <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600"><ClipboardCheck className="w-4 h-4" /></span>
-        <div>
-          <p className="text-sm font-extrabold text-slate-800">Informe de inspección</p>
-          <p className="text-xs text-slate-400">{inf.vehiculo}{inf.enviadaEn ? ` · ${formatDate(inf.enviadaEn.slice(0, 10))}` : ''}</p>
-        </div>
-      </div>
+    <div className={`${CLASE_TARJETA} p-5 space-y-3`} data-testid="informe-inspeccion">
+      <CabeceraTarjeta color={color} icono={<ClipboardCheck className="w-[18px] h-[18px]" />} titulo="Informe de inspección"
+        subtitulo={`${inf.vehiculo}${inf.enviadaEn ? ` · ${formatDate(inf.enviadaEn.slice(0, 10))}` : ''}`} />
 
       {inf.notaGeneral && <p className="text-sm text-slate-600">{inf.notaGeneral}</p>}
       {!hayProblemas && <p className="text-sm font-semibold text-green-700">Todo lo revisado está en buen estado.</p>}
@@ -333,9 +321,7 @@ export default function PortalCliente({ token }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-3 border-slate-300 border-t-blue-600 rounded-full" />
-      </div>
+      <CargandoExterno />
     );
   }
 
@@ -346,23 +332,11 @@ export default function PortalCliente({ token }: Props) {
   const color = data.empresa?.brandColor || '#2563eb';
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-10">
-      <div className="rounded-b-[28px] px-5 pt-6 pb-11" style={{ backgroundColor: color }}>
-        <div className="flex items-center gap-2.5 mb-5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 overflow-hidden" style={{ backgroundColor: '#ffffff22' }}>
-            {data.empresa?.logoUrl ? (
-              <img src={data.empresa.logoUrl} alt={data.empresa.nombre} className="w-full h-full object-contain" />
-            ) : (
-              <span className="text-white font-black text-xs">{data.empresa?.nombre?.[0]?.toUpperCase() ?? 'D'}</span>
-            )}
-          </div>
-          <span className="text-white font-bold text-sm">{data.empresa?.nombre}</span>
-        </div>
-        <h1 className="text-xl font-black text-white mb-1">Hola, {data.cliente.nombre} 👋</h1>
-        <p className="text-xs text-white/70">Aquí puedes ver el estado de tu vehículo</p>
-      </div>
+    <PaginaExterna color={color}>
+      <HeroExterno color={color} logoUrl={data.empresa?.logoUrl} empresa={data.empresa?.nombre} iniciales={data.empresa?.nombre?.[0]}
+        titulo={`Hola, ${data.cliente.nombre} 👋`} subtitulo="Aquí puedes ver el estado de tu vehículo" testId="cabecera-cliente" />
 
-      <div className="max-w-md mx-auto px-4 -mt-6 space-y-4">
+      <ColumnaExterna>
         {data.vehiculos.map(v => <VehiculoStatus key={v.id} v={v} color={color} />)}
 
         {(data.informes ?? []).map(inf => (
@@ -374,13 +348,8 @@ export default function PortalCliente({ token }: Props) {
         ))}
 
         {data.alertas.length > 0 && (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-blue-50 text-blue-600">
-                <Bell className="w-4 h-4" />
-              </span>
-              <p className="text-sm font-extrabold text-slate-800">Próximos vencimientos</p>
-            </div>
+          <div className={`${CLASE_TARJETA} p-5`}>
+            <div className="mb-3"><CabeceraTarjeta color={color} icono={<Bell className="w-[18px] h-[18px]" />} titulo="Próximos vencimientos" subtitulo="Para que no se te pase nada" /></div>
             <div className="divide-y divide-slate-100">
               {data.alertas.map((a, i) => (
                 <div key={i} className="flex items-center gap-2.5 py-2 text-xs">
@@ -400,13 +369,8 @@ export default function PortalCliente({ token }: Props) {
         )}
 
         {data.facturas.length > 0 && (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <span className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-green-50 text-green-600">
-                <Receipt className="w-4 h-4" />
-              </span>
-              <p className="text-sm font-extrabold text-slate-800">Tus facturas</p>
-            </div>
+          <div className={`${CLASE_TARJETA} p-5`}>
+            <div className="mb-3"><CabeceraTarjeta tono="verde" icono={<Receipt className="w-[18px] h-[18px]" />} titulo="Tus facturas" /></div>
             <div className="divide-y divide-slate-100">
               {data.facturas.map(f => (
                 <div key={f.numero} className="flex items-center gap-2.5 py-2 text-xs">
@@ -424,10 +388,8 @@ export default function PortalCliente({ token }: Props) {
           </div>
         )}
 
-        <p className="text-center text-[11px] text-slate-400 pt-2">
-          Enlace personal de {data.cliente.nombre} {data.cliente.apellidos} · Doonty Motor
-        </p>
-      </div>
-    </div>
+        <PieExterno>Enlace personal de {data.cliente.nombre} {data.cliente.apellidos}</PieExterno>
+      </ColumnaExterna>
+    </PaginaExterna>
   );
 }

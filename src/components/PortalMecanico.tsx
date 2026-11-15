@@ -14,6 +14,7 @@ import { GRUPOS, fechaHora, hoyLocal, ordenarGrupo, ordenesNuevas, plazoEntrega,
 import { FILTROS, sumarMeses } from '../utils/aceite';
 import { formatDate } from '../utils/dateFormat';
 import { formatKm } from '../utils/moneda';
+import { CLASE_BOTON_CABECERA, CLASE_TARJETA, ColumnaExterna, HeroExterno, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
 
 interface Props {
   token: string;
@@ -552,9 +553,7 @@ export default function PortalMecanico({ token }: Props) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-3 border-slate-300 border-t-blue-600 rounded-full" />
-      </div>
+      <CargandoExterno />
     );
   }
 
@@ -565,46 +564,28 @@ export default function PortalMecanico({ token }: Props) {
   const color = data.empresa?.brandColor || '#2563eb';
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-10">
-      <div className="rounded-b-[28px] px-5 pt-4 pb-7" style={{ backgroundColor: color }}>
-        {/* Todo el contenido va en la misma columna que las tarjetas (también en pantallas anchas). */}
-        <div className="max-w-md mx-auto">
-          <div className="flex justify-end gap-2">
-            <button onClick={alternarSonido} aria-label={sonido ? 'Quitar el sonido de los avisos' : 'Activar el sonido de los avisos'} aria-pressed={sonido}
-              className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
-              {sonido ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+    <PaginaExterna color={color}>
+      <HeroExterno color={color} logoUrl={data.empresa?.logoUrl} empresa={data.empresa?.nombre} icono={<Wrench className="w-7 h-7" style={{ color }} />}
+        titulo={`Hola, ${data.tecnico.nombre}`} testId="cabecera-mecanico"
+        subtitulo={<>
+          {ordenes.length === 0 ? 'No tienes vehículos asignados' : `${ordenes.length} ${ordenes.length === 1 ? 'vehículo asignado' : 'vehículos asignados'}`}
+          {nuevas.length > 0 && ` · ${nuevas.length} ${nuevas.length === 1 ? 'nuevo' : 'nuevos'}`}
+        </>}
+        acciones={<>
+          <button onClick={alternarSonido} aria-label={sonido ? 'Quitar el sonido de los avisos' : 'Activar el sonido de los avisos'} aria-pressed={sonido} className={CLASE_BOTON_CABECERA}>
+            {sonido ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+          </button>
+          {puedeInstalar && (
+            <button onClick={() => void instalar()} aria-label="Instalar como aplicación" title="Instalar como aplicación" className={CLASE_BOTON_CABECERA}>
+              <Download className="w-4 h-4" />
             </button>
-            {puedeInstalar && (
-              <button onClick={() => void instalar()} aria-label="Instalar como aplicación" title="Instalar como aplicación"
-                className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
-                <Download className="w-4 h-4" />
-              </button>
-            )}
-            <button onClick={() => void refrescarAMano()} aria-label="Actualizar" disabled={refrescando}
-              className="p-2.5 rounded-full text-white cursor-pointer" style={{ backgroundColor: '#ffffff22' }}>
-              <RefreshCw className={`w-4 h-4 ${refrescando ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
+          )}
+          <button onClick={() => void refrescarAMano()} aria-label="Actualizar" disabled={refrescando} className={CLASE_BOTON_CABECERA}>
+            <RefreshCw className={`w-4 h-4 ${refrescando ? 'animate-spin' : ''}`} />
+          </button>
+        </>} />
 
-          <div className="flex flex-col items-center text-center -mt-1" data-testid="cabecera-mecanico">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: '#ffffff22' }}>
-              {data.empresa?.logoUrl ? (
-                <img src={data.empresa.logoUrl} alt={data.empresa.nombre} className="w-full h-full object-contain" />
-              ) : (
-                <Wrench className="w-6 h-6 text-white" />
-              )}
-            </div>
-            <p className="mt-2 text-white/80 font-bold text-xs uppercase tracking-wider max-w-full truncate">{data.empresa?.nombre}</p>
-            <h1 className="mt-3 text-2xl font-black text-white">Hola, {data.tecnico.nombre}</h1>
-            <p className="mt-1 text-sm text-white/85">
-              {ordenes.length === 0 ? 'No tienes vehículos asignados' : `${ordenes.length} ${ordenes.length === 1 ? 'vehículo asignado' : 'vehículos asignados'}`}
-              {nuevas.length > 0 && ` · ${nuevas.length} ${nuevas.length === 1 ? 'nuevo' : 'nuevos'}`}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-md mx-auto px-4 mt-4 space-y-4">
+      <ColumnaExterna solapa={false}>
         {sinConexion && (
           <div role="status" className="bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold px-4 py-3 rounded-2xl">
             Sin conexión: puede que la lista no esté al día. Se actualizará sola cuando vuelva la red.
@@ -612,7 +593,7 @@ export default function PortalMecanico({ token }: Props) {
         )}
 
         {ordenes.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center">
+          <div className={`${CLASE_TARJETA} p-8 text-center`}>
             <ClipboardCheck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="text-sm font-bold text-slate-600">No tienes vehículos asignados ahora mismo</p>
             <p className="text-xs text-slate-400 mt-1">Cuando el taller te asigne uno aparecerá aquí solo.</p>
@@ -641,10 +622,8 @@ export default function PortalMecanico({ token }: Props) {
           </p>
         )}
 
-        <p className="text-center text-[11px] text-slate-400 pt-2">
-          Enlace personal de {data.tecnico.nombre} · Doonty Motor
-        </p>
-      </div>
-    </div>
+        <PieExterno>Enlace personal de {data.tecnico.nombre}</PieExterno>
+      </ColumnaExterna>
+    </PaginaExterna>
   );
 }

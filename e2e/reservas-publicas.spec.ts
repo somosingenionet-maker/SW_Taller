@@ -64,7 +64,8 @@ test('reservar: servicio → día → hora → datos, con consentimiento y captc
   const s = servidor();
   await preparar(page, s);
   await page.goto('/reservar/taller-ruiz');
-  await expect(page.getByRole('heading', { name: 'Taller Ruiz' })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole('heading', { name: 'Reserva tu cita' })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText('Taller Ruiz').first()).toBeVisible();
 
   // Hasta elegir servicio no hay calendario
   await expect(page.getByTestId('calendario')).toHaveCount(0);

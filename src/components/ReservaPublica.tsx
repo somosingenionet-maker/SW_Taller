@@ -6,17 +6,20 @@ import {
 import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';
 import Turnstile, { CLAVE_TURNSTILE } from './Turnstile';
+import { aclarar, CLASE_TARJETA, ColumnaExterna, HeroExterno, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
 import { cuadriculaMes, etiquetaDia, mesesConHueco, NOMBRES_DIA_CORTO, NOMBRES_MES, partirHoras, textoDuracionCita } from '../utils/reservas';
 
-const campo = 'w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400';
+const campo = 'w-full px-3.5 py-3 border border-slate-200 rounded-2xl text-sm bg-slate-50/60 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--marca)] focus:border-transparent transition';
 
 
 /** Bloque numerado de la página. Fuera del componente principal: si se definiera dentro, se volvería a crear en cada
  *  pulsación de tecla y los campos de texto perderían el foco. */
 function Seccion({ n, titulo, color, children }: { n: number; titulo: string; color: string; children: React.ReactNode }) {
   return (
-    <section className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3">
-      <p className="text-xs font-extrabold uppercase tracking-wider text-slate-500"><span className="inline-flex w-5 h-5 mr-1.5 rounded-full items-center justify-center text-white text-[10px]" style={{ backgroundColor: color }}>{n}</span>{titulo}</p>
+    <section className={`${CLASE_TARJETA} p-5 space-y-4`}>
+      <p className="flex items-center gap-2.5 text-[15px] font-extrabold text-slate-800">
+        <span className="inline-flex w-7 h-7 rounded-full items-center justify-center text-white text-xs font-black shadow-sm" style={{ backgroundColor: color }}>{n}</span>{titulo}
+      </p>
       {children}
     </section>
   );
@@ -67,7 +70,7 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   const color = info?.empresa.brandColor && /^#[0-9a-fA-F]{6}$/.test(info.empresa.brandColor) ? info.empresa.brandColor : '#2563eb';
 
   if (errorCarga) return <ErrorPortalPantalla tipo={errorCarga.tipo} mensaje={errorCarga.message} onReintentar={cargarInfo} />;
-  if (!info) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-3 border-slate-300 border-t-blue-600 rounded-full" /></div>;
+  if (!info) return <CargandoExterno />;
 
   const sinCaptcha = !CLAVE_TURNSTILE;
   const listo = !!tipo && !!fecha && !!hora && nombre.trim().length >= 2 && apellidos.trim().length >= 2 && telefono.replace(/\D/g, '').length >= 9 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo.trim())
@@ -90,36 +93,30 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   };
 
   const Cabecera = (
-    <div className="px-5 pt-7 pb-9 rounded-b-[28px] text-white" style={{ backgroundColor: color }}>
-      <div className="max-w-xl mx-auto flex items-center gap-3">
-        {info.empresa.logoUrl && <img src={info.empresa.logoUrl} alt="" className="w-11 h-11 rounded-xl object-contain bg-white/20" />}
-        <div>
-          <h1 className="text-xl font-black leading-tight">{info.empresa.nombre}</h1>
-          <p className="text-xs text-white/80">{info.empresa.ciudad ? `${info.empresa.ciudad} · ` : ''}Reserva tu cita</p>
-        </div>
-      </div>
-    </div>
+    <HeroExterno color={color} logoUrl={info.empresa.logoUrl} empresa={info.empresa.nombre} iniciales={info.empresa.nombre?.[0]}
+      titulo="Reserva tu cita" subtitulo={info.empresa.ciudad ? `${info.empresa.ciudad} · Servicio, día y hora en un minuto` : 'Servicio, día y hora en un minuto'} testId="cabecera-reserva" />
   );
 
   if (hecho) {
     return (
-      <div className="min-h-screen bg-slate-50 font-sans pb-10">
+      <PaginaExterna color={color}>
         {Cabecera}
-        <div className="max-w-xl mx-auto px-4 -mt-5" data-testid="reserva-hecha">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-3 text-center">
-            <span className="mx-auto w-12 h-12 rounded-full flex items-center justify-center bg-green-50 text-green-600"><Check className="w-6 h-6" /></span>
-            <h2 className="text-lg font-extrabold text-slate-800">{hecho.estado === 'confirmada' ? '¡Cita confirmada!' : 'Solicitud recibida'}</h2>
-            <p className="text-sm text-slate-600 capitalize-first">{hecho.cuando}</p>
-            {hecho.tipo && <p className="text-xs text-slate-500">{hecho.tipo}</p>}
-            <p className="text-xs text-slate-500">
+        <ColumnaExterna ancho="xl">
+          <div className={`${CLASE_TARJETA} p-7 space-y-3 text-center`} data-testid="reserva-hecha">
+            <span className="mx-auto w-16 h-16 rounded-full flex items-center justify-center bg-emerald-50 text-emerald-500 ring-8 ring-emerald-50/60"><Check className="w-8 h-8" strokeWidth={3} /></span>
+            <h2 className="text-xl font-black text-slate-800">{hecho.estado === 'confirmada' ? '¡Cita confirmada!' : 'Solicitud recibida'}</h2>
+            <p className="inline-block rounded-2xl px-4 py-2 text-sm font-bold capitalize-first" style={{ backgroundColor: aclarar(color, 90), color }}>{hecho.cuando}</p>
+            {hecho.tipo && <p className="text-sm text-slate-500">{hecho.tipo}</p>}
+            <p className="text-sm text-slate-500 max-w-xs mx-auto">
               {hecho.estado === 'confirmada'
                 ? 'Te hemos enviado la confirmación por correo, con un enlace por si necesitas cancelarla.'
                 : 'El taller la revisará y te confirmará por correo en cuanto pueda.'}
             </p>
-            <a href={hecho.enlace} className="inline-block text-xs font-bold underline" style={{ color }}>Ver o cancelar mi cita</a>
+            <a href={hecho.enlace} className="inline-flex items-center justify-center mt-1 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-sm" style={{ backgroundColor: color }}>Ver o cancelar mi cita</a>
           </div>
-        </div>
-      </div>
+          <PieExterno />
+        </ColumnaExterna>
+      </PaginaExterna>
     );
   }
 
@@ -127,20 +124,20 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   const celdas = mes && disp ? cuadriculaMes(mes.año, mes.mes, disp.dias) : [];
   const horas = fecha && disp ? partirHoras(disp.dias[fecha] ?? []) : { manana: [], tarde: [] };
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pb-12">
+    <PaginaExterna color={color} style={{ '--marca': color } as React.CSSProperties}>
       {Cabecera}
-      <div className="max-w-xl mx-auto px-4 -mt-5 space-y-4">
+      <ColumnaExterna ancho="xl">
         {/* Fuera de los pasos: si falla la reserva se deselecciona la hora y el formulario desaparece; el mensaje debe seguir a la vista. */}
         {error && <p className="text-sm font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-2xl px-4 py-3" role="alert" data-testid="error-reserva">{error}</p>}
         {info.tipos.length === 0 ? (
-          <p className="bg-white rounded-3xl border border-slate-200 p-5 text-sm text-slate-600">Este taller todavía no tiene servicios para reservar online.{info.empresa.telefono ? ` Llama al ${info.empresa.telefono}.` : ''}</p>
+          <p className={`${CLASE_TARJETA} p-5 text-sm text-slate-600`}>Este taller todavía no tiene servicios para reservar online.{info.empresa.telefono ? ` Llama al ${info.empresa.telefono}.` : ''}</p>
         ) : (
           <>
             <Seccion n={1} color={color} titulo="¿Qué necesitas?">
               <div className="flex flex-wrap gap-2" role="group" aria-label="Servicio">
                 {info.tipos.map((t) => (
                   <button key={t.id} type="button" aria-pressed={tipo?.id === t.id} onClick={() => { setError(''); setTipo(t); }}
-                    className={`px-3.5 py-2 rounded-xl border text-sm font-semibold cursor-pointer ${tipo?.id === t.id ? 'text-white border-transparent' : 'bg-white border-slate-200 text-slate-700'}`}
+                    className={`px-4 py-2.5 rounded-2xl border text-sm font-semibold cursor-pointer transition ${tipo?.id === t.id ? 'text-white border-transparent shadow-md' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
                     style={tipo?.id === t.id ? { backgroundColor: color } : undefined}>
                     {t.nombre} <span className="font-normal opacity-80">· {textoDuracionCita(t.duracionMin)}</span>
                   </button>
@@ -166,8 +163,8 @@ export default function ReservaPublica({ slug }: { slug: string }) {
                       {celdas.map((c, i) => c.fecha === null ? <span key={i} /> : (
                         <button key={c.fecha} type="button" disabled={!c.disponible} aria-pressed={fecha === c.fecha} aria-label={c.disponible ? etiquetaDia(c.fecha) : undefined}
                           onClick={() => { setError(''); setFecha(c.fecha); setHora(null); }}
-                          className={`py-2 rounded-lg text-sm font-semibold ${c.disponible ? 'cursor-pointer' : 'text-slate-300 cursor-default'} ${fecha === c.fecha ? 'text-white' : c.disponible ? 'bg-slate-50 text-slate-800 hover:bg-slate-100' : ''}`}
-                          style={fecha === c.fecha ? { backgroundColor: color } : undefined}>
+                          className={`py-2.5 rounded-xl text-sm font-bold transition ${c.disponible ? 'cursor-pointer' : 'text-slate-300 cursor-default font-medium'} ${fecha === c.fecha ? 'text-white shadow-md' : c.disponible ? 'text-slate-800' : ''}`}
+                          style={fecha === c.fecha ? { backgroundColor: color } : c.disponible ? { backgroundColor: aclarar(color, 90) } : undefined}>
                           {c.dia}
                         </button>
                       ))}
@@ -185,7 +182,7 @@ export default function ReservaPublica({ slug }: { slug: string }) {
                     <div className="flex flex-wrap gap-2" role="group" aria-label={titulo}>
                       {hs.map((h) => (
                         <button key={h} type="button" aria-pressed={hora === h} onClick={() => { setError(''); setHora(h); }}
-                          className={`px-3.5 py-2 rounded-xl border text-sm font-semibold cursor-pointer ${hora === h ? 'text-white border-transparent' : 'bg-white border-slate-200 text-slate-700'}`}
+                          className={`px-4 py-2.5 rounded-2xl border text-sm font-bold cursor-pointer transition ${hora === h ? 'text-white border-transparent shadow-md' : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'}`}
                           style={hora === h ? { backgroundColor: color } : undefined}>{h}</button>
                       ))}
                     </div>
@@ -205,7 +202,7 @@ export default function ReservaPublica({ slug }: { slug: string }) {
                     <input value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="Teléfono" aria-label="Teléfono" inputMode="tel" autoComplete="tel" maxLength={20} className={campo} />
                     <input value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="Correo" aria-label="Correo" inputMode="email" autoComplete="email" maxLength={254} className={campo} />
                   </div>
-                  <div className="grid grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-2.5">
                     <input value={vehiculo} onChange={(e) => setVehiculo(e.target.value)} placeholder="Vehículo (opcional)" aria-label="Vehículo" maxLength={80} className={campo} />
                     <input value={matricula} onChange={(e) => setMatricula(e.target.value)} placeholder="Matrícula (opcional)" aria-label="Matrícula" maxLength={12} className={campo} />
                   </div>
@@ -221,7 +218,7 @@ export default function ReservaPublica({ slug }: { slug: string }) {
                   <Turnstile onToken={setCaptcha} />
                   {sinCaptcha && <p className="text-xs text-rose-600" role="alert">Las reservas online no están disponibles en este momento.{info.empresa.telefono ? ` Llama al ${info.empresa.telefono}.` : ''}</p>}
                   <button type="button" disabled={!listo || sinCaptcha} onClick={() => void reservar()} data-testid="reservar"
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-white text-sm font-bold disabled:opacity-50 cursor-pointer" style={{ backgroundColor: color }}>
+                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-white text-sm font-bold shadow-md disabled:opacity-50 disabled:shadow-none cursor-pointer transition" style={{ backgroundColor: color }}>
                     <CalendarCheck className="w-4 h-4" />{enviando ? 'Reservando…' : `Reservar ${etiquetaDia(fecha)} a las ${hora}`}
                   </button>
                   {info.confirmacion === 'manual' && <p className="text-[11px] text-slate-400 text-center">El taller confirmará tu cita por correo.</p>}
@@ -234,7 +231,8 @@ export default function ReservaPublica({ slug }: { slug: string }) {
             )}
           </>
         )}
-      </div>
-    </div>
+        <PieExterno />
+      </ColumnaExterna>
+    </PaginaExterna>
   );
 }
