@@ -16,3 +16,28 @@ export function textoSobre(color: string): string {
 
 /** Importe con coma decimal: «1234,50». */
 export const eur = (n: number) => n.toFixed(2).replace('.', ',');
+
+export interface EmpresaCorreo {
+  nombre: string; brand_color?: string | null; logo_url?: string | null; correo?: string | null; telefono?: string | null;
+}
+
+/** Marco común de los correos del taller a sus clientes: cabecera con su color y logo, contenido y pie. */
+export function envolverCorreo(empresa: EmpresaCorreo, contenidoHtml: string, pie: string): string {
+  const color = colorValido(empresa.brand_color);
+  const nombre = escaparHtml(empresa.nombre);
+  const logo = empresa.logo_url && /^https:\/\//.test(empresa.logo_url) ? escaparHtml(empresa.logo_url) : null;
+  return `<!DOCTYPE html><html lang="es"><body style="margin:0;padding:0;background-color:#f1f5f9;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;"><tr><td align="center" style="padding:32px 16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">
+<tr><td style="background-color:${color};padding:22px 28px;color:${textoSobre(color)};font-size:17px;font-weight:700;">${logo ? `<img src="${logo}" alt="" height="32" style="height:32px;width:auto;vertical-align:middle;margin-right:10px;border-radius:6px;">` : ''}${nombre}</td></tr>
+<tr><td style="padding:28px 28px 6px;">${contenidoHtml}</td></tr>
+<tr><td style="padding:8px 28px 24px;"><div style="border-top:1px solid #f1f5f9;padding-top:14px;color:#94a3b8;font-size:12px;line-height:1.6;">${escaparHtml(pie)}</div></td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+export const parrafo = (html: string) => `<p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.65;">${html}</p>`;
+
+export function botonCorreo(color: string | null | undefined, texto: string, enlace: string): string {
+  const c = colorValido(color);
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px;"><tr><td style="background-color:${c};border-radius:10px;"><a href="${escaparHtml(enlace)}" style="display:inline-block;padding:13px 24px;color:${textoSobre(c)};font-size:15px;font-weight:700;text-decoration:none;">${escaparHtml(texto)}</a></td></tr></table>`;
+}

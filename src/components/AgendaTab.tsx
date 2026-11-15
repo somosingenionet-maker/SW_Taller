@@ -7,7 +7,8 @@ import { Cita, Vehiculo, Cliente, Tecnico, OrdenTrabajo, OTEstado, EventoOT } fr
 import { listTecnicos } from '../lib/data/tecnicos';
 import { getNumerosOT, listOrdenesPorRangoRecepcion, listOrdenesActivas, OrdenAgendaRow } from '../lib/data/ordenes';
 import { NuevoCliente } from '../lib/data/clientes';
-import { avisarError } from '../lib/avisos';
+import { avisarError, avisarOk } from '../lib/avisos';
+import { gestionarCitaOnline } from '../lib/data/citas';
 import ConfirmDialog from './ConfirmDialog';
 
 interface Props {
@@ -340,6 +341,11 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
 
   const handleCambiarEstado = async (c: Cita, estado: Cita['estado']) => {
     try {
+      // Una cita reservada online avisa por correo al cliente al confirmarla o cancelarla.
+      if (c.origen === 'online' && (estado === 'confirmada' || estado === 'cancelada')) {
+        const { avisado } = await gestionarCitaOnline(c.id, estado === 'confirmada' ? 'confirmar' : 'cancelar');
+        avisarOk(avisado ? `Cita ${estado === 'confirmada' ? 'confirmada' : 'cancelada'} y cliente avisado por correo.` : `Cita ${estado === 'confirmada' ? 'confirmada' : 'cancelada'}. El cliente no tiene correo: avísale por teléfono.`);
+      }
       await onUpdateCita(c.id, { estado });
     } catch (err) {
       avisarError(err, 'No se pudo cambiar el estado de la cita.');
@@ -479,12 +485,14 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-semibold text-slate-800 truncate">{c.motivo}</p>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${meta.bg} ${meta.color}`}>{meta.label}</span>
+                        {c.origen === 'online' && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-violet-100 text-violet-700" data-testid="cita-online">Online</span>}
                       </div>
                       <div className="flex items-center gap-3 flex-wrap mt-1 text-xs text-slate-500">
                         {cli && (
                           <span className="flex items-center gap-1"><User className="w-3 h-3" /> {cli}{!c.clienteId && ' (sin registrar)'}</span>
                         )}
                         {veh && <span className="flex items-center gap-1"><Car className="w-3 h-3" /> {veh}</span>}
+                        {c.origen === 'online' && c.contactoTelefono && <span className="flex items-center gap-1">{c.contactoTelefono}</span>}
                         {tecnico && <span className="flex items-center gap-1"><Wrench className="w-3 h-3" /> {tecnico.nombre}</span>}
                       </div>
                       {c.otId && (

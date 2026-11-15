@@ -13,7 +13,7 @@ const TITULOS: Record<LegalPageProps['page'], string> = {
 };
 
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '14 de noviembre de 2026';
+const ULTIMA_ACTUALIZACION = '16 de noviembre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -201,6 +201,12 @@ function Privacidad() {
         </p>
         <p>Datos técnicos: dirección IP, tipo de navegador, y registros de error técnico.</p>
         <p>
+          Reservas online: cuando una persona reserva cita desde la página pública de un taller, se guardan su nombre,
+          teléfono, correo, el vehículo y la matrícula (si los indica), el motivo y la fecha en que aceptó el uso de sus
+          datos. Son datos de los clientes de tu taller, que tratamos por tu encargo, y se usan para gestionar la cita,
+          avisar de ella y, si tienes activados los recordatorios automáticos, recordarla el día anterior.
+        </p>
+        <p>
           Aceptación de presupuestos: cuando un cliente de tu taller acepta un presupuesto desde su portal, se guarda como
           prueba su nombre, la fecha y hora, el importe aceptado, su dirección IP y el tipo de dispositivo. Son datos de los
           clientes de tu taller, que tratamos por tu encargo, y se conservan mientras exista la orden.
@@ -242,6 +248,7 @@ function Privacidad() {
           <li><b>Vercel Inc.</b> — alojamiento de la aplicación web.</li>
           <li><b>Resend</b> — envío de correos electrónicos (recuperación de contraseña, recordatorios automáticos).</li>
           <li><b>Sentry</b> — monitorización técnica de errores, configurada para no capturar datos personales identificativos por defecto.</li>
+          <li><b>Cloudflare</b> — verificación anti-robots (Turnstile) en el formulario público de reserva de cita: recibe la dirección IP y datos técnicos del navegador.</li>
           <li><b>Stripe</b> — cobro de la suscripción del taller. Recibe los datos de pago y de facturación de tu empresa (no los de tus clientes). Actúa con sus propias condiciones como proveedor de servicios de pago.</li>
         </ul>
         <p>
@@ -618,6 +625,7 @@ function EncargoTratamiento() {
           <li><b>Vercel Inc.</b> — alojamiento de la aplicación web.</li>
           <li><b>Resend</b> — envío de correos electrónicos.</li>
           <li><b>Sentry</b> — monitorización técnica de errores, configurada para no capturar datos personales identificativos por defecto.</li>
+          <li><b>Cloudflare</b> — verificación anti-robots (Turnstile) en el formulario público de reserva de cita: recibe la dirección IP y datos técnicos del navegador.</li>
         </ul>
         <p>
           Si el Encargado quiere incorporar o sustituir un subencargado, avisará al Responsable con al menos{' '}

@@ -16,6 +16,8 @@ const App = lazyConReintento(cargarApp);
 const LegalPage = lazyConReintento(() => import('./components/LegalPage.tsx'));
 const PortalCliente = lazyConReintento(() => import('./components/PortalCliente.tsx'));
 const PortalMecanico = lazyConReintento(() => import('./components/PortalMecanico.tsx'));
+const ReservaPublica = lazyConReintento(() => import('./components/ReservaPublica.tsx'));
+const CitaPublica = lazyConReintento(() => import('./components/CitaPublica.tsx'));
 const RegistroPage = lazyConReintento(() => import('./components/RegistroPage.tsx'));
 
 initSentry();
@@ -33,13 +35,17 @@ const legalPage = path === '/privacidad' ? 'privacidad'
 const esRegistro = path === '/registro';
 const portalToken = path.startsWith('/portal/') ? path.slice('/portal/'.length) : null;
 const mecanicoToken = path.startsWith('/mecanico/') ? path.slice('/mecanico/'.length) : null;
+const reservaSlug = path.startsWith('/reservar/') ? path.slice('/reservar/'.length) : null;
+const citaToken = path.startsWith('/cita/') ? path.slice('/cita/'.length) : null;
 
 // La aplicación empieza a bajarse ya, en paralelo al arranque, sin esperar a que React la pida.
-if (!portalToken && !mecanicoToken && !legalPage && !esRegistro) void cargarApp();
+if (!portalToken && !mecanicoToken && !reservaSlug && !citaToken && !legalPage && !esRegistro) void cargarApp();
 
 function Root() {
   if (portalToken) return <PortalCliente token={portalToken} />;
   if (mecanicoToken) return <PortalMecanico token={mecanicoToken} />;
+  if (reservaSlug) return <ReservaPublica slug={reservaSlug} />;
+  if (citaToken) return <CitaPublica token={citaToken} />;
   if (legalPage) return <LegalPage page={legalPage} />;
   if (esRegistro) return <RegistroPage />;
   return <App />;

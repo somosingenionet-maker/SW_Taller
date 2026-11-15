@@ -63,6 +63,14 @@ los recordatorios automáticos y el cliente no pidió no recibir avisos; el pie 
 más. Misma duda que los recordatorios de ITV/aceite: ¿servicio o comunicación comercial, y hace falta enlace de baja?
 Texto en `supabase/functions/seguimiento-inspecciones/logic.ts`.
 
+**Reserva de cita online** (página pública del taller, sin cuenta): el cliente escribe nombre, teléfono, correo, vehículo y
+matrícula (opcionales), motivo y marca la casilla «Acepto que {taller} use mis datos para gestionar esta cita y avisarme de
+ella» (enlace a la política de privacidad). Los datos se guardan en la cita, como encargado del taller; se mandan correos de
+confirmación, aviso al taller, cancelación y, si el taller tiene los recordatorios automáticos activos, un recordatorio el día
+anterior. Se usa Cloudflare Turnstile (captcha) en el formulario: Cloudflare recibe la IP y datos técnicos del navegador, hay
+que añadirlo como subencargado en el apartado correspondiente del Encargo. Textos en `src/components/ReservaPublica.tsx` y
+`supabase/functions/_shared/correoCitas.ts`.
+
 **Avisos de borrado de cuenta** (correo a los administradores del taller, desde `send@doonty.com`): primer
 aviso y «último aviso», con la fecha exacta de eliminación, qué se pierde («esto no se puede deshacer»),
 cómo conservarla (suscribirse) y cómo llevarse los datos (exportar a CSV). Texto en

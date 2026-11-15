@@ -201,6 +201,10 @@ export interface Cita {
   estado: 'pendiente' | 'confirmada' | 'cancelada' | 'convertida';
   notas?: string;
   otId?: string;
+  /** `online` = la reservó el propio cliente desde la página pública del taller. */
+  origen?: 'taller' | 'online';
+  contactoCorreo?: string;
+  tipoCitaId?: string;
 }
 
 /** Una empresa cliente del SaaS (tenant). */

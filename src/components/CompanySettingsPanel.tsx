@@ -1,6 +1,6 @@
 import { blobADataUrl, comprimirImagen, OPCIONES_LOGO } from '../utils/imagen';
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw, Camera, ClipboardCheck } from 'lucide-react';
+import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw, Camera, ClipboardCheck, CalendarCheck } from 'lucide-react';
 import { AlertaTipo, Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,7 @@ import { contrastText } from '../utils/color';
 import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioTemplates';
 import VerifactuSettings from './VerifactuSettings';
 import AjustesInspeccion from './AjustesInspeccion';
+import AjustesReservas from './AjustesReservas';
 import { formatearBytes } from '../utils/imagen';
 
 interface Props {
@@ -26,13 +27,14 @@ const TIPO_LABEL: Record<AlertaTipo, string> = {
   aceite: 'Cambio de aceite (recordatorio)',
 };
 
-export type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'inspeccion' | 'fotos' | 'tecnicos';
+export type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'reservas' | 'inspeccion' | 'fotos' | 'tecnicos';
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: 'identidad', label: 'Identidad', icon: <IdCard className="w-3.5 h-3.5" /> },
   { id: 'fiscal', label: 'Fiscal y Contacto', icon: <Landmark className="w-3.5 h-3.5" /> },
   { id: 'marca', label: 'Marca', icon: <Palette className="w-3.5 h-3.5" /> },
   { id: 'recordatorios', label: 'Recordatorios', icon: <Bell className="w-3.5 h-3.5" /> },
+  { id: 'reservas', label: 'Reservas online', icon: <CalendarCheck className="w-3.5 h-3.5" /> },
   { id: 'inspeccion', label: 'Inspección', icon: <ClipboardCheck className="w-3.5 h-3.5" /> },
   { id: 'fotos', label: 'Fotos', icon: <Camera className="w-3.5 h-3.5" /> },
   { id: 'tecnicos', label: 'Técnicos', icon: <Wrench className="w-3.5 h-3.5" /> },
@@ -517,6 +519,8 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
               </div>
             </section>
           )}
+
+          {activeTab === 'reservas' && <AjustesReservas empresaId={config.id} nombreEmpresa={config.nombre} recordatoriosActivos={draft.recordatoriosAutomaticosActivos} />}
 
           {activeTab === 'inspeccion' && <AjustesInspeccion />}
 

@@ -39,7 +39,7 @@ export function clasificarErrorPortal(mensaje: string, status?: number, mensajeS
 }
 
 /** Llama a la función de un portal. Lanza siempre `ErrorPortal`. */
-export async function invocarPortal<T>(funcion: 'portal-cliente' | 'portal-mecanico', body: Record<string, unknown>): Promise<T> {
+export async function invocarPortal<T>(funcion: 'portal-cliente' | 'portal-mecanico' | 'reservas-publicas', body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(funcion, { body });
   if (error) {
     const contexto = (error as { context?: Response }).context;

@@ -1,12 +1,13 @@
 import { supabase } from '../supabase';
 import type { Cita } from '../../types';
 import type { Database } from '../database.types';
+import { invocarFuncion } from './funciones';
 
 type CitaInsert = Database['public']['Tables']['citas']['Insert'];
 type CitaUpdate = Database['public']['Tables']['citas']['Update'];
 
 const SELECT =
-  'id, fecha_hora, duracion_minutos, cliente_id, vehiculo_id, contacto_nombre, contacto_telefono, vehiculo_descripcion, motivo, tecnico_id, estado, notas, ot_id';
+  'id, fecha_hora, duracion_minutos, cliente_id, vehiculo_id, contacto_nombre, contacto_telefono, vehiculo_descripcion, motivo, tecnico_id, estado, notas, ot_id, origen, contacto_correo, tipo_cita_id';
 
 type CitaRow = {
   id: string;
@@ -22,6 +23,9 @@ type CitaRow = {
   estado: string;
   notas: string | null;
   ot_id: string | null;
+  origen: string;
+  contacto_correo: string | null;
+  tipo_cita_id: string | null;
 };
 
 function mapCita(r: CitaRow): Cita {
@@ -39,6 +43,9 @@ function mapCita(r: CitaRow): Cita {
     estado: r.estado as Cita['estado'],
     notas: r.notas ?? undefined,
     otId: r.ot_id ?? undefined,
+    origen: r.origen === 'online' ? 'online' : 'taller',
+    contactoCorreo: r.contacto_correo ?? undefined,
+    tipoCitaId: r.tipo_cita_id ?? undefined,
   };
 }
 
@@ -97,4 +104,13 @@ export async function updateCita(id: string, cambios: Partial<Omit<Cita, 'id'>>)
 export async function deleteCita(id: string): Promise<void> {
   const { error } = await supabase.from('citas').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Confirma o cancela una cita reservada ONLINE y avisa por correo al cliente (si tiene). Devuelve si se le avisó.
+ * Las citas del propio taller se cambian con `updateCita`, como siempre.
+ */
+export async function gestionarCitaOnline(citaId: string, accion: 'confirmar' | 'cancelar'): Promise<{ avisado: boolean }> {
+  const r = await invocarFuncion<{ ok: true; avisado: boolean }>('reservas-gestion', { action: accion, citaId });
+  return { avisado: r.avisado === true };
 }

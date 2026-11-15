@@ -101,7 +101,10 @@ export type Database = {
       }
       citas: {
         Row: {
+          cancelada_por: string | null
           cliente_id: string | null
+          consentimiento_en: string | null
+          contacto_correo: string | null
           contacto_nombre: string | null
           contacto_telefono: string | null
           created_at: string
@@ -112,14 +115,21 @@ export type Database = {
           id: string
           motivo: string
           notas: string | null
+          origen: string
           ot_id: string | null
+          recordatorio_enviado_en: string | null
           tecnico_id: string | null
+          tipo_cita_id: string | null
+          token_cliente: string | null
           updated_at: string
           vehiculo_descripcion: string | null
           vehiculo_id: string | null
         }
         Insert: {
+          cancelada_por?: string | null
           cliente_id?: string | null
+          consentimiento_en?: string | null
+          contacto_correo?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
           created_at?: string
@@ -130,14 +140,21 @@ export type Database = {
           id?: string
           motivo?: string
           notas?: string | null
+          origen?: string
           ot_id?: string | null
+          recordatorio_enviado_en?: string | null
           tecnico_id?: string | null
+          tipo_cita_id?: string | null
+          token_cliente?: string | null
           updated_at?: string
           vehiculo_descripcion?: string | null
           vehiculo_id?: string | null
         }
         Update: {
+          cancelada_por?: string | null
           cliente_id?: string | null
+          consentimiento_en?: string | null
+          contacto_correo?: string | null
           contacto_nombre?: string | null
           contacto_telefono?: string | null
           created_at?: string
@@ -148,8 +165,12 @@ export type Database = {
           id?: string
           motivo?: string
           notas?: string | null
+          origen?: string
           ot_id?: string | null
+          recordatorio_enviado_en?: string | null
           tecnico_id?: string | null
+          tipo_cita_id?: string | null
+          token_cliente?: string | null
           updated_at?: string
           vehiculo_descripcion?: string | null
           vehiculo_id?: string | null
@@ -181,6 +202,13 @@ export type Database = {
             columns: ["tecnico_id"]
             isOneToOne: false
             referencedRelation: "tecnicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "citas_tipo_cita_id_fkey"
+            columns: ["tipo_cita_id"]
+            isOneToOne: false
+            referencedRelation: "tipos_cita"
             referencedColumns: ["id"]
           },
           {
@@ -354,6 +382,14 @@ export type Database = {
           prueba_hasta: string | null
           razon_social: string
           recordatorios_automaticos_activos: boolean
+          reservas_activas: boolean
+          reservas_antelacion_horas: number
+          reservas_capacidad: number
+          reservas_cierres: string[]
+          reservas_confirmacion: string
+          reservas_dias_max: number
+          reservas_horario: Json
+          reservas_slug: string | null
           siguiente_numero_factura: number
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -396,6 +432,14 @@ export type Database = {
           prueba_hasta?: string | null
           razon_social?: string
           recordatorios_automaticos_activos?: boolean
+          reservas_activas?: boolean
+          reservas_antelacion_horas?: number
+          reservas_capacidad?: number
+          reservas_cierres?: string[]
+          reservas_confirmacion?: string
+          reservas_dias_max?: number
+          reservas_horario?: Json
+          reservas_slug?: string | null
           siguiente_numero_factura?: number
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -438,6 +482,14 @@ export type Database = {
           prueba_hasta?: string | null
           razon_social?: string
           recordatorios_automaticos_activos?: boolean
+          reservas_activas?: boolean
+          reservas_antelacion_horas?: number
+          reservas_capacidad?: number
+          reservas_cierres?: string[]
+          reservas_confirmacion?: string
+          reservas_dias_max?: number
+          reservas_horario?: Json
+          reservas_slug?: string | null
           siguiente_numero_factura?: number
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -1737,6 +1789,44 @@ export type Database = {
           },
         ]
       }
+      tipos_cita: {
+        Row: {
+          activo: boolean
+          created_at: string
+          duracion_minutos: number
+          empresa_id: string
+          id: string
+          nombre: string
+          posicion: number
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          duracion_minutos: number
+          empresa_id: string
+          id?: string
+          nombre: string
+          posicion?: number
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          duracion_minutos?: number
+          empresa_id?: string
+          id?: string
+          nombre?: string
+          posicion?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tipos_cita_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehiculos: {
         Row: {
           aceite_proxima_fecha: string | null
@@ -1876,6 +1966,19 @@ export type Database = {
           vehiculo_modelo: string
         }[]
       }
+      cancelar_cita_online: {
+        Args: { p_token: string }
+        Returns: {
+          contacto_correo: string
+          contacto_nombre: string
+          empresa_id: string
+          fecha_hora: string
+          id: string
+          motivo: string
+          vehiculo_descripcion: string
+          ya_cancelada: boolean
+        }[]
+      }
       certificado_verifactu_estado: {
         Args: never
         Returns: {
@@ -1893,6 +1996,20 @@ export type Database = {
           p_window_seconds: number
         }
         Returns: boolean
+      }
+      citas_para_recordar: {
+        Args: never
+        Returns: {
+          cita_id: string
+          correo: string
+          duracion_minutos: number
+          empresa_id: string
+          fecha_hora: string
+          motivo: string
+          nombre: string
+          token_cliente: string
+          vehiculo: string
+        }[]
       }
       contar_clientes_con_ot_abierta: { Args: never; Returns: number }
       crear_inspeccion: {
@@ -1979,6 +2096,7 @@ export type Database = {
           referencia: string
         }[]
       }
+      horario_reservas_valido: { Args: { p: Json }; Returns: boolean }
       inspecciones_mas_rechazadas: {
         Args: { p_desde: string; p_hasta: string }
         Returns: {
@@ -2068,6 +2186,22 @@ export type Database = {
           facturado: number
           visitas: number
         }[]
+      }
+      reservar_cita_online: {
+        Args: {
+          p_correo: string
+          p_duracion: number
+          p_empresa_id: string
+          p_estado: string
+          p_fecha_hora: string
+          p_motivo: string
+          p_nombre: string
+          p_telefono: string
+          p_tipo_id: string
+          p_token: string
+          p_vehiculo: string
+        }
+        Returns: string
       }
       seguimientos_inspeccion_pendientes: {
         Args: never

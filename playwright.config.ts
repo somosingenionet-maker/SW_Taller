@@ -32,7 +32,9 @@ export default defineConfig({
     // --mode e2e hace que Vite cargue .env.e2e.local en vez de .env.local
     // (que apunta a un Supabase local inexistente sin Docker) — así el
     // frontend habla con producción, igual que E2E_ADMIN_EMAIL/PASSWORD.
-    command: 'npx vite --mode e2e --port=3000 --host=0.0.0.0',
+    // La clave de pruebas de Cloudflare Turnstile (documentada y pública) hace que las pruebas de la página de reservas
+    // tengan captcha sin depender de la clave real.
+    command: 'VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA npx vite --mode e2e --port=3000 --host=0.0.0.0',
     url: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
