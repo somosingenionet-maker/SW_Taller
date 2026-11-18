@@ -236,6 +236,38 @@ export async function listFacturasPaginado(params: ListFacturasParams): Promise<
   return { data: (data ?? []).map((r) => mapFactura(r as unknown as FacturaRow)), count: count ?? 0 };
 }
 
+export interface FacturaExportRow {
+  numero: string; fecha: string; estado: Factura['estado']; subtotal: number; ivaPct: number; totalIva: number; total: number;
+  clienteId: string; nombre: string | null; apellidos: string | null; nif: string | null;
+}
+
+/**
+ * Facturas EMITIDAS (no borradores) con fecha en [desde, hasta) para el libro de la gestoría: solo las columnas
+ * necesarias, sin líneas. Se lee de mil en mil porque el servidor devuelve como mucho mil filas por petición.
+ */
+export async function listFacturasParaGestoria(desde: string, hasta: string): Promise<FacturaExportRow[]> {
+  const TAM = 1000;
+  const todas: FacturaExportRow[] = [];
+  for (let desp = 0; ; desp += TAM) {
+    const { data, error } = await supabase.from('facturas')
+      .select('numero, fecha, estado, subtotal, iva_pct, total_iva, total, cliente_id, cliente_nombre_snapshot, cliente_apellidos_snapshot, cliente_nif_snapshot')
+      .neq('estado', 'borrador').gte('fecha', desde).lt('fecha', hasta)
+      .order('fecha', { ascending: true }).order('numero', { ascending: true })
+      .range(desp, desp + TAM - 1);
+    if (error) throw new Error(error.message);
+    const filas = (data ?? []) as unknown as Array<Record<string, unknown>>;
+    for (const r of filas) {
+      todas.push({
+        numero: String(r.numero), fecha: String(r.fecha), estado: r.estado as Factura['estado'],
+        subtotal: Number(r.subtotal), ivaPct: Number(r.iva_pct), totalIva: Number(r.total_iva), total: Number(r.total),
+        clienteId: String(r.cliente_id), nombre: (r.cliente_nombre_snapshot as string | null), apellidos: (r.cliente_apellidos_snapshot as string | null), nif: (r.cliente_nif_snapshot as string | null),
+      });
+    }
+    if (filas.length < TAM) break;
+  }
+  return todas;
+}
+
 /** Crea una factura nueva, siempre en estado 'borrador'. El número lo asigna el servidor. */
 export async function createFactura(f: Factura): Promise<Factura> {
   const { data, error } = await supabase.from('facturas').insert(toRow(f) as FacturaInsert).select('id').single();

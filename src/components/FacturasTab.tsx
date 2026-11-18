@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText } from 'lucide-react';
+import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
+import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText, FileSpreadsheet } from 'lucide-react';
 import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa, EnvioAeat } from '../types';
 import { dispararEnvioAeat } from '../lib/data/verifactu';
 import {
@@ -14,6 +14,8 @@ import { fmt2 } from '../utils/moneda';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
 import QRCode from 'qrcode';
+
+const ExportarGestoria = lazy(() => import('./ExportarGestoria'));
 
 interface FacturasTabProps {
   clientes: Cliente[];
@@ -518,6 +520,7 @@ export default function FacturasTab({
   const [viewingDoc, setViewingDoc] = useState<Factura | null>(null);
   const [confirmEmitir, setConfirmEmitir] = useState<Factura | null>(null);
   const [agrupacion, setAgrupacion] = useState<Agrupacion>('ninguna');
+  const [exportandoGestoria, setExportandoGestoria] = useState(false);
   const [viewingGrupo, setViewingGrupo] = useState<{ label: string; facturas: Factura[] } | null>(null);
   const [descargandoGrupo, setDescargandoGrupo] = useState<string | null>(null);
 
@@ -814,6 +817,14 @@ export default function FacturasTab({
               ))}
             </div>
             <button
+              onClick={() => setExportandoGestoria(true)}
+              data-testid="exportar-gestoria-abrir"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-bold rounded-xl transition cursor-pointer"
+              title="Libro de facturas emitidas de un trimestre, mes o año, con el resumen del IVA"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" /> Para la gestoría
+            </button>
+            <button
               onClick={handleExportCsv}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold rounded-xl transition cursor-pointer"
               title="Exportar todas las facturas a CSV"
@@ -951,6 +962,12 @@ export default function FacturasTab({
       })()}
 
       {/* Descarga de un grupo de facturas (semana/mes/año) — misma mecánica que el visor de una sola factura, pero repitiendo el contenido imprimible una vez por factura con salto de página entre ellas. */}
+      {exportandoGestoria && (
+        <Suspense fallback={null}>
+          <ExportarGestoria empresa={empresa} clientes={clientes} onClose={() => setExportandoGestoria(false)} />
+        </Suspense>
+      )}
+
       {viewingGrupo && (
         <div className="fixed inset-0 z-50 bg-black/60 flex flex-col print:bg-white print:relative print:inset-auto">
           <div className="flex items-center justify-between px-6 py-3 bg-slate-800 text-white shrink-0 print:hidden">
