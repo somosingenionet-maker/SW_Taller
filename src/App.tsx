@@ -27,7 +27,7 @@ import ResetPasswordScreen from './components/ResetPasswordScreen';
 import SuscripcionBanner from './components/SuscripcionBanner';
 import type { TabId as PestanaEmpresa } from './components/CompanySettingsPanel';
 import {
-  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home, ShieldCheck, CreditCard
+  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home, ShieldCheck, CreditCard, ShoppingCart
 } from 'lucide-react';
 
 // Cada pestaña y cada ventana grande es un trozo aparte: quien entra a Inicio no descarga el taller,
@@ -41,6 +41,7 @@ const cargarAlertas = () => import('./components/AlertsNotificationsTab');
 const cargarFacturas = () => import('./components/FacturasTab');
 const cargarInventario = () => import('./components/InventarioTab');
 const cargarAgenda = () => import('./components/AgendaTab');
+const cargarCompras = () => import('./components/ComprasTab');
 const VehiclesTab = lazyConReintento(cargarVehiculos);
 const OrdenesTrabajoTab = lazyConReintento(cargarTaller);
 const CrmTab = lazyConReintento(cargarClientes);
@@ -49,6 +50,7 @@ const AlertsNotificationsTab = lazyConReintento(cargarAlertas);
 const FacturasTab = lazyConReintento(cargarFacturas);
 const InventarioTab = lazyConReintento(cargarInventario);
 const AgendaTab = lazyConReintento(cargarAgenda);
+const ComprasTab = lazyConReintento(cargarCompras);
 const MfaChallenge = lazyConReintento(() => import('./components/MfaChallenge'));
 const SeguridadModal = lazyConReintento(() => import('./components/SeguridadModal'));
 const SuscripcionPanel = lazyConReintento(() => import('./components/SuscripcionPanel'));
@@ -59,7 +61,7 @@ const SuperAdminPanel = lazyConReintento(() => import('./components/SuperAdminPa
 /** Las pantallas por módulo, para precargarlas en un momento libre y que abrir una pestaña sea instantáneo. */
 const PANTALLAS_POR_MODULO: Partial<Record<ModuloId, () => Promise<unknown>>> = {
   taller: cargarTaller, clientes: cargarClientes, vehiculos: cargarVehiculos, citas: cargarAgenda,
-  facturas: cargarFacturas, alertas: cargarAlertas, inventario: cargarInventario, rentabilidad: cargarRentabilidad,
+  facturas: cargarFacturas, alertas: cargarAlertas, inventario: cargarInventario, rentabilidad: cargarRentabilidad, compras: cargarCompras,
 };
 
 type TabId = ModuloId;
@@ -638,6 +640,7 @@ export default function App() {
       [
         { id: 'citas' as ModuloId, label: 'Agenda', icon: <CalendarClock className="w-4 h-4" />, emoji: '📅' },
         { id: 'inventario' as ModuloId, label: 'Inventario', icon: <Package className="w-4 h-4" />, emoji: '📦' },
+        { id: 'compras' as ModuloId, label: 'Compras', icon: <ShoppingCart className="w-4 h-4" />, emoji: '🛒' },
         { id: 'vehiculos' as ModuloId, label: 'Vehículos', icon: <Car className="w-4 h-4" />, emoji: '🚗' },
         { id: 'clientes' as ModuloId, label: 'Clientes', icon: <Users className="w-4 h-4" />, emoji: '👥' },
         { id: 'taller' as ModuloId, label: 'Taller', icon: <Wrench className="w-4 h-4" />, emoji: '🔧' },
@@ -985,7 +988,12 @@ export default function App() {
             onDeleteFactura={handleDeleteFactura}
             onEmitirFactura={handleEmitirFactura}
             onCambiarEstadoFactura={handleCambiarEstadoFactura}
+            puedeVerCompras={activeModulos.includes('compras')}
           />
+        )}
+
+        {activeTab === 'compras' && (
+          <ComprasTab productos={productos} onStockCambiado={recargarProductos} empresa={empresa} clientes={clientes} puedeFacturas={activeModulos.includes('facturas')} />
         )}
 
         {activeTab === 'inventario' && (

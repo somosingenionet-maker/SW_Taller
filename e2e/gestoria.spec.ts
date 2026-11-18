@@ -49,7 +49,8 @@ test('gestoría (datos de mentira): resumen por IVA, avisos y archivos Excel y C
   await page.getByLabel('Año', { exact: true }).selectOption('2026');
   await page.getByLabel('Trimestre', { exact: true }).selectOption('3');
   const resumen = page.getByTestId('resumen-gestoria');
-  await expect(resumen).toContainText('4 facturas', { timeout: 15_000 });
+  await expect(resumen).toContainText('3 facturas', { timeout: 15_000 });      // 4 en el libro, 1 anulada que no cuenta
+  await expect(page.getByTestId('diferencia-iva')).toHaveCount(0);              // sin compras no hay «repercutido − soportado»
   await expect(resumen).toContainText('21 %');
   await expect(resumen).toContainText('10 %');
   await expect(resumen).toContainText('245,50 €');                      // base total sin la anulada: 120 + 80,50 + 45

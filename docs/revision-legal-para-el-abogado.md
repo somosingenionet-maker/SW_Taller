@@ -118,6 +118,11 @@ cómo conservarla (suscribirse) y cómo llevarse los datos (exportar a CSV). Tex
 9. **Facturas de InGenio a los talleres.** Los recibos de Stripe no son facturas VERI\*FACTU: ¿cómo
    conviene emitirlas? (Con el gestor; ver `docs/pasar-stripe-a-modo-real.md`.)
 
+10. **Compras y proveedores (nuevo, 2026-11-19).** El taller registra proveedores (a veces autónomos, con nombre y NIF
+   personales) y las facturas que le envían. ¿Basta con el texto actual de encargo de tratamiento (§3) o hay que
+   mencionarlo en el contrato de encargo? Las compras no se pueden borrar, solo anular: ¿el plazo de conservación
+   de 6 años cubre también las facturas recibidas y cómo se atiende una supresión de un proveedor autónomo?
+
 ## 4. Lo que ya está hecho técnicamente (para no preguntarlo)
 
 - Verificación en dos pasos opcional; datos separados por taller en la base de datos; permisos por
@@ -126,3 +131,4 @@ cómo conservarla (suscribirse) y cómo llevarse los datos (exportar a CSV). Tex
 - Las facturas guardan una copia congelada de los datos del cliente; los datos de contacto se pueden
   anonimizar sin tocar la factura.
 - Exportación a CSV de clientes, vehículos, facturas y más, desde la propia aplicación.
+- Exportación para la gestoría (Excel/CSV): libro de facturas emitidas y recibidas con el resumen del IVA repercutido y soportado.

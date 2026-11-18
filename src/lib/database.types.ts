@@ -318,6 +318,126 @@ export type Database = {
           },
         ]
       }
+      compra_lineas: {
+        Row: {
+          cantidad: number
+          compra_id: string
+          descripcion: string
+          id: string
+          iva_pct: number
+          posicion: number
+          precio_unitario: number
+          producto_id: string | null
+          subtotal: number
+        }
+        Insert: {
+          cantidad: number
+          compra_id: string
+          descripcion: string
+          id?: string
+          iva_pct?: number
+          posicion?: number
+          precio_unitario: number
+          producto_id?: string | null
+          subtotal: number
+        }
+        Update: {
+          cantidad?: number
+          compra_id?: string
+          descripcion?: string
+          id?: string
+          iva_pct?: number
+          posicion?: number
+          precio_unitario?: number
+          producto_id?: string | null
+          subtotal?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compra_lineas_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "compras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compra_lineas_producto_id_fkey"
+            columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compras: {
+        Row: {
+          anulada_en: string | null
+          base: number
+          created_at: string
+          empresa_id: string
+          estado: string
+          fecha: string
+          fecha_pago: string | null
+          fecha_vencimiento: string | null
+          id: string
+          iva: number
+          notas: string | null
+          numero: string
+          proveedor_id: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          anulada_en?: string | null
+          base?: number
+          created_at?: string
+          empresa_id: string
+          estado?: string
+          fecha: string
+          fecha_pago?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          iva?: number
+          notas?: string | null
+          numero: string
+          proveedor_id: string
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          anulada_en?: string | null
+          base?: number
+          created_at?: string
+          empresa_id?: string
+          estado?: string
+          fecha?: string
+          fecha_pago?: string | null
+          fecha_vencimiento?: string | null
+          id?: string
+          iva?: number
+          notas?: string | null
+          numero?: string
+          proveedor_id?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compras_proveedor_id_fkey"
+            columns: ["proveedor_id"]
+            isOneToOne: false
+            referencedRelation: "proveedores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresa_certificados_verifactu: {
         Row: {
           clave_cifrada: string
@@ -1071,6 +1191,7 @@ export type Database = {
       movimientos_stock: {
         Row: {
           cantidad: number
+          compra_id: string | null
           created_at: string
           id: string
           motivo: string | null
@@ -1080,6 +1201,7 @@ export type Database = {
         }
         Insert: {
           cantidad: number
+          compra_id?: string | null
           created_at?: string
           id?: string
           motivo?: string | null
@@ -1089,6 +1211,7 @@ export type Database = {
         }
         Update: {
           cantidad?: number
+          compra_id?: string | null
           created_at?: string
           id?: string
           motivo?: string | null
@@ -1097,6 +1220,13 @@ export type Database = {
           tipo?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "movimientos_stock_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "compras"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "movimientos_stock_ot_id_fkey"
             columns: ["ot_id"]
@@ -1572,6 +1702,62 @@ export type Database = {
           },
         ]
       }
+      proveedores: {
+        Row: {
+          activo: boolean
+          contacto: string | null
+          correo: string | null
+          created_at: string
+          dias_pago: number
+          direccion: string | null
+          empresa_id: string
+          id: string
+          nif: string | null
+          nombre: string
+          notas: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          contacto?: string | null
+          correo?: string | null
+          created_at?: string
+          dias_pago?: number
+          direccion?: string | null
+          empresa_id: string
+          id?: string
+          nif?: string | null
+          nombre: string
+          notas?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          contacto?: string | null
+          correo?: string | null
+          created_at?: string
+          dias_pago?: number
+          direccion?: string | null
+          empresa_id?: string
+          id?: string
+          nif?: string | null
+          nombre?: string
+          notas?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proveedores_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_limits: {
         Row: {
           count: number
@@ -1946,6 +2132,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      anular_compra: { Args: { p_id: string }; Returns: undefined }
       buscar_ordenes: {
         Args: {
           p_estado?: string
@@ -2017,6 +2204,7 @@ export type Database = {
           vehiculo: string
         }[]
       }
+      compras_empresa_o_error: { Args: never; Returns: string }
       contar_clientes_con_ot_abierta: { Args: never; Returns: number }
       crear_inspeccion: {
         Args: { p_orden_id: string; p_plantilla_id?: string }
@@ -2046,6 +2234,16 @@ export type Database = {
           usuarios: number
           vehiculos: number
         }[]
+      }
+      editar_datos_compra: {
+        Args: {
+          p_fecha: string
+          p_id: string
+          p_notas: string
+          p_numero: string
+          p_vencimiento: string
+        }
+        Returns: undefined
       }
       es_admin_de_empresa: { Args: { p_empresa_id: string }; Returns: boolean }
       es_super_admin: { Args: never; Returns: boolean }
@@ -2102,6 +2300,20 @@ export type Database = {
           referencia: string
         }[]
       }
+      guardar_compra: {
+        Args: {
+          p_actualizar_coste: boolean
+          p_fecha: string
+          p_fecha_pago: string
+          p_lineas: Json
+          p_notas: string
+          p_numero: string
+          p_pagada: boolean
+          p_proveedor_id: string
+          p_vencimiento: string
+        }
+        Returns: string
+      }
       horario_reservas_valido: { Args: { p: Json }; Returns: boolean }
       inspecciones_mas_rechazadas: {
         Args: { p_desde: string; p_hasta: string }
@@ -2129,6 +2341,10 @@ export type Database = {
           mecanico: string
           propuesto: number
         }[]
+      }
+      marcar_pago_compra: {
+        Args: { p_fecha_pago: string; p_id: string }
+        Returns: undefined
       }
       mi_empresa_id: { Args: never; Returns: string }
       mi_suscripcion: { Args: never; Returns: Json }

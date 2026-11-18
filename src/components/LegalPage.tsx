@@ -13,7 +13,7 @@ const TITULOS: Record<LegalPageProps['page'], string> = {
 };
 
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '16 de noviembre de 2026';
+const ULTIMA_ACTUALIZACION = '19 de noviembre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -191,8 +191,8 @@ function Privacidad() {
         <p>Datos de la empresa: razón social, NIF, dirección fiscal, datos de contacto, marca y el estado de su suscripción (prueba, plan, fechas de pago). Los datos de tu tarjeta los trata Stripe; nosotros no los vemos ni los guardamos.</p>
         <p>
           Datos introducidos al usar el servicio (por tu cuenta, como encargado de tratamiento): datos
-          de tus clientes (nombre, NIF/NIE, email, teléfono, dirección), vehículos, órdenes de trabajo y
-          facturas.
+          de tus clientes (nombre, NIF/NIE, email, teléfono, dirección), vehículos, órdenes de trabajo,
+          facturas, y tus proveedores (nombre o razón social, NIF, contacto, condiciones de pago) con las facturas que te envían.
         </p>
         <p>
           Datos de facturación electrónica: los registros de facturación de tus facturas (huella, número,
@@ -277,7 +277,7 @@ function Privacidad() {
         </p>
         <p>
           Las facturas emitidas y sus registros de facturación son inalterables y no pueden eliminarse
-          mientras dure la obligación legal de conservarlos; si un cliente tuyo ejerce su derecho de
+          mientras dure la obligación legal de conservarlos (las facturas recibidas de proveedores que registras tampoco se borran: si te equivocas se anulan); si un cliente tuyo ejerce su derecho de
           supresión, sus datos de contacto pueden anonimizarse, pero la factura se conserva.
         </p>
         <p>

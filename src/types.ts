@@ -249,7 +249,7 @@ export interface Empresa {
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */
-export type ModuloId = 'inicio' | 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas' | 'inventario' | 'citas';
+export type ModuloId = 'inicio' | 'vehiculos' | 'clientes' | 'taller' | 'alertas' | 'rentabilidad' | 'facturas' | 'inventario' | 'citas' | 'compras';
 
 /**
  * Perfil del usuario autenticado (tabla `perfiles`, ligada a Supabase Auth).
@@ -351,4 +351,50 @@ export interface MovimientoStock {
   /** OT que originó el movimiento, si aplica (consumo/reversión automáticos). */
   otId?: string;
   createdAt: string;
+}
+
+/** Proveedor del taller (de quien compra recambios o servicios). */
+export interface Proveedor {
+  id: string;
+  nombre: string;
+  nif?: string;
+  telefono?: string;
+  correo?: string;
+  contacto?: string;
+  direccion?: string;
+  /** Días que suele dar para pagar: sugiere el vencimiento al registrar una compra. */
+  diasPago: number;
+  notas?: string;
+  activo: boolean;
+}
+
+export type EstadoCompra = 'pendiente' | 'pagada' | 'anulada';
+
+export interface CompraLinea {
+  id: string;
+  productoId?: string;
+  descripcion: string;
+  cantidad: number;
+  precioUnitario: number;
+  ivaPct: number;
+  subtotal: number;
+}
+
+/** Factura (o gasto) recibido de un proveedor. */
+export interface Compra {
+  id: string;
+  proveedorId: string;
+  proveedorNombre: string;
+  /** Número de la factura del proveedor. */
+  numero: string;
+  fecha: string;
+  fechaVencimiento?: string;
+  estado: EstadoCompra;
+  fechaPago?: string;
+  base: number;
+  iva: number;
+  total: number;
+  notas?: string;
+  /** Solo se carga al abrir el detalle. */
+  lineas?: CompraLinea[];
 }

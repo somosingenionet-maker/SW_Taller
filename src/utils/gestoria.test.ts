@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  avisosLibro, csvLibro, filasLibro, hojasExcel, nombreArchivoGestoria, periodoAño, periodoMes, periodoRango, periodoTrimestre, resumenIva,
+  avisosLibro, avisosRecibidas, csvLibro, csvRecibidas, filasRecibidas, type CompraParaGestoria, filasLibro, hojasExcel, nombreArchivoGestoria, periodoAño, periodoMes, periodoRango, periodoTrimestre, resumenIva,
   sumarDiasIso, trimestreAnterior, type FacturaParaGestoria,
 } from './gestoria';
 
@@ -93,7 +93,7 @@ describe('libro de facturas emitidas', () => {
 
   it('Excel: dos hojas, importes como números, fechas como fecha y avisos en el resumen', () => {
     const p = periodoTrimestre(2026, 3);
-    const hojas = hojasExcel(filasLibro(facturas), p, { nombre: 'Taller Ruiz', nif: 'B12345678' }, new Date('2026-10-05T10:00:00Z'));
+    const hojas = hojasExcel({ emitidas: filasLibro(facturas), periodo: p, taller: { nombre: 'Taller Ruiz', nif: 'B12345678' }, generado: new Date('2026-10-05T10:00:00Z') });
     expect(hojas.map((h) => h.nombre)).toEqual(['Facturas emitidas', 'Resumen IVA']);
     const primera = hojas[0].filas[1];
     expect(primera[0]).toBe('FAC-2026-0001');
@@ -110,5 +110,69 @@ describe('libro de facturas emitidas', () => {
   it('nombre de archivo sin acentos ni símbolos', () => {
     expect(nombreArchivoGestoria(periodoTrimestre(2026, 3), 'Taller Ñandú & Hijos, S.L.', 'xlsx')).toBe('doonty_facturas_gestoria_2026-T3_Taller_Nandu_Hijos_S_L.xlsx');
     expect(nombreArchivoGestoria(periodoAño(2026), '', 'csv')).toBe('doonty_facturas_gestoria_2026.csv');
+  });
+});
+
+describe('libro de facturas recibidas', () => {
+  const C = (p: Partial<CompraParaGestoria> & { numero: string }): CompraParaGestoria => ({
+    fecha: '2026-07-10', estado: 'pendiente', proveedorNombre: 'Recambios Ruiz', proveedorNif: 'B12345678', lineas: [{ subtotal: 100, ivaPct: 21 }], total: 121, ...p,
+  });
+  const compras = [
+    C({ numero: 'R-2', fecha: '2026-07-20', estado: 'pagada', lineas: [{ subtotal: 12, ivaPct: 21 }, { subtotal: 100, ivaPct: 10 }, { subtotal: 8, ivaPct: 21 }], total: 134.2 }),
+    C({ numero: 'R-1' }),
+    C({ numero: 'R-3', estado: 'anulada', lineas: [{ subtotal: 500, ivaPct: 21 }], total: 605 }),
+    C({ numero: 'R-4', proveedorNombre: 'Grúas Paco', proveedorNif: '', lineas: [{ subtotal: 50, ivaPct: 0 }], total: 50 }),
+  ];
+
+  it('una factura con varios tipos de IVA ocupa una fila por tipo, con la cuota sobre la base de cada tipo', () => {
+    const filas = filasRecibidas(compras);
+    const r2 = filas.filter((f) => f.numero === 'R-2');
+    expect(r2.map((f) => [f.ivaPct, f.base, f.cuota, f.total])).toEqual([[21, 20, 4.2, 24.2], [10, 100, 10, 110]]);
+    expect(r2[0].clave).toBe(r2[1].clave);
+    expect(filas.map((f) => f.numero)).toEqual(['R-4', 'R-1', 'R-3', 'R-2', 'R-2']);   // por fecha y, a igual fecha, por proveedor («Grúas Paco» antes que «Recambios Ruiz»)
+  });
+
+  it('el resumen cuenta cada factura una vez, deja fuera las anuladas y suma bases y cuotas', () => {
+    const r = resumenIva(filasRecibidas(compras));
+    expect(r.lineas).toEqual([
+      { ivaPct: 21, facturas: 2, base: 120, cuota: 25.2, total: 145.2 },
+      { ivaPct: 10, facturas: 1, base: 100, cuota: 10, total: 110 },
+      { ivaPct: 0, facturas: 1, base: 50, cuota: 0, total: 50 },
+    ]);
+    expect(r.totales).toEqual({ facturas: 3, base: 270, cuota: 35.2, total: 305.2 });
+  });
+
+  it('avisos: proveedores sin NIF (no anulados), anuladas y facturas que no cuadran con su total guardado', () => {
+    const filas = filasRecibidas([...compras, C({ numero: 'R-5', lineas: [{ subtotal: 100, ivaPct: 21 }], total: 130 })]);
+    const av = avisosRecibidas([...compras, C({ numero: 'R-5', lineas: [{ subtotal: 100, ivaPct: 21 }], total: 130 })], filas);
+    expect(av.sinNif).toEqual(['Grúas Paco']);
+    expect(av.anuladas).toBe(1);
+    expect(av.descuadradas).toEqual(['Recambios Ruiz R-5']);
+    expect(avisosRecibidas(compras, filasRecibidas(compras)).descuadradas).toEqual([]);
+  });
+
+  it('CSV de recibidas con coma decimal, fecha española y totales sin anuladas', () => {
+    const csv = csvRecibidas(filasRecibidas(compras));
+    expect(csv[0][2]).toBe('Proveedor');
+    expect(csv[2]).toEqual(['R-1', '10/07/2026', 'Recambios Ruiz', 'B12345678', '100,00', '21', '21,00', '121,00', 'Pendiente']);
+    expect(csv[csv.length - 1]).toEqual(['TOTAL (sin anuladas)', '', '', '', '270,00', '', '35,20', '305,20', '']);
+  });
+
+  it('Excel con emitidas y recibidas: tres hojas y el IVA repercutido menos el soportado', () => {
+    const emitidas = filasLibro([F({ numero: 'FAC-1', subtotal: 1000, totalIva: 210, total: 1210 })]);
+    const hojas = hojasExcel({ emitidas, recibidas: filasRecibidas(compras), periodo: periodoTrimestre(2026, 3), taller: { nombre: 'T', nif: 'B1' }, generado: new Date('2026-10-05T10:00:00Z') });
+    expect(hojas.map((h) => h.nombre)).toEqual(['Facturas emitidas', 'Facturas recibidas', 'Resumen IVA']);
+    const texto = JSON.stringify(hojas[2].filas);
+    expect(texto).toContain('IVA repercutido (facturas emitidas)');
+    expect(texto).toContain('IVA soportado (facturas recibidas)');
+    expect(texto).toContain('Repercutido − soportado');
+    expect(texto).toContain('174.8');                       // 210 − 35,20
+    expect(texto).toContain('Orientativo');
+  });
+
+  it('solo recibidas: sin hoja de emitidas ni diferencia', () => {
+    const hojas = hojasExcel({ recibidas: filasRecibidas(compras), periodo: periodoTrimestre(2026, 3), taller: { nombre: 'T', nif: 'B1' } });
+    expect(hojas.map((h) => h.nombre)).toEqual(['Facturas recibidas', 'Resumen IVA']);
+    expect(JSON.stringify(hojas[1].filas)).not.toContain('Repercutido');
   });
 });

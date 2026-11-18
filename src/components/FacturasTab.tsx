@@ -26,6 +26,8 @@ interface FacturasTabProps {
   onDeleteFactura: (id: string) => Promise<void>;
   onEmitirFactura: (id: string) => Promise<void>;
   onCambiarEstadoFactura: (id: string, estado: Factura['estado']) => Promise<void>;
+  /** Tiene el módulo Compras: la exportación para la gestoría puede incluir también las facturas recibidas. */
+  puedeVerCompras?: boolean;
 }
 
 const ESTADO_FACTURA_LABELS: Record<Factura['estado'], string> = {
@@ -514,7 +516,7 @@ const PAGE_SIZE = 20;
 // -------- Main FacturasTab --------
 export default function FacturasTab({
   clientes, vehiculos, empresa,
-  onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura,
+  onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura, puedeVerCompras = false,
 }: FacturasTabProps) {
   const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null }>({ open: false, factura: null });
   const [viewingDoc, setViewingDoc] = useState<Factura | null>(null);
@@ -964,7 +966,7 @@ export default function FacturasTab({
       {/* Descarga de un grupo de facturas (semana/mes/año) — misma mecánica que el visor de una sola factura, pero repitiendo el contenido imprimible una vez por factura con salto de página entre ellas. */}
       {exportandoGestoria && (
         <Suspense fallback={null}>
-          <ExportarGestoria empresa={empresa} clientes={clientes} onClose={() => setExportandoGestoria(false)} />
+          <ExportarGestoria empresa={empresa} clientes={clientes} puedeFacturas puedeCompras={puedeVerCompras} onClose={() => setExportandoGestoria(false)} />
         </Suspense>
       )}
 

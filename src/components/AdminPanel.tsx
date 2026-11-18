@@ -17,6 +17,7 @@ interface AdminPanelProps {
 const MODULOS_BASE = [
   { id: 'citas' as ModuloId, label: 'Agenda', desc: 'Las citas del taller' },
   { id: 'inventario' as ModuloId, label: 'Inventario', desc: 'Productos y movimientos de stock (el Taller también ve los productos)' },
+  { id: 'compras' as ModuloId, label: 'Compras', desc: 'Proveedores y las facturas que te mandan (datos fiscales: dalo solo a quien lleve las cuentas)' },
   { id: 'vehiculos' as ModuloId, label: 'Vehículos', desc: 'Fichas de los vehículos' },
   { id: 'clientes' as ModuloId, label: 'Clientes CRM', desc: 'Fichas de clientes y sus notas de seguimiento' },
   { id: 'taller' as ModuloId, label: 'Taller', desc: 'Órdenes de trabajo, tablero y mecánicos' },
