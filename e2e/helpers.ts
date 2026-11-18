@@ -1,5 +1,10 @@
 import { Page, expect } from '@playwright/test';
 
+/** Mientras exista la interfaz anterior, las pruebas que la usan la fijan antes de cargar (solo si no hay ya una elección guardada). */
+export async function usarDisenoActual(page: Page) {
+  await page.addInitScript(() => { try { if (localStorage.getItem('doonty-ui') === null) localStorage.setItem('doonty-ui', 'actual'); } catch { /* sin almacenamiento */ } });
+}
+
 export function credencialesE2E() {
   const email = process.env.E2E_ADMIN_EMAIL;
   const password = process.env.E2E_ADMIN_PASSWORD;
@@ -14,6 +19,7 @@ export function credencialesE2E() {
 /** Inicia sesión con el admin del tenant de pruebas y espera a que cargue la app. */
 export async function login(page: Page) {
   const { email, password } = credencialesE2E();
+  await usarDisenoActual(page);
   await page.goto('/');
   await page.getByPlaceholder('usuario@empresa.net').fill(email);
   await page.getByPlaceholder('••••••••').fill(password);

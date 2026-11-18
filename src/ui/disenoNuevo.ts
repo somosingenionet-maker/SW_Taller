@@ -1,13 +1,13 @@
-// Interruptor «nuevo diseño»: mientras se rehacen las pantallas conviven las dos interfaces. Se guarda en el navegador (no toca la base de datos).
-// Se activa con el botón del pie (administradores) o con ?ui=nuevo / ?ui=actual en la dirección.
+// Interruptor del diseño: el nuevo es el de serie; la interfaz anterior sigue disponible un tiempo (menú de la cuenta o ?ui=actual) como red de seguridad.
+// Se guarda en el navegador (no toca la base de datos).
 export type Diseno = 'nuevo' | 'actual';
 const CLAVE = 'doonty-ui';
 
-/** Lee la preferencia. El parámetro `?ui=` manda sobre lo guardado (y se guarda). Si algo falla (navegación privada), siempre «actual». */
+/** Lee la preferencia. El parámetro `?ui=` manda sobre lo guardado (y se guarda). Sin nada guardado (o sin almacenamiento, p. ej. navegación privada) es «nuevo». */
 export function leerDiseno(buscar: string = typeof window === 'undefined' ? '' : window.location.search, almacen: Pick<Storage, 'getItem' | 'setItem'> | null = guardado()): Diseno {
   const param = new URLSearchParams(buscar).get('ui');
   if (param === 'nuevo' || param === 'actual') { guardarDiseno(param, almacen); return param; }
-  try { return almacen?.getItem(CLAVE) === 'nuevo' ? 'nuevo' : 'actual'; } catch { return 'actual'; }
+  try { return almacen?.getItem(CLAVE) === 'actual' ? 'actual' : 'nuevo'; } catch { return 'nuevo'; }
 }
 
 export function guardarDiseno(d: Diseno, almacen: Pick<Storage, 'getItem' | 'setItem'> | null = guardado()): void {

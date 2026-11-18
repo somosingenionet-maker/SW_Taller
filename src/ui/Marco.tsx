@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CreditCard, LogOut, Menu, Palette, Plus, Search, Settings, Shield, ShieldCheck, Undo2 } from 'lucide-react';
+import { CreditCard, LogOut, Menu, Moon, Palette, Plus, Search, Settings, Shield, ShieldCheck, Sun, SunMoon, Undo2 } from 'lucide-react';
 import type { Cliente, Empresa, ModuloId, OrdenTrabajo, Perfil, Vehiculo } from '../types';
 import { derivarMarca, normalizarHex } from './colorMarca';
 import { atajosMovil, construirMenu, opcionesNuevo, type AccionNuevo, type ResultadoBusqueda } from './navegacion';
@@ -7,6 +7,7 @@ import { Icono } from './iconos';
 import { Boton, Ventana } from './componentes';
 import Buscador from './Buscador';
 import ColorYAspecto from './ColorYAspecto';
+import type { Tema } from './tema';
 import './ui.css';
 
 /** Lo que el marco le pide a la aplicación: ir a una pestaña, opcionalmente con una orden («nuevo» o «buscar») para ella. */
@@ -32,6 +33,10 @@ interface Props {
   onConfiguracion: () => void;
   onGuardarColor: (hex: string) => Promise<void>;
   onVolverAlActual: () => void;
+  /** Aspecto elegido por la persona y si se está pintando en oscuro ahora mismo. */
+  tema: Tema;
+  oscuro: boolean;
+  onTema: (t: Tema) => void;
   onCerrarSesion: () => void;
   children: ReactNode;
 }
@@ -49,6 +54,8 @@ function usePopover() {
   }, [abierto]);
   return { abierto, setAbierto, ref };
 }
+
+const ASPECTOS: [Tema, string, typeof Sun][] = [['claro', 'Claro', Sun], ['oscuro', 'Oscuro', Moon], ['auto', 'Auto', SunMoon]];
 
 const ACCION_A_ORDEN: Record<AccionNuevo, string> = { ot: 'taller', cita: 'citas', cliente: 'clientes', vehiculo: 'vehiculos', factura: 'facturas', compra: 'compras' };
 
@@ -82,7 +89,7 @@ export default function Marco(p: Props) {
     return null;
   };
 
-  const marca = useMemo(() => derivarMarca(normalizarHex(empresa.brandColor) ?? '#E8590C'), [empresa.brandColor]);
+  const marca = useMemo(() => derivarMarca(normalizarHex(empresa.brandColor) ?? '#E8590C', p.oscuro), [empresa.brandColor, p.oscuro]);
   const iniciales = (usuario.nombre || '?').trim()[0]?.toUpperCase() ?? '?';
 
   const botonNav = (id: ModuloId, etiqueta: string, cerrar?: boolean) => {
@@ -154,6 +161,12 @@ export default function Marco(p: Props) {
                 {esAdmin && itemCuenta(<Settings />, 'Configuración de empresa', p.onConfiguracion)}
                 {esAdmin && itemCuenta(<Palette />, 'Color y aspecto', () => setColorAbierto(true))}
                 <hr />
+                <div className="u-aspecto" role="group" aria-label="Aspecto">
+                  {ASPECTOS.map(([id, texto, Ico]) => (
+                    <button key={id} type="button" aria-pressed={p.tema === id} onClick={() => p.onTema(id)} data-testid={`tema-${id}`}><Ico aria-hidden="true" />{texto}</button>
+                  ))}
+                </div>
+                <hr />
                 {itemCuenta(<Undo2 />, 'Volver al diseño actual', p.onVolverAlActual)}
                 {itemCuenta(<LogOut />, 'Cerrar sesión', p.onCerrarSesion)}
               </div>
@@ -196,6 +209,11 @@ export default function Marco(p: Props) {
           {esAdmin && <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); p.onAdmin(); }}><Shield />Panel de administración</button>}
           {esAdmin && <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); p.onConfiguracion(); }}><Settings />Configuración de empresa</button>}
           {esAdmin && <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); setColorAbierto(true); }}><Palette />Color y aspecto</button>}
+          <div className="u-aspecto" role="group" aria-label="Aspecto">
+            {ASPECTOS.map(([id, texto, Ico]) => (
+              <button key={id} type="button" aria-pressed={p.tema === id} onClick={() => p.onTema(id)}><Ico aria-hidden="true" />{texto}</button>
+            ))}
+          </div>
           <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); p.onVolverAlActual(); }}><Undo2 />Volver al diseño actual</button>
           <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); p.onCerrarSesion(); }}><LogOut />Cerrar sesión</button>
         </Ventana>

@@ -217,6 +217,15 @@ test('Clientes y Vehículos: lista a todo el ancho y la ficha se abre en una ven
   await page.keyboard.press('Escape');
   await expect(fichaV).toHaveCount(0);
 
+  // La ficha del coche dice de quién es (el 1007DDT del taller de pruebas es de Daniela).
+  const conDueno = page.locator('main tbody tr[id^="veh-row-"]').filter({ hasText: '1007DDT' });
+  if (await conDueno.count() > 0) {
+    await conDueno.first().click();
+    await expect(fichaV.getByTestId('propietario-vehiculo')).toContainText('Daniela');
+    await page.keyboard.press('Escape');
+    await expect(fichaV).toHaveCount(0);
+  }
+
   await menu.getByRole('button', { name: 'Clientes' }).click();
   await page.locator('main tbody tr[id^="cli-row-"]').first().click();
   const fichaC = page.getByRole('dialog', { name: 'Ficha del cliente' });
@@ -231,5 +240,87 @@ test('Clientes y Vehículos: lista a todo el ancho y la ficha se abre en una ven
   await formulario.getByRole('button', { name: /Cancelar/ }).first().click();
   await expect(page.getByText('Editar Información de Ficha')).toHaveCount(0);
   await expect(fichaC).toBeVisible(); // la ficha sigue abierta debajo
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('acceso: pantallas de entrada con el diseño nuevo, en escritorio y en móvil', async ({ page }) => {
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Iniciar sesión' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByPlaceholder('usuario@empresa.net')).toBeVisible();
+  await expect(page.getByText('Tu taller, en orden.')).toBeVisible();
+  await captura(page, 'acceso-escritorio');
+  await page.getByRole('button', { name: '¿Olvidaste tu contraseña?' }).click();
+  await expect(page.getByRole('heading', { name: 'Recuperar contraseña' })).toBeVisible();
+  await page.getByRole('button', { name: 'Volver a iniciar sesión' }).click();
+  await page.locator('#acceso-clave').fill('abc');
+  await page.getByRole('button', { name: 'Mostrar contraseña' }).click();
+  await expect(page.locator('#acceso-clave')).toHaveAttribute('type', 'text');
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByText('Tu taller, en orden.')).toBeHidden();
+  await captura(page, 'acceso-movil');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), 'desplazamiento horizontal en el acceso').toBe(false);
+
+  await page.goto('/registro');
+  await expect(page.getByRole('heading', { name: 'Prueba Doonty Motor gratis' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Empezar mi prueba gratuita' })).toBeDisabled();
+  await page.getByRole('checkbox').check();
+  await expect(page.getByRole('button', { name: 'Empezar mi prueba gratuita' })).toBeEnabled();
+  await captura(page, 'registro-movil');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), 'desplazamiento horizontal en el alta').toBe(false);
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('aspecto: el modo oscuro se elige, se recuerda y se aplica a todas las pestañas', async ({ page }) => {
+  test.setTimeout(120_000);
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  await expect(page.locator('html')).not.toHaveAttribute('data-tema', 'oscuro');
+  await page.getByTestId('menu-cuenta').click();
+  await page.getByTestId('tema-oscuro').click();
+  await expect(page.locator('html')).toHaveAttribute('data-tema', 'oscuro');
+  const fondo = await page.locator('.u-app').evaluate((e) => getComputedStyle(e).backgroundColor);
+  expect(fondo, 'el fondo no es oscuro').toBe('rgb(16, 17, 20)');
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('html')).toHaveAttribute('data-tema', 'oscuro');
+
+  const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
+  for (const t of ['Hoy', 'En el taller', 'Citas', 'Clientes', 'Vehículos', 'Alertas', 'Facturas', 'Rentabilidad', 'Compras', 'Inventario']) {
+    await menu.getByRole('button', { name: new RegExp(`^${t}`) }).click();
+    await expect(page.getByRole('status', { name: 'Cargando' })).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.locator('main h2').first()).toBeVisible({ timeout: 15_000 });
+    await page.waitForTimeout(250);
+    await captura(page, `oscuro-${t.toLowerCase().replace(/ /g, '-')}`);
+  }
+  // Volver a claro.
+  await page.getByTestId('menu-cuenta').click();
+  await page.getByTestId('tema-claro').click();
+  await expect(page.locator('html')).not.toHaveAttribute('data-tema', 'oscuro');
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('responsive: sin desplazamiento horizontal de la página en 360, 768 y 1024 px', async ({ page }) => {
+  test.setTimeout(150_000);
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  const nombres: Record<string, string> = { Hoy: 'tab-inicio', 'En el taller': 'tab-taller', Citas: 'tab-citas', Clientes: 'tab-clientes' };
+  for (const ancho of [360, 768, 1024]) {
+    await page.setViewportSize({ width: ancho, height: 900 });
+    const menuEscritorio = page.getByRole('navigation', { name: 'Menú principal', exact: true });
+    for (const t of Object.keys(nombres)) {
+      if (ancho <= 860) await page.getByTestId(nombres[t]).click(); else await menuEscritorio.getByRole('button', { name: new RegExp(`^${t}`) }).click();
+      await expect(page.getByRole('status', { name: 'Cargando' })).toHaveCount(0, { timeout: 15_000 });
+      await expect(page.locator('main h2').first()).toBeVisible({ timeout: 15_000 });
+      await page.waitForTimeout(200);
+      const desborda = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1 || document.body.scrollWidth > window.innerWidth + 1);
+      expect(desborda, `${t} desborda en ${ancho}px`).toBe(false);
+    }
+  }
   expect(fallos, fallos.join('\n')).toEqual([]);
 });

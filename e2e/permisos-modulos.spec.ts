@@ -1,6 +1,6 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
-import { login } from './helpers';
+import { login, usarDisenoActual } from './helpers';
 
 const URL_SB = process.env.VITE_SUPABASE_URL!;
 const ANON = process.env.VITE_SUPABASE_ANON_KEY!;
@@ -49,6 +49,7 @@ test('un usuario con solo Taller no puede leer lo de otros módulos (comprobado 
     // Entrar como el usuario de solo Taller.
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const p2 = await ctx.newPage();
+    await usarDisenoActual(p2);
     const errores: string[] = [];
     p2.on('pageerror', (e) => errores.push(e.message));
     await p2.goto(process.env.E2E_BASE_URL ?? 'http://localhost:3100');

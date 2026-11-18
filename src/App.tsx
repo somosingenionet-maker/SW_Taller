@@ -26,6 +26,7 @@ import Cargando from './components/Cargando';
 import { lazyConReintento } from './lib/lazy';
 import { derivarMarca, normalizarHex } from './ui/colorMarca';
 import { guardarDiseno, leerDiseno, type Diseno } from './ui/disenoNuevo';
+import { esOscuro, guardarTema, leerTema, type Tema } from './ui/tema';
 import type { Intencion } from './ui/navegacion';
 import type { IrA } from './ui/Marco';
 import LoginScreen from './components/LoginScreen';
@@ -102,6 +103,18 @@ export default function App() {
   // Interruptor «nuevo diseño» (conviven las dos interfaces mientras se rehacen las pantallas) y orden que el botón «Nuevo» o el buscador dan a una pestaña.
   const [diseno, setDiseno] = useState<Diseno>(leerDiseno);
   const [intencion, setIntencion] = useState<Intencion | undefined>(undefined);
+  // Aspecto claro / oscuro / automático (por persona). «Automático» sigue la preferencia del sistema.
+  const [tema, setTema] = useState<Tema>(leerTema);
+  const [sistemaOscuro, setSistemaOscuro] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!mq) return;
+    const alCambiar = (e: MediaQueryListEvent) => setSistemaOscuro(e.matches);
+    mq.addEventListener('change', alCambiar);
+    return () => mq.removeEventListener('change', alCambiar);
+  }, []);
+  const oscuro = diseno === 'nuevo' && esOscuro(tema, sistemaOscuro);
+  const cambiarTema = useCallback((t: Tema) => { guardarTema(t); setTema(t); }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Pestaña con la que se abre Empresa: la guía de primeros pasos enlaza directo a cada una.
   const [settingsTab, setSettingsTab] = useState<PestanaEmpresa | undefined>(undefined);
@@ -631,18 +644,24 @@ export default function App() {
 
   useEffect(() => {
     const root = document.documentElement;
+    if (oscuro) root.dataset.tema = 'oscuro'; else delete root.dataset.tema;
     if (diseno === 'nuevo') {
       // En el diseño nuevo el color del taller se corrige para que el texto se lea; las pantallas antiguas que aún usan --brand-color reciben ese mismo color corregido.
-      const m = derivarMarca(normalizarHex(brandColor) ?? '#E8590C');
+      const m = derivarMarca(normalizarHex(brandColor) ?? '#E8590C', oscuro);
       root.dataset.ui = 'nuevo';
       root.style.setProperty('--brand-color', m.boton);
       root.style.setProperty('--brand-text-color', m.sobreBoton);
+      // También en la raíz: las ventanas que cuelgan fuera del marco (ajustes, seguridad…) usan el mismo color corregido.
+      root.style.setProperty('--u-brand', m.boton);
+      root.style.setProperty('--u-on-brand', m.sobreBoton);
+      root.style.setProperty('--u-brand-ink', m.tinta);
     } else {
       delete root.dataset.ui;
+      for (const v of ['--u-brand', '--u-on-brand', '--u-brand-ink']) root.style.removeProperty(v);
       root.style.setProperty('--brand-color', brandColor);
       root.style.setProperty('--brand-text-color', brandText);
     }
-  }, [brandColor, brandText, diseno]);
+  }, [brandColor, brandText, diseno, oscuro]);
 
   // Wait until auth is checked
   if (!authChecked) return null;
@@ -785,6 +804,7 @@ export default function App() {
           <VehiclesTab
             intencion={intencion}
             vehiculos={vehiculos}
+            clientes={clientes}
             onAddVehiculo={handleAddVehiculo}
             onUpdateVehiculo={handleUpdateVehiculo}
             onDeleteVehiculo={handleDeleteVehiculo}
@@ -939,6 +959,9 @@ export default function App() {
             onConfiguracion={() => setSettingsOpen(true)}
             onGuardarColor={(hex) => handleSaveEmpresa({ brandColor: hex })}
             onVolverAlActual={() => cambiarDiseno('actual')}
+            tema={tema}
+            oscuro={oscuro}
+            onTema={cambiarTema}
             onCerrarSesion={handleLogout}
           >
             {contenido}

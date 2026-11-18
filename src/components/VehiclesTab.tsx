@@ -3,7 +3,7 @@ import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
 import { esDisenoNuevo } from '../ui/disenoNuevo';
 import { Placa } from '../ui/componentes';
-import { Vehiculo, OTEstado, EventoOT } from '../types';
+import { Vehiculo, Cliente, OTEstado, EventoOT } from '../types';
 import {
   Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, Upload, ClipboardList
 } from 'lucide-react';
@@ -22,6 +22,8 @@ import { listOrdenesPorVehiculo, getHistorialOT, OrdenVehiculoRow } from '../lib
 
 interface VehiclesTabProps {
   vehiculos: Vehiculo[];
+  /** Para mostrar de quién es cada coche (el cliente guarda sus vehículos asociados). */
+  clientes?: Cliente[];
   onAddVehiculo: (input: Omit<Vehiculo, 'id' | 'fechaRegistro'>) => void | Promise<void>;
   onUpdateVehiculo: (vehiculo: Vehiculo) => void | Promise<void>;
   onDeleteVehiculo: (id: string) => void | Promise<void>;
@@ -53,6 +55,7 @@ const OT_ESTADO_COLOR: Record<OTEstado, string> = {
 
 export default function VehiclesTab({
   vehiculos,
+  clientes = [],
   onAddVehiculo,
   onUpdateVehiculo,
   onDeleteVehiculo,
@@ -429,6 +432,23 @@ export default function VehiclesTab({
                   <X className="w-4 h-4" />
                 </button>
               </div>
+
+              {/* Propietario: de quién es el coche (el cliente guarda sus vehículos asociados) */}
+              {(() => {
+                const duenos = clientes.filter(c => c.vehiculosAsociados?.includes(selectedVehiculo.id));
+                if (duenos.length === 0) return null;
+                return (
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100" data-testid="propietario-vehiculo">
+                    <div className="text-[10px] text-slate-400 font-semibold uppercase">Propietario</div>
+                    {duenos.map(c => (
+                      <div key={c.id} className="mt-1 text-sm font-semibold text-slate-800">
+                        {c.nombre} {c.apellidos}
+                        {c.telefono && <span className="ml-2 font-mono text-xs font-normal text-slate-500">{c.telefono}</span>}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Specs Grid */}
               <div className="grid grid-cols-2 gap-4">
