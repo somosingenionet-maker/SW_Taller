@@ -24,6 +24,10 @@ import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, Ale
 import HomeTab from './components/HomeTab';
 import Cargando from './components/Cargando';
 import { lazyConReintento } from './lib/lazy';
+import { derivarMarca, normalizarHex } from './ui/colorMarca';
+import { guardarDiseno, leerDiseno, type Diseno } from './ui/disenoNuevo';
+import type { Intencion } from './ui/navegacion';
+import type { IrA } from './ui/Marco';
 import LoginScreen from './components/LoginScreen';
 import ResetPasswordScreen from './components/ResetPasswordScreen';
 import SuscripcionBanner from './components/SuscripcionBanner';
@@ -53,6 +57,8 @@ const FacturasTab = lazyConReintento(cargarFacturas);
 const InventarioTab = lazyConReintento(cargarInventario);
 const AgendaTab = lazyConReintento(cargarAgenda);
 const ComprasTab = lazyConReintento(cargarCompras);
+// El marco del nuevo diseño (y sus estilos) es un trozo aparte: quien usa la interfaz actual no lo descarga.
+const Marco = lazyConReintento(() => import('./ui/Marco'));
 const MfaChallenge = lazyConReintento(() => import('./components/MfaChallenge'));
 const SeguridadModal = lazyConReintento(() => import('./components/SeguridadModal'));
 const SuscripcionPanel = lazyConReintento(() => import('./components/SuscripcionPanel'));
@@ -92,6 +98,9 @@ export default function App() {
   // Navigation
   const [activeTab, setActiveTab] = useState<TabId>('inicio');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // Interruptor «nuevo diseño» (conviven las dos interfaces mientras se rehacen las pantallas) y orden que el botón «Nuevo» o el buscador dan a una pestaña.
+  const [diseno, setDiseno] = useState<Diseno>(leerDiseno);
+  const [intencion, setIntencion] = useState<Intencion | undefined>(undefined);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Pestaña con la que se abre Empresa: la guía de primeros pasos enlaza directo a cada una.
   const [settingsTab, setSettingsTab] = useState<PestanaEmpresa | undefined>(undefined);
@@ -609,7 +618,9 @@ export default function App() {
     } catch { setPagosProv(null); }
   }, [currentUser]);
   useEffect(() => { void recargarPagos(); }, [recargarPagos]);
-  const navegar = useCallback((tab: TabId, vista?: 'porpagar') => { setComprasVista(vista === 'porpagar' ? 'porpagar' : 'compras'); setActiveTab(tab); }, []);
+  const navegar = useCallback((tab: TabId, vista?: 'porpagar') => { setComprasVista(vista === 'porpagar' ? 'porpagar' : 'compras'); setActiveTab(tab); setIntencion(undefined); }, []);
+  const irA = useCallback<IrA>((tab, orden) => { navegar(tab); if (orden) setIntencion({ ...orden, n: Date.now() }); }, [navegar]);
+  const cambiarDiseno = useCallback((d: Diseno) => { guardarDiseno(d); setDiseno(d); }, []);
   const pagosAvisoCount = pagosProv ? pagosProv.vencidas.n + pagosProv.semana.n : 0;
 
   const activeAlertsCount = useMemo(() => alertas.filter(a => a.estado === 'activa').length, [alertas]);
@@ -619,9 +630,18 @@ export default function App() {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty('--brand-color', brandColor);
-    root.style.setProperty('--brand-text-color', brandText);
-  }, [brandColor, brandText]);
+    if (diseno === 'nuevo') {
+      // En el diseño nuevo el color del taller se corrige para que el texto se lea; las pantallas antiguas que aún usan --brand-color reciben ese mismo color corregido.
+      const m = derivarMarca(normalizarHex(brandColor) ?? '#E8590C');
+      root.dataset.ui = 'nuevo';
+      root.style.setProperty('--brand-color', m.boton);
+      root.style.setProperty('--brand-text-color', m.sobreBoton);
+    } else {
+      delete root.dataset.ui;
+      root.style.setProperty('--brand-color', brandColor);
+      root.style.setProperty('--brand-text-color', brandText);
+    }
+  }, [brandColor, brandText, diseno]);
 
   // Wait until auth is checked
   if (!authChecked) return null;
@@ -666,6 +686,236 @@ export default function App() {
       ] as { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[]
     ).filter(t => activeModulos.includes(t.id)),
   ];
+
+  // Las tres piezas que comparten la interfaz actual y la nueva: franjas de aviso, contenido de la pestaña activa y ventanas/avisos superpuestos.
+  const avisosPago = (
+    <>
+    {pagoVolviendo && (
+      <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
+        <div role="status" className="w-[82%] max-w-4xl rounded-2xl border border-green-200 bg-green-50 text-green-800 px-4 py-2.5 text-xs font-semibold">
+          ¡Gracias! Estamos activando tu suscripción, tardará unos segundos…
+        </div>
+      </div>
+    )}
+    {pagoMensaje && (
+      <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
+        <div role="status" className={`w-[82%] max-w-4xl flex items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs font-semibold ${pagoMensaje === 'confirmado' ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+          <span>{pagoMensaje === 'confirmado'
+            ? '¡Pago recibido! Tu suscripción está activa. Gracias por confiar en Doonty Motor.'
+            : 'Hemos recibido tu pago, pero la activación tarda más de lo normal. Recarga la página en unos minutos; si sigue igual, escríbenos a send@doonty.com.'}</span>
+          <button onClick={() => setPagoMensaje(null)} aria-label="Cerrar aviso" className="font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
+        </div>
+      </div>
+    )}
+    {!pagoVolviendo && suscripcion && (
+      <SuscripcionBanner suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onAbrir={() => setSuscripcionOpen(true)} />
+    )}
+
+    </>
+  );
+
+  const contenido = (
+        <Suspense fallback={<Cargando />}>
+        {activeTab === 'inicio' && (
+          <HomeTab
+            currentUser={currentUser}
+            citas={citas}
+            clientes={clientes}
+            vehiculos={vehiculos}
+            alertas={alertas}
+            modulos={activeModulos}
+            brandColor={brandColor}
+            empresa={empresa}
+            nOrdenes={ordenesTrabajo.length}
+            datosListos={datosListos}
+            onNavigate={navegar}
+            pagosProveedores={pagosProv}
+            onAbrirEmpresa={(pestana) => { setSettingsTab(pestana); setSettingsOpen(true); }}
+          />
+        )}
+
+        {activeTab === 'citas' && (
+          <AgendaTab
+            intencion={intencion}
+            citas={citas}
+            vehiculos={vehiculos}
+            clientes={clientes}
+            onAddCita={handleAddCita}
+            onUpdateCita={handleUpdateCita}
+            onDeleteCita={handleDeleteCita}
+            onCreateOT={handleAddOT}
+            onAddCliente={handleAddCliente}
+            nombreTaller={empresa.nombre}
+          />
+        )}
+
+        {activeTab === 'vehiculos' && (
+          <VehiclesTab
+            intencion={intencion}
+            vehiculos={vehiculos}
+            onAddVehiculo={handleAddVehiculo}
+            onUpdateVehiculo={handleUpdateVehiculo}
+            onDeleteVehiculo={handleDeleteVehiculo}
+            onGuardarAceite={handleGuardarAceite}
+            onImportado={recargarVehiculos}
+          />
+        )}
+
+        {activeTab === 'taller' && (
+          <OrdenesTrabajoTab
+            intencion={intencion}
+            ordenes={ordenesTrabajo}
+            vehiculos={vehiculos}
+            clientes={clientes}
+            empresa={empresa}
+            productos={productos}
+            onAdd={handleAddOT}
+            onUpdate={handleUpdateOT}
+            onDelete={handleDeleteOT}
+            onRefrescada={handleOrdenRefrescada}
+            onCreateProducto={handleAddProducto}
+            onVistaAmpliaChange={setTallerVistaAmplia}
+          />
+        )}
+
+        {activeTab === 'clientes' && (
+          <CrmTab
+            intencion={intencion}
+            clientes={clientes}
+            vehiculos={vehiculos}
+            empresa={empresa}
+            onAddCliente={handleAddCliente}
+            onUpdateCliente={handleUpdateCliente}
+            onDeleteCliente={handleDeleteCliente}
+            onAnonymizeCliente={handleAnonymizeCliente}
+            onAddInteraccion={handleAddInteraccion}
+            onSetPortalToken={handleSetPortalToken}
+            onImportado={recargarClientes}
+          />
+        )}
+
+        {activeTab === 'rentabilidad' && (
+          <AnalyticsTab
+            clientes={clientes}
+          />
+        )}
+
+        {activeTab === 'alertas' && (
+          <AlertsNotificationsTab
+            alertas={alertas}
+            notificaciones={notificaciones}
+            clientes={clientes}
+            vehiculos={vehiculos}
+            onForzarRecordatorio={handleForzarRecordatorio}
+            onDeleteNotificacion={handleDeleteNotificacion}
+            onTriggerAutoRenew={handleTriggerAutoRenew}
+          />
+        )}
+
+        {activeTab === 'facturas' && (
+          <FacturasTab
+            intencion={intencion}
+            clientes={clientes}
+            vehiculos={vehiculos}
+            empresa={empresa}
+            onAddFactura={handleAddFactura}
+            onUpdateFactura={handleUpdateFactura}
+            onDeleteFactura={handleDeleteFactura}
+            onEmitirFactura={handleEmitirFactura}
+            onCambiarEstadoFactura={handleCambiarEstadoFactura}
+            puedeVerCompras={activeModulos.includes('compras')}
+          />
+        )}
+
+        {activeTab === 'compras' && (
+          <ComprasTab productos={productos} onStockCambiado={recargarProductos} empresa={empresa} clientes={clientes} puedeFacturas={activeModulos.includes('facturas')} vistaInicial={comprasVista} onPagosCambiados={() => void recargarPagos()} intencion={intencion} />
+        )}
+
+        {activeTab === 'inventario' && (
+          <InventarioTab
+            productos={productos}
+            onAddProducto={handleAddProducto}
+            onUpdateProducto={handleUpdateProducto}
+            onDeleteProducto={handleDeleteProducto}
+            onRegistrarMovimiento={handleRegistrarMovimiento}
+            onImportado={recargarProductos}
+          />
+        )}
+        </Suspense>
+  );
+
+  const superpuestos = (
+    <>
+      {aviso && (
+        <div
+          role={aviso.tipo === 'error' ? 'alert' : 'status'}
+          className={`print:hidden fixed top-4 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg rounded-2xl border shadow-xl px-4 py-3 text-xs font-semibold flex items-start gap-3 ${aviso.tipo === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}
+        >
+          <span className="flex-1 break-words">{aviso.mensaje}</span>
+          {aviso.soloLectura && currentUser.rol === 'admin' && (
+            <button onClick={() => { setAviso(null); setSuscripcionOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-rose-200 font-bold hover:bg-rose-100 transition cursor-pointer">Suscribirme</button>
+          )}
+          <button onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="shrink-0 font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
+        </div>
+      )}
+
+      <Suspense fallback={null}>
+      {seguridadOpen && <SeguridadModal onClose={() => setSeguridadOpen(false)} />}
+      {suscripcionOpen && suscripcion && (
+        <SuscripcionPanel suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onClose={() => setSuscripcionOpen(false)} />
+      )}
+
+      {settingsOpen && (
+        <CompanySettingsPanel
+          config={empresa}
+          pestanaInicial={settingsTab}
+          onSave={handleSaveEmpresa}
+          onClose={() => { setSettingsOpen(false); setSettingsTab(undefined); }}
+        />
+      )}
+
+      {adminPanelOpen && (
+        <AdminPanel
+          currentUser={currentUser}
+          onClose={() => setAdminPanelOpen(false)}
+        />
+      )}
+      </Suspense>
+    </>
+  );
+
+  // Nuevo diseño: el mismo contenido y las mismas ventanas dentro del marco nuevo (menú con texto, buscador, «Nuevo»).
+  if (diseno === 'nuevo') {
+    return (
+      <>
+        <Suspense fallback={<Cargando pantallaCompleta />}>
+          <Marco
+            empresa={empresa}
+            usuario={currentUser}
+            modulos={activeModulos}
+            activo={activeTab}
+            onIr={irA}
+            alertasActivas={activeAlertsCount}
+            pagos={{ n: pagosAvisoCount, vencidas: !!pagosProv && pagosProv.vencidas.n > 0 }}
+            datos={{ clientes, vehiculos, ordenes: ordenesTrabajo }}
+            avisos={avisosPago}
+            amplio={activeTab === 'taller' && tallerVistaAmplia}
+            mostrarSuscripcion={!!suscripcion && suscripcion.estado !== 'sin_limite'}
+            onSeguridad={() => setSeguridadOpen(true)}
+            onSuscripcion={() => setSuscripcionOpen(true)}
+            onAdmin={() => setAdminPanelOpen(true)}
+            onConfiguracion={() => setSettingsOpen(true)}
+            onGuardarColor={(hex) => handleSaveEmpresa({ brandColor: hex })}
+            onVolverAlActual={() => cambiarDiseno('actual')}
+            onCerrarSesion={handleLogout}
+          >
+            {contenido}
+          </Marco>
+        </Suspense>
+        {superpuestos}
+      </>
+    );
+  }
 
   return (
     <div
@@ -757,26 +1007,7 @@ export default function App() {
       </header>
     </div>
 
-    {pagoVolviendo && (
-      <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
-        <div role="status" className="w-[82%] max-w-4xl rounded-2xl border border-green-200 bg-green-50 text-green-800 px-4 py-2.5 text-xs font-semibold">
-          ¡Gracias! Estamos activando tu suscripción, tardará unos segundos…
-        </div>
-      </div>
-    )}
-    {pagoMensaje && (
-      <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
-        <div role="status" className={`w-[82%] max-w-4xl flex items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs font-semibold ${pagoMensaje === 'confirmado' ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-          <span>{pagoMensaje === 'confirmado'
-            ? '¡Pago recibido! Tu suscripción está activa. Gracias por confiar en Doonty Motor.'
-            : 'Hemos recibido tu pago, pero la activación tarda más de lo normal. Recarga la página en unos minutos; si sigue igual, escríbenos a send@doonty.com.'}</span>
-          <button onClick={() => setPagoMensaje(null)} aria-label="Cerrar aviso" className="font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
-        </div>
-      </div>
-    )}
-    {!pagoVolviendo && suscripcion && (
-      <SuscripcionBanner suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onAbrir={() => setSuscripcionOpen(true)} />
-    )}
+    {avisosPago}
 
     {/* Fila: riel lateral (flotante) + columna principal */}
     <div className="flex-1 flex min-h-0 pl-3.5 pt-3.5 pb-3.5 overflow-hidden print:overflow-visible print:block print:p-0">
@@ -911,128 +1142,7 @@ export default function App() {
 
         {/* CORE WORKSPACE */}
         <main className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 ${tallerVistaAmplia ? 'max-w-[1440px]' : 'max-w-7xl'}`}>
-        <Suspense fallback={<Cargando />}>
-        {activeTab === 'inicio' && (
-          <HomeTab
-            currentUser={currentUser}
-            citas={citas}
-            clientes={clientes}
-            vehiculos={vehiculos}
-            alertas={alertas}
-            modulos={activeModulos}
-            brandColor={brandColor}
-            empresa={empresa}
-            nOrdenes={ordenesTrabajo.length}
-            datosListos={datosListos}
-            onNavigate={navegar}
-            pagosProveedores={pagosProv}
-            onAbrirEmpresa={(pestana) => { setSettingsTab(pestana); setSettingsOpen(true); }}
-          />
-        )}
-
-        {activeTab === 'citas' && (
-          <AgendaTab
-            citas={citas}
-            vehiculos={vehiculos}
-            clientes={clientes}
-            onAddCita={handleAddCita}
-            onUpdateCita={handleUpdateCita}
-            onDeleteCita={handleDeleteCita}
-            onCreateOT={handleAddOT}
-            onAddCliente={handleAddCliente}
-            nombreTaller={empresa.nombre}
-          />
-        )}
-
-        {activeTab === 'vehiculos' && (
-          <VehiclesTab
-            vehiculos={vehiculos}
-            onAddVehiculo={handleAddVehiculo}
-            onUpdateVehiculo={handleUpdateVehiculo}
-            onDeleteVehiculo={handleDeleteVehiculo}
-            onGuardarAceite={handleGuardarAceite}
-            onImportado={recargarVehiculos}
-          />
-        )}
-
-        {activeTab === 'taller' && (
-          <OrdenesTrabajoTab
-            ordenes={ordenesTrabajo}
-            vehiculos={vehiculos}
-            clientes={clientes}
-            empresa={empresa}
-            productos={productos}
-            onAdd={handleAddOT}
-            onUpdate={handleUpdateOT}
-            onDelete={handleDeleteOT}
-            onRefrescada={handleOrdenRefrescada}
-            onCreateProducto={handleAddProducto}
-            onVistaAmpliaChange={setTallerVistaAmplia}
-          />
-        )}
-
-        {activeTab === 'clientes' && (
-          <CrmTab
-            clientes={clientes}
-            vehiculos={vehiculos}
-            empresa={empresa}
-            onAddCliente={handleAddCliente}
-            onUpdateCliente={handleUpdateCliente}
-            onDeleteCliente={handleDeleteCliente}
-            onAnonymizeCliente={handleAnonymizeCliente}
-            onAddInteraccion={handleAddInteraccion}
-            onSetPortalToken={handleSetPortalToken}
-            onImportado={recargarClientes}
-          />
-        )}
-
-        {activeTab === 'rentabilidad' && (
-          <AnalyticsTab
-            clientes={clientes}
-          />
-        )}
-
-        {activeTab === 'alertas' && (
-          <AlertsNotificationsTab
-            alertas={alertas}
-            notificaciones={notificaciones}
-            clientes={clientes}
-            vehiculos={vehiculos}
-            onForzarRecordatorio={handleForzarRecordatorio}
-            onDeleteNotificacion={handleDeleteNotificacion}
-            onTriggerAutoRenew={handleTriggerAutoRenew}
-          />
-        )}
-
-        {activeTab === 'facturas' && (
-          <FacturasTab
-            clientes={clientes}
-            vehiculos={vehiculos}
-            empresa={empresa}
-            onAddFactura={handleAddFactura}
-            onUpdateFactura={handleUpdateFactura}
-            onDeleteFactura={handleDeleteFactura}
-            onEmitirFactura={handleEmitirFactura}
-            onCambiarEstadoFactura={handleCambiarEstadoFactura}
-            puedeVerCompras={activeModulos.includes('compras')}
-          />
-        )}
-
-        {activeTab === 'compras' && (
-          <ComprasTab productos={productos} onStockCambiado={recargarProductos} empresa={empresa} clientes={clientes} puedeFacturas={activeModulos.includes('facturas')} vistaInicial={comprasVista} onPagosCambiados={() => void recargarPagos()} />
-        )}
-
-        {activeTab === 'inventario' && (
-          <InventarioTab
-            productos={productos}
-            onAddProducto={handleAddProducto}
-            onUpdateProducto={handleUpdateProducto}
-            onDeleteProducto={handleDeleteProducto}
-            onRegistrarMovimiento={handleRegistrarMovimiento}
-            onImportado={recargarProductos}
-          />
-        )}
-        </Suspense>
+        {contenido}
       </main>
 
         {/* PIE — contacto de la empresa + copyright (antes vivía en la cabecera) */}
@@ -1074,6 +1184,12 @@ export default function App() {
               <a href="/declaracion-responsable" className="hover:text-slate-300 underline underline-offset-2 transition">Declaración Responsable</a>
               {' · '}
               <a href="/encargo-de-tratamiento" className="hover:text-slate-300 underline underline-offset-2 transition">Encargo de tratamiento</a>
+              {currentUser.rol === 'admin' && (
+                <>
+                  {' · '}
+                  <button type="button" onClick={() => cambiarDiseno('nuevo')} data-testid="probar-nuevo-diseno" className="hover:text-slate-300 underline underline-offset-2 transition cursor-pointer">Probar el nuevo diseño</button>
+                </>
+              )}
             </p>
           </div>
         </footer>
@@ -1081,41 +1197,7 @@ export default function App() {
       </div>
     </div>
 
-      {aviso && (
-        <div
-          role={aviso.tipo === 'error' ? 'alert' : 'status'}
-          className={`print:hidden fixed top-4 left-1/2 -translate-x-1/2 z-[80] w-[92%] max-w-lg rounded-2xl border shadow-xl px-4 py-3 text-xs font-semibold flex items-start gap-3 ${aviso.tipo === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'}`}
-        >
-          <span className="flex-1 break-words">{aviso.mensaje}</span>
-          {aviso.soloLectura && currentUser.rol === 'admin' && (
-            <button onClick={() => { setAviso(null); setSuscripcionOpen(true); }} className="shrink-0 px-3 py-1.5 rounded-xl bg-white border border-rose-200 font-bold hover:bg-rose-100 transition cursor-pointer">Suscribirme</button>
-          )}
-          <button onClick={() => setAviso(null)} aria-label="Cerrar aviso" className="shrink-0 font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
-        </div>
-      )}
-
-      <Suspense fallback={null}>
-      {seguridadOpen && <SeguridadModal onClose={() => setSeguridadOpen(false)} />}
-      {suscripcionOpen && suscripcion && (
-        <SuscripcionPanel suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onClose={() => setSuscripcionOpen(false)} />
-      )}
-
-      {settingsOpen && (
-        <CompanySettingsPanel
-          config={empresa}
-          pestanaInicial={settingsTab}
-          onSave={handleSaveEmpresa}
-          onClose={() => { setSettingsOpen(false); setSettingsTab(undefined); }}
-        />
-      )}
-
-      {adminPanelOpen && (
-        <AdminPanel
-          currentUser={currentUser}
-          onClose={() => setAdminPanelOpen(false)}
-        />
-      )}
-      </Suspense>
+      {superpuestos}
     </div>
   );
 }

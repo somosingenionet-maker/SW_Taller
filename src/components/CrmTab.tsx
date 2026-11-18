@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import type { Intencion } from '../ui/navegacion';
 import { Cliente, InteraccionCliente, Vehiculo, Empresa } from '../types';
 import {
   Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, Upload, PenTool, Car, Link2, Copy, RefreshCw, ShieldOff
@@ -24,6 +25,8 @@ interface CrmTabProps {
   onSetPortalToken: (clienteId: string, token: string | null) => Promise<Cliente>;
   /** Recarga la lista tras importar clientes desde CSV. */
   onImportado: () => void | Promise<void>;
+  /** Orden que llega del botón «Nuevo» o del buscador global del nuevo diseño (cada una trae un número distinto). */
+  intencion?: Intencion;
 }
 
 export default function CrmTab({
@@ -36,7 +39,8 @@ export default function CrmTab({
   onAnonymizeCliente,
   onAddInteraccion,
   onSetPortalToken,
-  onImportado
+  onImportado,
+  intencion
 }: CrmTabProps) {
   const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -147,6 +151,14 @@ export default function CrmTab({
     setVehiculoSearch('');
     setIsAddingOpen(true);
   };
+
+  // Del botón «Nuevo» o del buscador global (nuevo diseño): abre el alta o filtra la lista.
+  useEffect(() => {
+    if (!intencion) return;
+    if (intencion.tipo === 'nuevo') handleOpenAdd();
+    else { setSearchTerm(intencion.texto ?? ''); setCurrentPage(1); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intencion?.n]);
 
   const toggleVehiculo = (vid: string, current: string[]) =>
     current.includes(vid) ? current.filter(id => id !== vid) : [...current, vid];

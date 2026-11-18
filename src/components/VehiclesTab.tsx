@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import type { Intencion } from '../ui/navegacion';
 import { Vehiculo, OTEstado, EventoOT } from '../types';
 import {
   Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, Upload, ClipboardList
@@ -25,6 +26,8 @@ interface VehiclesTabProps {
   onGuardarAceite: (vehiculoId: string, datos: AceiteVehiculo) => Promise<void>;
   /** Recarga la lista tras importar vehículos desde CSV. */
   onImportado: () => void | Promise<void>;
+  /** Orden que llega del botón «Nuevo» o del buscador global del nuevo diseño (cada una trae un número distinto). */
+  intencion?: Intencion;
 }
 
 const OT_ESTADO_LABEL: Record<OTEstado, string> = {
@@ -51,7 +54,8 @@ export default function VehiclesTab({
   onUpdateVehiculo,
   onDeleteVehiculo,
   onGuardarAceite,
-  onImportado
+  onImportado,
+  intencion
 }: VehiclesTabProps) {
   const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,6 +149,14 @@ export default function VehiclesTab({
     });
     setIsAddingOpen(true);
   };
+
+  // Del botón «Nuevo» o del buscador global (nuevo diseño): abre el alta o filtra la lista.
+  useEffect(() => {
+    if (!intencion) return;
+    if (intencion.tipo === 'nuevo') handleOpenAdd();
+    else { setSearchTerm(intencion.texto ?? ''); setCurrentPage(1); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intencion?.n]);
 
   // Los tres guardados esperan al servidor: si falla (p. ej. matrícula repetida), la ventana se
   // queda abierta con lo escrito y se explica el motivo, en vez de cerrarse como si se hubiera guardado.

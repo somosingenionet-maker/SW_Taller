@@ -28,6 +28,7 @@ import { avisarOk } from '../lib/avisos';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
+import type { Intencion } from '../ui/navegacion';
 
 interface Props {
   ordenes: OrdenTrabajo[];
@@ -44,6 +45,8 @@ interface Props {
   onCreateProducto: (p: Producto, stockInicial: number) => Promise<Producto>;
   /** El tablero necesita más ancho del que da el layout centrado normal — App.tsx usa esto para ensanchar el <main> solo mientras esta vista está activa. */
   onVistaAmpliaChange?: (amplia: boolean) => void;
+  /** Orden que llega del botón «Nuevo» o del buscador global del nuevo diseño (cada una trae un número distinto). */
+  intencion?: Intencion;
 }
 
 const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string; dot: string }> = {
@@ -393,7 +396,7 @@ function KanbanBoard({
   );
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
@@ -543,6 +546,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     setCrearFotos([]);
     setIsCreating(true);
   };
+
+  // Del botón «Nuevo» o del buscador global (nuevo diseño): abre la recepción de un coche o filtra por esa orden/matrícula.
+  useEffect(() => {
+    if (!intencion) return;
+    if (intencion.tipo === 'nuevo') openCreate();
+    else setSearch(intencion.texto ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intencion?.n]);
 
   const handleAddLinea = () => {
     if (!newLinea.descripcion || newLinea.cantidad === '' || newLinea.precioUnitario === '') return;

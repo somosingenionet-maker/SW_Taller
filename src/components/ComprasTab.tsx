@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import type { Intencion } from '../ui/navegacion';
 import { AlertTriangle, Ban, Check, CircleDollarSign, Eye, FileSpreadsheet, FileText, Image as ImagenIcono, Paperclip, Plus, Search, ShoppingCart, Trash2, Undo2, X } from 'lucide-react';
 import type { Cliente, Compra, CompraAdjunto, Empresa, Producto, Proveedor } from '../types';
 import { anularCompra, editarDatosCompra, getCompra, listCompras, marcarPagoCompra } from '../lib/data/compras';
@@ -52,9 +53,11 @@ interface Props {
   vistaInicial?: 'compras' | 'porpagar';
   /** Cambió algo que afecta a lo que se debe (guardar, pagar, anular…): refrescar los avisos de fuera. */
   onPagosCambiados?: () => void;
+  /** Orden que llega del botón «Nuevo» del nuevo diseño (cada una trae un número distinto). */
+  intencion?: Intencion;
 }
 
-export default function ComprasTab({ productos, onStockCambiado, empresa, clientes, puedeFacturas, vistaInicial = 'compras', onPagosCambiados }: Props) {
+export default function ComprasTab({ productos, onStockCambiado, empresa, clientes, puedeFacturas, vistaInicial = 'compras', onPagosCambiados, intencion }: Props) {
   const [vista, setVista] = useState<'compras' | 'porpagar' | 'proveedores'>(vistaInicial);
   const [periodo, setPeriodo] = useState<Periodo>('trimestre');
   const [estado, setEstado] = useState<'todas' | EstadoVisible>('todas');
@@ -67,6 +70,10 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [cargandoProv, setCargandoProv] = useState(true);
   const [nueva, setNueva] = useState(false);
+  // Del botón «Nuevo» del nuevo diseño: abre el formulario de compra.
+  useEffect(() => {
+    if (intencion?.tipo === 'nuevo') { setVista('compras'); setNueva(true); }
+  }, [intencion?.n]);
   const [detalle, setDetalle] = useState<string | null>(null);
   const [exportando, setExportando] = useState(false);
   const hoy = hoyIso();

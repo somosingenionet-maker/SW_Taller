@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
+import type { Intencion } from '../ui/navegacion';
 import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText, FileSpreadsheet } from 'lucide-react';
 import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa, EnvioAeat } from '../types';
 import { dispararEnvioAeat } from '../lib/data/verifactu';
@@ -28,6 +29,8 @@ interface FacturasTabProps {
   onCambiarEstadoFactura: (id: string, estado: Factura['estado']) => Promise<void>;
   /** Tiene el módulo Compras: la exportación para la gestoría puede incluir también las facturas recibidas. */
   puedeVerCompras?: boolean;
+  /** Orden que llega del botón «Nuevo» del nuevo diseño (cada una trae un número distinto). */
+  intencion?: Intencion;
 }
 
 const ESTADO_FACTURA_LABELS: Record<Factura['estado'], string> = {
@@ -516,10 +519,14 @@ const PAGE_SIZE = 20;
 // -------- Main FacturasTab --------
 export default function FacturasTab({
   clientes, vehiculos, empresa,
-  onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura, puedeVerCompras = false,
+  onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura, puedeVerCompras = false, intencion,
 }: FacturasTabProps) {
   const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null }>({ open: false, factura: null });
   const [viewingDoc, setViewingDoc] = useState<Factura | null>(null);
+  // Del botón «Nuevo» del nuevo diseño: abre el formulario de factura.
+  useEffect(() => {
+    if (intencion?.tipo === 'nuevo') setFacturaModal({ open: true, factura: null });
+  }, [intencion?.n]);
   const [confirmEmitir, setConfirmEmitir] = useState<Factura | null>(null);
   const [agrupacion, setAgrupacion] = useState<Agrupacion>('ninguna');
   const [exportandoGestoria, setExportandoGestoria] = useState(false);

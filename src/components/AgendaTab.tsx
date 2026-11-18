@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import type { Intencion } from '../ui/navegacion';
 import {
   CalendarClock, Plus, ChevronLeft, ChevronRight, X, Check, Trash2, Pencil,
   Clock, User, Car, Wrench, AlertTriangle, ClipboardCheck, Ban, ArrowRightCircle, Loader2, MessageCircle,
@@ -23,6 +24,8 @@ interface Props {
   onAddCliente: (c: NuevoCliente) => Promise<Cliente>;
   /** Para firmar los mensajes de WhatsApp a los clientes. */
   nombreTaller?: string;
+  /** Orden que llega del botón «Nuevo» del nuevo diseño (cada una trae un número distinto). */
+  intencion?: Intencion;
 }
 
 const ESTADO_META: Record<Cita['estado'], { label: string; color: string; bg: string }> = {
@@ -152,7 +155,7 @@ function seSolapan(a: [number, number], b: [number, number]): boolean {
   return a[0] < b[1] && b[0] < a[1];
 }
 
-export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpdateCita, onDeleteCita, onCreateOT, onAddCliente, nombreTaller = 'el taller' }: Props) {
+export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpdateCita, onDeleteCita, onCreateOT, onAddCliente, nombreTaller = 'el taller', intencion }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
 
@@ -257,6 +260,12 @@ export default function AgendaTab({ citas, vehiculos, clientes, onAddCita, onUpd
     setFormError('');
     setShowForm(true);
   };
+
+  // Del botón «Nuevo» del nuevo diseño: abre el formulario de cita.
+  useEffect(() => {
+    if (intencion?.tipo === 'nuevo') openCreate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intencion?.n]);
 
   const openEdit = (c: Cita) => {
     setForm(citaToForm(c));
