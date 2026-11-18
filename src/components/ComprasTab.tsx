@@ -7,17 +7,17 @@ import { avisar, avisarError, avisarOk } from '../lib/avisos';
 import { borrarAdjunto, listAdjuntos, subirAdjunto, urlAdjunto } from '../lib/data/comprasAdjuntos';
 import { abrirEnPestana } from '../utils/whatsapp';
 import { cabenArchivos, esImagen, formatoTamano, MAX_ADJUNTOS, validarArchivoFactura } from '../utils/adjuntos';
-import { estadoVisible, resumenPagos, type EstadoVisible } from '../utils/compras';
+import { estadoVisible, hoyIso, resumenPagos, type EstadoVisible } from '../utils/compras';
 import { periodoAño, periodoMes, periodoTrimestre } from '../utils/gestoria';
 import { fmt2 } from '../utils/moneda';
 import { formatDate } from '../utils/dateFormat';
 import ConfirmDialog from './ConfirmDialog';
 import CompraForm from './CompraForm';
 import ProveedoresPanel from './ProveedoresPanel';
+import PorPagar from './PorPagar';
 
 const ExportarGestoria = lazy(() => import('./ExportarGestoria'));
 
-const hoyIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const campo = 'border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400';
 
 type Periodo = 'mes' | 'trimestre' | 'año' | 'añoPasado' | 'todo';
@@ -48,10 +48,14 @@ interface Props {
   empresa: Empresa;
   clientes: Cliente[];
   puedeFacturas: boolean;
+  /** Vista con la que se abre (Inicio enlaza directo a «Por pagar»). */
+  vistaInicial?: 'compras' | 'porpagar';
+  /** Cambió algo que afecta a lo que se debe (guardar, pagar, anular…): refrescar los avisos de fuera. */
+  onPagosCambiados?: () => void;
 }
 
-export default function ComprasTab({ productos, onStockCambiado, empresa, clientes, puedeFacturas }: Props) {
-  const [vista, setVista] = useState<'compras' | 'proveedores'>('compras');
+export default function ComprasTab({ productos, onStockCambiado, empresa, clientes, puedeFacturas, vistaInicial = 'compras', onPagosCambiados }: Props) {
+  const [vista, setVista] = useState<'compras' | 'porpagar' | 'proveedores'>(vistaInicial);
   const [periodo, setPeriodo] = useState<Periodo>('trimestre');
   const [estado, setEstado] = useState<'todas' | EstadoVisible>('todas');
   const [proveedorFiltro, setProveedorFiltro] = useState('');
@@ -73,7 +77,7 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
       const [lista, deuda] = await Promise.all([
         listCompras(rangoDe(periodo, new Date())),
         // Lo que se debe no depende del periodo que estés mirando: todas las pendientes.
-        listCompras({ limite: 1000 }).then((r) => r.compras.filter((c) => c.estado === 'pendiente')),
+        listCompras({ estado: 'pendiente', limite: 1000 }).then((r) => r.compras),
       ]);
       setCompras(lista.compras); setHayMas(lista.hayMas); setPendientes(deuda);
     } catch (e) {
@@ -113,7 +117,7 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
       </div>
 
       <div className="flex gap-1.5" role="tablist" aria-label="Compras o proveedores">
-        {([['compras', 'Compras'], ['proveedores', 'Proveedores']] as const).map(([id, texto]) => (
+        {([['compras', 'Compras'], ['porpagar', `Por pagar${pendientes.length > 0 ? ` (${pendientes.length})` : ''}`], ['proveedores', 'Proveedores']] as const).map(([id, texto]) => (
           <button key={id} role="tab" aria-selected={vista === id} onClick={() => setVista(id)}
             className={`px-4 py-1.5 rounded-xl text-sm font-bold border cursor-pointer ${vista === id ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>{texto}</button>
         ))}
@@ -121,6 +125,8 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
 
       {vista === 'proveedores' ? (
         <ProveedoresPanel proveedores={proveedores} cargando={cargandoProv} onCambio={setProveedores} />
+      ) : vista === 'porpagar' ? (
+        <PorPagar pendientes={pendientes} cargando={cargando} hoy={hoy} onAbrirDetalle={setDetalle} onPagadas={() => { void cargar(); onPagosCambiados?.(); }} />
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="resumen-compras">
@@ -200,14 +206,14 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
       {nueva && (
         <CompraForm proveedores={proveedores} productos={productos} empresaId={empresa.id} onProveedorCreado={(p) => setProveedores((ps) => [...ps, p].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')))} onClose={() => setNueva(false)}
           onGuardada={(tocaStock, fallidos) => {
-            setNueva(false); void cargar(); if (tocaStock) void onStockCambiado();
+            setNueva(false); void cargar(); onPagosCambiados?.(); if (tocaStock) void onStockCambiado();
             if (fallidos.length === 0) avisarOk('Compra registrada.');
             else avisar({ tipo: 'error', mensaje: `La compra se guardó, pero ${fallidos.join(' ')} Ábrela y adjunta el archivo de nuevo.` });
           }} />
       )}
       {detalle && (
         <CompraDetalle id={detalle} hoy={hoy} empresaId={empresa.id} onClose={() => setDetalle(null)}
-          onCambio={(tocaStock) => { void cargar(); if (tocaStock) void onStockCambiado(); }} />
+          onCambio={(tocaStock) => { void cargar(); onPagosCambiados?.(); if (tocaStock) void onStockCambiado(); }} />
       )}
     </div>
   );

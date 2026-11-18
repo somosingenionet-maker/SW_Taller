@@ -28,7 +28,8 @@ async function json(route: Route, body: unknown, status = 200) {
   await route.fulfill({ status, contentType: 'application/json', headers: cors, body: JSON.stringify(body) });
 }
 
-async function simular(page: Page, extra: { rpc?: (nombre: string, cuerpo: Record<string, unknown>) => unknown } = {}) {
+async function simular(page: Page, extra: { rpc?: (nombre: string, cuerpo: Record<string, unknown>) => unknown; lista?: typeof LISTA } = {}) {
+  const lista = extra.lista ?? LISTA;
   const rpcs: { nombre: string; cuerpo: Record<string, unknown> }[] = [];
   await page.route(/\/rest\/v1\/proveedores(\?|$)/, async (route) => {
     if (route.request().method() === 'GET') return json(route, [PROV]);
@@ -38,19 +39,20 @@ async function simular(page: Page, extra: { rpc?: (nombre: string, cuerpo: Recor
     if (route.request().method() !== 'GET') return route.fallback();
     const url = route.request().url();
     if (/proveedores%20%28%20nombre%2C%20nif|compra_lineas/.test(decodeURIComponent(url)) || /compra_lineas/.test(url)) return route.fallback();
-    if (/id=eq\./.test(url)) return json(route, LISTA.find((c) => url.includes(`id=eq.${c.id}`)) ?? LISTA[0]);
-    return json(route, LISTA);
+    if (/id=eq\./.test(url)) return json(route, lista.find((c) => url.includes(`id=eq.${c.id}`)) ?? lista[0]);
+    const estado = /estado=eq\.(\w+)/.exec(url)?.[1];                              // el servidor filtra por estado: la simulación también
+    return json(route, estado ? lista.filter((c) => c.estado === estado) : lista);
   });
   await page.route(/\/rest\/v1\/compra_lineas\?/, async (route) => json(route, [
     { id: 'l1', producto_id: null, descripcion: 'Pastillas', cantidad: 1, precio_unitario: 100, iva_pct: 21, subtotal: 100, posicion: 0 },
   ]));
-  await page.route(/\/rest\/v1\/rpc\/(guardar_compra|marcar_pago_compra|anular_compra|editar_datos_compra|registrar_adjunto_compra|borrar_adjunto_compra)/, async (route) => {
+  await page.route(/\/rest\/v1\/rpc\/(guardar_compra|marcar_pago_compra|anular_compra|editar_datos_compra|registrar_adjunto_compra|borrar_adjunto_compra|marcar_pago_compras)/, async (route) => {
     const nombre = route.request().url().split('/rpc/')[1].split('?')[0];
     const cuerpo = route.request().postDataJSON() as Record<string, unknown>;
     rpcs.push({ nombre, cuerpo });
     const r = extra.rpc?.(nombre, cuerpo);
     if (r && typeof r === 'object' && 'error' in (r as object)) return json(route, { message: (r as { error: string }).error, code: 'P0001' }, 400);
-    return json(route, nombre === 'guardar_compra' ? 'nueva-compra' : nombre === 'registrar_adjunto_compra' ? 'adj-nuevo' : nombre === 'borrar_adjunto_compra' ? 'emp/c1/vieja.pdf' : null);
+    return json(route, nombre === 'guardar_compra' ? 'nueva-compra' : nombre === 'registrar_adjunto_compra' ? 'adj-nuevo' : nombre === 'borrar_adjunto_compra' ? 'emp/c1/vieja.pdf' : nombre === 'marcar_pago_compras' ? (cuerpo.p_ids as string[]).length : null);
   });
   return rpcs;
 }
@@ -363,4 +365,79 @@ test('gestoría con compras (almacén de mentira): sin ningún documento se expl
   await page.getByTestId('exportar-gestoria').getByLabel('Trimestre', { exact: true }).selectOption('3');
   await expect(page.getByTestId('documentos-gestoria')).toContainText('Ninguna de estas facturas tiene el documento adjunto', { timeout: 15_000 });
   await expect(page.getByTestId('descargar-documentos')).toHaveCount(0);
+});
+
+// ---- Cuentas por pagar y avisos ----
+
+const POR_PAGAR = [
+  compra('p1', 'P-1', dias(-30), 'pendiente', 100, dias(-10)),     // vencida
+  compra('p2', 'P-2', dias(-20), 'pendiente', 50.5, dias(-2)),     // vencida
+  compra('p3', 'P-3', dias(-5), 'pendiente', 200, dias(3)),        // vence esta semana
+  compra('p4', 'P-4', dias(-1), 'pendiente', 80, dias(40)),        // más adelante
+  { ...compra('p5', 'P-5', dias(-1), 'pendiente', 10, null), proveedor_id: 'pv2', proveedores: { nombre: 'Grúas Paco' } },
+  compra('p6', 'P-6', dias(-9), 'pagada', 999, null),
+];
+
+test('por pagar (datos de mentira): aviso en Inicio y contador en la barra llevan a la vista, agrupada por vencimiento', async ({ page }) => {
+  await simular(page, { lista: POR_PAGAR });
+  await login(page);
+  const aviso = page.getByTestId('aviso-pagos-proveedores');
+  await expect(aviso).toContainText('2 pagos a proveedores vencidos (150,50 €)', { timeout: 15_000 });
+  await expect(aviso).toContainText('1 que vence esta semana (200,00 €)');
+  await expect(page.getByTestId('contador-pagos')).toHaveText('3');
+  await aviso.getByRole('button', { name: /Ver lo que debo/ }).click();
+  await expect(page.getByTestId('por-pagar')).toBeVisible();
+  await expect(page.getByTestId('resumen-por-pagar')).toContainText('440,50 € en 5 facturas');         // las pagadas no se deben
+  await expect(page.getByTestId('resumen-por-pagar')).toContainText('150,50 € vencidos');
+  for (const g of ['vencidas', 'semana', 'proximas', 'sinFecha']) await expect(page.getByTestId(`grupo-${g}`)).toBeVisible();
+  await expect(page.getByTestId('grupo-vencidas').getByTestId('fila-por-pagar').first()).toContainText('P-1');   // la que lleva más tiempo vencida, arriba
+  await expect(page.getByTestId('grupo-vencidas')).toContainText('Vencida hace 10 días');
+  await expect(page.getByTestId('grupo-semana')).toContainText('Vence en 3 días');
+  await expect(page.getByTestId('grupo-sinFecha')).toContainText('Sin fecha de vencimiento');
+  await page.getByRole('button', { name: 'Por proveedor' }).click();
+  await expect(page.getByTestId('grupo-proveedor')).toHaveCount(2);
+  await expect(page.getByTestId('grupo-proveedor').first()).toContainText('Recambios Ruiz');             // el que más se le debe, primero
+  await expect(page.getByTestId('grupo-proveedor').first()).toContainText('430,50 €');
+});
+
+test('por pagar (datos de mentira): marcar varias como pagadas envía todas juntas con la fecha elegida', async ({ page }) => {
+  const rpcs = await simular(page, { lista: POR_PAGAR });
+  await irACompras(page);
+  await page.getByRole('tab', { name: /Por pagar/ }).click();
+  await expect(page.getByTestId('por-pagar')).toBeVisible();
+  await expect(page.getByTestId('barra-pago')).toHaveCount(0);                                           // sin selección no hay barra
+  await page.getByRole('checkbox', { name: 'Elegir todas: Vencidas' }).check();
+  await expect(page.getByTestId('barra-pago')).toContainText('2 seleccionadas · 150,50 €');
+  await page.getByRole('checkbox', { name: 'Elegir la compra P-3 de Recambios Ruiz' }).check();
+  await expect(page.getByTestId('barra-pago')).toContainText('3 seleccionadas · 350,50 €');
+  await page.getByTestId('pagar-seleccion').click();
+  const envio = await expect.poll(() => rpcs.find((r) => r.nombre === 'marcar_pago_compras')?.cuerpo).toMatchObject({ p_fecha_pago: iso(hoy) });
+  void envio;
+  const cuerpo = rpcs.find((r) => r.nombre === 'marcar_pago_compras')!.cuerpo;
+  expect((cuerpo.p_ids as string[]).sort()).toEqual(['p1', 'p2', 'p3']);
+  await expect(page.getByTestId('barra-pago')).toHaveCount(0);                                           // se limpia la selección
+});
+
+test('por pagar (datos de mentira): fecha anterior a la factura o rechazo del servidor se explican junto al botón y no se pierde la selección', async ({ page }) => {
+  await simular(page, { lista: POR_PAGAR, rpc: (n) => (n === 'marcar_pago_compras' ? { error: 'Alguna de las compras ya no está pendiente o no existe: recarga la lista.' } : null) });
+  await irACompras(page);
+  await page.getByRole('tab', { name: /Por pagar/ }).click();
+  await page.getByRole('checkbox', { name: 'Elegir la compra P-4 de Recambios Ruiz' }).check();       // factura de ayer
+  await page.getByLabel('Fecha de pago').fill(dias(-5));
+  await page.getByTestId('pagar-seleccion').click();
+  await expect(page.getByTestId('error-pago')).toContainText('no puede ser anterior a la de la factura más reciente');
+  await page.getByLabel('Fecha de pago').fill(iso(hoy));
+  await page.getByTestId('pagar-seleccion').click();
+  await expect(page.getByTestId('error-pago')).toContainText('ya no está pendiente');
+  await expect(page.getByTestId('barra-pago')).toContainText('1 seleccionada');
+});
+
+test('por pagar (datos de mentira): sin deudas se dice y no hay aviso en Inicio', async ({ page }) => {
+  await simular(page, { lista: [compra('z1', 'Z-1', dias(-3), 'pagada', 10, null)] });
+  await login(page);
+  await expect(page.getByTestId('aviso-pagos-proveedores')).toHaveCount(0);
+  await expect(page.getByTestId('contador-pagos')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Compras', exact: true }).click();
+  await page.getByRole('tab', { name: /Por pagar/ }).click();
+  await expect(page.getByTestId('nada-por-pagar')).toContainText('No debes nada a tus proveedores');
 });

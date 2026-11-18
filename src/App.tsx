@@ -15,6 +15,8 @@ import { avisoDelMecanico } from './utils/avisoMecanico';
 import { listAlertas, forzarRecordatorio } from './lib/data/alertas';
 import { listNotificaciones, deleteNotificacion } from './lib/data/notificaciones';
 import { createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
+import { listPagosCercanos } from './lib/data/compras';
+import { avisoPagos, hoyIso, sumarDias, type AvisoPagos } from './utils/compras';
 import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
 import { listCitas, createCita, updateCita, deleteCita } from './lib/data/citas';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
@@ -286,6 +288,9 @@ export default function App() {
   // `datosListos`: ya llegó la primera carga de clientes, vehículos y órdenes (la guía de primeros
   // pasos espera a esto para no enseñar pasos «pendientes» que en realidad ya están hechos).
   const [datosListos, setDatosListos] = useState(false);
+  // Pagos a proveedores que ya vencieron o vencen esta semana (aviso de Inicio y contador de la pestaña Compras).
+  const [pagosProv, setPagosProv] = useState<AvisoPagos | null>(null);
+  const [comprasVista, setComprasVista] = useState<'compras' | 'porpagar'>('compras');
   useEffect(() => {
     if (currentUser) {
       void Promise.allSettled([recargarVehiculos(), recargarClientes(), recargarOrdenes()]).then(() => setDatosListos(true));
@@ -596,6 +601,17 @@ export default function App() {
     setEmpresa(await updateEmpresa(currentUser.empresaId, config));
   }, [currentUser]);
 
+  const recargarPagos = useCallback(async () => {
+    if (!currentUser?.modulos.includes('compras')) { setPagosProv(null); return; }
+    try {
+      const hoy = hoyIso();
+      setPagosProv(avisoPagos(await listPagosCercanos(sumarDias(hoy, 7)), hoy));
+    } catch { setPagosProv(null); }
+  }, [currentUser]);
+  useEffect(() => { void recargarPagos(); }, [recargarPagos]);
+  const navegar = useCallback((tab: TabId, vista?: 'porpagar') => { setComprasVista(vista === 'porpagar' ? 'porpagar' : 'compras'); setActiveTab(tab); }, []);
+  const pagosAvisoCount = pagosProv ? pagosProv.vencidas.n + pagosProv.semana.n : 0;
+
   const activeAlertsCount = useMemo(() => alertas.filter(a => a.estado === 'activa').length, [alertas]);
 
   const brandColor = empresa?.brandColor ?? '#2563eb';
@@ -771,8 +787,9 @@ export default function App() {
           {tabDefs.map(tab => (
             <div key={tab.id} className="group relative">
               <button
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => navegar(tab.id)}
                 title={tab.label}
+                aria-label={tab.label}
                 className="relative w-11 h-11 rounded-2xl flex items-center justify-center transition cursor-pointer text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 style={activeTab === tab.id ? { backgroundColor: brandColor, color: brandText, boxShadow: `0 8px 16px -6px ${brandColor}99` } : undefined}
               >
@@ -780,6 +797,11 @@ export default function App() {
                 {tab.id === 'alertas' && activeAlertsCount > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-extrabold flex items-center justify-center border-2 border-white">
                     {activeAlertsCount}
+                  </span>
+                )}
+                {tab.id === 'compras' && pagosAvisoCount > 0 && (
+                  <span data-testid="contador-pagos" className={`absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-extrabold flex items-center justify-center border-2 border-white ${pagosProv && pagosProv.vencidas.n > 0 ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                    {pagosAvisoCount}
                   </span>
                 )}
               </button>
@@ -849,12 +871,15 @@ export default function App() {
               {tabDefs.map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setMobileMenuOpen(false); }}
+                  onClick={() => { navegar(tab.id); setMobileMenuOpen(false); }}
                   className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-slate-700 block hover:bg-slate-50 flex justify-between"
                 >
                   <span>{tab.emoji} {tab.label}</span>
                   {tab.id === 'alertas' && activeAlertsCount > 0 && (
                     <span className="px-2 py-0.5 bg-rose-500 text-white font-bold text-[9px] rounded-full">{activeAlertsCount}</span>
+                  )}
+                  {tab.id === 'compras' && pagosAvisoCount > 0 && (
+                    <span className={`px-2 py-0.5 text-white font-bold text-[9px] rounded-full ${pagosProv && pagosProv.vencidas.n > 0 ? 'bg-rose-500' : 'bg-amber-500'}`}>{pagosAvisoCount}</span>
                   )}
                 </button>
               ))}
@@ -899,7 +924,8 @@ export default function App() {
             empresa={empresa}
             nOrdenes={ordenesTrabajo.length}
             datosListos={datosListos}
-            onNavigate={setActiveTab}
+            onNavigate={navegar}
+            pagosProveedores={pagosProv}
             onAbrirEmpresa={(pestana) => { setSettingsTab(pestana); setSettingsOpen(true); }}
           />
         )}
@@ -993,7 +1019,7 @@ export default function App() {
         )}
 
         {activeTab === 'compras' && (
-          <ComprasTab productos={productos} onStockCambiado={recargarProductos} empresa={empresa} clientes={clientes} puedeFacturas={activeModulos.includes('facturas')} />
+          <ComprasTab productos={productos} onStockCambiado={recargarProductos} empresa={empresa} clientes={clientes} puedeFacturas={activeModulos.includes('facturas')} vistaInicial={comprasVista} onPagosCambiados={() => void recargarPagos()} />
         )}
 
         {activeTab === 'inventario' && (

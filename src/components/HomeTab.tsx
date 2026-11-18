@@ -3,6 +3,7 @@ import { Cita, Cliente, Vehiculo, Alerta, Perfil, ModuloId, Empresa } from '../t
 import { getFacturasResumen, FacturasResumen } from '../lib/data/facturas';
 import { listOrdenesActivas, OrdenActiva } from '../lib/data/ordenes';
 import { fmt2 } from '../utils/moneda';
+import type { AvisoPagos } from '../utils/compras';
 import { listTecnicos } from '../lib/data/tecnicos';
 import GuiaInicial from './GuiaInicial';
 import type { AccionPaso } from '../utils/guiaInicial';
@@ -23,7 +24,10 @@ interface Props {
   nOrdenes: number;
   /** Ya llegó la primera carga de clientes, vehículos y órdenes. */
   datosListos: boolean;
-  onNavigate: (tab: ModuloId) => void;
+  /** `vista`: abre Compras directamente en «Por pagar». */
+  onNavigate: (tab: ModuloId, vista?: 'porpagar') => void;
+  /** Lo que se debe a proveedores y ya venció o vence esta semana (null si no tienes Compras o aún carga). */
+  pagosProveedores?: AvisoPagos | null;
   onAbrirEmpresa: (pestana: Extract<AccionPaso, { tipo: 'empresa' }>['pestana']) => void;
 }
 
@@ -42,7 +46,7 @@ const OT_LABEL: Record<string, string> = {
 };
 
 export default function HomeTab({
-  currentUser, citas, clientes, vehiculos, alertas, modulos, brandColor, empresa, nOrdenes, datosListos, onNavigate, onAbrirEmpresa,
+  currentUser, citas, clientes, vehiculos, alertas, modulos, brandColor, empresa, nOrdenes, datosListos, onNavigate, pagosProveedores, onAbrirEmpresa,
 }: Props) {
   const puede = (m: ModuloId) => modulos.includes(m);
 
@@ -152,6 +156,20 @@ export default function HomeTab({
           </span>
           <button onClick={() => onNavigate('facturas')} className="ml-auto font-extrabold underline underline-offset-2 whitespace-nowrap cursor-pointer">
             Ver facturas →
+          </button>
+        </div>
+      )}
+
+      {puede('compras') && pagosProveedores?.hay && (
+        <div className={`flex flex-wrap items-center gap-3 rounded-2xl px-4 py-3 mb-5 text-sm font-semibold border ${pagosProveedores.vencidas.n > 0 ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-amber-50 border-amber-200 text-amber-800'}`} data-testid="aviso-pagos-proveedores">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>
+            {pagosProveedores.vencidas.n > 0 && <>Tienes {pagosProveedores.vencidas.n} pago{pagosProveedores.vencidas.n !== 1 ? 's' : ''} a proveedores vencido{pagosProveedores.vencidas.n !== 1 ? 's' : ''} ({fmtMoney(pagosProveedores.vencidas.importe)} €)</>}
+            {pagosProveedores.vencidas.n > 0 && pagosProveedores.semana.n > 0 && ' y '}
+            {pagosProveedores.semana.n > 0 && <>{pagosProveedores.vencidas.n > 0 ? '' : 'Tienes '}{pagosProveedores.semana.n} que vence{pagosProveedores.semana.n !== 1 ? 'n' : ''} esta semana ({fmtMoney(pagosProveedores.semana.importe)} €)</>}
+          </span>
+          <button onClick={() => onNavigate('compras', 'porpagar')} className="ml-auto font-extrabold underline underline-offset-2 whitespace-nowrap cursor-pointer">
+            Ver lo que debo →
           </button>
         </div>
       )}

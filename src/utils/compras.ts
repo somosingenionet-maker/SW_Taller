@@ -4,6 +4,9 @@
 // no arrastrar errores de coma flotante.
 import type { Compra } from '../types';
 
+/** Hoy, «AAAA-MM-DD», en la hora local del navegador (la del taller). */
+export const hoyIso = (d: Date = new Date()): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
 const aEntero = (n: number, escala: number) => Math.round((Number.isFinite(n) ? n : 0) * escala);
 
 /** Céntimos del subtotal de una línea: cantidad (2 decimales) × precio (2 decimales), media hacia arriba. */
@@ -92,4 +95,74 @@ export function validarCompra(f: FormCompraBasico, hoy: string): string | null {
     if (!(l.precioUnitario >= 0)) return `Línea ${n}: el precio no puede ser negativo.`;
   }
   return null;
+}
+
+// ---------- Cuentas por pagar ----------
+
+/** Días de aquí a una fecha «AAAA-MM-DD» (negativo si ya pasó). Sin zonas horarias: solo fechas del calendario. */
+export function diasHasta(fecha: string, hoy: string): number {
+  const f = (s: string) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((f(fecha) - f(hoy)) / 86400000);
+}
+
+/** «Vencida hace 5 días», «Vence hoy», «Vence mañana», «Vence en 3 días». */
+export function etiquetaVencimiento(vencimiento: string | undefined, hoy: string): string {
+  if (!vencimiento) return 'Sin fecha de vencimiento';
+  const d = diasHasta(vencimiento, hoy);
+  if (d < 0) return d === -1 ? 'Vencida ayer' : `Vencida hace ${-d} días`;
+  if (d === 0) return 'Vence hoy';
+  if (d === 1) return 'Vence mañana';
+  return `Vence en ${d} días`;
+}
+
+export type ClaveGrupoPago = 'vencidas' | 'semana' | 'proximas' | 'sinFecha';
+export interface GrupoPago<T> { clave: ClaveGrupoPago; titulo: string; compras: T[]; total: number }
+type PorPagar = Pick<Compra, 'estado' | 'fechaVencimiento' | 'total'>;
+
+/** Pendientes agrupadas por urgencia (vencidas, esta semana, próximas, sin fecha); dentro de cada grupo, la que vence antes arriba. Grupos vacíos fuera. */
+export function agruparPorPagar<T extends PorPagar>(compras: T[], hoy: string): GrupoPago<T>[] {
+  const grupos: Record<ClaveGrupoPago, T[]> = { vencidas: [], semana: [], proximas: [], sinFecha: [] };
+  for (const c of compras) {
+    if (c.estado !== 'pendiente') continue;
+    if (!c.fechaVencimiento) { grupos.sinFecha.push(c); continue; }
+    const d = diasHasta(c.fechaVencimiento, hoy);
+    (d < 0 ? grupos.vencidas : d <= 7 ? grupos.semana : grupos.proximas).push(c);
+  }
+  const titulos: Record<ClaveGrupoPago, string> = { vencidas: 'Vencidas', semana: 'Vencen en los próximos 7 días', proximas: 'Más adelante', sinFecha: 'Sin fecha de vencimiento' };
+  return (['vencidas', 'semana', 'proximas', 'sinFecha'] as const)
+    .filter((k) => grupos[k].length > 0)
+    .map((k) => ({
+      clave: k, titulo: titulos[k],
+      compras: grupos[k].sort((a, b) => (a.fechaVencimiento ?? '9999').localeCompare(b.fechaVencimiento ?? '9999')),
+      total: grupos[k].reduce((s, c) => s + Math.round(c.total * 100), 0) / 100,
+    }));
+}
+
+export interface DeudaProveedor { proveedorId: string; nombre: string; facturas: number; total: number; vencido: number }
+/** Lo que se debe a cada proveedor (pendientes), de más a menos, con la parte vencida. */
+export function deudaPorProveedor(compras: (PorPagar & Pick<Compra, 'proveedorId' | 'proveedorNombre'>)[], hoy: string): DeudaProveedor[] {
+  const por = new Map<string, { nombre: string; n: number; t: number; v: number }>();
+  for (const c of compras) {
+    if (c.estado !== 'pendiente') continue;
+    const a = por.get(c.proveedorId) ?? { nombre: c.proveedorNombre, n: 0, t: 0, v: 0 };
+    const t = Math.round(c.total * 100);
+    a.n++; a.t += t;
+    if (c.fechaVencimiento && diasHasta(c.fechaVencimiento, hoy) < 0) a.v += t;
+    por.set(c.proveedorId, a);
+  }
+  return [...por.entries()].map(([proveedorId, a]) => ({ proveedorId, nombre: a.nombre, facturas: a.n, total: a.t / 100, vencido: a.v / 100 }))
+    .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
+}
+
+export interface AvisoPagos { vencidas: { n: number; importe: number }; semana: { n: number; importe: number }; hay: boolean }
+/** Lo que merece un aviso: lo ya vencido y lo que vence en los próximos 7 días (hoy incluido). */
+export function avisoPagos(compras: PorPagar[], hoy: string): AvisoPagos {
+  const v = { n: 0, c: 0 }, s = { n: 0, c: 0 };
+  for (const c of compras) {
+    if (c.estado !== 'pendiente' || !c.fechaVencimiento) continue;
+    const d = diasHasta(c.fechaVencimiento, hoy);
+    const t = Math.round(c.total * 100);
+    if (d < 0) { v.n++; v.c += t; } else if (d <= 7) { s.n++; s.c += t; }
+  }
+  return { vencidas: { n: v.n, importe: v.c / 100 }, semana: { n: s.n, importe: s.c / 100 }, hay: v.n + s.n > 0 };
 }

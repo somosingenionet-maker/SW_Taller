@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcularCompra, cuotaCent, estadoVisible, resumenPagos, subtotalCent, sumarDias, validarCompra, vencimientoSugerido } from './compras';
+import { agruparPorPagar, avisoPagos, calcularCompra, cuotaCent, deudaPorProveedor, diasHasta, estadoVisible, etiquetaVencimiento, resumenPagos, subtotalCent, sumarDias, validarCompra, vencimientoSugerido } from './compras';
 
 describe('importes (mismos redondeos que el servidor)', () => {
   it('coincide con los casos comprobados contra la base de datos', () => {
@@ -76,5 +76,52 @@ describe('validación del formulario', () => {
   });
   it('una línea con producto no necesita descripción escrita', () => {
     expect(validarCompra({ ...ok, lineas: [{ ...ok.lineas[0], productoId: 'x', descripcion: '' }] }, hoy)).toBeNull();
+  });
+});
+
+describe('cuentas por pagar', () => {
+  const hoy = '2026-11-18';
+  const P = (id: string, venc: string | undefined, total: number, prov = 'p1', estado: 'pendiente' | 'pagada' | 'anulada' = 'pendiente') =>
+    ({ id, estado, fechaVencimiento: venc, total, proveedorId: prov, proveedorNombre: prov === 'p1' ? 'Recambios Ruiz' : 'Grúas Paco' });
+
+  it('diasHasta cuenta días de calendario, también entre meses y años', () => {
+    expect(diasHasta('2026-11-18', hoy)).toBe(0);
+    expect(diasHasta('2026-11-25', hoy)).toBe(7);
+    expect(diasHasta('2026-11-10', hoy)).toBe(-8);
+    expect(diasHasta('2027-01-01', '2026-12-31')).toBe(1);
+    expect(diasHasta('2028-03-01', '2028-02-28')).toBe(2);     // bisiesto
+  });
+  it('etiquetas de vencimiento', () => {
+    expect(etiquetaVencimiento('2026-11-13', hoy)).toBe('Vencida hace 5 días');
+    expect(etiquetaVencimiento('2026-11-17', hoy)).toBe('Vencida ayer');
+    expect(etiquetaVencimiento('2026-11-18', hoy)).toBe('Vence hoy');
+    expect(etiquetaVencimiento('2026-11-19', hoy)).toBe('Vence mañana');
+    expect(etiquetaVencimiento('2026-11-28', hoy)).toBe('Vence en 10 días');
+    expect(etiquetaVencimiento(undefined, hoy)).toBe('Sin fecha de vencimiento');
+  });
+  it('agrupa por urgencia, ordena por vencimiento dentro de cada grupo, suma en céntimos y deja fuera pagadas y anuladas', () => {
+    const g = agruparPorPagar([
+      P('a', '2026-11-10', 100.1), P('b', '2026-11-01', 50.2), P('c', '2026-11-18', 10), P('d', '2026-11-25', 5.05), P('e', '2026-11-26', 7),
+      P('f', undefined, 1), P('g', '2026-10-01', 999, 'p1', 'pagada'), P('h', '2026-10-01', 999, 'p1', 'anulada'),
+    ], hoy);
+    expect(g.map((x) => x.clave)).toEqual(['vencidas', 'semana', 'proximas', 'sinFecha']);
+    expect(g[0].compras.map((c) => c.id)).toEqual(['b', 'a']);        // la que lleva más tiempo vencida, primero
+    expect(g[0].total).toBe(150.3);
+    expect(g[1].compras.map((c) => c.id)).toEqual(['c', 'd']);        // hoy y dentro de 7 días entran en «próximos 7 días»
+    expect(g[2].compras.map((c) => c.id)).toEqual(['e']);             // dentro de 8 días ya es «más adelante»
+    expect(agruparPorPagar([P('x', '2026-11-30', 1, 'p1', 'pagada')], hoy)).toEqual([]);
+  });
+  it('deuda por proveedor: de mayor a menor, con la parte vencida', () => {
+    const d = deudaPorProveedor([P('a', '2026-11-10', 100), P('b', '2026-12-10', 20), P('c', '2026-11-01', 150, 'p2'), P('d', undefined, 0.5, 'p2'), P('e', '2026-11-01', 999, 'p2', 'pagada')], hoy);
+    expect(d).toEqual([
+      { proveedorId: 'p2', nombre: 'Grúas Paco', facturas: 2, total: 150.5, vencido: 150 },
+      { proveedorId: 'p1', nombre: 'Recambios Ruiz', facturas: 2, total: 120, vencido: 100 },
+    ]);
+  });
+  it('aviso: lo vencido y lo que vence en 7 días; sin fecha no avisa; sin nada pendiente no hay aviso', () => {
+    expect(avisoPagos([P('a', '2026-11-10', 100), P('b', '2026-11-18', 20), P('c', '2026-11-25', 30), P('d', '2026-11-26', 40), P('e', undefined, 50)], hoy))
+      .toEqual({ vencidas: { n: 1, importe: 100 }, semana: { n: 2, importe: 50 }, hay: true });
+    expect(avisoPagos([P('d', '2026-11-26', 40)], hoy).hay).toBe(false);
+    expect(avisoPagos([], hoy)).toEqual({ vencidas: { n: 0, importe: 0 }, semana: { n: 0, importe: 0 }, hay: false });
   });
 });

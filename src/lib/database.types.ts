@@ -2398,6 +2398,10 @@ export type Database = {
         Args: { p_fecha_pago: string; p_id: string }
         Returns: undefined
       }
+      marcar_pago_compras: {
+        Args: { p_fecha_pago: string; p_ids: string[] }
+        Returns: number
+      }
       mi_empresa_id: { Args: never; Returns: string }
       mi_suscripcion: { Args: never; Returns: Json }
       ordenes_por_rango_recepcion: {

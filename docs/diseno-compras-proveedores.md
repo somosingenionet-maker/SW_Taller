@@ -43,6 +43,16 @@ proveedor. Cierra el círculo con la gestoría: el libro de recibidas y el IVA r
 - Se arma en el navegador (descarga de 4 en 4 con enlaces firmados de 15 minutos, reintento por archivo, barra de progreso y cancelar). Límite de 400 MB por ZIP:
   por encima pide un periodo más corto. Compresión «almacenar» (PDF y JPG ya van comprimidos).
 
+## Cuentas por pagar (2026-11-22)
+- **Vista «Por pagar»** (tercera pestaña de Compras, con el nº de facturas pendientes): lo que se debe ordenado por urgencia — vencidas, vencen en los próximos 7
+  días (hoy incluido), más adelante, sin fecha — con el total de cada grupo; o agrupado **por proveedor** (cuánto se le debe a cada uno y cuánto de eso ya venció).
+  Cada fila dice «Vencida hace 5 días», «Vence mañana»… y abre el detalle.
+- **Pago en lote**: se eligen varias (o un grupo entero) y se marcan pagadas con una fecha. `marcar_pago_compras` es todo o nada: si alguna ya no está pendiente,
+  no existe, es de otra empresa o la fecha es anterior a la de una factura, no se marca ninguna. Máximo 200 de una vez; sin fecha futura.
+- **Avisos en pantalla** (sin correos nuevos): banner en Inicio («Tienes N pagos a proveedores vencidos (X €) y M que vencen esta semana → Ver lo que debo»), que abre
+  directamente «Por pagar», y contador en la pestaña Compras (rojo si hay vencidos, ámbar si solo vencen esta semana). Solo para quien tiene el módulo Compras.
+- Los botones de la barra lateral llevan ahora `aria-label`: con un contador dentro, su nombre accesible pasaba a ser solo el número.
+
 ## Para más adelante
-Cuentas por pagar con avisos de vencimiento, pedido sugerido
+Correo semanal opcional con lo vencido y lo que vence (función + tarea programada + interruptor, apagado por defecto) con avisos de vencimiento, pedido sugerido
 al proveedor desde el stock bajo, gastos recurrentes, gastos no deducibles / IVA no deducible, retenciones (IRPF) y recargo de equivalencia.

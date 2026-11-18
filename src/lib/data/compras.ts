@@ -26,7 +26,7 @@ const mapLinea = (l: LineaRow): CompraLinea => ({
   precioUnitario: Number(l.precio_unitario), ivaPct: Number(l.iva_pct), subtotal: Number(l.subtotal),
 });
 
-export interface FiltroCompras { desde?: string; hastaExcluido?: string; limite?: number }
+export interface FiltroCompras { desde?: string; hastaExcluido?: string; limite?: number; estado?: EstadoCompra }
 
 /** Compras (sin líneas), de la más reciente a la más antigua. */
 export async function listCompras(f: FiltroCompras = {}): Promise<{ compras: Compra[]; hayMas: boolean }> {
@@ -34,10 +34,22 @@ export async function listCompras(f: FiltroCompras = {}): Promise<{ compras: Com
   let q = supabase.from('compras').select(SELECT).order('fecha', { ascending: false }).order('created_at', { ascending: false }).limit(limite + 1);
   if (f.desde) q = q.gte('fecha', f.desde);
   if (f.hastaExcluido) q = q.lt('fecha', f.hastaExcluido);
+  if (f.estado) q = q.eq('estado', f.estado);
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   const filas = (data ?? []).map((r) => mapCompra(r as unknown as Row));
   return { compras: filas.slice(0, limite), hayMas: filas.length > limite };
+}
+
+/**
+ * Pendientes de pago con vencimiento hasta `hasta` (incluido) — vencidas y próximas — para los avisos de Inicio y de la barra lateral.
+ * Devuelve solo lo mínimo; un usuario sin el módulo Compras recibe una lista vacía.
+ */
+export async function listPagosCercanos(hasta: string): Promise<Pick<Compra, 'id' | 'estado' | 'fechaVencimiento' | 'total'>[]> {
+  const { data, error } = await supabase.from('compras').select('id, estado, fecha_vencimiento, total')
+    .eq('estado', 'pendiente').not('fecha_vencimiento', 'is', null).lte('fecha_vencimiento', hasta).limit(1000);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({ id: r.id as string, estado: 'pendiente' as const, fechaVencimiento: r.fecha_vencimiento as string, total: Number(r.total) }));
 }
 
 /** Una compra con sus líneas. */
@@ -79,6 +91,13 @@ export async function editarDatosCompra(id: string, d: { numero: string; fecha: 
 export async function marcarPagoCompra(id: string, fechaPago: string | null): Promise<void> {
   const { error } = await supabase.rpc('marcar_pago_compra', { p_id: id, p_fecha_pago: fechaPago as unknown as string });
   if (error) throw new Error(error.message);
+}
+
+/** Marca varias compras pendientes como pagadas en la misma fecha: todas o ninguna. Devuelve cuántas. */
+export async function marcarPagoComprasLote(ids: string[], fechaPago: string): Promise<number> {
+  const { data, error } = await supabase.rpc('marcar_pago_compras', { p_ids: ids, p_fecha_pago: fechaPago });
+  if (error) throw new Error(error.message);
+  return Number(data);
 }
 
 export async function anularCompra(id: string): Promise<void> {
