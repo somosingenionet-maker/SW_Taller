@@ -52,7 +52,8 @@ test('todas las pestañas cargan dentro del marco nuevo', async ({ page }) => {
     await expect(page.locator('main h2').first(), `${t} no pinta su título`).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText('Algo salió mal')).toHaveCount(0);
     await expect(menu.getByRole('button', { name: new RegExp(`^${t}`) })).toHaveAttribute('aria-current', 'page');
-    if (t === 'En el taller') await captura(page, 'escritorio-taller');
+    await page.waitForTimeout(300);
+    await captura(page, `pestana-${t.toLowerCase().replace(/ /g, '-')}`);
   }
   expect(fallos, fallos.join('\n')).toEqual([]);
 });
@@ -135,5 +136,64 @@ test('en el móvil hay barra inferior con «Más» y no hay desplazamiento horiz
   await expect(page.locator('main h2').first()).toBeVisible({ timeout: 15_000 });
   const desborda = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(desborda, 'hay desplazamiento horizontal en el móvil').toBe(false);
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('Hoy: lista lo que hay en el taller y cada fila lleva a su orden', async ({ page }) => {
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await activarNuevo(page);
+  await expect(page.locator('main h2').first()).toContainText(/Buenos días|Buenas tardes|Buenas noches/);
+  await expect(page.getByTestId('hoy-recibir')).toBeVisible();
+  await expect(page.getByText(/Dentro del taller/)).toBeVisible();
+  const filas = page.getByTestId('hoy-orden');
+  await expect(filas.first()).toBeVisible({ timeout: 15_000 });
+  await captura(page, 'escritorio-hoy-2');
+  await filas.first().click();
+  await expect(page.getByRole('navigation', { name: 'Menú principal', exact: true }).getByRole('button', { name: 'En el taller' })).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('main input:not([type]), main input[type="text"], main input[type="search"]').first()).toHaveValue(/OT-/);
+
+  // «Recibir un coche» abre la recepción.
+  await page.getByRole('navigation', { name: 'Menú principal', exact: true }).getByRole('button', { name: 'Hoy' }).click();
+  await page.getByTestId('hoy-recibir').click();
+  await expect(page.getByText('Nueva Orden de Trabajo').first()).toBeVisible({ timeout: 15_000 });
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('Taller: el tablero enseña matrículas y la ficha de la orden se abre en una ventana centrada', async ({ page }) => {
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await activarNuevo(page);
+  await page.getByRole('navigation', { name: 'Menú principal', exact: true }).getByRole('button', { name: 'En el taller' }).click();
+  await page.getByTitle('Vista de tablero').click();
+  const tablero = page.getByTestId('tablero-taller');
+  await expect(tablero).toBeVisible({ timeout: 15_000 });
+  await expect(tablero.getByTestId('tarjeta-orden').first()).toBeVisible();
+  await expect(tablero.getByRole('img', { name: /^Matrícula / }).first()).toBeVisible();
+  await captura(page, 'escritorio-tablero');
+
+  // El botón del siguiente paso de un presupuesto abre la recepción (no cambia nada hasta confirmarla).
+  const presupuesto = tablero.getByRole('region', { name: /^Presupuesto:/ });
+  if (await presupuesto.getByTestId('tarjeta-orden').count() > 0) {
+    await presupuesto.getByTestId('siguiente-paso').first().click();
+    await expect(page.getByText('Recibir vehículo en taller')).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await expect(page.getByText('Recibir vehículo en taller')).toHaveCount(0);
+  }
+
+  // Abrir una orden: ventana centrada, no un panel pegado a la derecha.
+  const ficha = page.locator('[data-panel-lateral]').first();
+  // (al cancelar la recepción de arriba, la propia aplicación deja abierta la ficha de esa orden)
+  if (!(await ficha.isVisible())) await tablero.getByTestId('tarjeta-orden').first().getByRole('button', { name: /^Abrir / }).click();
+  await expect(ficha).toBeVisible({ timeout: 10_000 });
+  await page.waitForTimeout(400); // fin del fundido de entrada
+  const caja = await ficha.boundingBox();
+  const ancho = page.viewportSize()!.width;
+  expect(caja, 'la ficha no tiene caja').not.toBeNull();
+  expect(Math.abs((caja!.x + caja!.width / 2) - ancho / 2), 'la ficha no está centrada').toBeLessThan(4);
+  expect(caja!.width, 'la ficha es demasiado estrecha').toBeGreaterThan(800);
+  await expect(ficha.getByTestId('pasos-orden').getByRole('listitem')).toHaveCount(5);
+  await expect(ficha.getByTestId('pasos-orden').locator('[aria-current="step"]')).toHaveCount(1);
+  await captura(page, 'escritorio-orden');
   expect(fallos, fallos.join('\n')).toEqual([]);
 });

@@ -59,6 +59,7 @@ const AgendaTab = lazyConReintento(cargarAgenda);
 const ComprasTab = lazyConReintento(cargarCompras);
 // El marco del nuevo diseño (y sus estilos) es un trozo aparte: quien usa la interfaz actual no lo descarga.
 const Marco = lazyConReintento(() => import('./ui/Marco'));
+const Hoy = lazyConReintento(() => import('./ui/Hoy'));
 const MfaChallenge = lazyConReintento(() => import('./components/MfaChallenge'));
 const SeguridadModal = lazyConReintento(() => import('./components/SeguridadModal'));
 const SuscripcionPanel = lazyConReintento(() => import('./components/SuscripcionPanel'));
@@ -716,7 +717,25 @@ export default function App() {
 
   const contenido = (
         <Suspense fallback={<Cargando />}>
-        {activeTab === 'inicio' && (
+        {activeTab === 'inicio' && diseno === 'nuevo' && (
+          <Hoy
+            currentUser={currentUser}
+            citas={citas}
+            clientes={clientes}
+            vehiculos={vehiculos}
+            alertas={alertas}
+            modulos={activeModulos}
+            empresa={empresa}
+            ordenes={ordenesTrabajo}
+            datosListos={datosListos}
+            onIr={irA}
+            onNavegar={navegar}
+            pagosProveedores={pagosProv}
+            onAbrirEmpresa={(pestana) => { setSettingsTab(pestana); setSettingsOpen(true); }}
+          />
+        )}
+
+        {activeTab === 'inicio' && diseno !== 'nuevo' && (
           <HomeTab
             currentUser={currentUser}
             citas={citas}

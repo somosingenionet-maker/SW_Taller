@@ -29,6 +29,8 @@ import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
 import type { Intencion } from '../ui/navegacion';
+import TableroTaller from '../ui/TableroTaller';
+import PasosOrden from '../ui/PasosOrden';
 
 interface Props {
   ordenes: OrdenTrabajo[];
@@ -57,6 +59,14 @@ const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string; 
   entregado:     { label: 'Entregado',     color: 'text-teal-700',   bg: 'bg-teal-100', dot: 'bg-teal-500' },
   cancelado:     { label: 'Cancelado',     color: 'text-rose-600',   bg: 'bg-rose-50', dot: 'bg-rose-500' },
 };
+
+/** ¿Está activo el diseño nuevo? Cambiar de diseño vuelve a montar las pestañas, así que basta leerlo al pintar. */
+const esDisenoNuevo = () => document.documentElement.dataset.ui === 'nuevo';
+
+/** Entrada de las fichas de la orden: en el diseño actual se deslizan desde la derecha; en el nuevo son una ventana centrada que aparece con un fundido. */
+const ENTRADA_PANEL = () => (esDisenoNuevo()
+  ? { initial: { opacity: 0, scale: 0.97 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.97 }, transition: { duration: 0.16 } }
+  : { initial: { x: '100%' }, animate: { x: 0 }, exit: { x: '100%' }, transition: { type: 'spring' as const, damping: 28, stiffness: 260 } });
 
 const ESTADO_FLOW: OTEstado[] = [
   'presupuesto', 'recibido', 'en_reparacion', 'listo', 'entregado'
@@ -912,6 +922,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   };
 
   const totalesSelected = selected ? calcTotals(selected.lineas, selected.ivaPct) : null;
+  const Tablero = esDisenoNuevo() ? TableroTaller : KanbanBoard;
 
   return (
     <>
@@ -990,7 +1001,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               <AlertCircle size={14} className="shrink-0" /> {kanbanAviso}
             </div>
           )}
-          <KanbanBoard
+          <Tablero
             ordenes={filtered}
             vehiculos={vehiculos}
             clientes={clientes}
@@ -1087,10 +1098,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               onClick={() => setSelected(null)}
             />
             <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              {...ENTRADA_PANEL()}
+              data-panel-lateral
               className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl z-40 flex flex-col overflow-hidden"
             >
               {/* Panel header */}
@@ -1124,6 +1133,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   </button>
                 </div>
               </div>
+
+              {esDisenoNuevo() && <PasosOrden estado={selected.estado} onSiguiente={(e) => handleEstadoChange(selected, e)} />}
 
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
                 {/* Vehicle + Client */}
@@ -1638,8 +1649,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               onClick={() => setIsEditing(false)}
             />
             <motion.div
-              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              {...ENTRADA_PANEL()}
+              data-panel-lateral
               className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white shadow-2xl z-50 flex flex-col overflow-hidden"
             >
               <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
