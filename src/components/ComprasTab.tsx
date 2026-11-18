@@ -1,9 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Ban, Check, CircleDollarSign, Eye, FileSpreadsheet, Plus, Search, ShoppingCart, Undo2, X } from 'lucide-react';
-import type { Cliente, Compra, Empresa, Producto, Proveedor } from '../types';
+import { AlertTriangle, Ban, Check, CircleDollarSign, Eye, FileSpreadsheet, FileText, Image as ImagenIcono, Paperclip, Plus, Search, ShoppingCart, Trash2, Undo2, X } from 'lucide-react';
+import type { Cliente, Compra, CompraAdjunto, Empresa, Producto, Proveedor } from '../types';
 import { anularCompra, editarDatosCompra, getCompra, listCompras, marcarPagoCompra } from '../lib/data/compras';
 import { listProveedores } from '../lib/data/proveedores';
-import { avisarError, avisarOk } from '../lib/avisos';
+import { avisar, avisarError, avisarOk } from '../lib/avisos';
+import { borrarAdjunto, listAdjuntos, subirAdjunto, urlAdjunto } from '../lib/data/comprasAdjuntos';
+import { abrirEnPestana } from '../utils/whatsapp';
+import { cabenArchivos, esImagen, formatoTamano, MAX_ADJUNTOS, validarArchivoFactura } from '../utils/adjuntos';
 import { estadoVisible, resumenPagos, type EstadoVisible } from '../utils/compras';
 import { periodoAño, periodoMes, periodoTrimestre } from '../utils/gestoria';
 import { fmt2 } from '../utils/moneda';
@@ -173,7 +176,7 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
                         <tr key={c.id} className={c.estado === 'anulada' ? 'opacity-60' : ''} data-testid="fila-compra">
                           <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">{formatDate(c.fecha)}</td>
                           <td className="px-3 py-2.5 font-bold text-slate-800">{c.proveedorNombre}</td>
-                          <td className="px-3 py-2.5 text-slate-600">{c.numero}</td>
+                          <td className="px-3 py-2.5 text-slate-600">{c.numero}{(c.numAdjuntos ?? 0) > 0 && <Paperclip className="inline w-3.5 h-3.5 ml-1.5 text-slate-400" aria-label="Tiene factura adjunta" data-testid="compra-con-adjunto" />}</td>
                           <td className="px-3 py-2.5 text-right font-bold text-slate-800 whitespace-nowrap">{fmt2(c.total)} €</td>
                           <td className="px-3 py-2.5"><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADO_UI[ev].clase}`}>{ESTADO_UI[ev].texto}</span>
                             {ev === 'vencida' && c.fechaVencimiento && <span className="block text-[10px] text-rose-500 mt-0.5">desde el {formatDate(c.fechaVencimiento)}</span>}</td>
@@ -195,18 +198,22 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
         </Suspense>
       )}
       {nueva && (
-        <CompraForm proveedores={proveedores} productos={productos} onProveedorCreado={(p) => setProveedores((ps) => [...ps, p].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')))} onClose={() => setNueva(false)}
-          onGuardada={(tocaStock) => { setNueva(false); avisarOk('Compra registrada.'); void cargar(); if (tocaStock) void onStockCambiado(); }} />
+        <CompraForm proveedores={proveedores} productos={productos} empresaId={empresa.id} onProveedorCreado={(p) => setProveedores((ps) => [...ps, p].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')))} onClose={() => setNueva(false)}
+          onGuardada={(tocaStock, fallidos) => {
+            setNueva(false); void cargar(); if (tocaStock) void onStockCambiado();
+            if (fallidos.length === 0) avisarOk('Compra registrada.');
+            else avisar({ tipo: 'error', mensaje: `La compra se guardó, pero ${fallidos.join(' ')} Ábrela y adjunta el archivo de nuevo.` });
+          }} />
       )}
       {detalle && (
-        <CompraDetalle id={detalle} hoy={hoy} onClose={() => setDetalle(null)}
+        <CompraDetalle id={detalle} hoy={hoy} empresaId={empresa.id} onClose={() => setDetalle(null)}
           onCambio={(tocaStock) => { void cargar(); if (tocaStock) void onStockCambiado(); }} />
       )}
     </div>
   );
 }
 
-function CompraDetalle({ id, hoy, onClose, onCambio }: { id: string; hoy: string; onClose: () => void; onCambio: (tocaStock: boolean) => void }) {
+function CompraDetalle({ id, hoy, empresaId, onClose, onCambio }: { id: string; hoy: string; empresaId: string; onClose: () => void; onCambio: (tocaStock: boolean) => void }) {
   const [c, setC] = useState<Compra | null>(null);
   const [editando, setEditando] = useState(false);
   const [borrador, setBorrador] = useState({ numero: '', fecha: '', fechaVencimiento: '', notas: '' });
@@ -270,6 +277,8 @@ function CompraDetalle({ id, hoy, onClose, onCambio }: { id: string; hoy: string
         </div>
         {c.notas && <p className="text-xs text-slate-500 whitespace-pre-wrap"><span className="font-bold">Notas: </span>{c.notas}</p>}
 
+        <AdjuntosCompra compraId={c.id} empresaId={empresaId} puedeCambiar={abierta} onCambio={() => onCambio(false)} />
+
         {editando && (
           <div className="rounded-2xl border border-slate-200 p-4 space-y-3" data-testid="editar-datos">
             <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Corregir datos</p>
@@ -312,6 +321,79 @@ function CompraDetalle({ id, hoy, onClose, onCambio }: { id: string; hoy: string
           confirmLabel="Anular compra" onCancel={() => setAnular(false)}
           onConfirm={() => { setAnular(false); void ejecutar(() => anularCompra(c.id), 'Compra anulada.', tieneProductos); }} />
       </div>
+    </div>
+  );
+}
+
+/** Los archivos de una compra (la factura del proveedor): ver, quitar y añadir. */
+function AdjuntosCompra({ compraId, empresaId, puedeCambiar, onCambio }: { compraId: string; empresaId: string; puedeCambiar: boolean; onCambio: () => void }) {
+  const [lista, setLista] = useState<CompraAdjunto[] | null>(null);
+  const [subiendo, setSubiendo] = useState('');
+  const [error, setError] = useState('');
+  const [aQuitar, setAQuitar] = useState<CompraAdjunto | null>(null);
+  const selector = useCallback((el: HTMLInputElement | null) => { if (el) el.value = ''; }, []);
+
+  const recargar = useCallback(async () => {
+    try { setLista(await listAdjuntos(compraId)); } catch (e) { setError(e instanceof Error ? e.message : 'No se pudieron cargar los archivos.'); setLista([]); }
+  }, [compraId]);
+  useEffect(() => { void recargar(); }, [recargar]);
+
+  const anadir = async (elegidos: File[]) => {
+    if (elegidos.length === 0) return;
+    setError('');
+    const { caben, sobran } = cabenArchivos(lista?.length ?? 0, elegidos.length);
+    const fallos: string[] = [];
+    if (sobran > 0) fallos.push(`Como máximo ${MAX_ADJUNTOS} archivos por compra: se han quedado fuera ${sobran}.`);
+    for (const [i, f] of elegidos.slice(0, caben).entries()) {
+      const problema = validarArchivoFactura(f);
+      if (problema) { fallos.push(problema); continue; }
+      setSubiendo(`Subiendo ${i + 1} de ${caben}…`);
+      try { await subirAdjunto(empresaId, compraId, f); } catch (e) { fallos.push(e instanceof Error ? e.message : `No se pudo subir «${f.name}».`); }
+    }
+    setSubiendo('');
+    if (fallos.length) setError(fallos.join(' '));
+    await recargar(); onCambio();
+  };
+
+  const ver = async (a: CompraAdjunto) => {
+    try {
+      const r = await abrirEnPestana(() => urlAdjunto(a.ruta));
+      if (r === 'bloqueado') setError('El navegador ha bloqueado la ventana: permite las ventanas emergentes para ver la factura.');
+    } catch (e) { setError(e instanceof Error ? e.message : 'No se pudo abrir el archivo.'); }
+  };
+  const quitar = async () => {
+    if (!aQuitar) return;
+    try { await borrarAdjunto(aQuitar); avisarOk('Archivo quitado.'); await recargar(); onCambio(); }
+    catch (e) { setError(e instanceof Error ? e.message : 'No se pudo quitar el archivo.'); }
+    finally { setAQuitar(null); }
+  };
+
+  return (
+    <div className="space-y-2" data-testid="adjuntos-compra">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Factura del proveedor</p>
+        {puedeCambiar && (
+          <label className={`flex items-center gap-1.5 text-xs font-bold cursor-pointer ${subiendo ? 'text-slate-400' : 'text-blue-600 hover:text-blue-700'}`}>
+            <Paperclip className="w-3.5 h-3.5" /> {subiendo || 'Adjuntar PDF o foto'}
+            <input ref={selector} type="file" multiple accept="application/pdf,image/*,.pdf" className="hidden" disabled={!!subiendo || (lista?.length ?? 0) >= MAX_ADJUNTOS}
+              data-testid="adjuntar-archivo" aria-label="Adjuntar archivos a la compra"
+              onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ''; void anadir(f); }} />
+          </label>
+        )}
+      </div>
+      {lista === null ? <p className="text-xs text-slate-400">Cargando…</p>
+        : lista.length === 0 ? <p className="text-xs text-slate-400">{puedeCambiar ? 'Sin archivos. Adjunta el PDF o una foto de la factura para tenerla a mano.' : 'Sin archivos.'}</p>
+        : lista.map((a) => (
+          <div key={a.id} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm" data-testid="adjunto">
+            {esImagen(a.tipo) ? <ImagenIcono className="w-4 h-4 text-slate-400 shrink-0" /> : <FileText className="w-4 h-4 text-slate-400 shrink-0" />}
+            <button type="button" onClick={() => void ver(a)} className="flex-1 truncate text-left font-semibold text-slate-700 hover:text-blue-600 cursor-pointer" title="Abrir en una pestaña nueva">{a.nombre}</button>
+            <span className="text-[11px] text-slate-400 shrink-0">{formatoTamano(a.tamano)} · {formatDate(a.subidoEn.slice(0, 10))}</span>
+            {puedeCambiar && <button type="button" onClick={() => setAQuitar(a)} aria-label={`Quitar ${a.nombre}`} className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"><Trash2 className="w-4 h-4" /></button>}
+          </div>
+        ))}
+      {error && <p role="alert" data-testid="error-adjuntos" className="text-xs font-semibold text-rose-600">{error}</p>}
+      <p className="text-[11px] text-slate-400">Se conservan mientras exista la compra: la ley pide guardar las facturas recibidas varios años.</p>
+      <ConfirmDialog isOpen={!!aQuitar} title="Quitar archivo" message={`¿Quitar «${aQuitar?.nombre ?? ''}» de esta compra? Se borrará del almacenamiento.`} confirmLabel="Quitar" onCancel={() => setAQuitar(null)} onConfirm={() => void quitar()} />
     </div>
   );
 }

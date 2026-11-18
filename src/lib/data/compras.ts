@@ -1,11 +1,12 @@
 import { supabase } from '../supabase';
 import type { Compra, CompraLinea, EstadoCompra } from '../../types';
 
-const SELECT = 'id, proveedor_id, numero, fecha, fecha_vencimiento, estado, fecha_pago, base, iva, total, notas, proveedores ( nombre )';
+const SELECT = 'id, proveedor_id, numero, fecha, fecha_vencimiento, estado, fecha_pago, base, iva, total, notas, proveedores ( nombre ), compra_adjuntos ( id )';
 
 type Row = {
   id: string; proveedor_id: string; numero: string; fecha: string; fecha_vencimiento: string | null; estado: string; fecha_pago: string | null;
   base: number; iva: number; total: number; notas: string | null; proveedores: { nombre: string } | { nombre: string }[] | null;
+  compra_adjuntos?: { id: string }[] | null;
 };
 type LineaRow = {
   id: string; producto_id: string | null; descripcion: string; cantidad: number; precio_unitario: number; iva_pct: number; subtotal: number; posicion: number;
@@ -17,7 +18,7 @@ function nombreProveedor(p: Row['proveedores']): string {
 const mapCompra = (r: Row): Compra => ({
   id: r.id, proveedorId: r.proveedor_id, proveedorNombre: nombreProveedor(r.proveedores), numero: r.numero, fecha: r.fecha,
   fechaVencimiento: r.fecha_vencimiento ?? undefined, estado: r.estado as EstadoCompra, fechaPago: r.fecha_pago ?? undefined,
-  base: Number(r.base), iva: Number(r.iva), total: Number(r.total), notas: r.notas ?? undefined,
+  base: Number(r.base), iva: Number(r.iva), total: Number(r.total), notas: r.notas ?? undefined, numAdjuntos: (r.compra_adjuntos ?? []).length,
 });
 const mapLinea = (l: LineaRow): CompraLinea => ({
   id: l.id, productoId: l.producto_id ?? undefined, descripcion: l.descripcion, cantidad: Number(l.cantidad),

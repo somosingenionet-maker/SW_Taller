@@ -11,6 +11,8 @@ export interface OpcionesCompresion {
 
 /** Fotos de vehículo: recepción e inspección. */
 export const OPCIONES_FOTO: OpcionesCompresion = { ladoMax: 1600, calidad: 0.72 };
+/** Facturas y documentos fotografiados: más resolución que una foto de vehículo, porque hay que poder leer la letra pequeña. */
+export const OPCIONES_DOCUMENTO: OpcionesCompresion = { ladoMax: 2400, calidad: 0.8 };
 /** Logos: se muestran pequeños, no necesitan más. */
 export const OPCIONES_LOGO: OpcionesCompresion = { ladoMax: 800, calidad: 0.85 };
 

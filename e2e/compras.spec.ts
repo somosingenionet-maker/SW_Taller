@@ -44,13 +44,13 @@ async function simular(page: Page, extra: { rpc?: (nombre: string, cuerpo: Recor
   await page.route(/\/rest\/v1\/compra_lineas\?/, async (route) => json(route, [
     { id: 'l1', producto_id: null, descripcion: 'Pastillas', cantidad: 1, precio_unitario: 100, iva_pct: 21, subtotal: 100, posicion: 0 },
   ]));
-  await page.route(/\/rest\/v1\/rpc\/(guardar_compra|marcar_pago_compra|anular_compra|editar_datos_compra)/, async (route) => {
+  await page.route(/\/rest\/v1\/rpc\/(guardar_compra|marcar_pago_compra|anular_compra|editar_datos_compra|registrar_adjunto_compra|borrar_adjunto_compra)/, async (route) => {
     const nombre = route.request().url().split('/rpc/')[1].split('?')[0];
     const cuerpo = route.request().postDataJSON() as Record<string, unknown>;
     rpcs.push({ nombre, cuerpo });
     const r = extra.rpc?.(nombre, cuerpo);
     if (r && typeof r === 'object' && 'error' in (r as object)) return json(route, { message: (r as { error: string }).error, code: 'P0001' }, 400);
-    return json(route, nombre === 'guardar_compra' ? 'nueva-compra' : null);
+    return json(route, nombre === 'guardar_compra' ? 'nueva-compra' : nombre === 'registrar_adjunto_compra' ? 'adj-nuevo' : nombre === 'borrar_adjunto_compra' ? 'emp/c1/vieja.pdf' : null);
   });
   return rpcs;
 }
@@ -178,4 +178,109 @@ test('gestoría con compras (datos de mentira): resumen de IVA soportado y archi
   const csv = await readFile((await d.path())!, 'utf8');
   expect(csv).toContain('"F-1";"05/07/2026";"Recambios Ruiz";"B12345678";"200,00";"21";"42,00";"242,00";"Pagada"');
   expect(csv).toContain('"TOTAL (sin anuladas)";"";"";"";"300,00";"";"52,00";"352,00";""');
+});
+
+// ---- Adjuntar la factura del proveedor (almacenamiento y lista simulados) ----
+
+const ADJUNTO = { id: 'a1', compra_id: 'c1', ruta: 'emp/c1/vieja.pdf', nombre: 'Factura vieja.pdf', tipo: 'application/pdf', tamano: 345678, created_at: '2026-11-10T10:00:00Z' };
+const PDF = Buffer.from('%PDF-1.4\n%%EOF');
+
+async function simularAlmacen(page: Page, opciones: { subidaFalla?: boolean } = {}) {
+  const subidas: string[] = [];
+  const borrados: string[] = [];
+  let firmas = 0;
+  await page.route(/\/storage\/v1\/object\/facturas-proveedor\/.+/, async (route) => {
+    if (route.request().method() === 'POST') {
+      if (opciones.subidaFalla) return json(route, { statusCode: '403', error: 'Unauthorized', message: 'new row violates row-level security policy' }, 403);
+      subidas.push(decodeURIComponent(route.request().url().split('/object/facturas-proveedor/')[1]));
+      return json(route, { Key: 'ok', Id: 'x' });
+    }
+    return route.fallback();
+  });
+  await page.route(/\/storage\/v1\/object\/sign\/facturas-proveedor\/.+/, async (route) => {
+    firmas++;
+    return json(route, { signedURL: '/object/sign/facturas-proveedor/emp/c1/vieja.pdf?token=firmado' });
+  });
+  await page.route(/\/storage\/v1\/object\/facturas-proveedor$/, async (route) => {
+    if (route.request().method() === 'DELETE') { borrados.push(...((route.request().postDataJSON() as { prefixes: string[] }).prefixes)); return json(route, []); }
+    return route.fallback();
+  });
+  return { subidas, borrados, firmas: () => firmas };
+}
+
+test('adjuntos (almacén de mentira): al guardar sube cada archivo a la carpeta de la compra y lo da de alta con su nombre', async ({ page }) => {
+  const rpcs = await simular(page);
+  const almacen = await simularAlmacen(page);
+  await irACompras(page);
+  await page.getByTestId('nueva-compra').click();
+  await page.getByLabel('Proveedor *').selectOption('pv1');
+  await page.getByLabel('Número de factura del proveedor').fill('F-900');
+  await page.getByLabel('Descripción de la línea 1').fill('x');
+  await page.getByLabel('Precio de la línea 1').fill('5');
+  // Un formato que no es factura se rechaza al elegirlo, antes de subir nada
+  await page.getByTestId('compra-archivo').setInputFiles({ name: 'virus.exe', mimeType: 'application/octet-stream', buffer: Buffer.from('MZ') });
+  await expect(page.getByTestId('error-archivos')).toContainText('no se puede adjuntar');
+  await expect(page.getByTestId('compra-archivo-elegido')).toHaveCount(0);
+  await page.getByTestId('compra-archivo').setInputFiles({ name: 'factura-ruiz.pdf', mimeType: 'application/pdf', buffer: PDF });
+  await expect(page.getByTestId('compra-archivo-elegido')).toContainText('factura-ruiz.pdf');
+  await expect(page.getByTestId('error-archivos')).toHaveCount(0);
+  await page.getByTestId('guardar-compra').click();
+  await expect(page.getByTestId('compra-form')).toHaveCount(0, { timeout: 10_000 });
+  expect(almacen.subidas).toHaveLength(1);
+  expect(almacen.subidas[0]).toMatch(/^[^/]+\/nueva-compra\/[0-9a-f-]{36}\.pdf$/);          // «<empresa>/<compra>/<uuid>.pdf»
+  const alta = rpcs.find((r) => r.nombre === 'registrar_adjunto_compra')!;
+  expect(alta.cuerpo).toMatchObject({ p_compra_id: 'nueva-compra', p_nombre: 'factura-ruiz.pdf' });
+  expect(alta.cuerpo.p_ruta).toBe(almacen.subidas[0]);
+});
+
+test('adjuntos (almacén de mentira): si falla la subida, la compra sí queda guardada y se avisa de qué archivo hay que repetir', async ({ page }) => {
+  const rpcs = await simular(page);
+  await simularAlmacen(page, { subidaFalla: true });
+  await irACompras(page);
+  await page.getByTestId('nueva-compra').click();
+  await page.getByLabel('Proveedor *').selectOption('pv1');
+  await page.getByLabel('Número de factura del proveedor').fill('F-901');
+  await page.getByLabel('Descripción de la línea 1').fill('x');
+  await page.getByLabel('Precio de la línea 1').fill('5');
+  await page.getByTestId('compra-archivo').setInputFiles({ name: 'factura.pdf', mimeType: 'application/pdf', buffer: PDF });
+  await page.getByTestId('guardar-compra').click();
+  await expect(page.getByTestId('compra-form')).toHaveCount(0, { timeout: 10_000 });
+  expect(rpcs.some((r) => r.nombre === 'guardar_compra')).toBe(true);
+  expect(rpcs.some((r) => r.nombre === 'registrar_adjunto_compra')).toBe(false);                 // sin archivo subido no hay alta en la lista
+  await expect(page.getByText(/La compra se guardó, pero/)).toBeVisible();
+  await expect(page.getByText(/factura\.pdf/).first()).toBeVisible();
+});
+
+test('adjuntos (almacén de mentira): el detalle lista los archivos, abre uno con enlace que caduca y permite quitarlo', async ({ page }) => {
+  const rpcs = await simular(page);
+  const almacen = await simularAlmacen(page);
+  let lista = [ADJUNTO];
+  await page.route(/\/rest\/v1\/compra_adjuntos\?/, (route) => json(route, lista));
+  await page.route(/\/rest\/v1\/rpc\/borrar_adjunto_compra/, async (route) => { lista = []; rpcs.push({ nombre: 'borrar_adjunto_compra', cuerpo: route.request().postDataJSON() }); return json(route, ADJUNTO.ruta); });
+  await irACompras(page);
+  await page.getByRole('button', { name: 'Ver la compra F-100' }).click();
+  const fila = page.getByTestId('adjunto');
+  await expect(fila).toHaveCount(1);
+  await expect(fila).toContainText('Factura vieja.pdf');
+  await expect(fila).toContainText('338 KB');
+  const pedido = page.context().waitForEvent('request', { predicate: (r) => r.url().includes('token=firmado') });
+  await fila.getByRole('button', { name: 'Factura vieja.pdf', exact: true }).click();
+  expect((await pedido).url()).toContain('/object/sign/facturas-proveedor/emp/c1/vieja.pdf?token=firmado');
+  expect(almacen.firmas()).toBe(1);
+  await page.getByRole('button', { name: 'Quitar Factura vieja.pdf' }).click();
+  await page.getByRole('button', { name: 'Quitar', exact: true }).last().click();
+  await expect(page.getByTestId('adjunto')).toHaveCount(0);
+  expect(rpcs.find((r) => r.nombre === 'borrar_adjunto_compra')!.cuerpo).toMatchObject({ p_id: 'a1' });
+  await expect.poll(() => almacen.borrados).toEqual(['emp/c1/vieja.pdf']);                         // y el archivo se borra del almacén
+});
+
+test('adjuntos (almacén de mentira): una compra anulada conserva sus archivos y no deja añadir ni quitar', async ({ page }) => {
+  await simular(page);
+  await simularAlmacen(page);
+  await page.route(/\/rest\/v1\/compra_adjuntos\?/, (route) => json(route, [{ ...ADJUNTO, compra_id: 'c4' }]));
+  await irACompras(page);
+  await page.getByRole('button', { name: 'Ver la compra F-103' }).click();
+  await expect(page.getByTestId('adjunto')).toHaveCount(1);
+  await expect(page.getByTestId('adjuntar-archivo')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Quitar / })).toHaveCount(0);
 });

@@ -23,6 +23,17 @@ proveedor. Cierra el círculo con la gestoría: el libro de recibidas y el IVA r
 - **Permisos**: módulo propio `compras` (datos fiscales). Administradores siempre; el resto solo si se lo dan; se dio a quien ya veía Facturas.
   Sin el módulo, la base devuelve vacío y rechaza escribir. Datos separados por taller y bloqueo de escritura con suscripción caducada, como el resto.
 
+## Adjuntar la factura del proveedor (2026-11-20)
+- **Dónde**: al registrar la compra («Adjuntar» en el formulario) o después en el detalle. PDF, JPG, PNG o WebP; hasta 10 MB y 10 archivos por compra.
+  Las fotos se reducen en el navegador antes de subir (2.400 px, calidad 0,8: se sigue leyendo la letra pequeña); un HEIC se convierte si el navegador sabe.
+- **Almacenamiento**: bucket PRIVADO `facturas-proveedor`, ruta `<empresa>/<compra>/<uuid>.<ext>`. Leer, subir y borrar exige el módulo `compras` y estar en
+  la carpeta de tu empresa; subir y borrar, además, suscripción en vigor. Se ve con enlaces firmados de 5 minutos.
+- **Lista oficial**: tabla `compra_adjuntos`, solo escribible por `registrar_adjunto_compra` / `borrar_adjunto_compra` (comprueban ruta, que el archivo existe
+  y toman tamaño y tipo del archivo guardado, no del navegador). Si la subida o el alta falla, la compra queda guardada y se avisa qué archivo repetir.
+- **Conservación**: NO hay borrado automático (la ley obliga a guardar las facturas recibidas años). Se van con la empresa (`BUCKETS_EMPRESA` lo incluye) o cuando el
+  taller los quita. Una compra anulada conserva sus archivos y no admite más ni deja quitarlos.
+- El espacio ocupado (`uso_almacenamiento`) cuenta estos archivos.
+
 ## Para más adelante
-Adjuntar la foto/PDF de la factura (almacenamiento privado y plazos de conservación), cuentas por pagar con avisos de vencimiento, pedido sugerido
+Descargar todos los documentos de un periodo en un ZIP para la gestoría, cuentas por pagar con avisos de vencimiento, pedido sugerido
 al proveedor desde el stock bajo, gastos recurrentes, gastos no deducibles / IVA no deducible, retenciones (IRPF) y recargo de equivalencia.

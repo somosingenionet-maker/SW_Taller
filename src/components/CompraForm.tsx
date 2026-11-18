@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Check, Plus, Trash2, UserPlus, X } from 'lucide-react';
+import { useRef } from 'react';
+import { Check, FileText, Image as ImagenIcono, Paperclip, Plus, Trash2, UserPlus, X } from 'lucide-react';
 import type { Producto, Proveedor } from '../types';
 import { guardarCompra } from '../lib/data/compras';
+import { subirAdjunto } from '../lib/data/comprasAdjuntos';
+import { cabenArchivos, esImagen, formatoTamano, MAX_ADJUNTOS, tipoDeArchivo, validarArchivoFactura } from '../utils/adjuntos';
 import { calcularCompra, TIPOS_IVA, validarCompra, vencimientoSugerido } from '../utils/compras';
 import { fmt2 } from '../utils/moneda';
 import { ProveedorFormModal } from './ProveedoresPanel';
@@ -20,13 +23,15 @@ interface Props {
   /** Proveedor ya elegido (al registrar desde su ficha). */
   proveedorInicial?: string;
   onProveedorCreado: (p: Proveedor) => void;
-  /** `tocaStock`: alguna línea llevaba producto, así que el inventario cambió. */
-  onGuardada: (tocaStock: boolean) => void;
+  /** Para guardar la carpeta de los archivos (`<empresa>/<compra>/…`). */
+  empresaId: string;
+  /** `tocaStock`: alguna línea llevaba producto, así que el inventario cambió. `archivosFallidos`: lo que no se pudo subir (la compra sí se guardó). */
+  onGuardada: (tocaStock: boolean, archivosFallidos: string[]) => void;
   onClose: () => void;
 }
 
 /** Ventana «Nueva compra»: proveedor, número y fechas, líneas (con o sin producto del inventario) y pago. */
-export default function CompraForm({ proveedores, productos, proveedorInicial, onProveedorCreado, onGuardada, onClose }: Props) {
+export default function CompraForm({ proveedores, productos, proveedorInicial, onProveedorCreado, empresaId, onGuardada, onClose }: Props) {
   const activos = useMemo(() => proveedores.filter((p) => p.activo), [proveedores]);
   const productosActivos = useMemo(() => productos.filter((p) => p.activo), [productos]);
   const [proveedorId, setProveedorId] = useState(proveedorInicial ?? '');
@@ -42,6 +47,10 @@ export default function CompraForm({ proveedores, productos, proveedorInicial, o
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [nuevoProveedor, setNuevoProveedor] = useState(false);
+  const [archivos, setArchivos] = useState<File[]>([]);
+  const [errorArchivos, setErrorArchivos] = useState('');
+  const [progreso, setProgreso] = useState('');
+  const selector = useRef<HTMLInputElement>(null);
 
   const proveedor = proveedores.find((p) => p.id === proveedorId);
   const calculo = useMemo(() => calcularCompra(lineas.map((l) => ({ cantidad: num(l.cantidad), precioUnitario: num(l.precio), ivaPct: l.ivaPct }))), [lineas]);
@@ -62,6 +71,21 @@ export default function CompraForm({ proveedores, productos, proveedorInicial, o
     })));
   };
 
+  const elegirArchivos = (lista: FileList | null) => {
+    const elegidos = Array.from(lista ?? []);
+    if (selector.current) selector.current.value = '';
+    if (elegidos.length === 0) return;
+    const validos: File[] = [];
+    for (const f of elegidos) {
+      const p = validarArchivoFactura(f);
+      if (p) { setErrorArchivos(p); return; }
+      validos.push(f);
+    }
+    const { caben, sobran } = cabenArchivos(archivos.length, validos.length);
+    setArchivos((a) => [...a, ...validos.slice(0, caben)]);
+    setErrorArchivos(sobran > 0 ? `Como máximo ${MAX_ADJUNTOS} archivos por compra: se han quedado fuera ${sobran}.` : '');
+  };
+
   const guardar = async () => {
     const problema = validarCompra({
       proveedorId, numero, fecha, fechaVencimiento: vencimiento, pagada, fechaPago,
@@ -70,16 +94,22 @@ export default function CompraForm({ proveedores, productos, proveedorInicial, o
     if (problema) { setError(problema); return; }
     setGuardando(true); setError('');
     try {
-      await guardarCompra({
+      const id = await guardarCompra({
         proveedorId, numero: numero.trim(), fecha, fechaVencimiento: vencimiento || undefined, notas: notas.trim() || undefined,
         pagada, fechaPago: pagada ? fechaPago : undefined, actualizarCoste: hayProductos && actualizarCoste,
         lineas: lineas.map((l) => ({ productoId: l.productoId || undefined, descripcion: l.descripcion.trim(), cantidad: num(l.cantidad), precioUnitario: num(l.precio), ivaPct: l.ivaPct })),
       });
-      onGuardada(hayProductos);
+      // La compra ya está guardada: si algún archivo falla, se avisa pero no se deshace nada (se puede adjuntar después).
+      const fallidos: string[] = [];
+      for (const [i, f] of archivos.entries()) {
+        setProgreso(`Subiendo archivo ${i + 1} de ${archivos.length}…`);
+        try { await subirAdjunto(empresaId, id, f); } catch (e) { fallidos.push(e instanceof Error ? e.message : `No se pudo subir «${f.name}».`); }
+      }
+      onGuardada(hayProductos, fallidos);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar la compra.');
     } finally {
-      setGuardando(false);
+      setGuardando(false); setProgreso('');
     }
   };
 
@@ -163,6 +193,25 @@ export default function CompraForm({ proveedores, productos, proveedorInicial, o
           <textarea className={`${campo} mt-1`} rows={2} value={notas} maxLength={1000} onChange={(e) => setNotas(e.target.value)} aria-label="Notas de la compra" />
         </label>
 
+        <div className="space-y-2" data-testid="compra-archivos">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Factura del proveedor (PDF o foto)</p>
+            <button type="button" onClick={() => selector.current?.click()} disabled={archivos.length >= MAX_ADJUNTOS} data-testid="compra-adjuntar"
+              className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-700 cursor-pointer disabled:opacity-40"><Paperclip className="w-3.5 h-3.5" /> Adjuntar</button>
+            <input ref={selector} type="file" multiple accept="application/pdf,image/*,.pdf" className="hidden" onChange={(e) => elegirArchivos(e.target.files)} data-testid="compra-archivo" aria-label="Archivos de la factura" />
+          </div>
+          {archivos.length === 0 && <p className="text-[11px] text-slate-400">Opcional: guarda aquí el documento para encontrarlo cuando la gestoría lo pida. Las fotos se reducen antes de subirlas.</p>}
+          {archivos.map((f, i) => (
+            <div key={`${f.name}-${i}`} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm" data-testid="compra-archivo-elegido">
+              {esImagen(tipoDeArchivo(f)) ? <ImagenIcono className="w-4 h-4 text-slate-400 shrink-0" /> : <FileText className="w-4 h-4 text-slate-400 shrink-0" />}
+              <span className="flex-1 truncate text-slate-700">{f.name}</span>
+              <span className="text-[11px] text-slate-400 shrink-0">{formatoTamano(f.size)}</span>
+              <button type="button" onClick={() => setArchivos((a) => a.filter((_, j) => j !== i))} aria-label={`Quitar ${f.name}`} className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer"><X className="w-4 h-4" /></button>
+            </div>
+          ))}
+          {errorArchivos && <p role="alert" data-testid="error-archivos" className="text-xs font-semibold text-amber-700">{errorArchivos}</p>}
+        </div>
+
         {hayProductos && (
           <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
             <input type="checkbox" className="mt-0.5" checked={actualizarCoste} onChange={(e) => setActualizarCoste(e.target.checked)} data-testid="compra-actualizar-coste" />
@@ -177,7 +226,7 @@ export default function CompraForm({ proveedores, productos, proveedorInicial, o
             <button onClick={onClose} className="px-4 py-2.5 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer">Cancelar</button>
             <button onClick={() => void guardar()} disabled={guardando} data-testid="guardar-compra"
               className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl cursor-pointer disabled:opacity-60">
-              <Check className="w-4 h-4" /> {guardando ? 'Guardando…' : 'Registrar compra'}
+              <Check className="w-4 h-4" /> {guardando ? (progreso || 'Guardando…') : 'Registrar compra'}
             </button>
           </div>
         </div>

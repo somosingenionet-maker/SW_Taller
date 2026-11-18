@@ -395,6 +395,20 @@ export interface Compra {
   iva: number;
   total: number;
   notas?: string;
+  /** Cuántos archivos (PDF o fotos de la factura) tiene adjuntos. */
+  numAdjuntos?: number;
   /** Solo se carga al abrir el detalle. */
   lineas?: CompraLinea[];
+}
+
+/** Archivo adjunto a una compra (la factura del proveedor en PDF o foto). */
+export interface CompraAdjunto {
+  id: string;
+  compraId: string;
+  /** Ruta dentro del almacenamiento privado; para verlo se pide un enlace que caduca. */
+  ruta: string;
+  nombre: string;
+  tipo: string;
+  tamano: number;
+  subidoEn: string;
 }

@@ -13,7 +13,7 @@ const TITULOS: Record<LegalPageProps['page'], string> = {
 };
 
 const CONTACTO = 'comercial@somosingenio.net';
-const ULTIMA_ACTUALIZACION = '19 de noviembre de 2026';
+const ULTIMA_ACTUALIZACION = '20 de noviembre de 2026';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -192,7 +192,7 @@ function Privacidad() {
         <p>
           Datos introducidos al usar el servicio (por tu cuenta, como encargado de tratamiento): datos
           de tus clientes (nombre, NIF/NIE, email, teléfono, dirección), vehículos, órdenes de trabajo,
-          facturas, y tus proveedores (nombre o razón social, NIF, contacto, condiciones de pago) con las facturas que te envían.
+          facturas, y tus proveedores (nombre o razón social, NIF, contacto, condiciones de pago) con las facturas que te envían y, si los adjuntas, los documentos (PDF o fotos) de esas facturas.
         </p>
         <p>
           Datos de facturación electrónica: los registros de facturación de tus facturas (huella, número,

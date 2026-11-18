@@ -7,7 +7,7 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 /** Buckets de Storage donde cada empresa guarda sus archivos, siempre bajo `<empresa_id>/...`. */
-export const BUCKETS_EMPRESA = ['logos-empresas', 'fotos-recepcion', 'inspecciones'] as const;
+export const BUCKETS_EMPRESA = ['logos-empresas', 'fotos-recepcion', 'inspecciones', 'facturas-proveedor'] as const;
 
 const POR_PAGINA = 1000;
 const POR_LOTE_BORRADO = 100;

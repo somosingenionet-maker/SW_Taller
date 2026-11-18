@@ -122,6 +122,10 @@ cómo conservarla (suscribirse) y cómo llevarse los datos (exportar a CSV). Tex
    personales) y las facturas que le envían. ¿Basta con el texto actual de encargo de tratamiento (§3) o hay que
    mencionarlo en el contrato de encargo? Las compras no se pueden borrar, solo anular: ¿el plazo de conservación
    de 6 años cubre también las facturas recibidas y cómo se atiende una supresión de un proveedor autónomo?
+    Desde 2026-11-20 el taller puede adjuntar el PDF o la foto de la factura (almacenamiento privado, enlaces que caducan
+    a los 5 minutos, sin borrado automático). Además: el borrado automático de cuentas abandonadas (90 días) conserva
+    las cuentas con facturas EMITIDAS pero no las que solo tienen compras ni sus archivos: ¿debe retenerlos también,
+    dado que la obligación de conservar las facturas recibidas es del taller y se las borraríamos tras dos avisos?
 
 ## 4. Lo que ya está hecho técnicamente (para no preguntarlo)
 

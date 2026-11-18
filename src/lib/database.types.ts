@@ -318,6 +318,57 @@ export type Database = {
           },
         ]
       }
+      compra_adjuntos: {
+        Row: {
+          compra_id: string
+          created_at: string
+          empresa_id: string
+          id: string
+          nombre: string
+          ruta: string
+          subido_por: string | null
+          tamano: number
+          tipo: string
+        }
+        Insert: {
+          compra_id: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          nombre: string
+          ruta: string
+          subido_por?: string | null
+          tamano: number
+          tipo: string
+        }
+        Update: {
+          compra_id?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          nombre?: string
+          ruta?: string
+          subido_por?: string | null
+          tamano?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compra_adjuntos_compra_id_fkey"
+            columns: ["compra_id"]
+            isOneToOne: false
+            referencedRelation: "compras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compra_adjuntos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compra_lineas: {
         Row: {
           cantidad: number
@@ -2133,6 +2184,7 @@ export type Database = {
         Returns: undefined
       }
       anular_compra: { Args: { p_id: string }; Returns: undefined }
+      borrar_adjunto_compra: { Args: { p_id: string }; Returns: string }
       buscar_ordenes: {
         Args: {
           p_estado?: string
@@ -2369,6 +2421,10 @@ export type Database = {
           nombre: string
           posicion: number
         }[]
+      }
+      registrar_adjunto_compra: {
+        Args: { p_compra_id: string; p_nombre: string; p_ruta: string }
+        Returns: string
       }
       rentabilidad_estado_actual: {
         Args: never
