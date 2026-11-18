@@ -1,6 +1,9 @@
 import { supabase } from '../supabase';
 import type { CompraAdjunto } from '../../types';
 import { comprimirImagen, OPCIONES_DOCUMENTO } from '../../utils/imagen';
+import { rowsToCsv } from '../../utils/csvExport';
+import { filasIndice, textoLeeme, type EntradaZip, type PlanDocumentos } from '../../utils/documentosGestoria';
+import type { Periodo } from '../../utils/gestoria';
 import { esImagen, esTipoAdjunto, extensionDeTipo, MAX_BYTES_ADJUNTO, tipoDeArchivo, validarArchivoFactura } from '../../utils/adjuntos';
 
 /** Bucket privado: solo se lee con enlaces que caducan. */
@@ -65,6 +68,75 @@ export async function borrarAdjunto(a: Pick<CompraAdjunto, 'id'>): Promise<void>
   // Ya no está en la lista; si el archivo no se pudiera borrar quedaría suelto, sin enseñarse en ningún sitio.
   const { error: eFichero } = await supabase.storage.from(BUCKET).remove([data as string]);
   if (eFichero) console.warn('No se pudo borrar el archivo del almacenamiento', eFichero);
+}
+
+export interface ResultadoZip { bytes: Uint8Array; incluidos: number; fallidos: string[] }
+
+const POR_LOTE_FIRMAS = 100;
+const SIMULTANEAS = 4;
+
+/**
+ * Descarga los archivos del plan y los empaqueta en un ZIP (con `indice.csv` y `LEEME.txt`). Un archivo que falla no tumba el ZIP: queda
+ * apuntado en el LEEME y en `fallidos`. `signal` cancela. Todo se arma en la memoria del navegador (por eso el plan limita el tamaño).
+ */
+export async function empaquetarDocumentos(o: {
+  plan: PlanDocumentos; periodo: Periodo; taller: string; onProgreso?: (hechos: number, total: number) => void; signal?: AbortSignal; ahora?: Date;
+}): Promise<ResultadoZip> {
+  const { plan, signal } = o;
+  const total = plan.entradas.length;
+  const fallidos: string[] = [];
+  const contenidos = new Map<string, Uint8Array>();
+  const comprobarCancelado = () => { if (signal?.aborted) throw new DOMException('Cancelado', 'AbortError'); };
+
+  // 1) Enlaces de lectura de todos los archivos (de 100 en 100)
+  const urls = new Map<string, string>();
+  for (let i = 0; i < total; i += POR_LOTE_FIRMAS) {
+    comprobarCancelado();
+    const lote = plan.entradas.slice(i, i + POR_LOTE_FIRMAS).map((e) => e.ruta);
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(lote, 900);
+    if (error) throw new Error('No se pudieron preparar los archivos para descargarlos.');
+    for (const f of data ?? []) if (f.path && f.signedUrl && !f.error) urls.set(f.path, f.signedUrl);
+  }
+
+  // 2) Descarga, de 4 en 4, con un reintento por archivo
+  let hechos = 0;
+  const descargar = async (e: EntradaZip) => {
+    const url = urls.get(e.ruta);
+    if (!url) { fallidos.push(`${e.nombre} (no se encontró el archivo)`); return; }
+    for (let intento = 0; intento < 2; intento++) {
+      try {
+        comprobarCancelado();
+        const r = await fetch(url, { signal });
+        if (!r.ok) throw new Error(`error ${r.status}`);
+        contenidos.set(e.nombre, new Uint8Array(await r.arrayBuffer()));
+        return;
+      } catch (err) {
+        if ((err as { name?: string }).name === 'AbortError') throw err;
+        if (intento === 1) fallidos.push(`${e.nombre} (${err instanceof Error ? err.message : 'no se pudo descargar'})`);
+      }
+    }
+  };
+  let siguiente = 0;
+  await Promise.all(Array.from({ length: Math.min(SIMULTANEAS, total) }, async () => {
+    while (siguiente < total) {
+      const e = plan.entradas[siguiente++];
+      await descargar(e);
+      o.onProgreso?.(++hechos, total);
+    }
+  }));
+  comprobarCancelado();
+
+  // 3) ZIP: los archivos, el índice y el léeme
+  const incluidas = plan.entradas.filter((e) => contenidos.has(e.nombre));
+  const enc = new TextEncoder();
+  const { crearZip } = await import('../../utils/xlsx');
+  const ahora = o.ahora ?? new Date();
+  const zip = crearZip([
+    ...incluidas.map((e) => ({ nombre: e.nombre, contenido: contenidos.get(e.nombre) as Uint8Array })),
+    { nombre: 'indice.csv', contenido: enc.encode(rowsToCsv(filasIndice(incluidas))) },
+    { nombre: 'LEEME.txt', contenido: enc.encode(textoLeeme({ periodo: o.periodo, taller: o.taller, generado: ahora, incluidos: incluidas.length, fallidos, sinDocumento: plan.sinDocumento, anuladasOmitidas: plan.anuladasOmitidas })) },
+  ], ahora);
+  return { bytes: zip, incluidos: incluidas.length, fallidos };
 }
 
 export { esImagen };

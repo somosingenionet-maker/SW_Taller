@@ -133,6 +133,8 @@ export interface CompraParaGestoria {
   lineas: { subtotal: number; ivaPct: number }[];
   /** Total guardado de la compra, para comprobar que las filas cuadran con él. */
   total: number;
+  /** Archivos adjuntos (la factura en PDF o foto), si se leyeron. */
+  adjuntos?: { ruta: string; nombre: string; tipo: string; tamano: number }[];
 }
 
 export interface FilaRecibida {

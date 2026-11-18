@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Download, FileSpreadsheet, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Download, FileArchive, FileSpreadsheet, X } from 'lucide-react';
 import type { Cliente, Empresa } from '../types';
 import { listFacturasParaGestoria } from '../lib/data/facturas';
 import { listComprasParaGestoria } from '../lib/data/compras';
-import { avisarError } from '../lib/avisos';
+import { avisar, avisarError, avisarOk } from '../lib/avisos';
+import { empaquetarDocumentos } from '../lib/data/comprasAdjuntos';
+import { nombreZipDocumentos, planificarDocumentos } from '../utils/documentosGestoria';
+import { formatoTamano } from '../utils/adjuntos';
 import { downloadCsv } from '../utils/csvExport';
 import { fmt2 } from '../utils/moneda';
 import {
@@ -60,6 +63,8 @@ export default function ExportarGestoria({ empresa, clientes, puedeFacturas = tr
   const [emitidasBase, setEmitidasBase] = useState<FacturaParaGestoria[] | null>(null);
   const [comprasBase, setComprasBase] = useState<CompraParaGestoria[] | null>(null);
   const [descargando, setDescargando] = useState(false);
+  const [zip, setZip] = useState<{ hechos: number; total: number } | null>(null);
+  const cancelarZip = useRef<AbortController | null>(null);
 
   const periodo: Periodo | null = useMemo(() => {
     if (tipo === 'trimestre') return periodoTrimestre(año, trimestre);
@@ -100,6 +105,8 @@ export default function ExportarGestoria({ empresa, clientes, puedeFacturas = tr
   const avE = useMemo(() => (emitidas ? avisosLibro(emitidas) : null), [emitidas]);
   const avR = useMemo(() => (recibidas && comprasBase ? avisosRecibidas(comprasBase, recibidas) : null), [recibidas, comprasBase]);
 
+  const plan = useMemo(() => (comprasBase ? planificarDocumentos(comprasBase) : null), [comprasBase]);
+
   const hayDatos = (emitidas?.length ?? 0) + (recibidas?.length ?? 0) > 0;
   const listo = (emitidas !== null || recibidas !== null) && !cargando;
   const vacio = listo && !hayDatos;
@@ -118,6 +125,27 @@ export default function ExportarGestoria({ empresa, clientes, puedeFacturas = tr
       setDescargando(false);
     }
   };
+  const descargarDocumentos = async () => {
+    if (!periodo || !plan || plan.entradas.length === 0 || plan.demasiadoGrande) return;
+    const control = new AbortController();
+    cancelarZip.current = control;
+    setZip({ hechos: 0, total: plan.entradas.length });
+    try {
+      const r = await empaquetarDocumentos({ plan, periodo, taller: empresa.razonSocial || empresa.nombre, signal: control.signal, onProgreso: (hechos, total) => setZip({ hechos, total }) });
+      const { descargarBytes } = await import('../utils/xlsx');
+      descargarBytes(nombreZipDocumentos(periodo, empresa.nombre), r.bytes, 'application/zip');
+      if (r.fallidos.length === 0) avisarOk(`ZIP descargado con ${r.incluidos} ${r.incluidos === 1 ? 'archivo' : 'archivos'}.`);
+      else avisar({ tipo: 'error', mensaje: `ZIP descargado con ${r.incluidos} de ${plan.entradas.length} archivos. No se pudieron incluir: ${r.fallidos.join('; ')}. Lo dice también el LEEME.txt del ZIP.` });
+    } catch (e) {
+      if ((e as { name?: string }).name !== 'AbortError') avisarError(e, 'No se pudo preparar el ZIP de documentos.');
+    } finally {
+      cancelarZip.current = null;
+      setZip(null);
+    }
+  };
+  // Si se cierra la ventana a mitad de descarga, se cancela.
+  useEffect(() => () => cancelarZip.current?.abort(), []);
+
   const csvEmitidas = () => { if (periodo && emitidas) downloadCsv(nombreArchivoGestoria(periodo, empresa.nombre, 'csv'), csvLibro(emitidas)); };
   const csvRecib = () => {
     if (!periodo || !recibidas) return;
@@ -201,6 +229,32 @@ export default function ExportarGestoria({ empresa, clientes, puedeFacturas = tr
                   {avR.descuadradas.length > 0 && <Aviso>No cuadra con el total guardado: {avR.descuadradas.join(', ')}.</Aviso>}
                 </ul>
               ) : null} />
+          )}
+          {!cargando && plan && recibidas && recibidas.length > 0 && (
+            <div className="space-y-2 border-t border-slate-200 pt-3" data-testid="documentos-gestoria">
+              <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">Documentos de las facturas recibidas</p>
+              {plan.entradas.length === 0 ? (
+                <p className="text-xs text-slate-500">Ninguna de estas facturas tiene el documento adjunto. Adjúntalos desde el detalle de cada compra y podrás descargarlos todos juntos.</p>
+              ) : (
+                <p className="text-xs text-slate-600" data-testid="resumen-documentos">{plan.entradas.length} {plan.entradas.length === 1 ? 'archivo' : 'archivos'} de {plan.facturasConDocumento} {plan.facturasConDocumento === 1 ? 'factura' : 'facturas'} · {formatoTamano(plan.bytes)}</p>
+              )}
+              {plan.sinDocumento.length > 0 && plan.entradas.length > 0 && (
+                <ul className="text-[11px] text-amber-800" data-testid="sin-documento"><Aviso>Sin documento adjunto: {plan.sinDocumento.join(', ')}. La gestoría lo puede reclamar.</Aviso></ul>
+              )}
+              {plan.demasiadoGrande && <p role="alert" className="text-xs font-semibold text-rose-600">Son demasiados archivos para un solo ZIP: elige un periodo más corto (un mes, por ejemplo).</p>}
+              {plan.entradas.length > 0 && (
+                zip ? (
+                  <div className="flex items-center gap-2" data-testid="progreso-zip">
+                    <div className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden"><div className="h-full bg-emerald-500 transition-all" style={{ width: `${Math.round((zip.hechos / Math.max(zip.total, 1)) * 100)}%` }} /></div>
+                    <span className="text-[11px] text-slate-500 shrink-0">{zip.hechos} de {zip.total}</span>
+                    <button type="button" onClick={() => cancelarZip.current?.abort()} className="text-[11px] font-bold text-slate-500 hover:text-slate-700 cursor-pointer">Cancelar</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => void descargarDocumentos()} disabled={plan.demasiadoGrande} data-testid="descargar-documentos"
+                    className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50"><FileArchive className="w-4 h-4" /> Descargar documentos (ZIP)</button>
+                )
+              )}
+            </div>
           )}
           {!cargando && diferencia !== null && hayDatos && (
             <p className="text-xs text-slate-600 border-t border-slate-200 pt-3" data-testid="diferencia-iva">

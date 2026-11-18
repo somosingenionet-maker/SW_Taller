@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import type { Compra, CompraLinea, EstadoCompra } from '../../types';
+import type { CompraParaGestoria } from '../../utils/gestoria';
 
 const SELECT = 'id, proveedor_id, numero, fecha, fecha_vencimiento, estado, fecha_pago, base, iva, total, notas, proveedores ( nombre ), compra_adjuntos ( id )';
 
@@ -85,11 +86,7 @@ export async function anularCompra(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export interface CompraParaGestoria {
-  numero: string; fecha: string; estado: EstadoCompra; proveedorNombre: string; proveedorNif: string;
-  lineas: { subtotal: number; ivaPct: number }[];
-  total: number;
-}
+export type { CompraParaGestoria };
 
 /** Compras con fecha en [desde, hasta) con sus líneas (importe e IVA de cada una), para el libro de facturas recibidas. */
 export async function listComprasParaGestoria(desde: string, hasta: string): Promise<CompraParaGestoria[]> {
@@ -97,7 +94,7 @@ export async function listComprasParaGestoria(desde: string, hasta: string): Pro
   const todas: CompraParaGestoria[] = [];
   for (let desp = 0; ; desp += TAM) {
     const { data, error } = await supabase.from('compras')
-      .select('numero, fecha, estado, total, proveedores ( nombre, nif ), compra_lineas ( subtotal, iva_pct )')
+      .select('numero, fecha, estado, total, proveedores ( nombre, nif ), compra_lineas ( subtotal, iva_pct ), compra_adjuntos ( ruta, nombre, tipo, tamano )')
       .gte('fecha', desde).lt('fecha', hasta)
       .order('fecha', { ascending: true }).order('numero', { ascending: true })
       .range(desp, desp + TAM - 1);
@@ -106,12 +103,14 @@ export async function listComprasParaGestoria(desde: string, hasta: string): Pro
       numero: string; fecha: string; estado: string; total: number;
       proveedores: { nombre: string; nif: string | null } | { nombre: string; nif: string | null }[] | null;
       compra_lineas: { subtotal: number; iva_pct: number }[] | null;
+      compra_adjuntos: { ruta: string; nombre: string; tipo: string; tamano: number }[] | null;
     }>;
     for (const r of filas) {
       const p = Array.isArray(r.proveedores) ? r.proveedores[0] : r.proveedores;
       todas.push({
         numero: r.numero, fecha: r.fecha, estado: r.estado as EstadoCompra, proveedorNombre: p?.nombre ?? '(proveedor)', proveedorNif: p?.nif ?? '',
         total: Number(r.total), lineas: (r.compra_lineas ?? []).map((l) => ({ subtotal: Number(l.subtotal), ivaPct: Number(l.iva_pct) })),
+        adjuntos: (r.compra_adjuntos ?? []).map((a) => ({ ruta: a.ruta, nombre: a.nombre, tipo: a.tipo, tamano: Number(a.tamano) })),
       });
     }
     if (filas.length < TAM) break;

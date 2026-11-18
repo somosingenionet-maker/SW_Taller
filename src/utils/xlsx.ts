@@ -150,9 +150,9 @@ export function crearXlsx(hojas: Hoja[], ahora = new Date()): Uint8Array {
   return crearZip(archivos.map((a) => ({ nombre: a.nombre, contenido: enc.encode(a.texto) })), ahora);
 }
 
-/** Descarga un libro de Excel ya generado. */
-export function descargarXlsx(nombreArchivo: string, bytes: Uint8Array): void {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+/** Descarga un archivo ya generado (el navegador lo guarda con ese nombre). */
+export function descargarBytes(nombreArchivo: string, bytes: Uint8Array, tipo: string): void {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: tipo }));
   const a = document.createElement('a');
   a.href = url;
   a.download = nombreArchivo;
@@ -161,3 +161,7 @@ export function descargarXlsx(nombreArchivo: string, bytes: Uint8Array): void {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** Descarga un libro de Excel ya generado. */
+export const descargarXlsx = (nombreArchivo: string, bytes: Uint8Array): void =>
+  descargarBytes(nombreArchivo, bytes, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

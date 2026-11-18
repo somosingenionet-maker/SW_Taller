@@ -34,6 +34,15 @@ proveedor. Cierra el círculo con la gestoría: el libro de recibidas y el IVA r
   taller los quita. Una compra anulada conserva sus archivos y no admite más ni deja quitarlos.
 - El espacio ocupado (`uso_almacenamiento`) cuenta estos archivos.
 
+## ZIP de documentos para la gestoría (2026-11-21)
+- En «Para la gestoría», bloque «Documentos de las facturas recibidas»: cuántos archivos hay, de cuántas facturas y cuánto pesan, qué facturas NO tienen
+  documento (lo que la gestoría va a reclamar) y el botón «Descargar documentos (ZIP)».
+- El ZIP lleva cada archivo como `fecha_proveedor_número[_n].ext` (sin acentos ni símbolos, único aunque dos facturas den el mismo nombre), un
+  `indice.csv` (qué factura es cada archivo: fecha, proveedor, NIF, número, total, estado, nombre original) y un `LEEME.txt` (periodo, qué falta, qué falló).
+- Se dejan fuera las compras anuladas. Un archivo que falla no tumba el ZIP: sale en el LEEME y en un aviso.
+- Se arma en el navegador (descarga de 4 en 4 con enlaces firmados de 15 minutos, reintento por archivo, barra de progreso y cancelar). Límite de 400 MB por ZIP:
+  por encima pide un periodo más corto. Compresión «almacenar» (PDF y JPG ya van comprimidos).
+
 ## Para más adelante
-Descargar todos los documentos de un periodo en un ZIP para la gestoría, cuentas por pagar con avisos de vencimiento, pedido sugerido
+Cuentas por pagar con avisos de vencimiento, pedido sugerido
 al proveedor desde el stock bajo, gastos recurrentes, gastos no deducibles / IVA no deducible, retenciones (IRPF) y recargo de equivalencia.

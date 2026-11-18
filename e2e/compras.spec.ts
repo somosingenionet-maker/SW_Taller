@@ -284,3 +284,83 @@ test('adjuntos (almacén de mentira): una compra anulada conserva sus archivos y
   await expect(page.getByTestId('adjuntar-archivo')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Quitar / })).toHaveCount(0);
 });
+
+// ---- ZIP de documentos para la gestoría (almacén simulado) ----
+
+function leerZip(bytes: Buffer): Record<string, Buffer> {
+  const fin = bytes.length - 22;
+  expect(bytes.readUInt32LE(fin)).toBe(0x06054b50);
+  const n = bytes.readUInt16LE(fin + 10);
+  let pos = bytes.readUInt32LE(fin + 16);
+  const out: Record<string, Buffer> = {};
+  for (let i = 0; i < n; i++) {
+    const tam = bytes.readUInt32LE(pos + 20), ln = bytes.readUInt16LE(pos + 28), desp = bytes.readUInt32LE(pos + 42);
+    const nombre = bytes.subarray(pos + 46, pos + 46 + ln).toString('utf8');
+    const lnLocal = bytes.readUInt16LE(desp + 26);
+    out[nombre] = bytes.subarray(desp + 30 + lnLocal, desp + 30 + lnLocal + tam);
+    pos += 46 + ln;
+  }
+  return out;
+}
+
+test('gestoría con compras (almacén de mentira): el ZIP lleva los documentos con su nombre, el índice, el LEEME y avisa de lo que falta o falló', async ({ page }) => {
+  await simular(page);
+  await page.route(/\/rest\/v1\/facturas\?.*cliente_nif_snapshot/, (route) => json(route, []));
+  const adj = (ruta: string, nombre: string, tipo = 'application/pdf') => ({ ruta, nombre, tipo, tamano: 2048 });
+  await page.route(/\/rest\/v1\/compras\?.*compra_lineas/, (route) => json(route, [
+    { numero: 'F-1', fecha: '2026-07-05', estado: 'pagada', total: 242, proveedores: { nombre: 'Recambios Ruiz, S.L.', nif: 'B12345678' }, compra_lineas: [{ subtotal: 200, iva_pct: 21 }],
+      compra_adjuntos: [adj('emp/c1/a.pdf', 'factura ñandú.pdf'), adj('emp/c1/b.jpg', 'reverso', 'image/jpeg')] },
+    { numero: 'F-2', fecha: '2026-07-20', estado: 'pendiente', total: 110, proveedores: { nombre: 'Grúas Paco', nif: null }, compra_lineas: [{ subtotal: 100, iva_pct: 10 }],
+      compra_adjuntos: [adj('emp/c2/rota.pdf', 'se pierde.pdf')] },
+    { numero: 'F-3', fecha: '2026-07-21', estado: 'pendiente', total: 121, proveedores: { nombre: 'Grúas Paco', nif: null }, compra_lineas: [{ subtotal: 100, iva_pct: 21 }], compra_adjuntos: [] },
+    { numero: 'F-4', fecha: '2026-07-22', estado: 'anulada', total: 121, proveedores: { nombre: 'Recambios Ruiz, S.L.', nif: 'B12345678' }, compra_lineas: [{ subtotal: 100, iva_pct: 21 }], compra_adjuntos: [adj('emp/c4/x.pdf', 'anulada.pdf')] },
+  ]));
+  const firmadas: string[][] = [];
+  await page.route(/\/storage\/v1\/object\/sign\/facturas-proveedor$/, async (route) => {
+    const { paths } = route.request().postDataJSON() as { paths: string[] };
+    firmadas.push(paths);
+    return json(route, paths.map((path) => ({ path, error: null, signedURL: `/object/sign/facturas-proveedor/${path}?token=t` })));
+  });
+  await page.route(/\/storage\/v1\/object\/sign\/facturas-proveedor\/.+\?token=t$/, async (route) => {
+    const ruta = route.request().url().split('/facturas-proveedor/')[1].split('?')[0];
+    if (ruta.endsWith('rota.pdf')) return route.fulfill({ status: 500, headers: cors, body: 'boom' });
+    return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/octet-stream' }, body: Buffer.from(`contenido de ${ruta}`) });
+  });
+  await irACompras(page);
+  await page.getByTestId('compras-exportar-gestoria').click();
+  await page.getByTestId('exportar-gestoria').getByLabel('Año', { exact: true }).selectOption('2026');
+  await page.getByTestId('exportar-gestoria').getByLabel('Trimestre', { exact: true }).selectOption('3');
+  await expect(page.getByTestId('resumen-documentos')).toContainText('3 archivos de 2 facturas', { timeout: 15_000 });  // la anulada no cuenta
+  await expect(page.getByTestId('sin-documento')).toContainText('Grúas Paco F-3');
+  const dl = page.waitForEvent('download');
+  await page.getByTestId('descargar-documentos').click();
+  const d = await dl;
+  expect(d.suggestedFilename()).toMatch(/^doonty_facturas_recibidas_2026-T3_.*\.zip$/);
+  const z = leerZip(await readFile((await d.path())!));
+  expect(Object.keys(z).sort()).toEqual(['2026-07-05_Recambios-Ruiz-S-L_F-1_1.pdf', '2026-07-05_Recambios-Ruiz-S-L_F-1_2.jpg', 'LEEME.txt', 'indice.csv']);
+  expect(z['2026-07-05_Recambios-Ruiz-S-L_F-1_1.pdf'].toString()).toBe('contenido de emp/c1/a.pdf');   // el contenido es el del archivo, byte a byte
+  expect(firmadas.flat().sort()).toEqual(['emp/c1/a.pdf', 'emp/c1/b.jpg', 'emp/c2/rota.pdf']);          // la anulada ni se pide
+  const indice = z['indice.csv'].toString('utf8');
+  expect(indice).toContain('"2026-07-05_Recambios-Ruiz-S-L_F-1_1.pdf";"05/07/2026";"Recambios Ruiz, S.L.";"B12345678";"F-1";"242,00";"Pagada";"factura ñandú.pdf"');
+  expect(indice).not.toContain('Grúas Paco');                                                           // el que falló no consta como incluido
+  const leeme = z['LEEME.txt'].toString('utf8');
+  expect(leeme).toContain('Archivos incluidos: 2');
+  expect(leeme).toContain('Grúas Paco F-3');                                                            // sin documento
+  expect(leeme).toContain('NO se pudieron incluir');
+  expect(leeme).toContain('Gruas-Paco_F-2.pdf (error 500)');
+  await expect(page.getByText(/ZIP descargado con 2 de 3 archivos/)).toBeVisible();
+});
+
+test('gestoría con compras (almacén de mentira): sin ningún documento se explica y no hay botón de ZIP', async ({ page }) => {
+  await simular(page);
+  await page.route(/\/rest\/v1\/facturas\?.*cliente_nif_snapshot/, (route) => json(route, []));
+  await page.route(/\/rest\/v1\/compras\?.*compra_lineas/, (route) => json(route, [
+    { numero: 'F-1', fecha: '2026-07-05', estado: 'pagada', total: 242, proveedores: { nombre: 'Recambios Ruiz', nif: 'B12345678' }, compra_lineas: [{ subtotal: 200, iva_pct: 21 }], compra_adjuntos: [] },
+  ]));
+  await irACompras(page);
+  await page.getByTestId('compras-exportar-gestoria').click();
+  await page.getByTestId('exportar-gestoria').getByLabel('Año', { exact: true }).selectOption('2026');
+  await page.getByTestId('exportar-gestoria').getByLabel('Trimestre', { exact: true }).selectOption('3');
+  await expect(page.getByTestId('documentos-gestoria')).toContainText('Ninguna de estas facturas tiene el documento adjunto', { timeout: 15_000 });
+  await expect(page.getByTestId('descargar-documentos')).toHaveCount(0);
+});
