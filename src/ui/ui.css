@@ -308,3 +308,10 @@
 [data-ui="nuevo"][data-tema="oscuro"] .bg-blue-50, [data-ui="nuevo"][data-tema="oscuro"] .bg-blue-100 { background-color: color-mix(in srgb, var(--u-brand) 22%, var(--u-surface)) !important; }
 [data-ui="nuevo"][data-tema="oscuro"] .border-blue-100, [data-ui="nuevo"][data-tema="oscuro"] .border-blue-200, [data-ui="nuevo"][data-tema="oscuro"] .border-blue-300 { border-color: color-mix(in srgb, var(--u-brand) 40%, var(--u-surface)) !important; }
 }
+/* Configuración de la empresa: las piezas que traen letra pequeña (VERI*FACTU, reservas, inspección) se leen más grandes y con más aire. */
+.u-ajustes .text-xs { font-size: 14px; line-height: 1.5; }
+.u-ajustes .text-\[11px\], .u-ajustes .text-\[10px\], .u-ajustes .text-\[9px\] { font-size: 13px; line-height: 1.5; }
+.u-ajustes .text-sm { font-size: 15px; }
+.u-ajustes input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]), .u-ajustes select, .u-ajustes textarea { padding-top: .6rem; padding-bottom: .6rem; font-size: 15px; }
+.u-ajustes section.space-y-3 > * + *, .u-ajustes section.space-y-2 > * + * { margin-top: .9rem; }
+.u-ajustes button.text-xs, .u-ajustes button[class*="text-xs"] { padding-top: .55rem; padding-bottom: .55rem; }

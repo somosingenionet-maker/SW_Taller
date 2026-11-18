@@ -324,3 +324,50 @@ test('responsive: sin desplazamiento horizontal de la página en 360, 768 y 1024
   }
   expect(fallos, fallos.join('\n')).toEqual([]);
 });
+
+test('Configuración de empresa: ventana grande con menú de secciones, tarjetas y pie fijo (sin guardar nada)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  await page.getByTestId('menu-cuenta').click();
+  await page.getByRole('menuitem', { name: 'Configuración de empresa' }).click();
+  const ventana = page.getByRole('dialog', { name: 'Configuración de Empresa' });
+  await expect(ventana).toBeVisible({ timeout: 15_000 });
+  const caja = await ventana.boundingBox();
+  expect(caja!.width, 'la ventana es demasiado estrecha').toBeGreaterThan(1000);
+  expect(caja!.height, 'la ventana es demasiado baja').toBeGreaterThan(700);
+
+  const nav = ventana.getByRole('tablist', { name: 'Secciones de la configuración' });
+  await expect(nav.getByRole('tab')).toHaveCount(8);
+  await captura(page, 'ajustes-datos');
+  for (const [tab, texto] of [['Facturación', 'Numeración de facturas'], ['Logo y color', 'Color de marca'], ['Recordatorios', 'Mensaje de cada recordatorio'], ['Reservas online', ''], ['Inspección', ''], ['Fotos', 'Conservar las fotos de cada orden'], ['Técnicos', 'Técnicos del taller']] as const) {
+    await nav.getByRole('tab', { name: tab }).click();
+    await expect(ventana.getByRole('heading', { name: tab === 'Facturación' ? 'Facturación' : tab, level: 2 })).toBeVisible();
+    if (texto) await expect(ventana.getByText(texto).first()).toBeVisible();
+    await page.waitForTimeout(150);
+    await captura(page, `ajustes-${tab.toLowerCase().replace(/[^a-z]+/g, '-')}`);
+  }
+
+  // Con cambios sin guardar, Esc no cierra y se avisa; sin cambios, Esc cierra.
+  await nav.getByRole('tab', { name: 'Datos de la empresa' }).click();
+  const nombre = ventana.getByLabel('Nombre de la empresa *');
+  const original = await nombre.inputValue();
+  await nombre.fill(`${original} x`);
+  await expect(ventana.getByTestId('cambios-sin-guardar')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(ventana).toBeVisible();
+  await nombre.fill(original);
+  await expect(ventana.getByTestId('cambios-sin-guardar')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(ventana).toHaveCount(0);
+
+  // En el móvil el menú de secciones pasa a una fila deslizable y no hay desplazamiento horizontal.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByTestId('tab-mas').click();
+  await page.getByRole('dialog', { name: 'Menú' }).getByRole('button', { name: 'Configuración de empresa' }).click();
+  await expect(ventana).toBeVisible();
+  await captura(page, 'ajustes-movil');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});

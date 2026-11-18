@@ -26,7 +26,7 @@ test('guía de primeros pasos: un taller nuevo ve los pasos pendientes y cada bo
   // «Añadir mecánicos» abre Empresa directamente en la pestaña de técnicos.
   await guia.locator('[data-paso="tecnicos"]').getByRole('button').click();
   await expect(page.getByText(/Técnicos del taller/i)).toBeVisible({ timeout: 8000 });
-  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await page.getByRole('button', { name: 'Cerrar', exact: true }).last().click();
   await expect(page.getByText(/Técnicos del taller/i)).toBeHidden();
 
   // «Ir a Clientes» navega al módulo.
