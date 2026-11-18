@@ -6,7 +6,7 @@ import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
 import { perfilTieneModulo, mensajeSinModulo } from '../_shared/modulos.ts';
 import { CORREO_VALIDO } from '../_shared/correo.ts';
 import { initSentry, conSentry } from '../_shared/sentry.ts';
-import { construirCorreoPresupuesto, motivoNoEnviable } from './logic.ts';
+import { construirCorreoPresupuesto, ESTADOS_PRESUPUESTABLES, motivoNoEnviable } from './logic.ts';
 
 initSentry('presupuesto-enviar');
 
@@ -83,7 +83,7 @@ async function manejarEnviar(admin: SupabaseClient, req: Request, otId: string, 
   const anterior = { presupuesto_estado: ot.presupuesto_estado, presupuesto_aprobado: ot.presupuesto_aprobado };
   const { data: marcada, error: marcarErr } = await admin.from('ordenes_trabajo')
     .update({ presupuesto_estado: 'enviado', presupuesto_aprobado: null })
-    .eq('id', otId).eq('estado', 'presupuesto').is('aceptacion_presupuesto_en', null).select('id');
+    .eq('id', otId).in('estado', ESTADOS_PRESUPUESTABLES).is('aceptacion_presupuesto_en', null).select('id');
   if (marcarErr || !marcada?.length) return json({ error: 'No se pudo marcar el presupuesto como enviado.' }, 409);
 
   if (porCorreo) {

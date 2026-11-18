@@ -415,14 +415,13 @@ export default function AdminPanel({ currentUser, onClose, empresaId, empresaNom
                 </div>
               )}
 
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60"
-              >
+              <div className="dlg-pie">
+<button type="button" onClick={cancelForm} className="border border-slate-200 text-slate-600">Cancelar</button>
+<button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
                 <Check className="w-4 h-4" />
                 {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear usuario'}
               </button>
+</div>
             </div>
           )}
         </div>

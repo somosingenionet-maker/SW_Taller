@@ -342,3 +342,26 @@
 [data-ui="nuevo"] .animate-modal-pop label.text-xs, [data-ui="nuevo"] .animate-modal-pop label[class*="text-xs"] { font-size: 14px; }
 [data-ui="nuevo"] .animate-modal-pop .text-\[10px\], [data-ui="nuevo"] .animate-modal-pop .text-\[11px\] { font-size: 12.5px; }
 [data-ui="nuevo"] .animate-modal-pop form.px-5 { padding-left: 24px; padding-right: 24px; padding-top: 22px; padding-bottom: 22px; }
+
+.u-aviso-paso { font: 600 13.5px var(--u-f-body); border-radius: 999px; padding: 6px 12px; border: 0; background: var(--u-rep-bg); color: var(--u-rep); }
+button.u-aviso-paso { cursor: pointer; } button.u-aviso-paso:hover { filter: brightness(.96); }
+.u-aviso-paso.espera { background: var(--u-pres-bg); color: var(--u-pres); } .u-aviso-paso.mal { background: var(--u-danger-bg); color: var(--u-danger); }
+
+/* Pie de los cuadros: siempre a la vista, barra clara abajo con «Cancelar» a la izquierda del botón principal */
+[data-ui="nuevo"] .animate-modal-pop .overflow-y-auto.px-5 { padding: 22px 24px; }
+[data-ui="nuevo"] .dlg-pie, [data-ui="nuevo"] .dlg-pie-fijo { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--u-cab); border-top: 1px solid var(--u-line); }
+[data-ui="nuevo"] .dlg-pie { position: sticky; bottom: 0; z-index: 2; margin: 24px -24px -22px; padding: 14px 24px; }
+[data-ui="nuevo"] .dlg-b .dlg-pie { margin-bottom: -24px; }
+[data-ui="nuevo"] .dlg-pie-fijo { padding: 14px 24px; }
+[data-ui="nuevo"] :is(.dlg-pie, .dlg-pie-fijo) button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: auto; border-radius: 12px; padding: .6rem 1.25rem; font: 600 15px var(--u-f-body); cursor: pointer; }
+[data-ui="nuevo"] :is(.dlg-pie, .dlg-pie-fijo) button:not(.bg-blue-600) { background: var(--u-surface); color: var(--u-ink); border: 1px solid var(--u-line); }
+[data-ui="nuevo"] :is(.dlg-pie, .dlg-pie-fijo) button:not(.bg-blue-600):hover { background: var(--u-surface-2); }
+[data-ui="nuevo"] :is(.dlg-pie, .dlg-pie-fijo) button.bg-blue-600 { font-weight: 700; }
+[data-ui="nuevo"] :is(.dlg-pie, .dlg-pie-fijo) button:disabled { opacity: .55; cursor: not-allowed; }
+@media (max-width: 480px) { [data-ui="nuevo"] .dlg-pie button { flex: 1; } }
+
+/* Aviso + pie juntos (el aviso va junto al botón de guardar): toda la pila queda fija abajo */
+[data-ui="nuevo"] .dlg-pie-pila { position: sticky; bottom: 0; z-index: 2; margin: 24px -24px -24px; padding: 14px 24px; background: var(--u-cab); border-top: 1px solid var(--u-line); display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+[data-ui="nuevo"] .dlg-pie-pila > * { margin-top: 0 !important; }
+[data-ui="nuevo"] .dlg-pie-pila .dlg-pie { position: static; margin: 0; padding: 0; background: none; border: 0; }
+.u-pasos-cab.con-aviso .u-pasos { flex-basis: 100%; } .u-pasos-cab.con-aviso .u-aviso-paso { margin-left: auto; }

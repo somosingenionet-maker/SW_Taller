@@ -8,6 +8,8 @@ export interface TareasHoy {
   listos: TareaOrden[];
   /** Presupuesto enviado y sin respuesta, el que más espera primero. */
   esperando: TareaOrden[];
+  /** Presupuesto que el cliente rechazó (del coche que aún no entró o del que ya está dentro): hay que hablar con él. */
+  rechazados: TareaOrden[];
   /** Presupuesto aprobado por el cliente: falta recibir el coche. */
   aprobados: TareaOrden[];
   /** Presupuesto aún sin enviar. */
@@ -28,11 +30,15 @@ export function tareasHoy(ordenes: OrdenTrabajo[], vehiculos: Vehiculo[], client
   const listos = ordenes.filter((o) => o.estado === 'listo').map((o) => tarea(o, o.fechaActualizacion || o.fechaRecepcion))
     .sort((a, b) => Number(!!a.orden.notificacionEnviada) - Number(!!b.orden.notificacionEnviada) || masAntiguoPrimero(a, b));
   const presupuestos = ordenes.filter((o) => o.estado === 'presupuesto');
-  const esperando = presupuestos.filter((o) => o.presupuestoEstado === 'enviado' && !o.presupuestoAprobado).map((o) => tarea(o, o.fechaActualizacion || o.fechaRecepcion)).sort(masAntiguoPrimero);
+  // Sin respuesta: enviado y ni aceptado ni rechazado. Vale tanto para presupuestos previos como para coches ya dentro del taller.
+  const sinRespuesta = ordenes.filter((o) => (o.estado === 'presupuesto' || o.estado === 'recibido' || o.estado === 'en_reparacion') && o.presupuestoEstado === 'enviado' && o.presupuestoAprobado == null && !o.aceptacionPresupuesto);
+  const esperando = sinRespuesta.map((o) => tarea(o, o.fechaActualizacion || o.fechaRecepcion)).sort(masAntiguoPrimero);
+  const rechazados = ordenes.filter((o) => (o.estado === 'presupuesto' || o.estado === 'recibido' || o.estado === 'en_reparacion') && o.presupuestoEstado === 'enviado' && o.presupuestoAprobado === false)
+    .map((o) => tarea(o, o.fechaActualizacion || o.fechaRecepcion)).sort(masAntiguoPrimero);
   const aprobados = presupuestos.filter((o) => o.presupuestoAprobado).map((o) => tarea(o, o.fechaActualizacion || o.fechaRecepcion)).sort(masAntiguoPrimero);
   const porEnviar = presupuestos.filter((o) => o.presupuestoEstado !== 'enviado' && !o.presupuestoAprobado).map((o) => tarea(o, o.fechaActualizacion || o.fechaRecepcion)).sort(masAntiguoPrimero);
   const enTaller = ordenes.filter((o) => o.estado === 'recibido' || o.estado === 'en_reparacion').map((o) => tarea(o, o.fechaRecepcion)).sort(masAntiguoPrimero);
-  return { listos, esperando, aprobados, porEnviar, enTaller };
+  return { listos, esperando, rechazados, aprobados, porEnviar, enTaller };
 }
 
 export const textoDias = (dias: number): string => (dias <= 0 ? 'hoy' : dias === 1 ? 'hace 1 día' : `hace ${dias} días`);

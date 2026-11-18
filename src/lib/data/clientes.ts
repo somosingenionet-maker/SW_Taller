@@ -93,10 +93,16 @@ export async function createCliente(input: NuevoCliente): Promise<Cliente> {
   await supabase.from('interacciones_cliente').insert({
     cliente_id: id,
     tipo: 'registro_contrato',
-    notas: 'Registro de la ficha de cliente en el sistema CRM de Backoffice.',
+    notas: 'Alta de la ficha del cliente.',
   });
 
   return getCliente(id);
+}
+
+/** Pone un vehículo a nombre de un cliente sin tocar los demás que ya tenga (un vehículo pertenece a un único cliente). */
+export async function asociarVehiculo(clienteId: string, vehiculoId: string): Promise<void> {
+  const { error } = await supabase.from('cliente_vehiculo').insert({ cliente_id: clienteId, vehiculo_id: vehiculoId });
+  if (error) throw new Error(error.message);
 }
 
 export async function updateCliente(c: Cliente): Promise<Cliente> {

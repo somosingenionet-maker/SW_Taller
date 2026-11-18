@@ -8,7 +8,14 @@ Deno.test('motivoNoEnviable: solo un presupuesto con importe, sin aceptar', () =
   assertEquals(motivoNoEnviable({ ...base, presupuesto_aprobado: false }), null);   // rechazado antes: se puede reenviar corregido
   assertEquals(motivoNoEnviable({ ...base, aceptacion_presupuesto_en: '2026-11-14T10:00:00Z', presupuesto_aprobado: true }), 'El cliente ya aceptó este presupuesto.');
   assertEquals(motivoNoEnviable({ ...base, presupuesto_aprobado: true }), 'El cliente ya aprobó este presupuesto.');
-  assertEquals(motivoNoEnviable({ ...base, estado: 'recibido' }), 'Solo se envía el presupuesto de una orden que aún está en estado Presupuesto.');
+  // Con el coche ya en el taller también se puede presupuestar (llegó directo a revisión y el diagnóstico sale después).
+  assertEquals(motivoNoEnviable({ ...base, estado: 'recibido' }), null);
+  assertEquals(motivoNoEnviable({ ...base, estado: 'en_reparacion' }), null);
+  assertEquals(motivoNoEnviable({ ...base, estado: 'recibido', presupuesto_aprobado: false }), null);
+  assertEquals(motivoNoEnviable({ ...base, estado: 'recibido', presupuesto_aprobado: true }), 'El cliente ya aprobó este presupuesto.');
+  for (const estado of ['listo', 'entregado', 'cancelado']) {
+    assertEquals(motivoNoEnviable({ ...base, estado }), 'El presupuesto solo se envía mientras la orden está en Presupuesto, Recibido o En reparación.');
+  }
   assertEquals(motivoNoEnviable({ ...base, total: 0 }), 'El presupuesto no tiene importe: añade líneas antes de enviarlo.');
 });
 

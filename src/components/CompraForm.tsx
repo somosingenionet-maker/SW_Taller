@@ -220,9 +220,9 @@ export default function CompraForm({ proveedores, productos, proveedorInicial, o
         )}
 
         {/* El aviso va junto al botón de guardar, donde se está mirando. */}
-        <div className="space-y-2">
+        <div className="space-y-2 dlg-pie-pila">
           {error && <p role="alert" data-testid="error-compra" className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{error}</p>}
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 dlg-pie">
             <button onClick={onClose} className="px-4 py-2.5 text-sm font-bold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer">Cancelar</button>
             <button onClick={() => void guardar()} disabled={guardando} data-testid="guardar-compra"
               className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl cursor-pointer disabled:opacity-60">

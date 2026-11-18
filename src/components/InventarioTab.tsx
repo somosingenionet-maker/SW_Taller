@@ -353,11 +353,13 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
                 <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{formError}</div>
               )}
 
-              <button onClick={handleSave} disabled={saving}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
+              <div className="dlg-pie">
+<button type="button" onClick={() => setShowForm(false)} className="border border-slate-200 text-slate-600">Cancelar</button>
+<button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
                 <Check className="w-4 h-4" />
                 {saving ? 'Guardando…' : editingId ? 'Guardar cambios' : 'Crear producto'}
               </button>
+</div>
             </div>
           </div>
         </div>
@@ -456,10 +458,12 @@ function MovimientoModal({ producto, onClose, onRegistrar }: MovimientoModalProp
 
         {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
 
-        <button onClick={handleSave} disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
+        <div className="dlg-pie">
+<button type="button" onClick={onClose} className="border border-slate-200 text-slate-600">Cancelar</button>
+<button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
           <Check className="w-4 h-4" /> {saving ? 'Guardando…' : 'Registrar movimiento'}
         </button>
+</div>
       </div>
     </div>
   );

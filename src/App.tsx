@@ -9,7 +9,7 @@ import { mensajeDeError, mensajeSoloLectura, textoDeError } from './lib/errores'
 import { avisar, avisarError, escucharAvisos, type Aviso } from './lib/avisos';
 import { getSuscripcion, type Suscripcion } from './lib/data/suscripcion';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, guardarAceite, NuevoVehiculo, AceiteVehiculo } from './lib/data/vehiculos';
-import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, NuevoCliente } from './lib/data/clientes';
+import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, asociarVehiculo, NuevoCliente } from './lib/data/clientes';
 import { listOrdenesTablero, createOrden, updateOrden, deleteOrden, getOrden } from './lib/data/ordenes';
 import { avisoDelMecanico } from './utils/avisoMecanico';
 import { listAlertas, forzarRecordatorio } from './lib/data/alertas';
@@ -428,6 +428,14 @@ export default function App() {
     await recargarAlertas();
   }, [recargarVehiculos, recargarAlertas]);
 
+  // Alta rápida desde la orden de trabajo: el vehículo nace ya a nombre de su dueño, y las listas se refrescan para que la orden lo encuentre.
+  const handleAltaRapidaVehiculo = useCallback(async (input: NuevoVehiculo, clienteId: string) => {
+    const creado = await createVehiculo(input);
+    try { await asociarVehiculo(clienteId, creado.id); } catch (err) { await recargarVehiculos(); throw err; }
+    await Promise.all([recargarVehiculos(), recargarClientes(), recargarAlertas()]);
+    return creado;
+  }, [recargarVehiculos, recargarClientes, recargarAlertas]);
+
   const handleUpdateVehiculo = useCallback(async (editado: Vehiculo) => {
     await updateVehiculo(editado);
     await recargarVehiculos();
@@ -822,6 +830,8 @@ export default function App() {
             empresa={empresa}
             productos={productos}
             onAdd={handleAddOT}
+            onCrearCliente={handleAddCliente}
+            onCrearVehiculo={handleAltaRapidaVehiculo}
             onUpdate={handleUpdateOT}
             onDelete={handleDeleteOT}
             onRefrescada={handleOrdenRefrescada}

@@ -62,7 +62,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, 
     </button>
   );
 
-  const hayMoverOrdenes = t.listos.length + t.esperando.length + t.aprobados.length + t.porEnviar.length > 0;
+  const hayMoverOrdenes = t.listos.length + t.esperando.length + t.rechazados.length + t.aprobados.length + t.porEnviar.length > 0;
   const facturasVencidas = resumen?.facturasVencidas ?? 0;
 
   return (
@@ -127,7 +127,11 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, 
               </>}
               {t.esperando.length > 0 && <>
                 <div className="u-sub">Presupuestos sin respuesta · {t.esperando.length}</div>
-                {t.esperando.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Enviado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} €`} chip={<Chip tono="presupuesto">Esperando</Chip>} />)}
+                {t.esperando.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Enviado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} €${x.orden.estado === 'presupuesto' ? '' : ' · coche ya en el taller'}`} chip={<Chip tono="presupuesto">Esperando</Chip>} />)}
+              </>}
+              {t.rechazados.length > 0 && <>
+                <div className="u-sub">Presupuestos rechazados · {t.rechazados.length}</div>
+                {t.rechazados.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Rechazado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} € · habla con el cliente`} chip={<Chip tono="peligro">Rechazado</Chip>} />)}
               </>}
               {t.aprobados.length > 0 && <>
                 <div className="u-sub">Aprobados: falta recibir el coche · {t.aprobados.length}</div>

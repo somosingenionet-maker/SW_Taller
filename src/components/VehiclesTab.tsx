@@ -740,7 +740,7 @@ export default function VehiclesTab({
                 {addFormError && (
                   <p className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 font-medium">{addFormError}</p>
                 )}
-                <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 text-sm font-medium">
+                <div className="flex justify-end gap-2 dlg-pie">
                   <button
                     type="button"
                     onClick={() => { setIsAddingOpen(false); setAddFormError(''); }}
@@ -886,7 +886,7 @@ export default function VehiclesTab({
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 text-sm font-medium">
+                <div className="flex justify-end gap-2 dlg-pie">
                   <button
                     type="button"
                     onClick={() => setIsEditing(false)}

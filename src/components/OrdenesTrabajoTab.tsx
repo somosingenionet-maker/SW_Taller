@@ -31,6 +31,9 @@ import Pagination from './Pagination';
 import type { Intencion } from '../ui/navegacion';
 import TableroTaller from '../ui/TableroTaller';
 import PasosOrden from '../ui/PasosOrden';
+import AltaRapida from './AltaRapida';
+import type { NuevoCliente } from '../lib/data/clientes';
+import type { NuevoVehiculo } from '../lib/data/vehiculos';
 import { esDisenoNuevo } from '../ui/disenoNuevo';
 
 interface Props {
@@ -50,6 +53,9 @@ interface Props {
   onVistaAmpliaChange?: (amplia: boolean) => void;
   /** Orden que llega del botón «Nuevo» o del buscador global del nuevo diseño (cada una trae un número distinto). */
   intencion?: Intencion;
+  /** Alta rápida desde la orden: crea un cliente / un vehículo (ya a nombre de su dueño) sin salir de la recepción. */
+  onCrearCliente?: (input: NuevoCliente) => Promise<Cliente>;
+  onCrearVehiculo?: (input: NuevoVehiculo, clienteId: string) => Promise<Vehiculo>;
 }
 
 const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string; dot: string }> = {
@@ -223,6 +229,9 @@ function BadgeEstado({ estado, presupuestoEstado, presupuestoAprobado, notificac
 }) {
   const m = ESTADO_META[estado];
   if (estado === 'presupuesto' && presupuestoEstado === 'enviado') return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Enviado</span>;
+  // Coche ya en el taller con un presupuesto en marcha: se ve en qué punto está.
+  if ((estado === 'recibido' || estado === 'en_reparacion') && presupuestoEstado === 'enviado' && presupuestoAprobado === false) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">Presupuesto rechazado</span>;
+  if ((estado === 'recibido' || estado === 'en_reparacion') && presupuestoEstado === 'enviado' && presupuestoAprobado == null) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Presupuesto enviado</span>;
   if (estado === 'recibido' && presupuestoAprobado) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">Aprobado</span>;
   if (estado === 'recibido' && !presupuestoAprobado) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Pdte. diagnóstico</span>;
   if (estado === 'listo' && notificacionEnviada) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Notificado</span>;
@@ -404,7 +413,7 @@ function KanbanBoard({
   );
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
@@ -440,6 +449,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const [isCreating, setIsCreating] = useState(false);
   const [guardandoOT, setGuardandoOT] = useState(false);
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
+  const [altaRapida, setAltaRapida] = useState<{ modo: 'cliente' | 'vehiculo'; texto: string } | null>(null);
   const [otForm, setOTForm] = useState<OTForm>(EMPTY_OT_FORM);
   const [formLineas, setFormLineas] = useState<LineaOT[]>([]);
   const [newLinea, setNewLinea] = useState<LineaForm>(EMPTY_LINEA);
@@ -1151,7 +1161,19 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 </div>
               </div>
 
-              {esDisenoNuevo() && <PasosOrden estado={selected.estado} onSiguiente={(e) => handleEstadoChange(selected, e)} />}
+              {esDisenoNuevo() && (() => {
+                const enTaller = selected.estado === 'recibido' || selected.estado === 'en_reparacion';
+                const enviado = selected.presupuestoEstado === 'enviado';
+                const aprobado = !!selected.aceptacionPresupuesto || selected.presupuestoAprobado === true;
+                let aviso: { texto: string; onClick?: () => void; tono?: 'pendiente' | 'espera' | 'mal' } | undefined;
+                if (enTaller && !aprobado) {
+                  const ir = () => document.getElementById('bloque-presupuesto')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  if (!enviado) aviso = { texto: 'Falta enviar el presupuesto al cliente ↓', onClick: ir, tono: 'pendiente' };
+                  else if (selected.presupuestoAprobado === false) aviso = { texto: 'El cliente rechazó el presupuesto ↓', onClick: ir, tono: 'mal' };
+                  else aviso = { texto: 'Presupuesto enviado: esperando al cliente', onClick: ir, tono: 'espera' };
+                }
+                return <PasosOrden estado={selected.estado} onSiguiente={(e) => handleEstadoChange(selected, e)} aviso={aviso} />;
+              })()}
 
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
                 {/* Vehicle + Client */}
@@ -1365,21 +1387,40 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Bloque: Cotización — PDF y seguimiento */}
                 {/* Bloque: Presupuesto */}
-                {selected.estado === 'presupuesto' && (() => {
+                {/* Se presupuesta antes de recibir el coche (Presupuesto) o con el coche ya dentro (Recibido / En reparación):
+                    el segundo caso es el normal cuando llega directo a revisión y el diagnóstico sale después. */}
+                {(selected.estado === 'presupuesto' || selected.estado === 'recibido' || selected.estado === 'en_reparacion') && (() => {
+                  const enTaller = selected.estado !== 'presupuesto';
                   const enviado = selected.presupuestoEstado === 'enviado';
-                  return (
-                    <div className={`rounded-2xl border p-4 space-y-3 ${enviado ? 'bg-green-50 border-green-200' : 'bg-violet-50 border-violet-200'}`}>
-                      <div className="flex items-center justify-between">
+                  const aceptado = !!selected.aceptacionPresupuesto || (enTaller && selected.presupuestoAprobado === true);
+                  if (enTaller && aceptado) {
+                    const a = selected.aceptacionPresupuesto;
+                    return (
+                      <div id="bloque-presupuesto" className="rounded-2xl border border-green-200 bg-green-50 p-4 space-y-1" data-testid="presupuesto-aprobado">
                         <p className="text-xs font-bold uppercase text-slate-500">Presupuesto</p>
+                        <p className="text-sm font-semibold text-green-800 flex items-center gap-1.5"><Check size={14} /> Aprobado por el cliente</p>
+                        {a && <p className="text-xs text-slate-500">{a.nombre} · {new Date(a.en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })} · {fmt2(a.total)} €</p>}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div id="bloque-presupuesto" className={`rounded-2xl border p-4 space-y-3 ${enviado ? 'bg-green-50 border-green-200' : 'bg-violet-50 border-violet-200'}`} data-testid="bloque-presupuesto">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold uppercase text-slate-500">{enTaller ? 'Presupuesto para aprobación' : 'Presupuesto'}</p>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${enviado ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {enviado ? 'Enviado' : 'Pendiente de envío'}
+                          {enviado ? (selected.presupuestoAprobado === false ? 'Rechazado' : 'Enviado') : 'Pendiente de envío'}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500">
                         {enviado
                           ? 'Esperando la respuesta del cliente. Puede aceptarlo o rechazarlo desde su portal.'
-                          : 'Envíaselo al cliente: recibe un enlace a su portal donde lo acepta o lo rechaza desde el móvil.'}
+                          : enTaller
+                            ? 'El coche ya está en el taller. Cuando tengas el diagnóstico y las líneas con su precio, envíaselo al cliente: recibe un enlace a su portal donde lo aprueba desde el móvil, y queda guardada su aceptación.'
+                            : 'Envíaselo al cliente: recibe un enlace a su portal donde lo acepta o lo rechaza desde el móvil.'}
                       </p>
+                      {enTaller && !enviado && !(selected.total > 0) && (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">Aún no hay importe: añade las líneas de trabajo y recambios para poder enviarlo.</p>
+                      )}
                       <EnviarPresupuesto
                         ot={selected}
                         clienteId={selected.clienteId}
@@ -1656,6 +1697,22 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         )}
       </AnimatePresence>
 
+      {altaRapida && onCrearCliente && onCrearVehiculo && (
+        <AltaRapida
+          modo={altaRapida.modo}
+          clientes={clientes}
+          textoInicial={altaRapida.texto}
+          clienteIdInicial={altaRapida.modo === 'vehiculo' ? otForm.clienteId : ''}
+          onCrearCliente={onCrearCliente}
+          onCrearVehiculo={onCrearVehiculo}
+          onCerrar={() => setAltaRapida(null)}
+          onListo={({ clienteId, vehiculoId }) => {
+            setOTForm(f => ({ ...f, ...(clienteId ? { clienteId } : {}), ...(vehiculoId ? { vehiculoId } : {}) }));
+            setAltaRapida(null);
+          }}
+        />
+      )}
+
       {/* Edit Panel */}
       <AnimatePresence>
         {isEditing && selected && (
@@ -1916,7 +1973,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
                 </div>
 
-                <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 pb-4">
+                <div className="flex justify-end gap-2 dlg-pie">
                   <button type="button" onClick={() => setIsEditing(false)}
                     className="px-4 py-2 rounded-2xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
                     Cancelar
@@ -1981,8 +2038,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       setOTForm(f => ({ ...f, vehiculoId: vehId, clienteId: dueno?.id ?? '' }));
                     }}
                     placeholder="Buscar por matrícula, marca o cliente…"
-                    emptyMessage="Ningún vehículo coincide. Créalo antes en Vehículos."
+                    emptyMessage="Ningún vehículo coincide"
                     required
+                    onCreateNew={onCrearVehiculo && onCrearCliente ? (texto) => setAltaRapida({ modo: 'vehiculo', texto }) : undefined}
+                    createLabel="Crear vehículo"
                   />
                 </div>
 
@@ -2005,8 +2064,10 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                         value={otForm.clienteId}
                         onChange={(id) => setOTForm(f => ({ ...f, clienteId: id }))}
                         placeholder="Buscar cliente por nombre, teléfono o documento…"
-                        emptyMessage="Ningún cliente coincide. Créalo antes en Clientes."
+                        emptyMessage="Ningún cliente coincide"
                         required
+                        onCreateNew={onCrearCliente ? (texto) => setAltaRapida({ modo: 'cliente', texto }) : undefined}
+                        createLabel="Crear cliente"
                       />
                     );
                   })()}
@@ -2261,7 +2322,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   </div>
                 )}
 
-                <div className="border-t border-slate-100 pt-4 flex justify-end gap-2 pb-4">
+                <div className="flex justify-end gap-2 dlg-pie">
                   <button type="button" onClick={() => setIsCreating(false)} disabled={guardandoOT}
                     className="px-4 py-2 rounded-2xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition">
                     Cancelar
@@ -2366,7 +2427,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     {fotoError && <p className="text-xs text-rose-500 mt-1.5 flex items-center gap-1"><ImageOff size={12} /> {fotoError}</p>}
                   </div>
                 </div>
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-end gap-2 dlg-pie">
                   <button onClick={() => setRecepcionModal(null)}
                     className="px-4 py-2 rounded-2xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition">
                     Cancelar
@@ -2689,10 +2750,12 @@ function CrearProductoRapidoModal({ nombreInicial, onClose, onCreado, onCreatePr
             className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
-        <button onClick={handleSave} disabled={saving}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
+        <div className="dlg-pie">
+<button type="button" onClick={onClose} className="border border-slate-200 text-slate-600">Cancelar</button>
+<button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
           <Check size={15} /> {saving ? 'Creando…' : 'Crear y usar en la línea'}
         </button>
+</div>
       </div>
     </div>
   );

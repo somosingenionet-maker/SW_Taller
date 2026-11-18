@@ -22,6 +22,17 @@ describe('tareasHoy', () => {
     expect(t.aprobados.map((x) => x.orden.id)).toEqual(['4']);
     expect(t.enTaller.map((x) => x.orden.id).sort()).toEqual(['5', '6']);
   });
+  it('un presupuesto enviado al coche ya dentro del taller también cuenta: sin respuesta, rechazado o aceptado', () => {
+    const t = tareasHoy([
+      ot('1', 'recibido', { presupuestoEstado: 'enviado' }),
+      ot('2', 'en_reparacion', { presupuestoEstado: 'enviado', presupuestoAprobado: false }),
+      ot('3', 'recibido', { presupuestoEstado: 'enviado', presupuestoAprobado: true, aceptacionPresupuesto: { nombre: 'Ana', en: '2026-11-17T10:00:00Z', total: 90 } }),
+      ot('4', 'listo', { presupuestoEstado: 'enviado' }),
+    ], veh, cli, ahora);
+    expect(t.esperando.map((x) => x.orden.id)).toEqual(['1']);
+    expect(t.rechazados.map((x) => x.orden.id)).toEqual(['2']);
+    expect(t.enTaller.map((x) => x.orden.id).sort()).toEqual(['1', '2', '3']);
+  });
   it('en los listos, primero los que faltan por avisar; luego los más antiguos', () => {
     const t = tareasHoy([
       ot('a', 'listo', { notificacionEnviada: true, fechaActualizacion: dia(9) }),
@@ -35,7 +46,7 @@ describe('tareasHoy', () => {
     expect(t.enTaller[0]).toMatchObject({ dias: 68, vehiculo: { matricula: '9007TST' }, cliente: { nombre: 'Isabel' } });
   });
   it('sin órdenes no hay nada', () => {
-    expect(tareasHoy([], [], [], ahora)).toEqual({ listos: [], esperando: [], aprobados: [], porEnviar: [], enTaller: [] });
+    expect(tareasHoy([], [], [], ahora)).toEqual({ listos: [], esperando: [], rechazados: [], aprobados: [], porEnviar: [], enTaller: [] });
   });
   it('fechas raras no rompen y el día de hoy no es negativo', () => {
     const t = tareasHoy([ot('1', 'recibido', { fechaRecepcion: 'no-es-fecha' }), ot('2', 'recibido', { fechaRecepcion: new Date(ahora.getTime() + 86_400_000).toISOString() })], veh, cli, ahora);

@@ -2,11 +2,17 @@
 import { colorValido, escaparHtml, eur, textoSobre } from '../_shared/correo.ts';
 
 /** ¿Se puede enviar ahora? Devuelve el motivo si no. */
+/**
+ * Estados en los que se puede mandar un presupuesto al cliente: antes de que el coche entre (Presupuesto) y también con el coche ya en el
+ * taller (Recibido, En reparación), que es lo normal cuando llega directo a revisión y el diagnóstico sale después.
+ */
+export const ESTADOS_PRESUPUESTABLES = ['presupuesto', 'recibido', 'en_reparacion'];
+
 export function motivoNoEnviable(
   ot: { estado: string; total: number; presupuesto_aprobado: boolean | null; aceptacion_presupuesto_en: string | null },
 ): string | null {
   if (ot.aceptacion_presupuesto_en) return 'El cliente ya aceptó este presupuesto.';
-  if (ot.estado !== 'presupuesto') return 'Solo se envía el presupuesto de una orden que aún está en estado Presupuesto.';
+  if (!ESTADOS_PRESUPUESTABLES.includes(ot.estado)) return 'El presupuesto solo se envía mientras la orden está en Presupuesto, Recibido o En reparación.';
   if (!(Number(ot.total) > 0)) return 'El presupuesto no tiene importe: añade líneas antes de enviarlo.';
   if (ot.presupuesto_aprobado === true) return 'El cliente ya aprobó este presupuesto.';
   return null;

@@ -475,3 +475,147 @@ test('cuadros: todos comparten el mismo aspecto (cabecera clara con título y bo
   }
   expect(fallos, fallos.join('\n')).toEqual([]);
 });
+
+test('Alta rápida: crear cliente y vehículo desde la orden, quedan elegidos y asociados (y se borran al terminar)', async ({ page }) => {
+  test.setTimeout(150_000);
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  const sufijo = Date.now().toString().slice(-6);
+  const matricula = `E2E${sufijo}`;
+  const nombre = `Prueba${sufijo}`;
+  const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
+
+  // Pase lo que pase, se borra todo lo que esta prueba (o una anterior que se quedara a medias) haya creado.
+  const limpiar = async () => {
+    for (let i = 0; i < 2; i++) { await page.mouse.click(5, 450); await page.waitForTimeout(250); } // cierra el alta rápida y la orden, si siguen abiertas
+    await menu.getByRole('button', { name: 'Vehículos' }).click();
+    await page.getByPlaceholder(/Buscar por marca, modelo, matrícula/).fill('E2E');
+    await page.waitForTimeout(400);
+    const filasV = page.locator('main tbody tr[id^="veh-row-"]').filter({ hasText: /E2E\d{6}/ });
+    while (await filasV.count() > 0) {
+      await filasV.first().getByTitle('Eliminar').click();
+      await page.getByRole('button', { name: 'Sí, eliminar' }).click();
+      await page.waitForTimeout(700);
+    }
+    await menu.getByRole('button', { name: 'Clientes' }).click();
+    await page.getByPlaceholder(/Buscar por nombre, documento/).fill('Alta Rápida');
+    await page.waitForTimeout(400);
+    const filasC = page.locator('main tbody tr[id^="cli-row-"]').filter({ hasText: /Prueba\d{6} Alta Rápida/ });
+    while (await filasC.count() > 0) {
+      await filasC.first().getByTitle('Borrar ficha').click();
+      await page.getByRole('button', { name: 'Sí, borrar' }).click();
+      await page.waitForTimeout(700);
+    }
+  };
+
+  try {
+    await menu.getByRole('button', { name: 'En el taller' }).click();
+    await page.getByTestId('taller-recibir').click();
+    await page.getByRole('button', { name: /Buscar por matrícula, marca o cliente/ }).click();
+    await page.getByPlaceholder('Buscar...').fill(matricula);
+    await page.getByText(/Crear vehículo/).click();
+    const alta = page.getByTestId('alta-rapida');
+    await expect(alta).toBeVisible();
+    await expect(alta.getByLabel('Matrícula *')).toHaveValue(matricula);
+    // Sin datos mínimos no deja guardar y lo explica.
+    await alta.getByTestId('ar-dueno-nuevo').click();
+    await alta.getByTestId('alta-rapida-guardar').click();
+    await expect(alta.getByTestId('alta-rapida-error')).toContainText('matrícula, la marca o el modelo');
+    await alta.getByLabel('Marca *').fill('Seat');
+    await alta.getByLabel('Modelo *').fill('Ibiza E2E');
+    await alta.getByLabel('Nombre *').fill(nombre);
+    await alta.getByLabel('Apellidos *').fill('Alta Rápida');
+    await alta.getByLabel('Teléfono *').fill('600123123');
+    await captura(page, 'alta-rapida');
+    await alta.getByTestId('alta-rapida-guardar').click();
+    await expect(alta).toHaveCount(0, { timeout: 15_000 });
+
+    // La orden ya tiene el vehículo y su dueño elegidos.
+    const orden = page.getByRole('button', { name: 'Crear OT' }).locator('xpath=ancestor::form');
+    await expect(orden.getByText(`Seat Ibiza E2E · ${matricula}`).first()).toBeVisible();
+    await expect(orden.getByText('Asignado al vehículo')).toBeVisible();
+    await expect(orden.getByText(`${nombre} Alta Rápida`).first()).toBeVisible();
+  } finally {
+    await limpiar();
+  }
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('Taller: con el coche ya recibido se ofrece enviar el presupuesto para su aprobación', async ({ page }) => {
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await activarNuevo(page);
+  await page.getByRole('navigation', { name: 'Menú principal', exact: true }).getByRole('button', { name: 'En el taller' }).click();
+  await page.getByTitle('Vista de tablero').click();
+  const recibido = page.getByTestId('tablero-taller').getByRole('region', { name: /^Recibido:/ });
+  await expect(recibido).toBeVisible({ timeout: 15_000 });
+  test.skip(await recibido.getByTestId('tarjeta-orden').count() === 0, 'No hay ninguna orden en Recibido');
+  await recibido.getByTestId('tarjeta-orden').first().getByRole('button', { name: /^Abrir / }).click();
+  const ficha = page.locator('[data-panel-lateral]').first();
+  await expect(ficha).toBeVisible({ timeout: 10_000 });
+  // O ya está aprobado, o se ofrece enviarlo (con correo, WhatsApp o enlace) y la cabecera avisa de lo que falta.
+  const bloque = ficha.getByTestId('bloque-presupuesto');
+  if (await bloque.count() > 0) {
+    await expect(bloque).toContainText('Presupuesto para aprobación');
+    await expect(bloque.getByTestId('enviar-presupuesto-correo')).toBeVisible();
+    await expect(bloque.getByTestId('enviar-presupuesto-whatsapp')).toBeVisible();
+    await expect(ficha.getByTestId('aviso-paso')).toBeVisible();
+  } else {
+    await expect(ficha.getByTestId('presupuesto-aprobado')).toBeVisible();
+  }
+  await captura(page, 'presupuesto-en-taller');
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('Recibir un coche directo: su ficha ofrece enviar el presupuesto al cliente y avisa de lo que falta (se borra al terminar)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await activarNuevo(page);
+  const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
+  await menu.getByRole('button', { name: 'En el taller' }).click();
+  await page.getByTitle('Vista de tablero').click();
+  const recibido = page.getByTestId('tablero-taller').getByRole('region', { name: /^Recibido:/ });
+  await expect(recibido).toBeVisible({ timeout: 15_000 });
+  const tarjetaMia = () => recibido.getByTestId('tarjeta-orden').filter({ hasText: '9001TST' });
+  expect(await tarjetaMia().count(), 'quedó una orden de pruebas anterior en Recibido').toBe(0);
+
+  // El coche 9001TST (Seat León de pruebas) llega directo a revisión.
+  await page.getByTestId('taller-recibir').click();
+  await page.getByRole('button', { name: /Buscar por matrícula, marca o cliente/ }).click();
+  await page.getByPlaceholder('Buscar...').fill('9001tst');
+  await page.getByRole('listitem').filter({ hasText: '9001TST' }).first().click();
+  await page.locator('label:has-text("Km entrada *") + input').fill('1234');
+  await page.getByPlaceholder('Describe el problema que reporta el cliente...').fill('Prueba automatizada E2E: llega directo a revisión.');
+  await page.getByRole('button', { name: 'Crear OT' }).click();
+  await expect(page.getByRole('button', { name: 'Crear OT' })).toHaveCount(0, { timeout: 15_000 });
+
+  try {
+    await expect(tarjetaMia()).toHaveCount(1, { timeout: 15_000 });
+    await expect(tarjetaMia().getByText('Pdte. respuesta')).toHaveCount(0); // aún no se ha enviado nada
+    await tarjetaMia().getByRole('button', { name: /^Abrir / }).click();
+    const ficha = page.locator('[data-panel-lateral]').first();
+    await expect(ficha).toBeVisible({ timeout: 10_000 });
+    const bloque = ficha.getByTestId('bloque-presupuesto');
+    await expect(bloque).toContainText('Presupuesto para aprobación');
+    await expect(bloque).toContainText('Pendiente de envío');
+    await expect(bloque).toContainText('Aún no hay importe');
+    await expect(bloque.getByTestId('enviar-presupuesto-correo')).toBeVisible();
+    await expect(bloque.getByTestId('enviar-presupuesto-whatsapp')).toBeVisible();
+    await expect(ficha.getByTestId('aviso-paso')).toContainText('Falta enviar el presupuesto al cliente');
+    await captura(page, 'recibido-sin-presupuesto');
+  } finally {
+    // Limpieza: se elimina la orden creada.
+    const ficha = page.locator('[data-panel-lateral]').first();
+    if (!(await ficha.isVisible())) {
+      if (await tarjetaMia().count() > 0) await tarjetaMia().getByRole('button', { name: /^Abrir / }).click();
+    }
+    if (await ficha.isVisible()) {
+      await ficha.getByTitle('Eliminar OT').click();
+      await page.getByRole('button', { name: 'Eliminar', exact: true }).click();
+      await expect(tarjetaMia()).toHaveCount(0, { timeout: 10_000 });
+    }
+  }
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
