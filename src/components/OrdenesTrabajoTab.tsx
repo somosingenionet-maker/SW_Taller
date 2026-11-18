@@ -542,8 +542,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     }
   };
 
-  const openCreate = () => {
-    setCreateTipo('presupuesto');
+  const openCreate = (tipo: 'presupuesto' | 'recibido' = 'presupuesto') => {
+    setCreateTipo(tipo);
     setOTForm({ ...EMPTY_OT_FORM, fechaRecepcion: new Date().toISOString().split('T')[0] });
     setFormLineas([]);
     setNewLinea(EMPTY_LINEA);
@@ -558,7 +558,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   // Del botón «Nuevo» o del buscador global (nuevo diseño): abre la recepción de un coche o filtra por esa orden/matrícula.
   useEffect(() => {
     if (!intencion) return;
-    if (intencion.tipo === 'nuevo') openCreate();
+    if (intencion.tipo === 'nuevo') openCreate(intencion.modo ?? 'recibido');
     else setSearch(intencion.texto ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intencion?.n]);
@@ -956,12 +956,31 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               <LayoutGrid size={13} /> Tablero
             </button>
           </div>
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
-          >
-            <Plus size={15} /> Nueva OT
-          </button>
+          {esDisenoNuevo() ? (
+            <>
+              <button
+                onClick={() => openCreate('presupuesto')}
+                data-testid="taller-presupuesto"
+                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-2xl text-sm font-semibold transition"
+              >
+                <ClipboardList size={15} /> Nuevo presupuesto
+              </button>
+              <button
+                onClick={() => openCreate('recibido')}
+                data-testid="taller-recibir"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
+              >
+                <Plus size={15} /> Recibir un coche
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => openCreate()}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
+            >
+              <Plus size={15} /> Nueva OT
+            </button>
+          )}
         </div>
       </div>
 
@@ -1929,46 +1948,42 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               <form onSubmit={handleCreateSubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
 
                 {/* Tipo de ingreso */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button type="button"
-                    onClick={() => setCreateTipo('presupuesto')}
-                    className={`py-3 px-4 rounded-2xl border-2 text-sm font-semibold transition text-left ${createTipo === 'presupuesto' ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
-                  >
-                    <div className="font-bold mb-0.5">📋 Nuevo presupuesto</div>
-                    <div className="text-xs font-normal opacity-70">El vehículo aún no entra al taller</div>
-                  </button>
+                <div className="grid grid-cols-2 gap-3" role="group" aria-label="Qué vas a hacer">
                   <button type="button"
                     onClick={() => setCreateTipo('recibido')}
+                    aria-pressed={createTipo === 'recibido'}
                     className={`py-3 px-4 rounded-2xl border-2 text-sm font-semibold transition text-left ${createTipo === 'recibido' ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
                   >
-                    <div className="font-bold mb-0.5">🔑 Recepción de vehículo</div>
-                    <div className="text-xs font-normal opacity-70">El vehículo entra físicamente al taller</div>
+                    <div className="font-bold mb-0.5">🔑 Recibir el coche</div>
+                    <div className="text-xs font-normal opacity-70">El coche entra ahora al taller</div>
+                  </button>
+                  <button type="button"
+                    onClick={() => setCreateTipo('presupuesto')}
+                    aria-pressed={createTipo === 'presupuesto'}
+                    className={`py-3 px-4 rounded-2xl border-2 text-sm font-semibold transition text-left ${createTipo === 'presupuesto' ? 'border-violet-500 bg-violet-50 text-violet-800' : 'border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                  >
+                    <div className="font-bold mb-0.5">📋 Solo presupuesto</div>
+                    <div className="text-xs font-normal opacity-70">El coche aún no entra al taller</div>
                   </button>
                 </div>
 
-                {/* Vehículo */}
+                {/* Vehículo (se busca por matrícula, marca, modelo o dueño) */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Vehículo *</label>
-                  <select
+                  <SearchableSelect
+                    options={vehiculos.map(v => {
+                      const dueno = clientes.find(c => c.vehiculosAsociados?.includes(v.id));
+                      return { value: v.id, label: `${v.marca} ${v.modelo} · ${v.matricula}`, sublabel: dueno ? `${dueno.nombre} ${dueno.apellidos}` : 'Sin cliente asociado' };
+                    })}
                     value={otForm.vehiculoId}
-                    onChange={e => {
-                      const vehId = e.target.value;
+                    onChange={(vehId) => {
                       const dueno = clientes.find(c => c.vehiculosAsociados?.includes(vehId));
                       setOTForm(f => ({ ...f, vehiculoId: vehId, clienteId: dueno?.id ?? '' }));
                     }}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="Buscar por matrícula, marca o cliente…"
+                    emptyMessage="Ningún vehículo coincide. Créalo antes en Vehículos."
                     required
-                  >
-                    <option value="">Seleccionar vehículo...</option>
-                    {vehiculos.map(v => {
-                      const dueno = clientes.find(c => c.vehiculosAsociados?.includes(v.id));
-                      return (
-                        <option key={v.id} value={v.id}>
-                          {v.marca} {v.modelo} · {v.matricula}{dueno ? ` (${dueno.nombre} ${dueno.apellidos})` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
+                  />
                 </div>
 
                 {/* Cliente */}
@@ -1985,17 +2000,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       );
                     }
                     return (
-                      <select
+                      <SearchableSelect
+                        options={clientes.map(c => ({ value: c.id, label: `${c.nombre} ${c.apellidos}`, sublabel: [c.telefono, c.nifNiePasaporte].filter(Boolean).join(' · ') }))}
                         value={otForm.clienteId}
-                        onChange={e => setOTForm(f => ({ ...f, clienteId: e.target.value }))}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        onChange={(id) => setOTForm(f => ({ ...f, clienteId: id }))}
+                        placeholder="Buscar cliente por nombre, teléfono o documento…"
+                        emptyMessage="Ningún cliente coincide. Créalo antes en Clientes."
                         required
-                      >
-                        <option value="">Seleccionar cliente...</option>
-                        {clientes.map(c => (
-                          <option key={c.id} value={c.id}>{c.nombre} {c.apellidos}</option>
-                        ))}
-                      </select>
+                      />
                     );
                   })()}
                 </div>
@@ -2271,7 +2283,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       {recepcionModal && selected && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={() => setRecepcionModal(null)} />
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-modal-pop p-6 space-y-5">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-modal-pop p-6 space-y-5 dlg-b">
                 <div>
                   <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">🔑 Recibir vehículo en taller</h3>
                   <p className="text-xs text-slate-400 mt-1">El presupuesto {selected.numero} fue aprobado. Completa los datos de entrada del vehículo.</p>
@@ -2649,7 +2661,7 @@ function CrearProductoRapidoModal({ nombreInicial, onClose, onCreado, onCreatePr
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4">
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4 dlg-b">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-slate-800">Nuevo producto</p>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer"><X size={16} /></button>

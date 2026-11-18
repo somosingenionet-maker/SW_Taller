@@ -257,7 +257,7 @@ function CompraDetalle({ id, hoy, empresaId, onClose, onCambio }: { id: string; 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-label={`Compra ${c.numero}`}>
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto animate-modal-pop p-6 space-y-4" data-testid="compra-detalle">
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] overflow-y-auto animate-modal-pop p-6 space-y-4 dlg-b" data-testid="compra-detalle">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-base font-extrabold text-slate-800">{c.proveedorNombre} · {c.numero}</p>

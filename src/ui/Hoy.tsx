@@ -73,7 +73,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, 
           <p>{fechaLarga}</p>
         </div>
         <div className="u-acciones">
-          {puede('taller') && <Boton variante="principal" onClick={() => onIr('taller', { tipo: 'nuevo' })} data-testid="hoy-recibir"><Plus />Recibir un coche</Boton>}
+          {puede('taller') && <Boton variante="principal" onClick={() => onIr('taller', { tipo: 'nuevo', modo: 'recibido' })} data-testid="hoy-recibir"><Plus />Recibir un coche</Boton>}
           {puede('citas') && <Boton onClick={() => onIr('citas', { tipo: 'nuevo' })}><CalendarClock />Nueva cita</Boton>}
         </div>
       </div>

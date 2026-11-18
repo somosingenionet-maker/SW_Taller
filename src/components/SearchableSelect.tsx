@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Search, X, Plus } from 'lucide-react';
+import { compacto } from '../ui/navegacion';
 
 /** Una opción del desplegable. `sublabel` se muestra en gris bajo el label principal. */
 export interface SelectOption {
@@ -40,6 +41,7 @@ export default function SearchableSelect({
   const filtered = query.trim()
     ? options.filter(o =>
         `${o.label} ${o.sublabel ?? ''}`.toLowerCase().includes(query.toLowerCase())
+        || compacto(`${o.label} ${o.sublabel ?? ''}`).includes(compacto(query))
       )
     : options;
 

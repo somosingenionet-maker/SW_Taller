@@ -54,7 +54,7 @@ export default function FirmaOrdenModal({ tipo, ot, clienteNombre, vehiculoDescr
   return (
     <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={titulo}>
       <div className="absolute inset-0 bg-black/60" onClick={guardando ? undefined : onCancelar} />
-      <div className="relative bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 space-y-4 max-h-[95vh] overflow-y-auto">
+      <div className="relative bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-3xl p-6 space-y-4 max-h-[95vh] overflow-y-auto dlg-b">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-base font-extrabold text-slate-800 flex items-center gap-2"><PenTool className="w-4 h-4 text-blue-600" /> {titulo}</p>

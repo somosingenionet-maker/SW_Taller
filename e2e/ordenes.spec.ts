@@ -5,7 +5,6 @@ import { login } from './helpers';
 // veh-test-01..15, matrículas 9001TST..9015TST) — usarlo evita depender de
 // datos que un test anterior pudiera haber dejado a medias.
 const MATRICULA_PRUEBA = '9001TST';
-const VEHICULO_ID_PRUEBA = 'veh-test-01';
 
 test('OT: crear un presupuesto lo añade a la lista, y se puede eliminar sin dejar rastro', async ({ page }) => {
   await login(page);
@@ -30,12 +29,16 @@ test('OT: crear un presupuesto lo añade a la lista, y se puede eliminar sin dej
   await page.getByRole('button', { name: 'Nueva OT' }).click();
   await expect(page.getByRole('button', { name: 'Crear presupuesto' })).toBeVisible();
 
-  await page.locator('label:has-text("Vehículo *") + select').selectOption(VEHICULO_ID_PRUEBA);
-  // Si el vehículo no tiene cliente asociado, aparece un select de Cliente;
+  // El vehículo se busca por matrícula (con o sin espacios) y se elige de la lista.
+  await page.getByRole('button', { name: /Buscar por matrícula, marca o cliente/ }).click();
+  await page.getByPlaceholder('Buscar...').fill(MATRICULA_PRUEBA.replace('TST', ' tst'));
+  await page.getByRole('listitem').filter({ hasText: MATRICULA_PRUEBA }).first().click();
+  // Si el vehículo no tiene cliente asociado, aparece un buscador de Cliente;
   // si lo tiene, se muestra un texto de solo lectura y no hace falta tocarlo.
-  const selectCliente = page.locator('label:has-text("Cliente *") + select');
-  if (await selectCliente.isVisible()) {
-    await selectCliente.selectOption({ index: 1 });
+  const buscadorCliente = page.getByRole('button', { name: /Buscar cliente por nombre/ });
+  if (await buscadorCliente.isVisible()) {
+    await buscadorCliente.click();
+    await page.getByRole('listitem').first().click();
   }
   await page.locator('label:has-text("Fecha solicitud *") + input').fill(new Date().toISOString().slice(0, 10));
   await page.getByPlaceholder('Describe el problema que reporta el cliente...').fill(

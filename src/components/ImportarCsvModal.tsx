@@ -130,7 +130,7 @@ export default function ImportarCsvModal({ entidad, onClose, onImportado }: Prop
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={paso === 'importando' ? undefined : onClose} />
       <div role="dialog" aria-modal="true" aria-label={t.titulo}
-        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-modal-pop p-6 space-y-4">
+        className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto animate-modal-pop p-6 space-y-4 dlg-b">
         <div className="flex items-center justify-between">
           <p className="text-base font-bold text-slate-800 flex items-center gap-2"><Upload className="w-4 h-4 text-blue-600" /> {t.titulo}</p>
           {paso !== 'importando' && (

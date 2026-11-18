@@ -315,3 +315,30 @@
 .u-ajustes input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]), .u-ajustes select, .u-ajustes textarea { padding-top: .6rem; padding-bottom: .6rem; font-size: 15px; }
 .u-ajustes section.space-y-3 > * + *, .u-ajustes section.space-y-2 > * + * { margin-top: .9rem; }
 .u-ajustes button.text-xs, .u-ajustes button[class*="text-xs"] { padding-top: .55rem; padding-bottom: .55rem; }
+
+/* ───── Cuadros de diálogo: un solo aspecto en toda la aplicación ─────
+   Cabecera clara con título e icono, cuerpo con aire y campos del mismo tamaño en todos. Los cuadros antiguos eran de dos clases
+   (cabecera oscura con formulario, o tarjeta blanca con el título dentro): aquí se igualan sin tocar su contenido. */
+[data-ui="nuevo"] { --u-cab: #F8FAFC; }
+[data-ui="nuevo"][data-tema="oscuro"] { --u-cab: #1D2026; }
+/* Cabecera oscura de los formularios (alta/edición de cliente, vehículo, producto, cita, orden…) */
+[data-ui="nuevo"] .bg-slate-950.text-white.shrink-0.border-b { background: var(--u-cab); color: var(--u-ink); border-color: var(--u-line); padding: 18px 24px; }
+[data-ui="nuevo"] .bg-slate-950.text-white.shrink-0.border-b span.font-bold { font: 800 18px/1.25 var(--u-f-display); letter-spacing: 0; color: var(--u-ink); }
+[data-ui="nuevo"] .bg-slate-950.text-white.shrink-0.border-b svg { color: var(--u-brand-ink); }
+[data-ui="nuevo"] .bg-slate-950.text-white.shrink-0.border-b button { color: var(--u-muted); }
+[data-ui="nuevo"] .bg-slate-950.text-white.shrink-0.border-b button:hover { background: var(--u-surface-2); color: var(--u-ink); }
+[data-ui="nuevo"] .bg-slate-950.text-white.shrink-0.border-b button svg { color: inherit; width: 20px; height: 20px; }
+/* Tarjetas blancas con el título dentro: la primera fila pasa a ser la misma cabecera, pegada arriba y fija al desplazar */
+[data-ui="nuevo"] .dlg-b { padding-top: 0 !important; }
+[data-ui="nuevo"] .dlg-b > :first-child { position: sticky; top: 0; z-index: 2; margin: 0 -24px; padding: 18px 24px; background: var(--u-cab); border-bottom: 1px solid var(--u-line); align-items: center; }
+[data-ui="nuevo"] .dlg-b > :first-child :is(p, h3, h2):first-of-type { font: 800 18px/1.25 var(--u-f-display); color: var(--u-ink); margin: 0; }
+[data-ui="nuevo"] .dlg-b > :first-child button { color: var(--u-muted); border-radius: 10px; padding: 4px; }
+[data-ui="nuevo"] .dlg-b > :first-child button:hover { background: var(--u-surface-2); color: var(--u-ink); }
+[data-ui="nuevo"] .dlg-b > :first-child button svg { width: 20px; height: 20px; }
+[data-ui="nuevo"] .dlg-b > :first-child > div > p:not(:first-of-type), [data-ui="nuevo"] .dlg-b > :first-child p + p { font-size: 13.5px; color: var(--u-muted); }
+[data-ui="nuevo"] .dlg-b > * + * { margin-top: 16px; }
+/* Campos del mismo tamaño en todos los cuadros */
+[data-ui="nuevo"] .animate-modal-pop :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]):not([type=range]), select, textarea) { font-size: 15px; padding: .6rem .875rem; }
+[data-ui="nuevo"] .animate-modal-pop label.text-xs, [data-ui="nuevo"] .animate-modal-pop label[class*="text-xs"] { font-size: 14px; }
+[data-ui="nuevo"] .animate-modal-pop .text-\[10px\], [data-ui="nuevo"] .animate-modal-pop .text-\[11px\] { font-size: 12.5px; }
+[data-ui="nuevo"] .animate-modal-pop form.px-5 { padding-left: 24px; padding-right: 24px; padding-top: 22px; padding-bottom: 22px; }

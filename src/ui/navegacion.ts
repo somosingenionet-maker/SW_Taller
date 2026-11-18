@@ -2,7 +2,7 @@
 import type { Cliente, ModuloId, OrdenTrabajo, Vehiculo } from '../types';
 
 /** Orden que el marco da a una pestaña al llegar a ella («Nuevo» abre su alta; «buscar» filtra por el texto). `n` cambia en cada orden para que se repita aunque sea igual. */
-export interface Intencion { tipo: 'nuevo' | 'buscar'; texto?: string; n: number }
+export interface Intencion { tipo: 'nuevo' | 'buscar'; texto?: string; /** Solo para «nuevo» en el taller: cómo se abre la orden. */ modo?: 'recibido' | 'presupuesto'; n: number }
 
 export type IconoId = 'hoy' | 'taller' | 'citas' | 'clientes' | 'vehiculos' | 'alertas' | 'facturas' | 'rentabilidad' | 'compras' | 'inventario';
 
@@ -44,10 +44,11 @@ export function atajosMovil(modulos: ModuloId[]): ItemMenu[] {
   return ATAJOS_MOVIL.map((id) => todos.find((i) => i.id === id) as ItemMenu).filter((i) => i.id === 'inicio' || modulos.includes(i.id));
 }
 
-export type AccionNuevo = 'ot' | 'cita' | 'cliente' | 'vehiculo' | 'factura' | 'compra';
+export type AccionNuevo = 'ot' | 'presupuesto' | 'cita' | 'cliente' | 'vehiculo' | 'factura' | 'compra';
 export interface OpcionNuevo { accion: AccionNuevo; etiqueta: string; modulo: ModuloId }
 const NUEVO: OpcionNuevo[] = [
   { accion: 'ot', etiqueta: 'Recibir un coche', modulo: 'taller' },
+  { accion: 'presupuesto', etiqueta: 'Nuevo presupuesto', modulo: 'taller' },
   { accion: 'cita', etiqueta: 'Nueva cita', modulo: 'citas' },
   { accion: 'cliente', etiqueta: 'Nuevo cliente', modulo: 'clientes' },
   { accion: 'vehiculo', etiqueta: 'Nuevo vehículo', modulo: 'vehiculos' },

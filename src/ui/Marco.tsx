@@ -11,7 +11,7 @@ import type { Tema } from './tema';
 import './ui.css';
 
 /** Lo que el marco le pide a la aplicación: ir a una pestaña, opcionalmente con una orden («nuevo» o «buscar») para ella. */
-export type IrA = (tab: ModuloId, orden?: { tipo: 'nuevo' | 'buscar'; texto?: string }) => void;
+export type IrA = (tab: ModuloId, orden?: { tipo: 'nuevo' | 'buscar'; texto?: string; modo?: 'recibido' | 'presupuesto' }) => void;
 
 interface Props {
   empresa: Empresa;
@@ -57,7 +57,7 @@ function usePopover() {
 
 const ASPECTOS: [Tema, string, typeof Sun][] = [['claro', 'Claro', Sun], ['oscuro', 'Oscuro', Moon], ['auto', 'Auto', SunMoon]];
 
-const ACCION_A_ORDEN: Record<AccionNuevo, string> = { ot: 'taller', cita: 'citas', cliente: 'clientes', vehiculo: 'vehiculos', factura: 'facturas', compra: 'compras' };
+const ACCION_A_ORDEN: Record<AccionNuevo, string> = { ot: 'taller', presupuesto: 'taller', cita: 'citas', cliente: 'clientes', vehiculo: 'vehiculos', factura: 'facturas', compra: 'compras' };
 
 /** El marco del nuevo diseño: menú por tareas con texto (barra inferior en el móvil), buscador Ctrl K, botón «Nuevo» y menú de la cuenta. */
 export default function Marco(p: Props) {
@@ -138,8 +138,8 @@ export default function Marco(p: Props) {
               {nuevo.abierto && (
                 <div className="u-menu" role="menu" aria-label="Crear">
                   {nuevos.map((o) => (
-                    <button key={o.accion} type="button" role="menuitem" onClick={() => { nuevo.setAbierto(false); onIr(ACCION_A_ORDEN[o.accion] as ModuloId, { tipo: 'nuevo' }); }} data-testid={`nuevo-${o.accion}`}>
-                      <Icono id={o.accion === 'ot' ? 'taller' : o.accion === 'cita' ? 'citas' : o.accion === 'cliente' ? 'clientes' : o.accion === 'vehiculo' ? 'vehiculos' : o.accion === 'factura' ? 'facturas' : 'compras'} />{o.etiqueta}
+                    <button key={o.accion} type="button" role="menuitem" onClick={() => { nuevo.setAbierto(false); onIr(ACCION_A_ORDEN[o.accion] as ModuloId, { tipo: 'nuevo', modo: o.accion === 'presupuesto' ? 'presupuesto' : 'recibido' }); }} data-testid={`nuevo-${o.accion}`}>
+                      <Icono id={o.accion === 'ot' ? 'taller' : o.accion === 'presupuesto' ? 'facturas' : o.accion === 'cita' ? 'citas' : o.accion === 'cliente' ? 'clientes' : o.accion === 'vehiculo' ? 'vehiculos' : o.accion === 'factura' ? 'facturas' : 'compras'} />{o.etiqueta}
                     </button>
                   ))}
                 </div>

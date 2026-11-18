@@ -116,7 +116,7 @@ export default function CompraForm({ proveedores, productos, proveedorInicial, o
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-label="Nueva compra">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto animate-modal-pop p-6 space-y-5" data-testid="compra-form">
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto animate-modal-pop p-6 space-y-5 dlg-b" data-testid="compra-form">
         <div className="flex items-center justify-between">
           <p className="text-base font-extrabold text-slate-800">Nueva compra</p>
           <button onClick={onClose} aria-label="Cerrar" className="text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-5 h-5" /></button>

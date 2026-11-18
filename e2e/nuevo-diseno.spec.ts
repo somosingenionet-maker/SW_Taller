@@ -82,7 +82,7 @@ test('el botón Nuevo abre el formulario de la pestaña elegida', async ({ page 
   await page.setViewportSize({ width: 1440, height: 900 });
   await activarNuevo(page);
   await page.getByTestId('boton-nuevo').click();
-  await expect(page.getByRole('menuitem')).toHaveCount(6);
+  await expect(page.getByRole('menuitem')).toHaveCount(7);
   await page.getByTestId('nuevo-cliente').click();
   await expect(page.getByText('Nuevo Cliente').last()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByPlaceholder(/nombre/i).first()).toBeVisible();
@@ -369,5 +369,109 @@ test('Configuración de empresa: ventana grande con menú de secciones, tarjetas
   await expect(ventana).toBeVisible();
   await captura(page, 'ajustes-movil');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('Taller: «Recibir un coche» y «Nuevo presupuesto» abren la misma orden con el tipo ya elegido', async ({ page }) => {
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  // Desde Hoy y desde el menú «Nuevo»: se abre recibiendo el coche.
+  await page.getByTestId('hoy-recibir').click();
+  await expect(page.getByRole('button', { name: /Recibir el coche/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Crear OT' })).toBeVisible();
+  await page.getByRole('button', { name: /Solo presupuesto/ }).click();
+  await expect(page.getByRole('button', { name: 'Crear presupuesto' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
+  await page.getByTestId('boton-nuevo').click();
+  await page.getByTestId('nuevo-presupuesto').click();
+  await expect(page.getByRole('button', { name: /Solo presupuesto/ })).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'Crear presupuesto' })).toBeVisible();
+  // El vehículo se busca por matrícula, sin importar espacios.
+  await page.getByRole('button', { name: /Buscar por matrícula, marca o cliente/ }).click();
+  await page.getByPlaceholder('Buscar...').fill('9007 tst');
+  await expect(page.getByRole('listitem').filter({ hasText: '9007TST' }).first()).toBeVisible();
+  await captura(page, 'nueva-orden');
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('cuadros: todos comparten el mismo aspecto (cabecera clara con título y botón de cerrar)', async ({ page }) => {
+  test.setTimeout(240_000);
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
+  const irA = async (t: string) => { await menu.getByRole('button', { name: new RegExp(`^${t}`) }).click(); await expect(page.locator('main h2').first()).toBeVisible({ timeout: 15_000 }); };
+
+  // Mide la cabecera del cuadro abierto: ha de ser clara (no la oscura de antes) y tener título.
+  const medir = async (nombre: string) => {
+    await page.waitForTimeout(350);
+    const r = await page.evaluate(() => {
+      const luz = (c: string) => { const m = c.match(/\d+(\.\d+)?/g)?.map(Number) ?? [0, 0, 0]; return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; };
+      const cajas = [...document.querySelectorAll<HTMLElement>('.fixed .animate-modal-pop, .fixed [role="dialog"], .fixed .dlg-b')].filter((e) => e.offsetParent !== null || getComputedStyle(e).position === 'fixed');
+      const caja = cajas[cajas.length - 1];
+      if (!caja) return null;
+      const cab = (caja.querySelector('.bg-slate-950, .bg-slate-50, .dlg-b > :first-child, .u-ventana-cab') ?? caja.firstElementChild) as HTMLElement;
+      const bg = getComputedStyle(cab).backgroundColor;
+      return { luz: luz(bg), alto: caja.getBoundingClientRect().height, ancho: caja.getBoundingClientRect().width, tieneX: !!caja.querySelector('button svg') };
+    });
+    expect(r, `${nombre}: no se encontró el cuadro`).not.toBeNull();
+    expect(r!.luz, `${nombre}: la cabecera es oscura`).toBeGreaterThan(0.85);
+    await captura(page, `cuadro-${nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
+  };
+  const cerrar = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(150); };
+
+  await irA('En el taller');
+  await page.getByTestId('taller-recibir').click();
+  await medir('Nueva orden');
+  await page.keyboard.press('Escape'); // el cuadro de orden se cierra con la X o pulsando fuera
+  await page.mouse.click(5, 450);
+  await page.waitForTimeout(200);
+
+  await irA('Clientes');
+  await page.getByRole('button', { name: /Nuevo Cliente/ }).click();
+  await medir('Nuevo cliente');
+  await page.mouse.click(5, 450);
+
+  await irA('Vehículos');
+  await page.getByRole('button', { name: /Alta Vehículo/ }).click();
+  await medir('Nuevo vehiculo');
+  await page.mouse.click(5, 450);
+
+  await irA('Inventario');
+  await page.getByRole('button', { name: /Nuevo producto/ }).click();
+  await medir('Nuevo producto');
+  await page.mouse.click(5, 450);
+
+  await irA('Citas');
+  await page.getByRole('button', { name: /Nueva cita/ }).first().click();
+  await medir('Nueva cita');
+  await page.mouse.click(5, 450);
+
+  await irA('Facturas');
+  await page.getByRole('button', { name: /Nueva Factura/ }).click();
+  await medir('Nueva factura');
+  await page.mouse.click(5, 450);
+  await page.getByRole('button', { name: /Para la gestoría/ }).click();
+  await medir('Exportar gestoria');
+  await page.mouse.click(5, 450);
+
+  await irA('Compras');
+  await page.getByRole('button', { name: /Nueva compra/ }).click();
+  await medir('Nueva compra');
+  await page.mouse.click(5, 450);
+
+  for (const [nombre, abrir] of [
+    ['Seguridad de la cuenta', 'Seguridad de la cuenta'],
+    ['Panel de administracion', 'Panel de administración'],
+  ] as const) {
+    await page.getByTestId('menu-cuenta').click();
+    await page.getByRole('menuitem', { name: abrir }).click();
+    await medir(nombre);
+    await page.mouse.click(5, 450);
+    await page.waitForTimeout(200);
+  }
   expect(fallos, fallos.join('\n')).toEqual([]);
 });

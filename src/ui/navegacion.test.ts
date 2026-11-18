@@ -23,7 +23,7 @@ describe('menú', () => {
     expect(atajosMovil(['taller']).map((i) => i.etiqueta)).toEqual(['Hoy', 'En el taller']);
   });
   it('«Nuevo» ofrece solo lo que el usuario puede crear', () => {
-    expect(opcionesNuevo([...todos]).map((o) => o.accion)).toEqual(['ot', 'cita', 'cliente', 'vehiculo', 'factura', 'compra']);
+    expect(opcionesNuevo([...todos]).map((o) => o.accion)).toEqual(['ot', 'presupuesto', 'cita', 'cliente', 'vehiculo', 'factura', 'compra']);
     expect(opcionesNuevo(['citas', 'compras']).map((o) => o.etiqueta)).toEqual(['Nueva cita', 'Registrar compra']);
     expect(opcionesNuevo([])).toEqual([]);
   });

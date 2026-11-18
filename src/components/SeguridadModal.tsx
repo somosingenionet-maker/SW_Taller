@@ -84,7 +84,7 @@ export default function SeguridadModal({ onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-overlay-fade" onClick={onClose} />
-      <div role="dialog" aria-modal="true" aria-label="Seguridad de la cuenta" className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-modal-pop p-6 space-y-4">
+      <div role="dialog" aria-modal="true" aria-label="Seguridad de la cuenta" className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-modal-pop p-6 space-y-4 dlg-b">
         <div className="flex items-center justify-between">
           <p className="text-base font-bold text-slate-800 flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-blue-600" /> Seguridad de la cuenta</p>
           <button onClick={onClose} aria-label="Cerrar" className="text-slate-400 hover:text-slate-600 transition cursor-pointer"><X className="w-4 h-4" /></button>
