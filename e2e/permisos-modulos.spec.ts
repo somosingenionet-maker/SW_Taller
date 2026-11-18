@@ -1,6 +1,6 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
-import { login, usarDisenoActual } from './helpers';
+import { login, menuPrincipal } from './helpers';
 
 const URL_SB = process.env.VITE_SUPABASE_URL!;
 const ANON = process.env.VITE_SUPABASE_ANON_KEY!;
@@ -49,22 +49,21 @@ test('un usuario con solo Taller no puede leer lo de otros módulos (comprobado 
     // Entrar como el usuario de solo Taller.
     const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     const p2 = await ctx.newPage();
-    await usarDisenoActual(p2);
     const errores: string[] = [];
     p2.on('pageerror', (e) => errores.push(e.message));
     await p2.goto(process.env.E2E_BASE_URL ?? 'http://localhost:3100');
     await p2.getByPlaceholder('usuario@empresa.net').fill(email);
     await p2.getByPlaceholder('••••••••').fill(password);
     await p2.getByRole('button', { name: 'Iniciar sesión' }).click();
-    await expect(p2.getByRole('button', { name: 'Taller', exact: true })).toBeVisible({ timeout: 20_000 });
-    const boton = (n: string) => p2.locator(`button[title="${n}"], button[aria-label="${n}"]`);
-    for (const n of ['Inicio', 'Taller']) await expect(boton(n).first()).toBeVisible();
-    for (const n of ['Facturas', 'Agenda', 'Alertas', 'Rentabilidad', 'Inventario', 'Clientes', 'Vehículos']) await expect(boton(n), `no debería ver la pestaña ${n}`).toHaveCount(0);
+    await expect(menuPrincipal(p2).getByRole('button', { name: /^En el taller/ })).toBeVisible({ timeout: 20_000 });
+    const boton = (n: string) => menuPrincipal(p2).getByRole('button', { name: new RegExp(`^${n}`) });
+    for (const n of ['Hoy', 'En el taller']) await expect(boton(n)).toBeVisible();
+    for (const n of ['Facturas', 'Citas', 'Alertas', 'Rentabilidad', 'Inventario', 'Clientes', 'Vehículos', 'Compras']) await expect(boton(n), `no debería ver la sección ${n}`).toHaveCount(0);
 
     // La pantalla de Inicio y el Taller funcionan, sin avisos de error.
     await p2.waitForTimeout(2500);
     await expect(p2.getByRole('alert')).toHaveCount(0);
-    await boton('Taller').first().click();
+    await boton('En el taller').click();
     await expect(p2.getByRole('heading', { name: 'Órdenes de Trabajo' })).toBeVisible({ timeout: 15_000 });
     await expect(p2.locator('table tbody tr, div[draggable="true"]').first()).toBeVisible({ timeout: 15_000 });
 

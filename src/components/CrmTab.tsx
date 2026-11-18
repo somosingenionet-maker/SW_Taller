@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
-import { esDisenoNuevo } from '../ui/disenoNuevo';
 import { Placa } from '../ui/componentes';
 import { Cliente, InteraccionCliente, Vehiculo, Empresa } from '../types';
 import {
@@ -327,14 +326,14 @@ export default function CrmTab({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Customer List Card */}
-        <div className={`${esDisenoNuevo() ? 'lg:col-span-12' : 'lg:col-span-7'} bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4`}>
+        <div className="lg:col-span-12 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600 font-display" />
-                {esDisenoNuevo() ? 'Todos tus clientes' : 'Clientes Registrados (CRM)'}
+                Todos tus clientes
               </h2>
-              <p className="text-xs text-slate-400">{esDisenoNuevo() ? 'Contacto, coches, portal y notas de cada cliente' : 'Directorio de contacto e identificación fiscal'}</p>
+              <p className="text-xs text-slate-400">Contacto, coches, portal y notas de cada cliente</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -447,7 +446,7 @@ export default function CrmTab({
         </div>
 
         {/* Selected Customer Interactions timeline & renting logs */}
-        <FichaLateral clase="lg:col-span-5 text-slate-700" titulo="Ficha del cliente" onCerrar={() => setSelectedCliente(null)}>
+        <FichaLateral titulo="Ficha del cliente" onCerrar={() => setSelectedCliente(null)}>
           {selectedCliente ? (
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6" id={`crm-detail-${selectedCliente.id}`}>
               <div className="flex justify-between items-start border-b border-slate-50 pb-4">
@@ -533,7 +532,7 @@ export default function CrmTab({
                         <div key={vid} className="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs">
                           <Car className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                           <span className="font-semibold text-slate-700">{v.marca} {v.modelo}</span>
-                          <span className="ml-auto">{esDisenoNuevo() ? <Placa matricula={v.matricula} /> : <span className="font-mono text-slate-400">{v.matricula}</span>}</span>
+                          <span className="ml-auto"><Placa matricula={v.matricula} /></span>
                         </div>
                       );
                     })}
@@ -684,17 +683,7 @@ export default function CrmTab({
               </div>
 
             </div>
-          ) : esDisenoNuevo() ? null : (
-            <div className="bg-white p-12 rounded-2xl border border-slate-100 shadow-sm text-center flex flex-col items-center justify-center space-y-3 text-slate-400 h-full min-h-[400px]">
-              <div className="p-4 bg-slate-50 rounded-full border border-slate-100">
-                <Users className="w-10 h-10 text-slate-300" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-700">Ficha de Cliente y CRM</h4>
-              <p className="text-xs max-w-xs">
-                Seleccione un cliente del directorio para visualizar sus datos de contacto completos e historial de llamadas o visitas anotadas.
-              </p>
-            </div>
-          )}
+          ) : null}
         </FichaLateral>
       </div>
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, irA } from './helpers';
 
 // Vehículo de pruebas sembrado en el tenant demo (ver memoria de sesión:
 // veh-test-01..15, matrículas 9001TST..9015TST) — usarlo evita depender de
@@ -8,7 +8,7 @@ const MATRICULA_PRUEBA = '9001TST';
 
 test('OT: crear un presupuesto lo añade a la lista, y se puede eliminar sin dejar rastro', async ({ page }) => {
   await login(page);
-  await page.getByRole('button', { name: 'Taller', exact: true }).click();
+  await irA(page, 'En el taller');
   await expect(page.getByRole('heading', { name: 'Órdenes de Trabajo' })).toBeVisible();
 
   const buscador = page.getByPlaceholder('Buscar por número, matrícula o cliente...');
@@ -26,7 +26,7 @@ test('OT: crear un presupuesto lo añade a la lista, y se puede eliminar sin dej
   await page.waitForTimeout(200); // pintado de la tabla
   const totalAntes = await filas.count();
 
-  await page.getByRole('button', { name: 'Nueva OT' }).click();
+  await page.getByTestId('taller-presupuesto').click();
   await expect(page.getByRole('button', { name: 'Crear presupuesto' })).toBeVisible();
 
   // El vehículo se busca por matrícula (con o sin espacios) y se elige de la lista.

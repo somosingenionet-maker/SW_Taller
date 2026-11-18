@@ -1,6 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { login } from './helpers';
+import { login, irA } from './helpers';
 
 // Compras y proveedores. Entra con el administrador del taller de pruebas (datos reales de solo lectura) y SUSTITUYE las
 // lecturas y escrituras de compras y proveedores por datos de mentira: así se comprueba toda la pantalla (estados, avisos,
@@ -59,7 +59,7 @@ async function simular(page: Page, extra: { rpc?: (nombre: string, cuerpo: Recor
 
 async function irACompras(page: Page) {
   await login(page);
-  await page.getByRole('button', { name: 'Compras', exact: true }).click();
+  await irA(page, 'Compras');
   await expect(page.getByTestId('compras-tab')).toBeVisible();
 }
 
@@ -437,7 +437,7 @@ test('por pagar (datos de mentira): sin deudas se dice y no hay aviso en Inicio'
   await login(page);
   await expect(page.getByTestId('aviso-pagos-proveedores')).toHaveCount(0);
   await expect(page.getByTestId('contador-pagos')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Compras', exact: true }).click();
+  await irA(page, 'Compras');
   await page.getByRole('tab', { name: /Por pagar/ }).click();
   await expect(page.getByTestId('nada-por-pagar')).toContainText('No debes nada a tus proveedores');
 });

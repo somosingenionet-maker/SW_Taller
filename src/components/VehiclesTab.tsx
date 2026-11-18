@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
-import { esDisenoNuevo } from '../ui/disenoNuevo';
 import { Placa } from '../ui/componentes';
 import { Vehiculo, Cliente, OTEstado, EventoOT } from '../types';
 import {
@@ -284,14 +283,14 @@ export default function VehiclesTab({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Vehicles list */}
-        <div className={`${esDisenoNuevo() ? 'lg:col-span-12' : 'lg:col-span-7'} bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4`}>
+        <div className="lg:col-span-12 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <Car className="w-5 h-5 text-blue-600" />
-                {esDisenoNuevo() ? 'Todos los vehículos' : 'Flota de Vehículos'}
+                Todos los vehículos
               </h2>
-              <p className="text-xs text-slate-400">{esDisenoNuevo() ? 'Matrícula, kilometraje y fechas de ITV, seguro e impuesto' : 'Fichas técnicas centralizadas de Backoffice'}</p>
+              <p className="text-xs text-slate-400">Matrícula, kilometraje y fechas de ITV, seguro e impuesto</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -371,11 +370,7 @@ export default function VehiclesTab({
                         </div>
                       </td>
                       <td className="py-3.5 px-2">
-                        {esDisenoNuevo() ? <Placa matricula={veh.matricula} /> : (
-                          <span className="inline-block px-2.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 font-mono text-xs font-semibold rounded-xl">
-                            {veh.matricula}
-                          </span>
-                        )}
+                        <Placa matricula={veh.matricula} />
                       </td>
                       <td className="py-3.5 px-2 font-mono text-slate-600 text-xs">
                         {formatKm(veh.kilometraje)} km
@@ -413,7 +408,7 @@ export default function VehiclesTab({
         </div>
 
         {/* Selected Vehicle Detail - Tech Specs + Maintenance Book */}
-        <FichaLateral clase="lg:col-span-5" titulo="Ficha del vehículo" onCerrar={() => setSelectedVehiculo(null)}>
+        <FichaLateral titulo="Ficha del vehículo" onCerrar={() => setSelectedVehiculo(null)}>
           {selectedVehiculo ? (
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6" id={`detail-panel-${selectedVehiculo.id}`}>
               <div className="flex justify-between items-start border-b border-slate-50 pb-4">
@@ -602,17 +597,7 @@ export default function VehiclesTab({
                   </div>
               )}
             </div>
-          ) : esDisenoNuevo() ? null : (
-            <div className="bg-white p-12 rounded-2xl border border-slate-100 shadow-sm text-center flex flex-col items-center justify-center space-y-3 text-slate-400 h-full min-h-[400px]">
-              <div className="p-4 bg-slate-50 rounded-full border border-slate-100">
-                <Car className="w-10 h-10 text-slate-300" />
-              </div>
-              <h4 className="text-sm font-bold text-slate-700">Ficha Técnica e Historial Detallado</h4>
-              <p className="text-xs max-w-xs">
-                Seleccione un coche de la lista de la izquierda para ver su ficha técnica centralizada, libro de mantenimiento cronológico y alertas asociadas.
-              </p>
-            </div>
-          )}
+          ) : null}
         </FichaLateral>
       </div>
 

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, irA, abrirDesdeCuenta, menuPrincipal } from './helpers';
 
 // Calidad básica: ningún guardado puede fallar en silencio, los importes llevan un único formato y
 // la contraseña se cambia desde dentro. Ningún test deja datos: los guardados que se lanzan aquí
@@ -9,7 +9,7 @@ const MATRICULA_EXISTENTE = '9001TST'; // vehículo sembrado en el tenant de pru
 
 test('Vehículos: una matrícula repetida se explica y la ventana no se cierra', async ({ page }) => {
   await login(page);
-  await page.getByRole('button', { name: 'Vehículos', exact: true }).click();
+  await irA(page, 'Vehículos');
   await page.getByRole('button', { name: /Alta Vehículo/ }).click();
   await expect(page.getByText('Alta de Nuevo Vehículo')).toBeVisible();
 
@@ -28,7 +28,7 @@ test('Vehículos: una matrícula repetida se explica y la ventana no se cierra',
 
 test('Clientes: si el guardado falla, sale un aviso y no se pierde lo escrito', async ({ page }) => {
   await login(page);
-  await page.getByRole('button', { name: 'Clientes', exact: true }).click();
+  await irA(page, 'Clientes');
   // Se corta solo el alta de clientes (POST): el resto de la aplicación sigue funcionando.
   await page.route('**/rest/v1/clientes*', (route) =>
     route.request().method() === 'POST' ? route.abort('internetdisconnected') : route.continue());
@@ -52,7 +52,7 @@ test('Clientes: si el guardado falla, sale un aviso y no se pierde lo escrito', 
 
 test('Taller: los importes de la lista llevan coma y dos decimales', async ({ page }) => {
   await login(page);
-  await page.getByRole('button', { name: 'Taller', exact: true }).click();
+  await irA(page, 'En el taller');
   await expect(page.getByRole('heading', { name: 'Órdenes de Trabajo' })).toBeVisible();
   await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 10_000 });
 
@@ -64,7 +64,7 @@ test('Taller: los importes de la lista llevan coma y dos decimales', async ({ pa
 
 test('Seguridad: cambiar la contraseña exige la actual y no cierra la sesión', async ({ page }) => {
   await login(page);
-  await page.getByRole('button', { name: 'Seguridad de la cuenta' }).click();
+  await abrirDesdeCuenta(page, 'Seguridad de la cuenta');
   await page.getByRole('button', { name: 'Cambiar mi contraseña' }).click();
 
   // Validación local: las dos nuevas deben coincidir.
@@ -81,5 +81,5 @@ test('Seguridad: cambiar la contraseña exige la actual y no cierra la sesión',
 
   // La comprobación no ha tocado la sesión en curso: tras recargar se sigue dentro.
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Taller', exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(menuPrincipal(page).getByRole('button', { name: /^En el taller/ })).toBeVisible({ timeout: 15_000 });
 });

@@ -71,16 +71,3 @@ export function Ventana({ titulo, onCerrar, amplia, children, etiquetaCerrar = '
     </div>
   );
 }
-
-export function Segmentos<T extends string>({ opciones, valor, onCambio, etiqueta }: { opciones: { id: T; texto: string }[]; valor: T; onCambio: (v: T) => void; etiqueta: string }) {
-  return (
-    <div className="u-seg" role="group" aria-label={etiqueta}>
-      {opciones.map((o) => <button key={o.id} type="button" aria-pressed={o.id === valor} onClick={() => onCambio(o.id)}>{o.texto}</button>)}
-    </div>
-  );
-}
-
-/** Estado vacío: una invitación, no una disculpa. */
-export function EstadoVacio({ titulo, texto, accion }: { titulo: string; texto?: string; accion?: ReactNode }) {
-  return <div className="u-vacio"><h3>{titulo}</h3>{texto && <p style={{ margin: '0 0 14px' }}>{texto}</p>}{accion}</div>;
-}

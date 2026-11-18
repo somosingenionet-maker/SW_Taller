@@ -3,6 +3,7 @@ import type { Cliente, OTEstado, OrdenTrabajo, Vehiculo } from '../types';
 import { fmt2 } from '../utils/moneda';
 import { resumenTiempos, textoDuracion } from '../utils/duracionTarea';
 import { Chip, Placa } from './componentes';
+import { diasDesde } from '../components/orden/utilidades';
 import { NOMBRE_ESTADO, PASOS_ORDEN, esRetroceso, siguientePaso } from './etapasOrden';
 
 interface Props {
@@ -18,11 +19,6 @@ interface Props {
   dragOverEstado: OTEstado | null;
   setDragOverEstado: React.Dispatch<React.SetStateAction<OTEstado | null>>;
 }
-
-const diasDesde = (iso: string): { texto: string; aviso: boolean } => {
-  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  return dias <= 0 ? { texto: 'hoy', aviso: false } : { texto: `${dias} día${dias !== 1 ? 's' : ''}`, aviso: dias > 5 };
-};
 
 /** Tablero del taller (nuevo diseño): una columna por paso, con la matrícula bien a la vista y un botón con lo que toca después. Se puede arrastrar. */
 export default function TableroTaller({ ordenes, vehiculos, clientes, onSelect, onDrop, onRetrocesoBloqueado, dragOtId, setDragOtId, dragOverEstado, setDragOverEstado }: Props) {

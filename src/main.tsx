@@ -3,6 +3,7 @@ import './lib/invitacion';
 import {StrictMode, Suspense} from 'react';
 import {createRoot} from 'react-dom/client';
 import './index.css';
+import './ui/ui.css';
 import {initSentry, Sentry} from './lib/sentry';
 import ErrorFallback from './components/ErrorFallback.tsx';
 import Cargando from './components/Cargando.tsx';

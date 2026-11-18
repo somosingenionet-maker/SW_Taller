@@ -1,5 +1,4 @@
 import { type ReactNode } from 'react';
-import './ui.css';
 
 /** Marco de las pantallas de acceso (entrar, alta, contraseña nueva, verificación): panel de marca a la izquierda y el formulario centrado. */
 export default function PantallaAcceso({ logo, ancha, children }: { logo?: string | null; ancha?: boolean; children: ReactNode }) {
@@ -7,7 +6,7 @@ export default function PantallaAcceso({ logo, ancha, children }: { logo?: strin
   // El logo de la plataforma es claro (hecho para fondo oscuro): en el móvil, sobre gris claro, se usa la marca sencilla.
   const marcaMovil = <><span className="u-logo-marca" aria-hidden="true" />Doonty</>;
   return (
-    <div className="u-acceso" data-ui="nuevo">
+    <div className="u-acceso">
       <aside className="u-acceso-marca" aria-hidden="true">
         <div className="u-logo">{marca}</div>
         <div>

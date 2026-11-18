@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Wrench, Car, ShieldAlert, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff, Droplet, Download, ChevronDown } from 'lucide-react';
+import { Wrench, Car, ClipboardCheck, Check, RefreshCw, Play, Flag, RotateCcw, MessageSquarePlus, Clock, X, Bell, BellOff, Droplet, Download, ChevronDown } from 'lucide-react';
 import { useInstalar, usarManifiestoMecanico } from '../lib/pwa';
 import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';

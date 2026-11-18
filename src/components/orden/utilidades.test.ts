@@ -1,13 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import type { LineaOT, OrdenTrabajo } from '../types';
+import { describe, it, expect } from 'vitest';
+import type { LineaOT, OrdenTrabajo } from '../../types';
 
-// El componente importa ../lib/supabase (directa o indirectamente vía
-// ../lib/data/tecnicos), que crea un cliente Supabase real al cargar el
-// módulo — falla en Node fuera de un navegador (sin WebSocket nativo).
-vi.mock('../lib/supabase', () => ({ supabase: {} }));
-
-const { waHref, mailHref, calcTotals, iniciales, diasDesde, progresoTareas, ESTADOS_SIN_AVISO_EXTRA } =
-  await import('./OrdenesTrabajoTab');
+import { calcTotals, diasDesde, ESTADOS_SIN_AVISO_EXTRA, mailHref, progresoTareas } from './utilidades';
+import { waHref } from '../../utils/whatsapp';
 
 function linea(overrides: Partial<LineaOT> = {}): LineaOT {
   return { id: 'l1', tipo: 'mano_de_obra', descripcion: 'Tarea', cantidad: 1, precioUnitario: 10, subtotal: 10, ...overrides };
@@ -58,12 +53,6 @@ describe('calcTotals', () => {
   });
 });
 
-describe('iniciales', () => {
-  it('toma la primera letra de nombre y apellidos en mayúscula', () => {
-    expect(iniciales('Lucía', 'Fernández Cobo')).toBe('LF');
-  });
-});
-
 describe('diasDesde', () => {
   it('marca "hoy" para una fecha de hace unos minutos, sin aviso', () => {
     const r = diasDesde(new Date().toISOString());
@@ -71,7 +60,7 @@ describe('diasDesde', () => {
     expect(r.aviso).toBe(false);
   });
 
-  it('avisa quand pasan más de 5 días desde la recepción', () => {
+  it('avisa cuando pasan más de 5 días desde la recepción', () => {
     const hace6dias = new Date(Date.now() - 6 * 86400000).toISOString();
     const r = diasDesde(hace6dias);
     expect(r.texto).toBe('6 días');

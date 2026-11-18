@@ -1,5 +1,4 @@
-import React, { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { contrastText } from './utils/color';
+import { Suspense, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { Sentry } from './lib/sentry';
 import type { Session } from '@supabase/supabase-js';
@@ -21,11 +20,9 @@ import { listProductos, createProducto, updateProducto, deleteProducto, registra
 import { listCitas, createCita, updateCita, deleteCita } from './lib/data/citas';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
 import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, OTEstado, Empresa, Producto, Cita } from './types';
-import HomeTab from './components/HomeTab';
 import Cargando from './components/Cargando';
 import { lazyConReintento } from './lib/lazy';
 import { derivarMarca, normalizarHex } from './ui/colorMarca';
-import { guardarDiseno, leerDiseno, type Diseno } from './ui/disenoNuevo';
 import { esOscuro, guardarTema, leerTema, type Tema } from './ui/tema';
 import type { Intencion } from './ui/navegacion';
 import type { IrA } from './ui/Marco';
@@ -33,9 +30,6 @@ import LoginScreen from './components/LoginScreen';
 import ResetPasswordScreen from './components/ResetPasswordScreen';
 import SuscripcionBanner from './components/SuscripcionBanner';
 import type { TabId as PestanaEmpresa } from './components/CompanySettingsPanel';
-import {
-  Car, Wrench, Users, BarChart2, Bell, Shield, Phone, Mail, Globe, Menu, X, Settings, FileText, LogOut, Package, CalendarClock, Home, ShieldCheck, CreditCard, ShoppingCart
-} from 'lucide-react';
 
 // Cada pestaña y cada ventana grande es un trozo aparte: quien entra a Inicio no descarga el taller,
 // las facturas ni las gráficas hasta que las abre (o hasta que la aplicación las precarga en un
@@ -99,9 +93,7 @@ export default function App() {
 
   // Navigation
   const [activeTab, setActiveTab] = useState<TabId>('inicio');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  // Interruptor «nuevo diseño» (conviven las dos interfaces mientras se rehacen las pantallas) y orden que el botón «Nuevo» o el buscador dan a una pestaña.
-  const [diseno, setDiseno] = useState<Diseno>(leerDiseno);
+  // Orden que el botón «Nuevo» o el buscador global dan a una pestaña al llegar a ella.
   const [intencion, setIntencion] = useState<Intencion | undefined>(undefined);
   // Aspecto claro / oscuro / automático (por persona). «Automático» sigue la preferencia del sistema.
   const [tema, setTema] = useState<Tema>(leerTema);
@@ -113,7 +105,7 @@ export default function App() {
     mq.addEventListener('change', alCambiar);
     return () => mq.removeEventListener('change', alCambiar);
   }, []);
-  const oscuro = diseno === 'nuevo' && esOscuro(tema, sistemaOscuro);
+  const oscuro = esOscuro(tema, sistemaOscuro);
   const cambiarTema = useCallback((t: Tema) => { guardarTema(t); setTema(t); }, []);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Pestaña con la que se abre Empresa: la guía de primeros pasos enlaza directo a cada una.
@@ -642,34 +634,24 @@ export default function App() {
   useEffect(() => { void recargarPagos(); }, [recargarPagos]);
   const navegar = useCallback((tab: TabId, vista?: 'porpagar') => { setComprasVista(vista === 'porpagar' ? 'porpagar' : 'compras'); setActiveTab(tab); setIntencion(undefined); }, []);
   const irA = useCallback<IrA>((tab, orden) => { navegar(tab); if (orden) setIntencion({ ...orden, n: Date.now() }); }, [navegar]);
-  const cambiarDiseno = useCallback((d: Diseno) => { guardarDiseno(d); setDiseno(d); }, []);
   const pagosAvisoCount = pagosProv ? pagosProv.vencidas.n + pagosProv.semana.n : 0;
 
   const activeAlertsCount = useMemo(() => alertas.filter(a => a.estado === 'activa').length, [alertas]);
 
-  const brandColor = empresa?.brandColor ?? '#2563eb';
-  const brandText = contrastText(brandColor);
+  const brandColor = empresa?.brandColor ?? '#E8590C';
 
   useEffect(() => {
     const root = document.documentElement;
     if (oscuro) root.dataset.tema = 'oscuro'; else delete root.dataset.tema;
-    if (diseno === 'nuevo') {
-      // En el diseño nuevo el color del taller se corrige para que el texto se lea; las pantallas antiguas que aún usan --brand-color reciben ese mismo color corregido.
-      const m = derivarMarca(normalizarHex(brandColor) ?? '#E8590C', oscuro);
-      root.dataset.ui = 'nuevo';
-      root.style.setProperty('--brand-color', m.boton);
-      root.style.setProperty('--brand-text-color', m.sobreBoton);
-      // También en la raíz: las ventanas que cuelgan fuera del marco (ajustes, seguridad…) usan el mismo color corregido.
-      root.style.setProperty('--u-brand', m.boton);
-      root.style.setProperty('--u-on-brand', m.sobreBoton);
-      root.style.setProperty('--u-brand-ink', m.tinta);
-    } else {
-      delete root.dataset.ui;
-      for (const v of ['--u-brand', '--u-on-brand', '--u-brand-ink']) root.style.removeProperty(v);
-      root.style.setProperty('--brand-color', brandColor);
-      root.style.setProperty('--brand-text-color', brandText);
-    }
-  }, [brandColor, brandText, diseno, oscuro]);
+    // El color del taller se corrige para que el texto se lea (contraste mínimo 4,5:1). Va en la raíz para que también lo usen las ventanas que
+    // cuelgan fuera del marco (ajustes, seguridad…) y las pantallas que aún leen --brand-color.
+    const m = derivarMarca(normalizarHex(brandColor) ?? '#E8590C', oscuro);
+    root.style.setProperty('--brand-color', m.boton);
+    root.style.setProperty('--brand-text-color', m.sobreBoton);
+    root.style.setProperty('--u-brand', m.boton);
+    root.style.setProperty('--u-on-brand', m.sobreBoton);
+    root.style.setProperty('--u-brand-ink', m.tinta);
+  }, [brandColor, oscuro]);
 
   // Wait until auth is checked
   if (!authChecked) return null;
@@ -696,27 +678,8 @@ export default function App() {
   // Datos de la propia empresa aún cargando.
   if (!empresa) return null;
 
-  // "Inicio" no es un módulo con permiso propio — es la pantalla de aterrizaje
-  // de todo el mundo, así que va siempre primero sin pasar por el filtro de activeModulos.
-  const tabDefs: { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[] = [
-    { id: 'inicio' as ModuloId, label: 'Inicio', icon: <Home className="w-4 h-4" />, emoji: '🏠' },
-    ...(
-      [
-        { id: 'citas' as ModuloId, label: 'Agenda', icon: <CalendarClock className="w-4 h-4" />, emoji: '📅' },
-        { id: 'inventario' as ModuloId, label: 'Inventario', icon: <Package className="w-4 h-4" />, emoji: '📦' },
-        { id: 'compras' as ModuloId, label: 'Compras', icon: <ShoppingCart className="w-4 h-4" />, emoji: '🛒' },
-        { id: 'vehiculos' as ModuloId, label: 'Vehículos', icon: <Car className="w-4 h-4" />, emoji: '🚗' },
-        { id: 'clientes' as ModuloId, label: 'Clientes', icon: <Users className="w-4 h-4" />, emoji: '👥' },
-        { id: 'taller' as ModuloId, label: 'Taller', icon: <Wrench className="w-4 h-4" />, emoji: '🔧' },
-        { id: 'alertas' as ModuloId, label: 'Alertas', icon: <Bell className="w-4 h-4" />, emoji: '🔔' },
-        { id: 'rentabilidad' as ModuloId, label: 'Rentabilidad', icon: <BarChart2 className="w-4 h-4" />, emoji: '📈' },
-        { id: 'facturas' as ModuloId, label: 'Facturas', icon: <FileText className="w-4 h-4" />, emoji: '🧾' },
-      ] as { id: ModuloId; label: string; icon: React.ReactNode; emoji: string }[]
-    ).filter(t => activeModulos.includes(t.id)),
-  ];
-
-  // Las tres piezas que comparten la interfaz actual y la nueva: franjas de aviso, contenido de la pestaña activa y ventanas/avisos superpuestos.
-  const avisosPago = diseno === 'nuevo' ? (
+  // Las tres piezas del marco: franjas de aviso, contenido de la pestaña activa y ventanas/avisos superpuestos.
+  const avisosPago = (
     <>
       {pagoVolviendo && <div role="status" className="u-aviso ok">¡Gracias! Estamos activando tu suscripción, tardará unos segundos…</div>}
       {pagoMensaje && (
@@ -729,35 +692,11 @@ export default function App() {
       )}
       {!pagoVolviendo && suscripcion && <SuscripcionBanner suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onAbrir={() => setSuscripcionOpen(true)} />}
     </>
-  ) : (
-    <>
-    {pagoVolviendo && (
-      <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
-        <div role="status" className="w-[82%] max-w-4xl rounded-2xl border border-green-200 bg-green-50 text-green-800 px-4 py-2.5 text-xs font-semibold">
-          ¡Gracias! Estamos activando tu suscripción, tardará unos segundos…
-        </div>
-      </div>
-    )}
-    {pagoMensaje && (
-      <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
-        <div role="status" className={`w-[82%] max-w-4xl flex items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs font-semibold ${pagoMensaje === 'confirmado' ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-          <span>{pagoMensaje === 'confirmado'
-            ? '¡Pago recibido! Tu suscripción está activa. Gracias por confiar en Doonty Motor.'
-            : 'Hemos recibido tu pago, pero la activación tarda más de lo normal. Recarga la página en unos minutos; si sigue igual, escríbenos a send@doonty.com.'}</span>
-          <button onClick={() => setPagoMensaje(null)} aria-label="Cerrar aviso" className="font-bold opacity-70 hover:opacity-100 cursor-pointer">✕</button>
-        </div>
-      </div>
-    )}
-    {!pagoVolviendo && suscripcion && (
-      <SuscripcionBanner suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onAbrir={() => setSuscripcionOpen(true)} />
-    )}
-
-    </>
   );
 
   const contenido = (
         <Suspense fallback={<Cargando />}>
-        {activeTab === 'inicio' && diseno === 'nuevo' && (
+        {activeTab === 'inicio' && (
           <Hoy
             currentUser={currentUser}
             citas={citas}
@@ -770,24 +709,6 @@ export default function App() {
             datosListos={datosListos}
             onIr={irA}
             onNavegar={navegar}
-            pagosProveedores={pagosProv}
-            onAbrirEmpresa={(pestana) => { setSettingsTab(pestana); setSettingsOpen(true); }}
-          />
-        )}
-
-        {activeTab === 'inicio' && diseno !== 'nuevo' && (
-          <HomeTab
-            currentUser={currentUser}
-            citas={citas}
-            clientes={clientes}
-            vehiculos={vehiculos}
-            alertas={alertas}
-            modulos={activeModulos}
-            brandColor={brandColor}
-            empresa={empresa}
-            nOrdenes={ordenesTrabajo.length}
-            datosListos={datosListos}
-            onNavigate={navegar}
             pagosProveedores={pagosProv}
             onAbrirEmpresa={(pestana) => { setSettingsTab(pestana); setSettingsOpen(true); }}
           />
@@ -946,323 +867,36 @@ export default function App() {
     </>
   );
 
-  // Nuevo diseño: el mismo contenido y las mismas ventanas dentro del marco nuevo (menú con texto, buscador, «Nuevo»).
-  if (diseno === 'nuevo') {
-    return (
-      <>
-        <Suspense fallback={<Cargando pantallaCompleta />}>
-          <Marco
-            empresa={empresa}
-            usuario={currentUser}
-            modulos={activeModulos}
-            activo={activeTab}
-            onIr={irA}
-            alertasActivas={activeAlertsCount}
-            pagos={{ n: pagosAvisoCount, vencidas: !!pagosProv && pagosProv.vencidas.n > 0 }}
-            datos={{ clientes, vehiculos, ordenes: ordenesTrabajo }}
-            avisos={avisosPago}
-            amplio={activeTab === 'taller' && tallerVistaAmplia}
-            mostrarSuscripcion={!!suscripcion && suscripcion.estado !== 'sin_limite'}
-            onSeguridad={() => setSeguridadOpen(true)}
-            onSuscripcion={() => setSuscripcionOpen(true)}
-            onAdmin={() => setAdminPanelOpen(true)}
-            onConfiguracion={() => setSettingsOpen(true)}
-            onGuardarColor={(hex) => handleSaveEmpresa({ brandColor: hex })}
-            onVolverAlActual={() => cambiarDiseno('actual')}
-            tema={tema}
-            oscuro={oscuro}
-            onTema={cambiarTema}
-            onCerrarSesion={handleLogout}
-          >
-            {contenido}
-          </Marco>
-        </Suspense>
-        {superpuestos}
-      </>
-    );
-  }
-
+  // El marco: menú con texto, buscador, «Nuevo» y menú de la cuenta; dentro, la pestaña activa.
   return (
-    <div
-      className="h-screen bg-slate-50 font-sans flex flex-col antialiased overflow-hidden print:h-auto print:overflow-visible print:block"
-      style={{ '--brand': brandColor, '--brand-text': brandText } as React.CSSProperties}
-    >
-
-    {/* CABECERA — panel flotante centrado, separado del borde superior */}
-    <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
-      <header
-        className="w-[82%] max-w-4xl rounded-2xl shadow-md"
-        style={{ backgroundImage: `linear-gradient(135deg, ${brandColor}, color-mix(in srgb, ${brandColor} 78%, black))` }}
-      >
-        <div className="px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
-
-          {/* Logo + Brand */}
-          <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center font-black tracking-tighter text-lg shadow-md shrink-0 overflow-hidden"
-              style={{ backgroundColor: `${brandColor}33`, color: brandText }}
-            >
-              {empresa.logoBase64 ? (
-                <img src={empresa.logoBase64} alt="logo" className="w-full h-full object-contain" />
-              ) : (
-                empresa.nombre.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'E'
-              )}
-            </div>
-            <div>
-              <h1 className="text-md sm:text-lg font-display font-bold tracking-tight flex items-center gap-2" style={{ color: brandText }}>
-                {empresa.nombre}
-                <span
-                  className="hidden sm:inline text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-widest"
-                  style={{ backgroundColor: `${brandText === '#ffffff' ? '#ffffff' : '#000000'}22`, color: brandText, border: `1px solid ${brandText}44` }}
-                >
-                  FLOTAS Y CRM
-                </span>
-              </h1>
-              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${brandText}99` }}>{empresa.tagline}</p>
-            </div>
-          </div>
-
-          {/* User pill + logout */}
-          <div className="flex items-center gap-2">
-            <div
-              className="flex items-center gap-2 rounded-full px-3 py-2"
-              style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
-            >
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black"
-                style={{ backgroundColor: brandText, color: brandColor }}
-              >
-                {currentUser.nombre[0].toUpperCase()}
-              </div>
-              <span className="text-xs font-semibold hidden sm:block">{currentUser.nombre}</span>
-              {currentUser.rol === 'admin' && (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${brandText}22`, color: brandText }}>ADMIN</span>
-              )}
-            </div>
-            {currentUser.rol === 'admin' && suscripcion && suscripcion.estado !== 'sin_limite' && (
-              <button
-                onClick={() => setSuscripcionOpen(true)}
-                title="Suscripción"
-                aria-label="Suscripción"
-                className="p-2 rounded-full transition cursor-pointer"
-                style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
-              >
-                <CreditCard className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button
-              onClick={() => setSeguridadOpen(true)}
-              title="Seguridad de la cuenta"
-              aria-label="Seguridad de la cuenta"
-              className="p-2 rounded-full transition cursor-pointer"
-              style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={handleLogout}
-              title="Cerrar sesión"
-              className="p-2 rounded-full transition cursor-pointer"
-              style={{ backgroundColor: `${brandText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: brandText }}
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </header>
-    </div>
-
-    {avisosPago}
-
-    {/* Fila: riel lateral (flotante) + columna principal */}
-    <div className="flex-1 flex min-h-0 pl-3.5 pt-3.5 pb-3.5 overflow-hidden print:overflow-visible print:block print:p-0">
-
-      {/* RIEL LATERAL — navegación por iconos, panel flotante (solo escritorio) */}
-      <aside className="hidden md:flex flex-col items-center w-[76px] shrink-0 bg-white rounded-3xl shadow-lg border border-slate-200 py-4 mr-3.5 print:hidden">
-        <div className="flex flex-col gap-1.5 items-center">
-          {tabDefs.map(tab => (
-            <div key={tab.id} className="group relative">
-              <button
-                onClick={() => navegar(tab.id)}
-                title={tab.label}
-                aria-label={tab.label}
-                className="relative w-11 h-11 rounded-2xl flex items-center justify-center transition cursor-pointer text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                style={activeTab === tab.id ? { backgroundColor: brandColor, color: brandText, boxShadow: `0 8px 16px -6px ${brandColor}99` } : undefined}
-              >
-                {tab.icon}
-                {tab.id === 'alertas' && activeAlertsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-extrabold flex items-center justify-center border-2 border-white">
-                    {activeAlertsCount}
-                  </span>
-                )}
-                {tab.id === 'compras' && pagosAvisoCount > 0 && (
-                  <span data-testid="contador-pagos" className={`absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-extrabold flex items-center justify-center border-2 border-white ${pagosProv && pagosProv.vencidas.n > 0 ? 'bg-rose-500' : 'bg-amber-500'}`}>
-                    {pagosAvisoCount}
-                  </span>
-                )}
-              </button>
-              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition z-50">
-                {tab.label}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex-1" />
-
-        <div className="flex flex-col gap-1.5 items-center pt-3 mt-1 border-t border-slate-100 w-full">
-          {currentUser.rol === 'admin' && (
-            <div className="group relative">
-              <button
-                onClick={() => setAdminPanelOpen(true)}
-                title="Panel de administración"
-                className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition cursor-pointer"
-              >
-                <Shield className="w-[19px] h-[19px]" />
-              </button>
-              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition z-50">
-                Panel de administración
-              </span>
-            </div>
-          )}
-          {currentUser.rol === 'admin' && (
-            <div className="group relative">
-              <button
-                onClick={() => setSettingsOpen(true)}
-                title="Configuración de empresa"
-                className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
-              >
-                <Settings className="w-[19px] h-[19px]" />
-              </button>
-              <span className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 px-2.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition z-50">
-                Configuración de empresa
-              </span>
-            </div>
-          )}
-        </div>
-      </aside>
-
-      {/* COLUMNA PRINCIPAL */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible">
-
-        {/* Barra móvil: módulo activo + menú (la navegación por iconos solo existe en escritorio) */}
-        <nav className="md:hidden bg-white border-b border-slate-200/80 shadow-3xs print:hidden shrink-0">
-          <div className="px-4 sm:px-6">
-            <div className="flex justify-between items-center h-14">
-              <span className="text-xs font-bold text-slate-700 capitalize">
-                Módulo: <span className="text-blue-700 font-extrabold">{activeTab.replace('_', ' ')}</span>
-              </span>
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 hover:bg-slate-50 text-slate-600 rounded-xl"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile dropdown */}
-          {mobileMenuOpen && (
-            <div className="border-t border-slate-100 bg-white px-4 py-2 space-y-1 block">
-              {tabDefs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => { navegar(tab.id); setMobileMenuOpen(false); }}
-                  className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-slate-700 block hover:bg-slate-50 flex justify-between"
-                >
-                  <span>{tab.emoji} {tab.label}</span>
-                  {tab.id === 'alertas' && activeAlertsCount > 0 && (
-                    <span className="px-2 py-0.5 bg-rose-500 text-white font-bold text-[9px] rounded-full">{activeAlertsCount}</span>
-                  )}
-                  {tab.id === 'compras' && pagosAvisoCount > 0 && (
-                    <span className={`px-2 py-0.5 text-white font-bold text-[9px] rounded-full ${pagosProv && pagosProv.vencidas.n > 0 ? 'bg-rose-500' : 'bg-amber-500'}`}>{pagosAvisoCount}</span>
-                  )}
-                </button>
-              ))}
-              <div className="pt-2 border-t border-slate-100 space-y-1">
-                {currentUser.rol === 'admin' && (
-                  <button onClick={() => { setAdminPanelOpen(true); setMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-blue-700 block hover:bg-blue-50">
-                    🛡️ Panel de Administración
-                  </button>
-                )}
-                {currentUser.rol === 'admin' && (
-                  <button onClick={() => { setSettingsOpen(true); setMobileMenuOpen(false); }} className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-slate-700 block hover:bg-slate-50">
-                    ⚙️ Configuración de empresa
-                  </button>
-                )}
-                <button onClick={handleLogout} className="w-full text-left px-3 py-2 text-xs font-bold rounded-xl text-slate-600 block hover:bg-slate-50">
-                  🚪 Cerrar sesión
-                </button>
-              </div>
-            </div>
-          )}
-        </nav>
-
-        {/* Envoltorio con scroll: agrupa el contenido y el footer, así el footer
-            se desplaza con la página en vez de quedar fijo siempre visible.
-            flex-col + flex-1 en <main> asegura que, cuando el contenido es
-            corto (pantallas grandes), el footer quede pegado abajo del todo
-            en vez de aparecer justo donde termina el contenido. */}
-        <div className="flex-1 overflow-y-auto print:overflow-visible print:h-auto flex flex-col">
-
-        {/* CORE WORKSPACE */}
-        <main className={`flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 ${tallerVistaAmplia ? 'max-w-[1440px]' : 'max-w-7xl'}`}>
-        {contenido}
-      </main>
-
-        {/* PIE — contacto de la empresa + copyright (antes vivía en la cabecera) */}
-        <footer className="bg-slate-900 rounded-2xl shadow-md mr-3.5 mt-3.5 py-3.5 text-xs text-slate-400 print:hidden shrink-0">
-          <div className="px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-center sm:justify-between gap-2.5">
-            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
-              {empresa.correo && (
-                <span className="flex items-center gap-1.5 text-slate-300">
-                  <Mail className="w-3.5 h-3.5 text-slate-500" /> {empresa.correo}
-                </span>
-              )}
-              {empresa.telefono && (
-                <span className="flex items-center gap-1.5 text-slate-300">
-                  <Phone className="w-3.5 h-3.5 text-slate-500" /> {empresa.telefono}
-                </span>
-              )}
-              {empresa.web && (
-                <span className="flex items-center gap-1.5 text-slate-300">
-                  <Globe className="w-3.5 h-3.5 text-slate-500" /> {empresa.web}
-                </span>
-              )}
-            </div>
-            <p className="text-slate-500 text-center">
-              © 2026 Doonty — Desarrollado por{' '}
-              <a
-                href="https://www.somosingenio.net"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-slate-300 underline underline-offset-2 transition"
-              >
-                InGenio
-              </a>
-              . Reservados todos los derechos.
-              {' · '}
-              <a href="/privacidad" className="hover:text-slate-300 underline underline-offset-2 transition">Privacidad</a>
-              {' · '}
-              <a href="/terminos" className="hover:text-slate-300 underline underline-offset-2 transition">Términos</a>
-              {' · '}
-              <a href="/declaracion-responsable" className="hover:text-slate-300 underline underline-offset-2 transition">Declaración Responsable</a>
-              {' · '}
-              <a href="/encargo-de-tratamiento" className="hover:text-slate-300 underline underline-offset-2 transition">Encargo de tratamiento</a>
-              {currentUser.rol === 'admin' && (
-                <>
-                  {' · '}
-                  <button type="button" onClick={() => cambiarDiseno('nuevo')} data-testid="probar-nuevo-diseno" className="hover:text-slate-300 underline underline-offset-2 transition cursor-pointer">Probar el nuevo diseño</button>
-                </>
-              )}
-            </p>
-          </div>
-        </footer>
-        </div>
-      </div>
-    </div>
-
+    <>
+      <Suspense fallback={<Cargando pantallaCompleta />}>
+        <Marco
+          empresa={empresa}
+          usuario={currentUser}
+          modulos={activeModulos}
+          activo={activeTab}
+          onIr={irA}
+          alertasActivas={activeAlertsCount}
+          pagos={{ n: pagosAvisoCount, vencidas: !!pagosProv && pagosProv.vencidas.n > 0 }}
+          datos={{ clientes, vehiculos, ordenes: ordenesTrabajo }}
+          avisos={avisosPago}
+          amplio={activeTab === 'taller' && tallerVistaAmplia}
+          mostrarSuscripcion={!!suscripcion && suscripcion.estado !== 'sin_limite'}
+          onSeguridad={() => setSeguridadOpen(true)}
+          onSuscripcion={() => setSuscripcionOpen(true)}
+          onAdmin={() => setAdminPanelOpen(true)}
+          onConfiguracion={() => setSettingsOpen(true)}
+          onGuardarColor={(hex) => handleSaveEmpresa({ brandColor: hex })}
+          tema={tema}
+          oscuro={oscuro}
+          onTema={cambiarTema}
+          onCerrarSesion={handleLogout}
+        >
+          {contenido}
+        </Marco>
+      </Suspense>
       {superpuestos}
-    </div>
+    </>
   );
 }

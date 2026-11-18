@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { login } from './helpers';
+import { login, irA } from './helpers';
 
 // Exportar para la gestoría. La primera prueba es de SOLO LECTURA contra los datos reales del taller de pruebas
 // (nunca emite facturas: es irreversible en VeriFactu). La segunda sustituye la lectura de facturas por datos de mentira
@@ -8,7 +8,7 @@ import { login } from './helpers';
 
 async function abrir(page: Page) {
   await login(page);
-  await page.getByRole('button', { name: 'Facturas', exact: true }).click();
+  await irA(page, 'Facturas');
   await page.getByTestId('exportar-gestoria-abrir').click();
   await expect(page.getByTestId('exportar-gestoria')).toBeVisible();
 }

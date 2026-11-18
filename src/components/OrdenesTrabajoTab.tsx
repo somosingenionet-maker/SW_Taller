@@ -3,27 +3,22 @@ import { useState, useMemo, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   ClipboardList, Plus, Search, ChevronRight, X, Check, Trash2,
-  Car, User, Calendar, Gauge, Wrench, Package, AlertCircle, FileText,
-  Bell, Printer, Pencil, MessageCircle, Mail, List, LayoutGrid, Camera, ImageOff, Droplet
+  Car, User, Calendar, Gauge, Wrench, AlertCircle, FileText,
+  Pencil, List, LayoutGrid, Camera, ImageOff, Droplet
 } from 'lucide-react';
-import { OrdenTrabajo, OTEstado, LineaOT, LineaOTTipo, Vehiculo, Cliente, EventoOT, Tecnico, Empresa, Producto } from '../types';
+import { OrdenTrabajo, OTEstado, LineaOT, Vehiculo, Cliente, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { getOrden, buscarOrdenes, OrdenListaRow } from '../lib/data/ordenes';
 import { supabase } from '../lib/supabase';
 import { avisarError } from '../lib/avisos';
 import { mensajeDeError } from '../lib/errores';
-import { waHref } from '../utils/whatsapp';
 import { fmt2, formatKm } from '../utils/moneda';
 import { resumenTiempos, textoDuracion, textoHoras } from '../utils/duracionTarea';
-import { resumenFiltros } from '../utils/aceite';
-import { formatDate as fechaLarga } from '../utils/dateFormat';
 import CambioAceiteOrden from './CambioAceiteOrden';
 import InspeccionOrden from './InspeccionOrden';
-import EnviarPresupuesto from './EnviarPresupuesto';
-import { fechaHoraFirma } from '../utils/firma';
-import FirmasOrden, { FirmaImpresa } from './FirmasOrden';
+import FirmasOrden from './FirmasOrden';
 import FirmaOrdenModal from './FirmaOrdenModal';
-import { getFirmas, type FirmasOrden as Firmas, type TipoFirma } from '../lib/data/firmas';
+import type { TipoFirma } from '../lib/data/firmas';
 import { avisarOk } from '../lib/avisos';
 import SearchableSelect from './SearchableSelect';
 import ConfirmDialog from './ConfirmDialog';
@@ -32,9 +27,18 @@ import type { Intencion } from '../ui/navegacion';
 import TableroTaller from '../ui/TableroTaller';
 import PasosOrden from '../ui/PasosOrden';
 import AltaRapida from './AltaRapida';
+import BadgeEstado from './orden/BadgeEstado';
+import VisorPresupuesto from './orden/VisorPresupuesto';
+import { BloqueAvisoListo, BloqueAvisoTecnico, BloqueLineasNuevas, BloquePresupuesto, HistorialOrden } from './orden/BloquesFicha';
+import LineaTipoYProducto from './orden/LineaTipoYProducto';
+import CrearProductoRapidoModal from './orden/CrearProductoRapidoModal';
+import {
+  CHECKLIST_RECEPCION_ITEMS, EMPTY_LINEA, EMPTY_OT_FORM, ENTRADA_PANEL, ESTADO_FLOW, ESTADO_META, MAX_FOTOS_RECEPCION, TIPO_META,
+  type LineaForm, type OTForm,
+} from './orden/constantes';
+import { calcTotals, ESTADOS_SIN_AVISO_EXTRA, evento, progresoTareas } from './orden/utilidades';
 import type { NuevoCliente } from '../lib/data/clientes';
 import type { NuevoVehiculo } from '../lib/data/vehiculos';
-import { esDisenoNuevo } from '../ui/disenoNuevo';
 
 interface Props {
   ordenes: OrdenTrabajo[];
@@ -56,361 +60,6 @@ interface Props {
   /** Alta rápida desde la orden: crea un cliente / un vehículo (ya a nombre de su dueño) sin salir de la recepción. */
   onCrearCliente?: (input: NuevoCliente) => Promise<Cliente>;
   onCrearVehiculo?: (input: NuevoVehiculo, clienteId: string) => Promise<Vehiculo>;
-}
-
-const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string; dot: string }> = {
-  presupuesto:   { label: 'Presupuesto',   color: 'text-violet-700', bg: 'bg-violet-50', dot: 'bg-violet-500' },
-  recibido:      { label: 'Recibido',      color: 'text-slate-600',  bg: 'bg-slate-100', dot: 'bg-slate-500' },
-  en_reparacion: { label: 'En reparación', color: 'text-orange-700', bg: 'bg-orange-50', dot: 'bg-orange-500' },
-  listo:         { label: 'Listo',         color: 'text-cyan-700',   bg: 'bg-cyan-50', dot: 'bg-cyan-500' },
-  entregado:     { label: 'Entregado',     color: 'text-teal-700',   bg: 'bg-teal-100', dot: 'bg-teal-500' },
-  cancelado:     { label: 'Cancelado',     color: 'text-rose-600',   bg: 'bg-rose-50', dot: 'bg-rose-500' },
-};
-
-/** Entrada de las fichas de la orden: en el diseño actual se deslizan desde la derecha; en el nuevo son una ventana centrada que aparece con un fundido. */
-const ENTRADA_PANEL = () => (esDisenoNuevo()
-  ? { initial: { opacity: 0, scale: 0.97 }, animate: { opacity: 1, scale: 1 }, exit: { opacity: 0, scale: 0.97 }, transition: { duration: 0.16 } }
-  : { initial: { x: '100%' }, animate: { x: 0 }, exit: { x: '100%' }, transition: { type: 'spring' as const, damping: 28, stiffness: 260 } });
-
-const ESTADO_FLOW: OTEstado[] = [
-  'presupuesto', 'recibido', 'en_reparacion', 'listo', 'entregado'
-];
-
-/** Estados donde añadir una línea no implica avisar de un extra al cliente. */
-export const ESTADOS_SIN_AVISO_EXTRA: OTEstado[] = ['presupuesto', 'cancelado', 'entregado'];
-
-export { waHref };
-
-export function mailHref(correo: string | undefined, asunto: string, mensaje: string): string | null {
-  return correo ? `mailto:${correo}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(mensaje)}` : null;
-}
-
-/** Comprobación fija al recibir el vehículo — misma lista para todas las empresas. */
-const CHECKLIST_RECEPCION_ITEMS = [
-  'Neumáticos en buen estado',
-  'Luces funcionando correctamente',
-  'Sin daños visibles en la carrocería',
-  'Documentación entregada (permiso, ITV)',
-  'Objetos personales retirados',
-];
-
-const MAX_FOTOS_RECEPCION = 4;
-
-const TIPO_META: Record<LineaOTTipo, { label: string; icon: React.ReactNode }> = {
-  mano_de_obra: { label: 'Mano de obra', icon: <Wrench size={12} /> },
-  producto:     { label: 'Producto',     icon: <Package size={12} /> },
-};
-
-const IVA_DEFAULT = 21;
-
-interface LineaForm {
-  tipo: LineaOTTipo;
-  productoId?: string;
-  descripcion: string;
-  cantidad: number | '';
-  precioUnitario: number | '';
-  costoUnitario: number | '';
-}
-
-const EMPTY_LINEA: LineaForm = {
-  tipo: 'mano_de_obra',
-  productoId: undefined,
-  descripcion: '',
-  cantidad: 1,
-  precioUnitario: '',
-  costoUnitario: '',
-};
-
-/** Selector de tipo + (descripción libre o producto de catálogo), reutilizado
- * en los 4 formularios de línea (nueva/editar × crear-OT/editar-OT). Cuando
- * tipo='producto' el nombre queda fijado por el producto elegido — no se
- * edita a mano (así solo hay "un nombre": el del catálogo). */
-function LineaTipoYProducto({
-  form, setForm, productos, onSolicitarCrearProducto, bloquearTipo,
-}: {
-  form: LineaForm;
-  setForm: (updater: (f: LineaForm) => LineaForm) => void;
-  productos: Producto[];
-  onSolicitarCrearProducto: (nombreBuscado: string, aplicar: (p: Producto) => void) => void;
-  /** true cuando la línea ya existe en la OT (tipo/producto quedan fijos, solo cantidad/precio/costo editables). */
-  bloquearTipo?: boolean;
-}) {
-  const opciones = productos.map((p) => ({
-    value: p.id,
-    label: p.nombre,
-    sublabel: `Stock: ${p.stockActual} ${p.unidad} · Costo: ${fmt2(p.costo)} €`,
-  }));
-
-  const aplicarProducto = (p: Producto) => {
-    setForm((f) => ({ ...f, productoId: p.id, descripcion: p.nombre, precioUnitario: p.precioVenta, costoUnitario: p.costo }));
-  };
-
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <select
-        value={form.tipo}
-        disabled={bloquearTipo}
-        onChange={(e) => setForm((f) => ({ ...EMPTY_LINEA, tipo: e.target.value as LineaOTTipo, cantidad: f.cantidad }))}
-        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none bg-white disabled:bg-slate-100 disabled:text-slate-400"
-      >
-        {(Object.keys(TIPO_META) as LineaOTTipo[]).map((t) => <option key={t} value={t}>{TIPO_META[t].label}</option>)}
-      </select>
-      {form.tipo === 'producto' ? (
-        bloquearTipo ? (
-          <div className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs bg-slate-100 text-slate-500 truncate flex items-center" title={form.descripcion}>
-            {form.descripcion || '—'}
-          </div>
-        ) : (
-          <SearchableSelect
-            options={opciones}
-            value={form.productoId ?? ''}
-            onChange={(val) => {
-              const p = productos.find((x) => x.id === val);
-              if (p) aplicarProducto(p);
-            }}
-            placeholder="Buscar producto..."
-            emptyMessage="Sin productos — créalo escribiendo su nombre"
-            onCreateNew={(termino) => onSolicitarCrearProducto(termino, aplicarProducto)}
-            createLabel="Crear producto"
-          />
-        )
-      ) : (
-        <input
-          type="text"
-          placeholder="Descripción *"
-          value={form.descripcion}
-          onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
-          className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none"
-        />
-      )}
-    </div>
-  );
-}
-
-interface OTForm {
-  vehiculoId: string;
-  clienteId: string;
-  fechaRecepcion: string;
-  fechaEstimadaEntrega: string;
-  kilometrajeEntrada: number | '';
-  descripcionProblema: string;
-  diagnostico: string;
-  tecnicoAsignado: string;
-  notas: string;
-  ivaPct: number;
-  esCambioAceite: boolean;
-}
-
-const EMPTY_OT_FORM: OTForm = {
-  vehiculoId: '',
-  clienteId: '',
-  fechaRecepcion: new Date().toISOString().split('T')[0],
-  fechaEstimadaEntrega: '',
-  kilometrajeEntrada: '',
-  descripcionProblema: '',
-  diagnostico: '',
-  tecnicoAsignado: '',
-  notas: '',
-  ivaPct: IVA_DEFAULT,
-  esCambioAceite: false,
-};
-
-export function calcTotals(lineas: LineaOT[], ivaPct: number) {
-  const subtotal = lineas.reduce((s, l) => s + l.subtotal, 0);
-  const totalIva = subtotal * (ivaPct / 100);
-  return { subtotal, totalIva, total: subtotal + totalIva };
-}
-
-function BadgeEstado({ estado, presupuestoEstado, presupuestoAprobado, notificacionEnviada }: {
-  estado: OTEstado;
-  presupuestoEstado?: 'pendiente' | 'enviado';
-  presupuestoAprobado?: boolean;
-  notificacionEnviada?: boolean;
-}) {
-  const m = ESTADO_META[estado];
-  if (estado === 'presupuesto' && presupuestoEstado === 'enviado') return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Enviado</span>;
-  // Coche ya en el taller con un presupuesto en marcha: se ve en qué punto está.
-  if ((estado === 'recibido' || estado === 'en_reparacion') && presupuestoEstado === 'enviado' && presupuestoAprobado === false) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">Presupuesto rechazado</span>;
-  if ((estado === 'recibido' || estado === 'en_reparacion') && presupuestoEstado === 'enviado' && presupuestoAprobado == null) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Presupuesto enviado</span>;
-  if (estado === 'recibido' && presupuestoAprobado) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">Aprobado</span>;
-  if (estado === 'recibido' && !presupuestoAprobado) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Pdte. diagnóstico</span>;
-  if (estado === 'listo' && notificacionEnviada) return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Notificado</span>;
-  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${m.bg} ${m.color}`}>{m.label}</span>;
-}
-
-function evento(descripcion: string): EventoOT {
-  return { fecha: new Date().toISOString(), descripcion };
-}
-
-/** Iniciales para el avatar circular del cliente en cada tarjeta Kanban. */
-export function iniciales(nombre: string, apellidos: string): string {
-  return `${nombre[0] ?? ''}${apellidos[0] ?? ''}`.toUpperCase();
-}
-
-export function diasDesde(fechaISO: string): { texto: string; aviso: boolean } {
-  const dias = Math.floor((Date.now() - new Date(fechaISO).getTime()) / 86400000);
-  if (dias <= 0) return { texto: 'hoy', aviso: false };
-  return { texto: `${dias} día${dias !== 1 ? 's' : ''}`, aviso: dias > 5 };
-}
-
-/** Progreso de las tareas del mecánico (líneas de mano de obra) marcadas desde el Portal del Mecánico. */
-export function progresoTareas(ot: OrdenTrabajo): { total: number; hechas: number; terminado: boolean } {
-  const tareas = ot.lineas.filter(l => l.tipo === 'mano_de_obra');
-  const hechas = tareas.filter(l => l.completado).length;
-  return { total: tareas.length, hechas, terminado: tareas.length > 0 && hechas === tareas.length };
-}
-
-/** Vista alternativa a la tabla: una columna por estado (sin 'cancelado' — ese
- * se sigue viendo desde la lista con su filtro), arrastrar una tarjeta a otra
- * columna dispara el mismo cambio de estado que el desplegable "Avanzar
- * estado" del detalle (incluida la apertura del modal de recepción si
- * corresponde — ver handleEstadoChange). */
-function KanbanBoard({
-  ordenes, vehiculos, clientes, onSelect, onDrop, onRetrocesoBloqueado, dragOtId, setDragOtId, dragOverEstado, setDragOverEstado,
-}: {
-  ordenes: OrdenTrabajo[];
-  vehiculos: Vehiculo[];
-  clientes: Cliente[];
-  onSelect: (ot: OrdenTrabajo) => void;
-  onDrop: (ot: OrdenTrabajo, estado: OTEstado) => void;
-  onRetrocesoBloqueado: (ot: OrdenTrabajo, estado: OTEstado) => void;
-  dragOtId: string | null;
-  setDragOtId: React.Dispatch<React.SetStateAction<string | null>>;
-  dragOverEstado: OTEstado | null;
-  setDragOverEstado: React.Dispatch<React.SetStateAction<OTEstado | null>>;
-}) {
-  const columnas = ESTADO_FLOW.map(estado => ({
-    estado,
-    items: ordenes.filter(o => o.estado === estado),
-  }));
-
-  // Solo para el aviso visual mientras se arrastra (dragOtId sí puede fiarse
-  // aquí: por algo tan simple como resaltar en rojo un destino no hay
-  // problema si tarda un pelín en confirmarse) — la decisión real de si el
-  // drop es válido se hace en el propio onDrop, a partir del dataTransfer.
-  const otArrastrada = dragOtId ? ordenes.find(o => o.id === dragOtId) : null;
-
-  return (
-    <div className="flex gap-3.5 overflow-x-auto pb-2 items-start">
-      {columnas.map(({ estado, items }) => {
-        const meta = ESTADO_META[estado];
-        const esDestino = dragOverEstado === estado;
-        const esRetroceso = !!otArrastrada && ESTADO_FLOW.indexOf(estado) < ESTADO_FLOW.indexOf(otArrastrada.estado);
-        return (
-          <div
-            key={estado}
-            onDragOver={e => { e.preventDefault(); setDragOverEstado(estado); }}
-            onDragLeave={() => setDragOverEstado(prev => (prev === estado ? null : prev))}
-            onDrop={e => {
-              e.preventDefault();
-              setDragOverEstado(null);
-              // El id viaja en el propio dataTransfer nativo (no en el estado
-              // de React): entre el dragstart y este drop puede no haber dado
-              // tiempo a que el setState de dragOtId se confirme todavía.
-              const id = e.dataTransfer.getData('text/plain');
-              const ot = ordenes.find(o => o.id === id);
-              setDragOtId(null);
-              if (!ot || ot.estado === estado) return;
-              if (ESTADO_FLOW.indexOf(estado) < ESTADO_FLOW.indexOf(ot.estado)) {
-                onRetrocesoBloqueado(ot, estado);
-                return;
-              }
-              onDrop(ot, estado);
-            }}
-            className={`shrink-0 w-64 border rounded-2xl p-2.5 flex flex-col gap-2 max-h-[70vh] transition ${
-              esDestino && esRetroceso ? 'border-rose-400 bg-rose-50/60'
-              : esDestino ? 'border-blue-400 bg-blue-50/40'
-              : 'border-slate-100 bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center gap-2 px-1 pb-1">
-              <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
-              <span className={`text-xs font-extrabold uppercase tracking-wide ${meta.color}`}>{meta.label}</span>
-              <span className={`ml-auto text-[10px] font-extrabold px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>{items.length}</span>
-            </div>
-            {estado === 'entregado' && (
-              <p className="text-[10px] text-slate-400 px-1 -mt-1 mb-1">
-                Solo las de los últimos 30 días — busca en Lista para ver entregas más antiguas.
-              </p>
-            )}
-
-            <div className="flex flex-col gap-2 overflow-y-auto px-0.5">
-              {items.length === 0 && (
-                <div className="border-2 border-dashed border-slate-200 rounded-xl h-14 flex items-center justify-center text-[11px] text-slate-400 font-medium">
-                  sin órdenes
-                </div>
-              )}
-              {items.map(ot => {
-                const veh = vehiculos.find(v => v.id === ot.vehiculoId);
-                const cli = clientes.find(c => c.id === ot.clienteId);
-                const { texto, aviso } = diasDesde(ot.fechaRecepcion);
-                return (
-                  <div
-                    key={ot.id}
-                    draggable
-                    onDragStart={e => { e.dataTransfer.setData('text/plain', ot.id); setDragOtId(ot.id); }}
-                    onDragEnd={() => { setDragOtId(null); setDragOverEstado(null); }}
-                    onClick={() => onSelect(ot)}
-                    className={`bg-white border border-slate-200 rounded-xl px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:border-slate-300 transition ${dragOtId === ot.id ? 'opacity-40' : ''}`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-bold text-slate-400 font-mono flex items-center gap-1">
-                        {ot.numero}
-                        {ot.esCambioAceite && <span title="Cambio de aceite" aria-label="Cambio de aceite"><Droplet size={10} className="text-blue-500" /></span>}
-                      </span>
-                      <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full ${aviso ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'}`}>{texto}</span>
-                    </div>
-                    <div className="text-xs font-extrabold text-slate-800">{veh ? `${veh.marca} ${veh.modelo}` : '—'}</div>
-                    <div className="text-[10px] text-slate-400 font-mono mb-1.5">{veh?.matricula}</div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mb-1.5">
-                      {cli && (
-                        <span className="w-4 h-4 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-[8px] font-extrabold shrink-0">
-                          {iniciales(cli.nombre, cli.apellidos)}
-                        </span>
-                      )}
-                      <span className="truncate">{cli ? `${cli.nombre} ${cli.apellidos}` : '—'}</span>
-                    </div>
-                    {/* Avance en el taller: quién lo lleva, tareas hechas y tiempo real anotado por el mecánico. */}
-                    {(estado === 'recibido' || estado === 'en_reparacion' || estado === 'listo') && (() => {
-                      const t = resumenTiempos(ot.lineas);
-                      if (!ot.tecnicoAsignado && t.tareas === 0) return null;
-                      const terminado = t.tareas > 0 && t.hechas === t.tareas;
-                      return (
-                        <div className="mb-1.5 space-y-1">
-                          <div className="flex items-center justify-between gap-2 text-[10px]">
-                            <span className="flex items-center gap-1 text-slate-500 truncate"><Wrench size={9} className="shrink-0" /> {ot.tecnicoAsignado || 'Sin técnico'}</span>
-                            {t.tareas > 0 && (
-                              <span className={`font-bold shrink-0 ${terminado ? 'text-teal-700' : 'text-slate-500'}`}>
-                                {terminado && <Check size={9} className="inline -mt-0.5 mr-0.5" />}{t.hechas}/{t.tareas}
-                                {t.minutosReales > 0 && ` · ${textoDuracion(t.minutosReales)}`}
-                              </span>
-                            )}
-                          </div>
-                          {t.tareas > 0 && (
-                            <div className="h-1 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={t.tareas} aria-valuenow={t.hechas} aria-label="Tareas hechas">
-                              <div className={`h-full rounded-full ${terminado ? 'bg-teal-500' : 'bg-orange-400'}`} style={{ width: `${(t.hechas / t.tareas) * 100}%` }} />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-extrabold text-slate-700">
-                        {ot.total > 0 ? `${fmt2(ot.total)} €` : <span className="text-slate-300 font-normal">Por definir</span>}
-                      </span>
-                      {estado === 'presupuesto' && ot.presupuestoEstado === 'enviado' && (
-                        <span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">Enviado</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo }: Props) {
@@ -456,15 +105,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const [formError, setFormError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [presupuestoPDF, setPresupuestoPDF] = useState<OrdenTrabajo | null>(null);
-  // Firma en pantalla: qué firma se está pidiendo ahora, y los dibujos de la orden que se imprime.
+  // Firma en pantalla: qué firma se está pidiendo ahora.
   const [firmando, setFirmando] = useState<TipoFirma | null>(null);
-  const [firmasPDF, setFirmasPDF] = useState<Firmas>({});
-  useEffect(() => {
-    if (!presupuestoPDF || (!presupuestoPDF.firmaPresupuesto && !presupuestoPDF.firmaEntrega)) { setFirmasPDF({}); return; }
-    let vivo = true;
-    getFirmas(presupuestoPDF.id).then((f) => { if (vivo) setFirmasPDF(f); }).catch(() => { if (vivo) setFirmasPDF({}); });
-    return () => { vivo = false; };
-  }, [presupuestoPDF?.id, presupuestoPDF?.firmaPresupuesto?.en, presupuestoPDF?.firmaEntrega?.en]);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<OTForm>(EMPTY_OT_FORM);
   const [editingLineaId, setEditingLineaId] = useState<string | null>(null);
@@ -930,7 +572,6 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   };
 
   const totalesSelected = selected ? calcTotals(selected.lineas, selected.ivaPct) : null;
-  const Tablero = esDisenoNuevo() ? TableroTaller : KanbanBoard;
 
   return (
     <>
@@ -966,31 +607,22 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               <LayoutGrid size={13} /> Tablero
             </button>
           </div>
-          {esDisenoNuevo() ? (
-            <>
-              <button
-                onClick={() => openCreate('presupuesto')}
-                data-testid="taller-presupuesto"
-                className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-2xl text-sm font-semibold transition"
-              >
-                <ClipboardList size={15} /> Nuevo presupuesto
-              </button>
-              <button
-                onClick={() => openCreate('recibido')}
-                data-testid="taller-recibir"
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
-              >
-                <Plus size={15} /> Recibir un coche
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => openCreate()}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
-            >
-              <Plus size={15} /> Nueva OT
-            </button>
-          )}
+          <>
+          <button
+            onClick={() => openCreate('presupuesto')}
+            data-testid="taller-presupuesto"
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2 rounded-2xl text-sm font-semibold transition"
+          >
+            <ClipboardList size={15} /> Nuevo presupuesto
+          </button>
+          <button
+            onClick={() => openCreate('recibido')}
+            data-testid="taller-recibir"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-2xl text-sm font-semibold transition shadow-sm"
+          >
+            <Plus size={15} /> Recibir un coche
+          </button>
+          </>
         </div>
       </div>
 
@@ -1028,7 +660,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               <AlertCircle size={14} className="shrink-0" /> {kanbanAviso}
             </div>
           )}
-          <Tablero
+          <TableroTaller
             ordenes={filtered}
             vehiculos={vehiculos}
             clientes={clientes}
@@ -1161,7 +793,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 </div>
               </div>
 
-              {esDisenoNuevo() && (() => {
+              {(() => {
                 const enTaller = selected.estado === 'recibido' || selected.estado === 'en_reparacion';
                 const enviado = selected.presupuestoEstado === 'enviado';
                 const aprobado = !!selected.aceptacionPresupuesto || selected.presupuestoAprobado === true;
@@ -1385,274 +1017,23 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   </div>
                 )}
 
-                {/* Bloque: Cotización — PDF y seguimiento */}
-                {/* Bloque: Presupuesto */}
-                {/* Se presupuesta antes de recibir el coche (Presupuesto) o con el coche ya dentro (Recibido / En reparación):
-                    el segundo caso es el normal cuando llega directo a revisión y el diagnóstico sale después. */}
-                {(selected.estado === 'presupuesto' || selected.estado === 'recibido' || selected.estado === 'en_reparacion') && (() => {
-                  const enTaller = selected.estado !== 'presupuesto';
-                  const enviado = selected.presupuestoEstado === 'enviado';
-                  const aceptado = !!selected.aceptacionPresupuesto || (enTaller && selected.presupuestoAprobado === true);
-                  if (enTaller && aceptado) {
-                    const a = selected.aceptacionPresupuesto;
-                    return (
-                      <div id="bloque-presupuesto" className="rounded-2xl border border-green-200 bg-green-50 p-4 space-y-1" data-testid="presupuesto-aprobado">
-                        <p className="text-xs font-bold uppercase text-slate-500">Presupuesto</p>
-                        <p className="text-sm font-semibold text-green-800 flex items-center gap-1.5"><Check size={14} /> Aprobado por el cliente</p>
-                        {a && <p className="text-xs text-slate-500">{a.nombre} · {new Date(a.en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })} · {fmt2(a.total)} €</p>}
-                      </div>
-                    );
-                  }
-                  return (
-                    <div id="bloque-presupuesto" className={`rounded-2xl border p-4 space-y-3 ${enviado ? 'bg-green-50 border-green-200' : 'bg-violet-50 border-violet-200'}`} data-testid="bloque-presupuesto">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold uppercase text-slate-500">{enTaller ? 'Presupuesto para aprobación' : 'Presupuesto'}</p>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${enviado ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {enviado ? (selected.presupuestoAprobado === false ? 'Rechazado' : 'Enviado') : 'Pendiente de envío'}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        {enviado
-                          ? 'Esperando la respuesta del cliente. Puede aceptarlo o rechazarlo desde su portal.'
-                          : enTaller
-                            ? 'El coche ya está en el taller. Cuando tengas el diagnóstico y las líneas con su precio, envíaselo al cliente: recibe un enlace a su portal donde lo aprueba desde el móvil, y queda guardada su aceptación.'
-                            : 'Envíaselo al cliente: recibe un enlace a su portal donde lo acepta o lo rechaza desde el móvil.'}
-                      </p>
-                      {enTaller && !enviado && !(selected.total > 0) && (
-                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">Aún no hay importe: añade las líneas de trabajo y recambios para poder enviarlo.</p>
-                      )}
-                      <EnviarPresupuesto
-                        ot={selected}
-                        clienteId={selected.clienteId}
-                        clienteNombre={(() => { const c = clientes.find(x => x.id === selected.clienteId); return c ? `${c.nombre} ${c.apellidos}`.trim() : ''; })()}
-                        clienteTelefono={clientes.find(x => x.id === selected.clienteId)?.telefono || undefined}
-                        vehiculoDescripcion={(() => { const v = vehiculos.find(x => x.id === selected.vehiculoId); return v ? `${v.marca} ${v.modelo}${v.matricula ? ` (${v.matricula})` : ''}` : ''; })()}
-                        empresaNombre={empresa.nombre}
-                        onCambio={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setPresupuestoPDF(selected)}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
-                        >
-                          <FileText size={13} /> Ver / Descargar PDF
-                        </button>
-                        {!enviado && (
-                          <button
-                            onClick={() => handleEnviarPresupuesto(selected)}
-                            className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
-                          >
-                            <Check size={13} /> Ya lo envié yo
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Bloque: Notificar al cliente cuando está listo */}
-                {selected.estado === 'listo' && (() => {
-                  const cli = clientes.find(c => c.id === selected.clienteId);
-                  const veh = vehiculos.find(v => v.id === selected.vehiculoId);
-                  const notificado = selected.notificacionEnviada;
-                  const nombreCliente = cli ? `${cli.nombre} ${cli.apellidos}` : 'cliente';
-                  const descVeh = veh ? `${veh.marca} ${veh.modelo}${veh.matricula ? ` (${veh.matricula})` : ''}` : 'su vehículo';
-                  const mensaje = `Hola ${nombreCliente}, le informamos que su vehículo ${descVeh} ya está listo para recoger en ${empresa.nombre}. Puede pasar cuando lo desee en nuestro horario de atención. ¡Gracias por confiar en nosotros!`;
-                  const waLink = waHref(cli?.telefono, mensaje);
-                  const mailLink = mailHref(cli?.correo, `Su vehículo está listo - ${empresa.nombre}`, mensaje);
-                  return (
-                    <div className={`rounded-2xl border p-4 space-y-3 ${notificado ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><Bell size={11} /> Notificación al cliente</p>
-                        {notificado && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Notificado</span>}
-                      </div>
-                      {!notificado && (
-                        <p className="text-xs text-slate-500">Avisa al cliente de que su vehículo está listo para recoger.</p>
-                      )}
-                      <div className="flex gap-2 flex-wrap">
-                        {waLink ? (
-                          <a
-                            href={waLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition"
-                          >
-                            <MessageCircle size={13} /> WhatsApp
-                          </a>
-                        ) : (
-                          <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
-                            <MessageCircle size={13} /> WhatsApp
-                          </span>
-                        )}
-                        {mailLink ? (
-                          <a
-                            href={mailLink}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition"
-                          >
-                            <Mail size={13} /> Email
-                          </a>
-                        ) : (
-                          <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
-                            <Mail size={13} /> Email
-                          </span>
-                        )}
-                        {!notificado && (
-                          <button
-                            onClick={() => handleNotificarListo(selected)}
-                            className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
-                          >
-                            <Check size={13} /> Marcar notificado
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Bloque: Notificar al técnico asignado (checklist de tareas en su Portal) */}
-                {selected.tecnicoAsignado && (selected.estado === 'recibido' || selected.estado === 'en_reparacion') && (() => {
-                  const tec = tecnicos.find(t => t.nombre === selected.tecnicoAsignado);
-                  if (!tec) return null;
-                  const veh = vehiculos.find(v => v.id === selected.vehiculoId);
-                  const descVeh = veh ? `${veh.marca} ${veh.modelo}${veh.matricula ? ` (${veh.matricula})` : ''}` : 'un vehículo';
-
-                  const handleClick = async () => {
-                    let tecConToken: Tecnico;
-                    try {
-                      tecConToken = await asegurarPortalTecnico(tec);
-                    } catch (err) {
-                      avisarError(err, 'No se pudo generar el enlace del mecánico.');
-                      return;
-                    }
-                    const enlace = `${window.location.origin}/mecanico/${tecConToken.portalToken}`;
-                    const mensaje = `Hola ${tec.nombre}, se te ha asignado ${descVeh} — OT ${selected.numero}. Aquí puedes ver y marcar las tareas: ${enlace}`;
-                    const link = waHref(tec.telefono, mensaje);
-                    if (link) window.open(link, '_blank', 'noopener,noreferrer');
-                  };
-
-                  return (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-                      <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><Wrench size={11} /> Notificación al técnico</p>
-                      <p className="text-xs text-slate-500">Avisa a {tec.nombre} del vehículo asignado y del enlace de su checklist de tareas.</p>
-                      {tec.telefono ? (
-                        <button
-                          onClick={handleClick}
-                          disabled={generandoPortalTecnico}
-                          className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-semibold transition cursor-pointer"
-                        >
-                          <MessageCircle size={13} /> {generandoPortalTecnico ? 'Preparando enlace…' : 'Notificar por WhatsApp'}
-                        </button>
-                      ) : (
-                        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                          {tec.nombre} no tiene teléfono guardado — añádelo en Configuración de empresa → Técnicos para poder avisarle.
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Bloque: avisar al cliente de líneas añadidas tras la recepción — el
-                    pendiente vive en la propia línea (notificadoCliente=false), no en
-                    estado de React, así que sobrevive a recargar la página. */}
-                {(() => {
-                  const pendientes = selected.lineas.filter(l => l.notificadoCliente === false);
-                  if (pendientes.length === 0) return null;
-                  const cli = clientes.find(c => c.id === selected.clienteId);
-                  const veh = vehiculos.find(v => v.id === selected.vehiculoId);
-                  const nombreCliente = cli ? `${cli.nombre} ${cli.apellidos}` : 'cliente';
-                  const descVeh = veh ? `${veh.marca} ${veh.modelo}${veh.matricula ? ` (${veh.matricula})` : ''}` : 'tu vehículo';
-                  // Importe con IVA incluido — es lo que realmente pagará el cliente,
-                  // no el subtotal de las líneas.
-                  const { total: totalAnadido } = calcTotals(pendientes, selected.ivaPct);
-                  const detalle = pendientes.map(l => `• ${l.descripcion} (${fmt2(l.subtotal)} €)`).join('\n');
-                  const mensaje = `Hola ${nombreCliente}, durante el trabajo en ${descVeh} (OT ${selected.numero}) hemos añadido lo siguiente:\n${detalle}\nTotal añadido (IVA incl.): ${fmt2(totalAnadido)} €.\nCualquier duda, contáctanos.`;
-                  const waLink = waHref(cli?.telefono, mensaje);
-                  const mailLink = mailHref(cli?.correo, `Trabajo adicional en tu vehículo - ${empresa.nombre}`, mensaje);
-                  return (
-                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
-                      <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
-                        <Bell size={11} /> Se añadieron {pendientes.length} línea{pendientes.length === 1 ? '' : 's'} nueva{pendientes.length === 1 ? '' : 's'}
-                      </p>
-                      <p className="text-xs text-slate-600">¿Avisamos al cliente de este añadido ({fmt2(totalAnadido)} € IVA incl.)?</p>
-                      <div className="flex gap-2 flex-wrap">
-                        {waLink ? (
-                          <a href={waLink} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition">
-                            <MessageCircle size={13} /> WhatsApp
-                          </a>
-                        ) : (
-                          <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
-                            <MessageCircle size={13} /> WhatsApp
-                          </span>
-                        )}
-                        {mailLink ? (
-                          <a href={mailLink}
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition">
-                            <Mail size={13} /> Email
-                          </a>
-                        ) : (
-                          <span className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 text-slate-400 text-xs font-semibold cursor-not-allowed">
-                            <Mail size={13} /> Email
-                          </span>
-                        )}
-                        <button
-                          onClick={() => handleMarcarLineasAvisadas(selected)}
-                          className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition"
-                        >
-                          <Check size={13} /> Marcar avisado
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Historial de eventos */}
-                {selected.historial && selected.historial.length > 0 && (() => {
-                  const fmt = (iso: string) => {
-                    const d = new Date(iso);
-                    return {
-                      fecha: d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
-                      hora: d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-                    };
-                  };
-                  const diffLabel = (a: string, b: string) => {
-                    const ms = new Date(b).getTime() - new Date(a).getTime();
-                    const min = Math.floor(ms / 60000);
-                    if (min < 60) return `${min}m`;
-                    const h = Math.floor(min / 60);
-                    const m = min % 60;
-                    if (h < 24) return m > 0 ? `${h}h ${m}m` : `${h}h`;
-                    const dias = Math.floor(h / 24);
-                    const hh = h % 24;
-                    return hh > 0 ? `${dias}d ${hh}h` : `${dias}d`;
-                  };
-                  return (
-                    <div>
-                      <p className="text-xs font-semibold text-slate-600 mb-3">Historial</p>
-                      <div className="relative">
-                        <div className="absolute left-[7px] top-2 bottom-2 w-px bg-slate-200" />
-                        <div className="space-y-4">
-                          {selected.historial.map((ev, i) => {
-                            const { fecha, hora } = fmt(ev.fecha);
-                            const siguiente = selected.historial[i + 1];
-                            return (
-                              <div key={i} className="relative pl-6">
-                                <div className="absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full border-2 border-blue-500 bg-white" />
-                                <p className="text-xs font-semibold text-slate-800">{ev.descripcion}</p>
-                                <p className="text-[11px] text-slate-400 mt-0.5">{fecha} · {hora}</p>
-                                {siguiente && (
-                                  <p className="text-[10px] text-blue-400 mt-1 font-medium">
-                                    ↓ {diffLabel(ev.fecha, siguiente.fecha)} después
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
+                {/* Presupuesto del cliente (antes de recibir el coche, o con el coche ya dentro), avisos y línea de tiempo */}
+                {(selected.estado === 'presupuesto' || selected.estado === 'recibido' || selected.estado === 'en_reparacion') && (
+                  <BloquePresupuesto
+                    selected={selected} clientes={clientes} vehiculos={vehiculos} empresa={empresa}
+                    onCambio={(fresca) => { setSelected(fresca); onRefrescada(fresca); }}
+                    onVerPdf={setPresupuestoPDF}
+                    onMarcarEnviado={handleEnviarPresupuesto}
+                  />
+                )}
+                {selected.estado === 'listo' && (
+                  <BloqueAvisoListo selected={selected} clientes={clientes} vehiculos={vehiculos} empresa={empresa} onMarcarNotificado={handleNotificarListo} />
+                )}
+                {selected.tecnicoAsignado && (selected.estado === 'recibido' || selected.estado === 'en_reparacion') && (
+                  <BloqueAvisoTecnico selected={selected} tecnicos={tecnicos} vehiculos={vehiculos} generando={generandoPortalTecnico} onAsegurarPortal={asegurarPortalTecnico} />
+                )}
+                <BloqueLineasNuevas selected={selected} clientes={clientes} vehiculos={vehiculos} empresa={empresa} onMarcarAvisadas={handleMarcarLineasAvisadas} />
+                {selected.historial && selected.historial.length > 0 && <HistorialOrden historial={selected.historial} />}
 
                 {/* Estado flow */}
                 {selected.estado !== 'cancelado' && selected.estado !== 'entregado' && (
@@ -2455,204 +1836,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       />
     </div>
 
-      {/* PDF Presupuesto Modal */}
       <AnimatePresence>
-        {presupuestoPDF && (() => {
-          const ot = presupuestoPDF;
-          const cli = clientes.find(c => c.id === ot.clienteId);
-          const veh = vehiculos.find(v => v.id === ot.vehiculoId);
-          const esListo = ot.estado === 'listo' || ot.estado === 'entregado';
-          const titulo = esListo ? 'Resumen de Reparación' : 'Presupuesto';
-          return (
-            <>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/60 z-50 print:hidden" onClick={() => setPresupuestoPDF(null)} />
-              <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
-                className="fixed inset-4 sm:inset-8 z-50 flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden print:inset-0 print:rounded-none print:shadow-none">
-
-                {/* Toolbar — hidden on print */}
-                <div className="flex items-center justify-between px-6 py-3 bg-slate-800 text-white print:hidden shrink-0">
-                  <span className="font-semibold text-sm">{titulo} — {ot.numero}</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => window.print()}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 rounded-xl text-xs font-semibold transition"
-                    >
-                      <Printer size={13} /> Imprimir / Guardar PDF
-                    </button>
-                    <button onClick={() => setPresupuestoPDF(null)} className="p-1.5 rounded-xl hover:bg-slate-700 transition">
-                      <X size={15} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Printable content */}
-                <div className="flex-1 overflow-y-auto bg-slate-100 print:bg-white print:overflow-visible">
-                  <div className="max-w-3xl mx-auto my-8 bg-white shadow-xl rounded-2xl print:shadow-none print:rounded-none print:my-0 print:max-w-none">
-                    {/* box-decoration-break:clone repite el padding en cada
-                        página cuando el contenido no cabe en una hoja — si
-                        no, solo la primera lo tiene y las siguientes quedan
-                        pegadas arriba. */}
-                    <div className="p-10 space-y-6 text-slate-800 font-sans print:[box-decoration-break:clone] print:[-webkit-box-decoration-break:clone]">
-
-                    {/* Header empresa — misma línea gráfica que facturas */}
-                    <div className="flex justify-between items-start border-b-2 border-slate-900 pb-5">
-                      <div className="flex items-center gap-4">
-                        {empresa.logoBase64 && <img src={empresa.logoBase64} alt="Logo" className="h-14 object-contain" />}
-                        <div>
-                          <h1 className="text-lg font-extrabold text-slate-900 uppercase tracking-tight">{empresa.nombre}</h1>
-                          {empresa.ciudad && <p className="text-xs text-slate-500">{empresa.ciudad}</p>}
-                          {empresa.correo && <p className="text-xs text-slate-500">{empresa.correo}</p>}
-                          {empresa.telefono && <p className="text-xs text-slate-500">{empresa.telefono}</p>}
-                          {empresa.web && <p className="text-xs text-slate-500">{empresa.web}</p>}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{titulo}</p>
-                        <p className="text-2xl font-black font-mono text-blue-600">{ot.numero}</p>
-                        <p className="text-xs text-slate-500 mt-1">Fecha: {ot.fechaRecepcion}</p>
-                        {ot.fechaEstimadaEntrega && !esListo && (
-                          <p className="text-xs text-slate-500">Entrega est.: {ot.fechaEstimadaEntrega}</p>
-                        )}
-                        {ot.fechaEntrega && (
-                          <p className="text-xs text-slate-500">Entregado: {ot.fechaEntrega}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Cliente + Vehículo */}
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Cliente</p>
-                        <p className="font-semibold text-slate-800">{cli ? `${cli.nombre} ${cli.apellidos}` : '—'}</p>
-                        {cli?.nifNiePasaporte && <p className="text-xs text-slate-500">DNI/NIE: {cli.nifNiePasaporte}</p>}
-                        {cli?.telefono && <p className="text-xs text-slate-500">{cli.telefono}</p>}
-                        {cli?.correo && <p className="text-xs text-slate-500">{cli.correo}</p>}
-                        {cli?.direccion && <p className="text-xs text-slate-500">{cli.direccion}</p>}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Vehículo</p>
-                        {veh ? (
-                          <>
-                            <p className="font-semibold text-slate-800">{veh.marca} {veh.modelo}</p>
-                            <p className="text-xs text-slate-500">Matrícula: {veh.matricula}</p>
-                            {veh.bastidor && <p className="text-xs text-slate-500">Bastidor: {veh.bastidor}</p>}
-                            <p className="text-xs text-slate-500">Km entrada: {formatKm(ot.kilometrajeEntrada)} km</p>
-                            {ot.kilometrajeSalida && <p className="text-xs text-slate-500">Km salida: {formatKm(ot.kilometrajeSalida)} km</p>}
-                          </>
-                        ) : <p className="text-xs text-slate-400">—</p>}
-                        {ot.tecnicoAsignado && <p className="text-xs text-slate-500 mt-1">Técnico: {ot.tecnicoAsignado}</p>}
-                      </div>
-                    </div>
-
-                    {/* Avería / Diagnóstico */}
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Descripción del problema</p>
-                        <p className="text-sm text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">{ot.descripcionProblema}</p>
-                      </div>
-                      {ot.diagnostico && (
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Diagnóstico técnico</p>
-                          <p className="text-sm text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">{ot.diagnostico}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Líneas */}
-                    {ot.lineas.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Detalle de trabajos y materiales</p>
-                        <table className="w-full text-sm border-collapse">
-                          <thead>
-                            <tr className="border-b-2 border-slate-200">
-                              <th className="py-2 text-left text-xs font-bold text-slate-500">Descripción</th>
-                              <th className="py-2 text-center text-xs font-bold text-slate-500">Tipo</th>
-                              <th className="py-2 text-right text-xs font-bold text-slate-500">Cant.</th>
-                              <th className="py-2 text-right text-xs font-bold text-slate-500">Precio u.</th>
-                              <th className="py-2 text-right text-xs font-bold text-slate-500">Subtotal</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {ot.lineas.map((l, i) => (
-                              <tr key={l.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                                <td className="py-2 text-slate-800">{l.descripcion}</td>
-                                <td className="py-2 text-center text-xs text-slate-500">{TIPO_META[l.tipo].label}</td>
-                                <td className="py-2 text-right font-mono text-slate-600">{l.cantidad}</td>
-                                <td className="py-2 text-right font-mono text-slate-600">{fmt2(l.precioUnitario)} €</td>
-                                <td className="py-2 text-right font-mono font-semibold text-slate-800">{fmt2(l.subtotal)} €</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* Totales */}
-                    <div className="border-t-2 border-slate-200 pt-4 space-y-1.5">
-                      <div className="flex justify-between text-sm text-slate-500">
-                        <span>Base imponible</span>
-                        <span className="font-mono">{fmt2(ot.subtotal)} €</span>
-                      </div>
-                      <div className="flex justify-between text-sm text-slate-500">
-                        <span>IVA ({ot.ivaPct}%)</span>
-                        <span className="font-mono">{fmt2(ot.totalIva)} €</span>
-                      </div>
-                      <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
-                        <span>TOTAL</span>
-                        <span className="font-mono text-lg">{fmt2(ot.total)} €</span>
-                      </div>
-                    </div>
-
-                    {ot.notas && (
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Observaciones</p>
-                        <p className="text-xs text-slate-600">{ot.notas}</p>
-                      </div>
-                    )}
-
-                    {/* Cambio de aceite: lo que se llevó el coche y cuándo le toca volver (solo en el resumen de reparación). */}
-                    {esListo && ot.esCambioAceite && (resumenFiltros(ot.filtros) || (ot.aceiteAnotadoEn && veh?.aceiteProximaFecha)) && (
-                      <div className="border border-slate-200 rounded-xl px-4 py-3">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Cambio de aceite</p>
-                        {resumenFiltros(ot.filtros) && <p className="text-xs text-slate-600">{resumenFiltros(ot.filtros)}</p>}
-                        {ot.aceiteAnotadoEn && veh?.aceiteProximaFecha && (
-                          <p className="text-xs text-slate-800 font-semibold mt-1">
-                            Próximo cambio: {fechaLarga(veh.aceiteProximaFecha)}
-                            {veh.aceiteProximoKm ? ` o a los ${formatKm(veh.aceiteProximoKm)} km, lo que ocurra antes` : ''}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Firmas del cliente en pantalla: aceptación del presupuesto y, en el resumen de reparación, la entrega. */}
-                    {presupuestoPDF.aceptacionPresupuesto && !firmasPDF.presupuesto && (
-                      <p className="text-xs text-slate-600 pt-2">
-                        <span className="font-semibold">Aceptación del presupuesto:</span> aceptado por {presupuestoPDF.aceptacionPresupuesto.nombre} desde el portal del cliente
-                        el {fechaHoraFirma(presupuestoPDF.aceptacionPresupuesto.en)} (importe {fmt2(presupuestoPDF.aceptacionPresupuesto.total)} €).
-                      </p>
-                    )}
-                    {(firmasPDF.presupuesto || (esListo && firmasPDF.entrega)) && (
-                      <div className="grid grid-cols-2 gap-8 pt-2">
-                        {firmasPDF.presupuesto && (
-                          <FirmaImpresa titulo="Aceptación del presupuesto" firma={firmasPDF.presupuesto}
-                            nota={firmasPDF.presupuesto.total != null ? `importe ${fmt2(firmasPDF.presupuesto.total)} €` : undefined} />
-                        )}
-                        {esListo && firmasPDF.entrega && <FirmaImpresa titulo="Conformidad en la entrega" firma={firmasPDF.entrega} />}
-                      </div>
-                    )}
-
-                    {/* Pie */}
-                    <div className="border-t border-slate-100 pt-6 text-center text-[10px] text-slate-300">
-                      {empresa.nombre} · {empresa.direccionFiscal} · {empresa.telefono} · {empresa.web}
-                    </div>
-                  </div>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          );
-        })()}
+        {presupuestoPDF && <VisorPresupuesto key={presupuestoPDF.id} ot={presupuestoPDF} empresa={empresa} clientes={clientes} vehiculos={vehiculos} onClose={() => setPresupuestoPDF(null)} />}
       </AnimatePresence>
 
       {firmando && selected && (
@@ -2681,82 +1866,5 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         />
       )}
     </>
-  );
-}
-
-interface CrearProductoRapidoModalProps {
-  nombreInicial: string;
-  onClose: () => void;
-  onCreado: (p: Producto) => void;
-  onCreateProducto: (p: Producto, stockInicial: number) => Promise<Producto>;
-}
-
-function CrearProductoRapidoModal({ nombreInicial, onClose, onCreado, onCreateProducto }: CrearProductoRapidoModalProps) {
-  const [nombre, setNombre] = useState(nombreInicial);
-  const [precioVenta, setPrecioVenta] = useState('');
-  const [costo, setCosto] = useState('');
-  const [stockInicial, setStockInicial] = useState('0');
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    setError('');
-    if (!nombre.trim()) { setError('El nombre es obligatorio.'); return; }
-    setSaving(true);
-    try {
-      const creado = await onCreateProducto(
-        {
-          id: '', nombre: nombre.trim(), precioVenta: Number(precioVenta) || 0, costo: Number(costo) || 0,
-          stockActual: 0, stockMinimo: 0, unidad: 'unidad', activo: true,
-        },
-        Number(stockInicial) || 0,
-      );
-      onCreado(creado);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear el producto.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-4 p-6 space-y-4 dlg-b">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-bold text-slate-800">Nuevo producto</p>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition cursor-pointer"><X size={16} /></button>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Nombre *</label>
-          <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Precio venta €</label>
-            <input type="number" min="0" step="0.01" value={precioVenta} onChange={(e) => setPrecioVenta(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1">Costo €</label>
-            <input type="number" min="0" step="0.01" value={costo} onChange={(e) => setCosto(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-1">Stock inicial</label>
-          <input type="number" min="0" step="1" value={stockInicial} onChange={(e) => setStockInicial(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </div>
-        {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
-        <div className="dlg-pie">
-<button type="button" onClick={onClose} className="border border-slate-200 text-slate-600">Cancelar</button>
-<button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-60">
-          <Check size={15} /> {saving ? 'Creando…' : 'Crear y usar en la línea'}
-        </button>
-</div>
-      </div>
-    </div>
   );
 }

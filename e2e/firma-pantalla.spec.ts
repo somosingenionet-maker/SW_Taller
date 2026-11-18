@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers';
+import { login, irA } from './helpers';
 
 // Firma en pantalla: lo que se comprueba aquí es la pantalla (texto, nombre propuesto y cuándo se
 // habilita «Confirmar firma»), SIN firmar nada: una firma guardada es inmutable y dejaría basura en
@@ -9,7 +9,7 @@ import { login } from './helpers';
 test('firma del presupuesto: el botón solo se habilita con acuerdo, nombre y una firma de verdad', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1100 });
   await login(page);
-  await page.getByRole('button', { name: 'Taller', exact: true }).click();
+  await irA(page, 'En el taller');
   const buscada = page.waitForResponse((r) => r.url().includes('/rpc/buscar_ordenes') && (r.request().postData() ?? '').includes('OT-TST-03'), { timeout: 15000 });
   await page.getByPlaceholder('Buscar por número, matrícula o cliente...').fill('OT-TST-03');
   await buscada;

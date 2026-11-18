@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login } from './helpers';
 
-// Rediseño (fase 1): el marco nuevo convive con la interfaz actual detrás de un interruptor. Estas pruebas no guardan nada en el taller de
+// El marco de la aplicación (menú, buscador, «Nuevo», cuenta, aspecto) y sus pantallas principales. Las pruebas que crean datos los borran siempre al terminar.
 // pruebas (ni siquiera el color): solo navegan, buscan y abren formularios sin enviarlos.
 const CAPTURAS = process.env.E2E_CAPTURAS; // carpeta opcional donde guardar capturas de revisión
 
@@ -15,32 +15,25 @@ const captura = async (page: Page, nombre: string) => { if (CAPTURAS) await page
 
 async function activarNuevo(page: Page) {
   await login(page);
-  await page.getByTestId('probar-nuevo-diseno').click();
   await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
 }
 
-test('el interruptor cambia entre el diseño actual y el nuevo, y se recuerda', async ({ page }) => {
+test('el marco: menú por tareas con texto, cuenta sin restos del diseño anterior y se recuerda al recargar', async ({ page }) => {
   const fallos = errores(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await activarNuevo(page);
-  await expect(page.locator('html')).toHaveAttribute('data-ui', 'nuevo');
-  // El menú tiene texto y secciones por tareas.
   const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
   for (const t of ['Hoy', 'En el taller', 'Citas', 'Clientes', 'Facturas']) await expect(menu.getByRole('button', { name: t })).toBeVisible();
   await captura(page, 'escritorio-hoy');
-
   await page.reload();
   await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
-
   await page.getByTestId('menu-cuenta').click();
-  await page.getByRole('menuitem', { name: 'Volver al diseño actual' }).click();
-  await expect(page.getByTestId('marco-nuevo')).toHaveCount(0);
-  await expect(page.locator('html')).not.toHaveAttribute('data-ui', 'nuevo');
-  await expect(page.getByRole('button', { name: 'Taller', exact: true })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Cerrar sesión' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: /diseño/i })).toHaveCount(0);
   expect(fallos, fallos.join('\n')).toEqual([]);
 });
 
-test('todas las pestañas cargan dentro del marco nuevo', async ({ page }) => {
+test('todas las pestañas cargan dentro del marco', async ({ page }) => {
   test.setTimeout(120_000);
   const fallos = errores(page);
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -116,7 +109,7 @@ test('Color y aspecto enseña cómo queda y avisa del contraste (sin guardar)', 
 
 test('en el móvil hay barra inferior con «Más» y no hay desplazamiento horizontal', async ({ page }) => {
   const fallos = errores(page);
-  await page.setViewportSize({ width: 1440, height: 900 }); // el acceso (diseño actual) se comprueba con el riel de escritorio
+  await page.setViewportSize({ width: 1440, height: 900 }); // se entra con el menú de escritorio y luego se estrecha
   await activarNuevo(page);
   await page.setViewportSize({ width: 390, height: 844 });
   const barra = page.getByRole('navigation', { name: 'Menú principal (móvil)' });
@@ -421,7 +414,6 @@ test('cuadros: todos comparten el mismo aspecto (cabecera clara con título y bo
     expect(r!.luz, `${nombre}: la cabecera es oscura`).toBeGreaterThan(0.85);
     await captura(page, `cuadro-${nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
   };
-  const cerrar = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(150); };
 
   await irA('En el taller');
   await page.getByTestId('taller-recibir').click();
