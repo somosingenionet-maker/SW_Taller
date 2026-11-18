@@ -8,6 +8,7 @@ import { formatDate } from '../utils/dateFormat';
 import { formatKm } from '../utils/moneda';
 import { avisoAceitePendiente } from '../utils/aceite';
 import { NOMBRE_EVENTO, textoDeHtml } from '../utils/textoHtml';
+import { esDisenoNuevo } from '../ui/disenoNuevo';
 
 interface AlertsNotificationsTabProps {
   alertas: Alerta[];
@@ -134,9 +135,9 @@ export default function AlertsNotificationsTab({
         <div>
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
-            Alertas Preventivas del Sistema de Flotas
+            {esDisenoNuevo() ? 'Avisos de renovación y mantenimiento' : 'Alertas Preventivas del Sistema de Flotas'}
           </h2>
-          <p className="text-xs text-slate-400">Monitor de recordatorios automáticos de ITV, seguros, impuesto y cambio de aceite</p>
+          <p className="text-xs text-slate-400">{esDisenoNuevo() ? 'ITV, seguro, impuesto y cambio de aceite de los coches de tus clientes' : 'Monitor de recordatorios automáticos de ITV, seguros, impuesto y cambio de aceite'}</p>
         </div>
 
         {/* Quick tab alerts selector */}

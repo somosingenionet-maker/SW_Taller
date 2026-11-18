@@ -689,7 +689,20 @@ export default function App() {
   ];
 
   // Las tres piezas que comparten la interfaz actual y la nueva: franjas de aviso, contenido de la pestaña activa y ventanas/avisos superpuestos.
-  const avisosPago = (
+  const avisosPago = diseno === 'nuevo' ? (
+    <>
+      {pagoVolviendo && <div role="status" className="u-aviso ok">¡Gracias! Estamos activando tu suscripción, tardará unos segundos…</div>}
+      {pagoMensaje && (
+        <div role="status" className={`u-aviso ${pagoMensaje === 'confirmado' ? 'ok' : 'aviso'}`}>
+          <span>{pagoMensaje === 'confirmado'
+            ? '¡Pago recibido! Tu suscripción está activa. Gracias por confiar en Doonty Motor.'
+            : 'Hemos recibido tu pago, pero la activación tarda más de lo normal. Recarga la página en unos minutos; si sigue igual, escríbenos a send@doonty.com.'}</span>
+          <button type="button" className="u-enlace" onClick={() => setPagoMensaje(null)} aria-label="Cerrar aviso">Cerrar</button>
+        </div>
+      )}
+      {!pagoVolviendo && suscripcion && <SuscripcionBanner suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onAbrir={() => setSuscripcionOpen(true)} />}
+    </>
+  ) : (
     <>
     {pagoVolviendo && (
       <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">

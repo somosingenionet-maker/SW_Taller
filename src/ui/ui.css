@@ -173,3 +173,4 @@
 .u-paso-num { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--u-surface-2); font-size: 12px; font-weight: 700; flex: none; }
 .u-pasos li.hecho { color: var(--u-ink); } .u-pasos li.hecho .u-paso-num { background: var(--u-lis-bg); color: var(--u-lis); }
 .u-pasos li.actual { background: var(--u-surface-2); color: var(--u-ink); } .u-pasos li.actual .u-paso-num { background: var(--u-brand); color: var(--u-on-brand); }
+.u-aviso.info { background: var(--u-rec-bg); color: var(--u-rec); } .u-aviso.ok { background: var(--u-lis-bg); color: var(--u-lis); }

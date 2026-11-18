@@ -32,7 +32,7 @@ const FOCALIZABLES = 'a[href], button:not([disabled]), input:not([disabled]), se
  * Ventana centrada (nunca un panel pegado a un lado). Se cierra con la X, con Esc o pulsando fuera; el foco entra al abrirse, se queda dentro
  * (Tab) y vuelve a donde estaba al cerrarse. En el móvil ocupa toda la pantalla.
  */
-export function Ventana({ titulo, onCerrar, amplia, children, etiquetaCerrar = 'Cerrar' }: { titulo: string; onCerrar: () => void; amplia?: boolean; children: ReactNode; etiquetaCerrar?: string }) {
+export function Ventana({ titulo, onCerrar, amplia, children, etiquetaCerrar = 'Cerrar', sinCabecera, capa }: { titulo: string; onCerrar: () => void; amplia?: boolean; children: ReactNode; etiquetaCerrar?: string; /** El contenido ya trae su propia cabecera y su botón de cerrar. */ sinCabecera?: boolean; /** z-index propio: las fichas de detalle van por debajo de los formularios que se abren encima. */ capa?: number }) {
   const caja = useRef<HTMLDivElement>(null);
   const cerrar = useRef(onCerrar);
   cerrar.current = onCerrar;
@@ -41,7 +41,12 @@ export function Ventana({ titulo, onCerrar, amplia, children, etiquetaCerrar = '
     const primero = caja.current?.querySelector<HTMLElement>(FOCALIZABLES);
     (primero ?? caja.current)?.focus();
     const alTeclear = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); cerrar.current(); return; }
+      if (e.key === 'Escape') {
+        // Si el foco está en otra ventana abierta encima (un formulario), Esc es para ella, no para esta.
+        const foco = document.activeElement;
+        if (foco && foco !== document.body && caja.current && !caja.current.contains(foco)) return;
+        e.stopPropagation(); cerrar.current(); return;
+      }
       if (e.key !== 'Tab' || !caja.current) return;
       const lista = [...caja.current.querySelectorAll<HTMLElement>(FOCALIZABLES)];
       if (lista.length === 0) { e.preventDefault(); return; }
@@ -53,12 +58,14 @@ export function Ventana({ titulo, onCerrar, amplia, children, etiquetaCerrar = '
     return () => { document.removeEventListener('keydown', alTeclear, true); previo?.focus?.(); };
   }, []);
   return (
-    <div className="u-ventana" onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar(); }}>
+    <div className="u-ventana" style={capa ? { zIndex: capa } : undefined} onMouseDown={(e) => { if (e.target === e.currentTarget) onCerrar(); }}>
       <div ref={caja} className={`u-ventana-caja${amplia ? ' amplia' : ''}`} role="dialog" aria-modal="true" aria-label={titulo} tabIndex={-1}>
-        <div className="u-ventana-cab">
-          <h2>{titulo}</h2>
-          <Boton soloIcono variante="fantasma" onClick={onCerrar} aria-label={etiquetaCerrar}><X /></Boton>
-        </div>
+        {!sinCabecera && (
+          <div className="u-ventana-cab">
+            <h2>{titulo}</h2>
+            <Boton soloIcono variante="fantasma" onClick={onCerrar} aria-label={etiquetaCerrar}><X /></Boton>
+          </div>
+        )}
         {children}
       </div>
     </div>

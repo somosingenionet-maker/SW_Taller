@@ -31,6 +31,7 @@ import Pagination from './Pagination';
 import type { Intencion } from '../ui/navegacion';
 import TableroTaller from '../ui/TableroTaller';
 import PasosOrden from '../ui/PasosOrden';
+import { esDisenoNuevo } from '../ui/disenoNuevo';
 
 interface Props {
   ordenes: OrdenTrabajo[];
@@ -59,9 +60,6 @@ const ESTADO_META: Record<OTEstado, { label: string; color: string; bg: string; 
   entregado:     { label: 'Entregado',     color: 'text-teal-700',   bg: 'bg-teal-100', dot: 'bg-teal-500' },
   cancelado:     { label: 'Cancelado',     color: 'text-rose-600',   bg: 'bg-rose-50', dot: 'bg-rose-500' },
 };
-
-/** ¿Está activo el diseño nuevo? Cambiar de diseño vuelve a montar las pestañas, así que basta leerlo al pintar. */
-const esDisenoNuevo = () => document.documentElement.dataset.ui === 'nuevo';
 
 /** Entrada de las fichas de la orden: en el diseño actual se deslizan desde la derecha; en el nuevo son una ventana centrada que aparece con un fundido. */
 const ENTRADA_PANEL = () => (esDisenoNuevo()

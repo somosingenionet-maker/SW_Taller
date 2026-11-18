@@ -1,4 +1,5 @@
 import { avisoSuscripcion, type Suscripcion } from '../lib/data/suscripcion';
+import { esDisenoNuevo } from '../ui/disenoNuevo';
 
 interface Props {
   suscripcion: Suscripcion;
@@ -16,6 +17,14 @@ const ESTILO = {
 export default function SuscripcionBanner({ suscripcion, esAdmin, onAbrir }: Props) {
   const aviso = avisoSuscripcion(suscripcion);
   if (!aviso) return null;
+  if (esDisenoNuevo()) {
+    return (
+      <div role="status" className={`u-aviso ${aviso.nivel === 'error' ? 'peligro' : aviso.nivel === 'aviso' ? 'aviso' : 'info'}`}>
+        <span>{aviso.texto}</span>
+        {esAdmin && aviso.accion && <button type="button" className="u-enlace" onClick={onAbrir}>{aviso.accion === 'suscribirse' ? 'Suscribirme' : 'Gestionar'}</button>}
+      </div>
+    );
+  }
   return (
     <div className="flex justify-center px-3.5 pt-3.5 shrink-0 print:hidden">
       <div role="status" className={`w-[82%] max-w-4xl flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-2.5 text-xs font-semibold ${ESTILO[aviso.nivel]}`}>

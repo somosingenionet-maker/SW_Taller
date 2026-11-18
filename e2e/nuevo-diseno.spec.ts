@@ -197,3 +197,39 @@ test('Taller: el tablero enseña matrículas y la ficha de la orden se abre en u
   await captura(page, 'escritorio-orden');
   expect(fallos, fallos.join('\n')).toEqual([]);
 });
+
+test('Clientes y Vehículos: lista a todo el ancho y la ficha se abre en una ventana centrada', async ({ page }) => {
+  const fallos = errores(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
+
+  await menu.getByRole('button', { name: 'Vehículos' }).click();
+  await expect(page.getByRole('img', { name: /^Matrícula / }).first()).toBeVisible({ timeout: 15_000 });
+  await captura(page, 'vehiculos-lista');
+  await page.locator('main tbody tr[id^="veh-row-"]').first().click();
+  const fichaV = page.getByRole('dialog', { name: 'Ficha del vehículo' });
+  await expect(fichaV).toBeVisible();
+  const caja = await fichaV.boundingBox();
+  expect(Math.abs((caja!.x + caja!.width / 2) - 720), 'la ficha no está centrada').toBeLessThan(120); // 232 px de menú desplazan el centro útil
+  await expect(fichaV.getByText('Ficha Técnica Activa')).toBeVisible();
+  await captura(page, 'vehiculos-ficha');
+  await page.keyboard.press('Escape');
+  await expect(fichaV).toHaveCount(0);
+
+  await menu.getByRole('button', { name: 'Clientes' }).click();
+  await page.locator('main tbody tr[id^="cli-row-"]').first().click();
+  const fichaC = page.getByRole('dialog', { name: 'Ficha del cliente' });
+  await expect(fichaC).toBeVisible();
+  await expect(fichaC.getByText('Información de Cliente')).toBeVisible();
+  await captura(page, 'clientes-ficha');
+  // Editar abre su formulario encima de la ficha (se ve), y Esc cierra la ficha solo si el foco está en ella.
+  await fichaC.getByTitle('Editar ficha').click();
+  await expect(page.getByText('Editar Información de Ficha')).toBeVisible();
+  const formulario = page.locator('div.fixed.z-50').filter({ hasText: 'Editar Información de Ficha' });
+  await expect(formulario).toBeVisible();
+  await formulario.getByRole('button', { name: /Cancelar/ }).first().click();
+  await expect(page.getByText('Editar Información de Ficha')).toHaveCount(0);
+  await expect(fichaC).toBeVisible(); // la ficha sigue abierta debajo
+  expect(fallos, fallos.join('\n')).toEqual([]);
+});

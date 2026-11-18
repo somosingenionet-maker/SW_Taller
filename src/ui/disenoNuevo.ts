@@ -17,3 +17,6 @@ export function guardarDiseno(d: Diseno, almacen: Pick<Storage, 'getItem' | 'set
 function guardado(): Storage | null {
   try { return typeof window === 'undefined' ? null : window.localStorage; } catch { return null; }
 }
+
+/** ¿Está activo el diseño nuevo? Cambiar de diseño vuelve a montar las pantallas, así que basta leerlo al pintar. */
+export const esDisenoNuevo = (): boolean => typeof document !== 'undefined' && document.documentElement.dataset.ui === 'nuevo';
