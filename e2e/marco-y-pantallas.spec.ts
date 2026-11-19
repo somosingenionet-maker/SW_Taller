@@ -489,6 +489,76 @@ test('móvil: el resumen del IVA (gestoría) y la asignación de columnas del CS
   expect(m.selectAncho, 'el desplegable ocupa el ancho de la tarjeta').toBeGreaterThan(m.cajaAncho * 0.8);
 });
 
+test('móvil: los campos de los formularios caben en su cuadro, no se pisan y no provocan zoom (fechas y horas incluidas)', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+
+  /** Cada campo visible del cuadro abierto: dentro de su caja, sin tapar a otro, con 16 px de letra; las fechas y horas sin la apariencia nativa de Safari. */
+  const revisar = async (cuadro: string) => {
+    await page.waitForTimeout(700);
+    const r = await page.evaluate(() => {
+      const raices = [...document.querySelectorAll('[role="dialog"], .fixed.inset-0')] as HTMLElement[];
+      const raiz = raices.filter((e) => e.getBoundingClientRect().width > 0).at(-1) ?? document.body;
+      const campos = ([...raiz.querySelectorAll('input, select, textarea')] as HTMLInputElement[])
+        .filter((e) => !['checkbox', 'radio', 'hidden', 'file', 'color', 'range'].includes(e.type) && e.getBoundingClientRect().width > 0 && getComputedStyle(e).visibility !== 'hidden');
+      const fuera: string[] = [], pisan: string[] = [], pequenos: string[] = [], nativos: string[] = [];
+      const rects = campos.map((e) => ({ e, b: e.getBoundingClientRect() }));
+      for (const { e, b } of rects) {
+        const caja = (e.closest('form, .dlg-b, .u-ventana-caja, [class*="rounded-3xl"], [class*="rounded-2xl"]') as HTMLElement | null)?.getBoundingClientRect();
+        const nombre = `${e.tagName.toLowerCase()}[${e.type}] ${(e.getAttribute('aria-label') ?? e.placeholder ?? '').slice(0, 24)}`;
+        if (caja && (b.right > caja.right + 1 || b.left < caja.left - 1)) fuera.push(nombre);
+        const cs = getComputedStyle(e);
+        if (parseFloat(cs.fontSize) < 16) pequenos.push(`${nombre} ${cs.fontSize}`);
+        if (['date', 'time', 'datetime-local', 'month'].includes(e.type) && (cs.appearance !== 'none' && (cs as CSSStyleDeclaration & { webkitAppearance?: string }).webkitAppearance !== 'none')) nativos.push(nombre);
+      }
+      for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+        const A = rects[i].b, B = rects[j].b;
+        const ancho = Math.min(A.right, B.right) - Math.max(A.left, B.left), alto = Math.min(A.bottom, B.bottom) - Math.max(A.top, B.top);
+        if (ancho > 4 && alto > 4) pisan.push(`${rects[i].e.type}/${rects[j].e.type}`);
+      }
+      // El campo con lupa deja hueco al icono: su margen izquierdo es mayor que el normal.
+      const lupa = campos.filter((e) => /matr[ií]cula, marca o modelo/i.test(e.placeholder)).map((e) => parseFloat(getComputedStyle(e).paddingLeft));
+      return { n: campos.length, fuera, pisan, pequenos, nativos, lupa };
+    });
+    expect(r.n, `${cuadro}: se abrió con campos`).toBeGreaterThan(0);
+    expect(r.fuera, `${cuadro}: campos más anchos que su cuadro`).toEqual([]);
+    expect(r.pisan, `${cuadro}: campos que se pisan`).toEqual([]);
+    expect(r.pequenos, `${cuadro}: letra menor de 16 px (el iPhone haría zoom)`).toEqual([]);
+    expect(r.nativos, `${cuadro}: fechas u horas con la apariencia nativa de Safari`).toEqual([]);
+    for (const pl of r.lupa) expect(pl, `${cuadro}: la lupa no debe pisar el texto`).toBeGreaterThanOrEqual(28);
+  };
+  const abrir = async (seccion: Parameters<typeof irA>[1], pulsar: () => Promise<void>) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.reload();
+    await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
+    await irA(page, seccion);
+    await expect(page.getByRole('status', { name: 'Cargando' })).toHaveCount(0, { timeout: 15_000 });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(300);
+    await pulsar();
+  };
+
+  await abrir('Citas', async () => { await page.getByRole('button', { name: /Nueva cita/ }).first().click(); });
+  await revisar('Nueva cita');
+  await abrir('En el taller', async () => { await page.getByTestId('taller-recibir').click(); });
+  await revisar('Nueva orden (recibir un coche)');
+  await abrir('En el taller', async () => { await page.getByTestId('taller-presupuesto').click(); });
+  await revisar('Nueva orden (presupuesto)');
+  await abrir('Clientes', async () => { await page.getByRole('button', { name: /Nuevo Cliente/ }).click(); });
+  await revisar('Alta de cliente');
+  await abrir('Vehículos', async () => { await page.getByRole('button', { name: /Alta Vehículo/ }).click(); });
+  await revisar('Alta de vehículo');
+  await abrir('Compras', async () => { await page.getByTestId('nueva-compra').click(); });
+  await revisar('Nueva compra');
+  await abrir('Avisos', async () => { await page.getByTestId('nuevo-aviso-abrir').click(); });
+  await revisar('Nuevo aviso');
+  // «Ya renovó» (fecha de la nueva renovación), si hay algún vencimiento antiguo en el taller de pruebas
+  await abrir('Avisos', async () => { /* se abre abajo si existe */ });
+  const renovado = page.getByTestId('aviso-renovado').first();
+  if (await renovado.count()) { await renovado.click(); await revisar('Renovación de un vencimiento'); }
+});
+
 test('Configuración de empresa: ventana grande con menú de secciones, tarjetas y pie fijo (sin guardar nada)', async ({ page }) => {
   test.setTimeout(90_000);
   const fallos = errores(page);
