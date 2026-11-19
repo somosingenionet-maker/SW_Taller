@@ -806,7 +806,7 @@ export default function FacturasTab({
           <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
             <Receipt className="w-4 h-4 text-blue-500" /> Facturas
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex gap-1 p-1 bg-slate-50 border border-slate-100 rounded-xl">
               {([
                 { id: 'ninguna', label: 'Todas' },

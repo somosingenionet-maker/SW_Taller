@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { login } from './helpers';
+import { irA, login } from './helpers';
 
 // El marco de la aplicación (menú, buscador, «Nuevo», cuenta, aspecto) y sus pantallas principales. Las pruebas que crean datos los borran siempre al terminar.
 // pruebas (ni siquiera el color): solo navegan, buscan y abren formularios sin enviarlos.
@@ -326,6 +326,40 @@ test('responsive: sin desplazamiento horizontal de la página en 360, 768 y 1024
     }
   }
   expect(fallos, fallos.join('\n')).toEqual([]);
+});
+
+test('móvil: ninguna sección sobresale de la pantalla y el contenido no se arrastra de lado', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  // La página en sí casi nunca desborda: lo que se desborda es la zona de contenido, que tiene su propio scroll. Por eso se mira ahí, elemento
+  // por elemento (lo que va dentro de una tabla con scroll propio no cuenta: esa caja se desplaza sola y no arrastra la página).
+  for (const seccion of ['Hoy', 'En el taller', 'Citas', 'Clientes', 'Vehículos', 'Avisos', 'Facturas', 'Compras', 'Rentabilidad', 'Inventario'] as const) {
+    for (const ancho of [360, 390]) {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await irA(page, seccion);
+      await expect(page.getByRole('status', { name: 'Cargando' })).toHaveCount(0, { timeout: 15_000 });
+      await page.waitForTimeout(300);
+      await page.setViewportSize({ width: ancho, height: 800 });
+      await page.waitForTimeout(400);
+      const r = await page.evaluate(() => {
+        const W = document.documentElement.clientWidth;
+        const fuera: string[] = [];
+        document.querySelectorAll('.u-scroll *').forEach((el) => {
+          const b = (el as HTMLElement).getBoundingClientRect();
+          if (b.width <= 0 || b.right <= W + 1) return;
+          let p = el.parentElement;
+          while (p && !p.classList.contains('u-scroll')) { const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll') return; p = p.parentElement; }
+          fuera.push(`${el.tagName.toLowerCase()}.${(el.className?.toString() ?? '').split(' ').filter(Boolean).slice(0, 3).join('.')} (${Math.round(b.right)})`);
+        });
+        const zona = document.querySelector('.u-scroll') as HTMLElement;
+        return { fuera: fuera.slice(0, 5), lateral: getComputedStyle(zona).overflowX, pagina: document.documentElement.scrollWidth > W + 1 };
+      });
+      expect(r.fuera, `${seccion} a ${ancho}px: sobresale de la pantalla`).toEqual([]);
+      expect(r.lateral, `${seccion}: la zona de contenido no debe arrastrarse de lado`).toBe('hidden');
+      expect(r.pagina, `${seccion} a ${ancho}px: la página desborda`).toBe(false);
+    }
+  }
 });
 
 test('Configuración de empresa: ventana grande con menú de secciones, tarjetas y pie fijo (sin guardar nada)', async ({ page }) => {

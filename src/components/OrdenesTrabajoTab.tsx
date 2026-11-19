@@ -591,7 +591,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">{ordenes.length} activas o entregadas hace poco</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex gap-1 p-1 bg-slate-50 border border-slate-100 rounded-xl w-fit">
             <button
               onClick={() => setVista('lista')}

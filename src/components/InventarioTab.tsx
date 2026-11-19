@@ -219,7 +219,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
           <p className="text-sm text-slate-500">{productos.length === 0 ? 'Aún no hay productos en el catálogo.' : 'Sin resultados para este filtro.'}</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
