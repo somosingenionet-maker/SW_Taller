@@ -109,7 +109,7 @@ export default function Marco(p: Props) {
   return (
     <div className="u-app" style={{ '--u-brand': marca.boton, '--u-on-brand': marca.sobreBoton, '--u-brand-ink': marca.tinta } as React.CSSProperties} data-testid="marco-nuevo">
       <nav className="u-rail" aria-label="Menú principal">
-        <div className="u-logo"><span className="u-logo-marca" aria-hidden="true" />Doonty</div>
+        <div className="u-logo"><img className="u-logo-img" src="/logo-doonty.svg" alt="" /><span>Doonty <em>Motor</em></span></div>
         <div className="u-taller" title={empresa.nombre}>{empresa.nombre}</div>
         {menu.map((s) => (
           <div key={s.titulo} role="group" aria-label={s.titulo}>
@@ -176,7 +176,7 @@ export default function Marco(p: Props) {
             {p.avisos && <div className="u-avisos">{p.avisos}</div>}
             <main>{p.children}</main>
             <footer className="u-pie">
-              © 2026 Doonty — Desarrollado por <a href="https://www.somosingenio.net" target="_blank" rel="noopener noreferrer">InGenio</a>. Reservados todos los derechos.
+              © 2026 Doonty Motor — Desarrollado por <a href="https://www.somosingenio.net" target="_blank" rel="noopener noreferrer">InGenio</a>. Reservados todos los derechos.
               {' · '}<a href="/privacidad">Privacidad</a>{' · '}<a href="/terminos">Términos</a>{' · '}<a href="/declaracion-responsable">Declaración responsable</a>{' · '}<a href="/encargo-de-tratamiento">Encargo de tratamiento</a>
             </footer>
           </div>

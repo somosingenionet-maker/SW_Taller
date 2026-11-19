@@ -2,10 +2,8 @@ import { type ReactNode } from 'react';
 import { KeyRound } from 'lucide-react';
 
 /** Marco de las pantallas de acceso (entrar, alta, contraseña nueva, verificación): panel de marca a la izquierda y el formulario centrado. */
-export default function PantallaAcceso({ logo, ancha, children }: { logo?: string | null; ancha?: boolean; children: ReactNode }) {
-  const marca = logo ? <img src={logo} alt="Doonty Motor" /> : <><span className="u-logo-marca" aria-hidden="true" />Doonty</>;
-  // El logo de la plataforma es claro (hecho para fondo oscuro): en el móvil, sobre gris claro, se usa la marca sencilla.
-  const marcaMovil = <><span className="u-logo-marca" aria-hidden="true" />Doonty</>;
+export default function PantallaAcceso({ ancha, children }: { ancha?: boolean; children: ReactNode }) {
+  const marca = <><img className="u-logo-img" src="/logo-doonty.svg" alt="" /><span>Doonty <em>Motor</em></span></>;
   return (
     <div className="u-acceso">
       <aside className="u-acceso-marca" aria-hidden="true">
@@ -22,11 +20,11 @@ export default function PantallaAcceso({ logo, ancha, children }: { logo?: strin
       </aside>
       <main className="u-acceso-form">
         <div className={`u-acceso-caja${ancha ? ' ancha' : ''}`}>
-          <div className="u-acceso-movil u-logo" style={{ marginBottom: 28 }}>{marcaMovil}</div>
+          <div className="u-acceso-movil u-logo" style={{ marginBottom: 28 }}>{marca}</div>
           {children}
         </div>
         <p className="u-acceso-pie">
-          © 2026 Doonty — Desarrollado por <a href="https://www.somosingenio.net" target="_blank" rel="noopener noreferrer">InGenio</a>
+          © 2026 Doonty Motor — Desarrollado por <a href="https://www.somosingenio.net" target="_blank" rel="noopener noreferrer">InGenio</a>
           {' · '}<a href="/privacidad">Privacidad</a>{' · '}<a href="/terminos">Términos</a>
         </p>
       </main>

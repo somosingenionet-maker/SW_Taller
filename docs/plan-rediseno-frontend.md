@@ -8,7 +8,7 @@ El rediseño está terminado y es el único: la interfaz anterior, el interrupto
 - **Cuadros:** todos comparten cabecera clara y pie fijo con «Cancelar» + botón principal (clases `dlg-b`, `dlg-pie`, `dlg-pie-pila`, `dlg-pie-fijo`). Los visores de factura y presupuesto mantienen su barra oscura a propósito (son visores de documento).
 - **Orden de trabajo:** `OrdenesTrabajoTab` (de 2.762 a ~1.870 líneas) delega en `src/components/orden/` (constantes, utilidades probadas, `BadgeEstado`, `LineaTipoYProducto`, `CrearProductoRapidoModal`, `VisorPresupuesto`, `BloquesFicha`). Los formularios de crear/editar y la recepción siguen dentro (comparten mucho estado).
 - **Pruebas:** vitest + e2e (`marco-y-pantallas.spec.ts` cubre el marco, buscador, «Nuevo», color, modo oscuro, cuadros, alta rápida, presupuesto con el coche ya recibido). Las pruebas que crean datos los borran siempre al terminar.
-- **Pendiente:** logo del cohete en vector (hoy hay una marca provisional en `.u-logo-marca`).
+- **Marca:** logo del cohete en vector (`public/logo-doonty.svg`, solo el cohete naranja y transparente; `public/favicon.svg` es el original con fondo blanco) y nombre «Doonty Motor». Iconos de la app, favicon y logo de los correos generados a partir de él (el menú, el acceso y la pestaña usan el vector; el acceso ya no usa el logo subido a la plataforma).
 
 ## Qué se cambia y qué no
 **Cambia (solo front):** estructura de pantallas, navegación, componentes, colores, tipografía, textos de la interfaz.

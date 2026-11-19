@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { LogIn, Eye, EyeOff, Mail, Lock, ArrowLeft, Send, CheckCircle2 } from 'lucide-react';
 import { signIn, sendPasswordReset } from '../lib/auth';
-import { getPlataformaLogo } from '../lib/data/plataforma';
 import PantallaAcceso from '../ui/Acceso';
 
 interface LoginScreenProps {
@@ -16,16 +15,11 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [logo, setLogo] = useState<string | null>(null);
 
   const [recoverEmail, setRecoverEmail] = useState('');
   const [recoverSent, setRecoverSent] = useState(false);
   const [recoverError, setRecoverError] = useState('');
   const [recoverLoading, setRecoverLoading] = useState(false);
-
-  useEffect(() => {
-    getPlataformaLogo().then(setLogo).catch(() => setLogo(null));
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +60,7 @@ export default function LoginScreen({ authError }: LoginScreenProps) {
   const mensajeError = error || authError;
 
   return (
-    <PantallaAcceso logo={logo}>
+    <PantallaAcceso>
       {mode === 'login' ? (
         <>
           <h1>Iniciar sesión</h1>
