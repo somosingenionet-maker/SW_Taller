@@ -32,7 +32,7 @@ function TablaIva({ titulo, resumen, avisos, testId }: { titulo: string; resumen
   return (
     <div className="space-y-2" data-testid={testId}>
       <p className="text-xs font-extrabold uppercase tracking-wide text-slate-500">{titulo}</p>
-      <table className="w-full text-xs">
+      <table className="w-full text-xs u-tabla-iva">
         <thead><tr className="text-slate-400 text-left"><th className="font-semibold pb-1">IVA</th><th className="font-semibold pb-1 text-right">Facturas</th><th className="font-semibold pb-1 text-right">Base</th><th className="font-semibold pb-1 text-right">Cuota</th><th className="font-semibold pb-1 text-right">Total</th></tr></thead>
         <tbody className="text-slate-700">
           {resumen.lineas.map((l) => (

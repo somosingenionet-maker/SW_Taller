@@ -431,6 +431,64 @@ test('móvil: las líneas de una orden y de una factura, dentro de sus fichas, s
   await comprobar('table.u-lineas-doc', 'Visor de la factura');
 });
 
+test('móvil: el resumen del IVA (gestoría) y la asignación de columnas del CSV son tarjetas', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+
+  // Exportar para la gestoría, con facturas de mentira (solo lectura: no se emite nada).
+  const R = (numero: string, fecha: string, estado: string, subtotal: number, iva: number) => ({
+    numero, fecha, estado, subtotal, iva_pct: iva, total_iva: Math.round(subtotal * iva) / 100, total: Math.round(subtotal * (100 + iva)) / 100,
+    cliente_id: 'c1', cliente_nombre_snapshot: 'Ana', cliente_apellidos_snapshot: 'García', cliente_nif_snapshot: '12345678Z',
+  });
+  const filas = [R('FAC-2026-0001', '2026-07-02', 'pagada', 120, 21), R('FAC-2026-0004', '2026-08-20', 'vencida', 45, 10)];
+  await page.route(/\/rest\/v1\/facturas\?.*cliente_nif_snapshot/, (route) => route.fulfill({
+    status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'content-range': `0-${filas.length - 1}/${filas.length}` }, body: JSON.stringify(filas),
+  }));
+  await irA(page, 'Facturas');
+  await page.getByTestId('exportar-gestoria-abrir').click();
+  await page.getByRole('button', { name: 'Trimestre', exact: true }).click();
+  await page.getByLabel('Año', { exact: true }).selectOption('2026');
+  await page.getByLabel('Trimestre', { exact: true }).selectOption('3');
+  const iva = page.locator('table.u-tabla-iva').first();
+  await expect(iva).toBeVisible({ timeout: 15_000 });
+  await expect(iva.locator('thead')).toBeVisible();                               // en escritorio, la tabla de siempre
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(iva.locator('thead'), 'en el móvil no se ven las cabeceras').toBeHidden();
+  const r = await iva.evaluate((el) => ({
+    tarjetas: [...el.querySelectorAll('tbody tr')].every((f) => getComputedStyle(f).display === 'grid'),
+    cabe: [...el.querySelectorAll('tbody tr')].every((f) => (f as HTMLElement).scrollWidth <= (f as HTMLElement).clientWidth + 1),
+    etiqueta: getComputedStyle(el.querySelector('tbody tr td:nth-child(3)')!, '::before').content,
+  }));
+  expect(r.tarjetas, 'cada fila del IVA es una tarjeta').toBe(true);
+  expect(r.cabe, 'nada se sale de la tarjeta').toBe(true);
+  expect(r.etiqueta).toContain('Base');
+
+  // Importar clientes desde un CSV: se llega a la revisión sin importar nada.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.reload();
+  await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
+  await irA(page, 'Clientes');
+  await page.getByRole('button', { name: /Importar/ }).first().click();
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: 'clientes.csv', mimeType: 'text/csv', buffer: Buffer.from('Nombre;Apellidos;NIF;Telefono\nAna;García;12345678Z;600111222\nLuis;Pérez;87654321X;600333444\n'),
+  });
+  const mapeo = page.locator('table.u-mapeo').first();
+  await expect(mapeo).toBeVisible({ timeout: 15_000 });
+  await expect(mapeo.locator('thead')).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(mapeo.locator('thead')).toBeHidden();
+  const m = await mapeo.evaluate((el) => {
+    const filas = [...el.querySelectorAll('tbody tr')] as HTMLElement[];
+    const sel = el.querySelector('select') as HTMLElement;
+    const caja = (el.closest('.overflow-x-auto') as HTMLElement) ?? el;
+    return { tarjetas: filas.every((f) => getComputedStyle(f).display === 'grid'), selectAncho: Math.round(sel.getBoundingClientRect().width), cajaAncho: Math.round(caja.clientWidth), desborda: caja.scrollWidth > caja.clientWidth + 1 };
+  });
+  expect(m.tarjetas, 'cada columna del CSV es una tarjeta').toBe(true);
+  expect(m.desborda, 'la revisión del CSV no se desliza de lado').toBe(false);
+  expect(m.selectAncho, 'el desplegable ocupa el ancho de la tarjeta').toBeGreaterThan(m.cajaAncho * 0.8);
+});
+
 test('Configuración de empresa: ventana grande con menú de secciones, tarjetas y pie fijo (sin guardar nada)', async ({ page }) => {
   test.setTimeout(90_000);
   const fallos = errores(page);

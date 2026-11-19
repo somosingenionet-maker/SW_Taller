@@ -169,7 +169,7 @@ export default function ImportarCsvModal({ entidad, onClose, onImportado }: Prop
             </p>
 
             <div className="border border-slate-200 rounded-2xl overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="w-full text-xs u-mapeo">
                 <thead className="bg-slate-50 text-slate-500">
                   <tr><th className="text-left px-3 py-2 font-semibold">Columna del archivo</th><th className="text-left px-3 py-2 font-semibold">Ejemplo</th><th className="text-left px-3 py-2 font-semibold">Se importa como</th></tr>
                 </thead>

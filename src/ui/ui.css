@@ -452,3 +452,24 @@ html, body { overscroll-behavior-x: none; }
   .u-lineas-edicion td:nth-child(5) { flex: none; }
   .u-lineas-compra td:nth-child(4)::before { content: 'IVA '; }
 }
+
+/* Resumen del IVA (exportar para la gestoría) y asignación de columnas del CSV (importar): en pantallas de móvil cada fila es una tarjeta.
+   Solo en pantalla. */
+@media screen and (max-width: 860px) {
+  .u-tabla-iva, .u-tabla-iva tbody, .u-mapeo, .u-mapeo tbody { display: block; width: 100%; }
+  .u-tabla-iva thead, .u-mapeo thead { display: none; }
+  .u-tabla-iva tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--u-line); border-radius: 12px; }
+  .u-tabla-iva td { display: block; padding: 0 !important; text-align: left !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .u-tabla-iva td:first-child { grid-column: 1 / -1; font-weight: 700; font-size: 14px; }
+  .u-tabla-iva td:not(:first-child)::before { display: block; font-size: 11px; font-weight: 500; color: var(--u-muted); }
+  .u-tabla-iva td:nth-child(2)::before { content: 'Facturas'; } .u-tabla-iva td:nth-child(3)::before { content: 'Base'; }
+  .u-tabla-iva td:nth-child(4)::before { content: 'Cuota'; } .u-tabla-iva td:nth-child(5)::before { content: 'Total'; }
+  .u-mapeo tr { display: grid; gap: 4px; padding: 10px 12px; border-top: 1px solid var(--u-line); }
+  .u-mapeo tr:first-child { border-top: 0; }
+  .u-mapeo td { display: block; padding: 0 !important; max-width: none !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+  .u-mapeo td:first-child { font-weight: 700; font-size: 13.5px; }
+  .u-mapeo td:nth-child(2) { color: var(--u-muted); overflow-wrap: anywhere; }
+  .u-mapeo td:nth-child(2)::before { content: 'Ejemplo: '; }
+  .u-mapeo td:nth-child(2):empty { display: none; }
+  .u-mapeo td:nth-child(3) select { width: 100%; min-height: 42px; font-size: 16px; margin-top: 2px; }
+}
