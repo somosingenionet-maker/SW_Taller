@@ -221,7 +221,7 @@ function FacturaPrintable({
         )}
 
         <div>
-          <table className="w-full text-xs border-collapse">
+          <table className="w-full text-xs border-collapse u-lineas u-lineas-doc">
             <thead>
               <tr className="bg-slate-900 text-white">
                 <th className="text-left px-3 py-2 font-bold rounded-tl-lg">Descripción</th>

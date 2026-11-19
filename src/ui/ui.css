@@ -435,3 +435,20 @@ html, body { overscroll-behavior-x: none; }
 .u-tl-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 3px; }
 .u-tl-pie-izq { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
 .u-tl-acc { display: flex; gap: 4px; margin-left: auto; }
+
+/* Tablas de líneas (orden, factura, presupuesto, compra): en pantallas de móvil cada fila pasa a ser una tarjeta (descripción arriba y, debajo,
+   «cantidad × precio» con el subtotal a la derecha). Solo en pantalla: al imprimir o sacar el PDF siguen siendo la tabla de siempre. */
+@media screen and (max-width: 860px) {
+  .u-lineas, .u-lineas tbody { display: block; width: 100%; }
+  .u-lineas thead { display: none; }
+  .u-lineas tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; padding: 10px 12px; border-bottom: 1px solid var(--u-line); background: transparent !important; }
+  .u-lineas tr:last-child { border-bottom: 0; }
+  .u-lineas td { display: block; padding: 0 !important; border: 0 !important; text-align: left !important; white-space: nowrap; }
+  .u-lineas td:first-child { flex: 1 0 100%; font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
+  .u-lineas td[colspan] { white-space: normal; font-weight: 400; }
+  /* ficha y presupuesto: descripción · tipo · cantidad × precio ........ subtotal */
+  .u-lineas-tipo td:nth-child(3)::after, .u-lineas-edicion td:nth-child(2)::after, .u-lineas-doc td:nth-child(2)::after, .u-lineas-compra td:nth-child(2)::after { content: ' ×'; }
+  .u-lineas-tipo td:nth-child(5), .u-lineas-edicion td:nth-child(4), .u-lineas-doc td:nth-child(4), .u-lineas-compra td:nth-child(5) { margin-left: auto; font-weight: 700; }
+  .u-lineas-edicion td:nth-child(5) { flex: none; }
+  .u-lineas-compra td:nth-child(4)::before { content: 'IVA '; }
+}

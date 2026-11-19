@@ -128,7 +128,7 @@ export default function VisorPresupuesto({ ot, empresa, clientes, vehiculos, onC
             {ot.lineas.length > 0 && (
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Detalle de trabajos y materiales</p>
-                <table className="w-full text-sm border-collapse">
+                <table className="w-full text-sm border-collapse u-lineas u-lineas-tipo">
                   <thead>
                     <tr className="border-b-2 border-slate-200">
                       <th className="py-2 text-left text-xs font-bold text-slate-500">Descripción</th>

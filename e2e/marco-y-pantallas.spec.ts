@@ -392,6 +392,45 @@ test('móvil: las listas son tarjetas (sin tablas anchas) y el € va pegado al 
   await expect(page.getByTestId('lista-ordenes-movil').locator('.u-tl-imp', { hasText: '€' }).first()).toHaveText(/\d,\d{2}\u00a0€/);
 });
 
+test('móvil: las líneas de una orden y de una factura, dentro de sus fichas, son tarjetas y el € no se parte', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  // La tabla de líneas se reordena en tarjetas solo en pantalla de móvil (al imprimir sigue siendo la tabla).
+  const comprobar = async (tabla: string, etiqueta: string) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(500);
+    const t = page.locator(tabla).first();
+    await expect(t, `${etiqueta}: hay líneas`).toBeVisible();
+    await expect(t.locator('thead'), `${etiqueta}: en el móvil no se ven las cabeceras de columna`).toBeHidden();
+    const r = await t.evaluate((el) => {
+      const filas = [...el.querySelectorAll('tbody tr')] as HTMLElement[];
+      return { flex: filas.every((f) => getComputedStyle(f).display === 'flex'), ancho: filas.every((f) => f.scrollWidth <= f.clientWidth + 1), altos: filas.map((f) => Math.round(f.getBoundingClientRect().height)) };
+    });
+    expect(r.flex, `${etiqueta}: cada fila es una tarjeta`).toBe(true);
+    expect(r.ancho, `${etiqueta}: nada se sale de la tarjeta`).toBe(true);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.waitForTimeout(300);
+    await expect(page.locator(tabla).first().locator('thead'), `${etiqueta}: en escritorio sigue la tabla con cabeceras`).toBeVisible();
+  };
+
+  // Ficha de una orden con líneas
+  await irA(page, 'En el taller');
+  const filas = page.locator('main tbody tr');
+  await expect(filas.first()).toBeVisible({ timeout: 15_000 });
+  await filas.first().click();
+  await expect(page.locator('table.u-lineas-tipo').first()).toBeVisible({ timeout: 15_000 });
+  await comprobar('table.u-lineas-tipo', 'Ficha de la orden');
+  await page.reload();
+  await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
+
+  // Factura: el visor del documento
+  await irA(page, 'Facturas');
+  await page.getByTitle('Ver / Descargar').first().click();
+  await expect(page.locator('table.u-lineas-doc').first()).toBeVisible({ timeout: 15_000 });
+  await comprobar('table.u-lineas-doc', 'Visor de la factura');
+});
+
 test('Configuración de empresa: ventana grande con menú de secciones, tarjetas y pie fijo (sin guardar nada)', async ({ page }) => {
   test.setTimeout(90_000);
   const fallos = errores(page);

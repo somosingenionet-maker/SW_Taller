@@ -291,7 +291,7 @@ function CompraDetalle({ id, hoy, empresaId, onClose, onCambio }: { id: string; 
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-slate-200">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm u-lineas u-lineas-compra">
             <thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
               <th className="px-3 py-2 font-bold">Descripción</th><th className="px-2 py-2 font-bold text-right">Cant.</th><th className="px-2 py-2 font-bold text-right">Precio</th><th className="px-2 py-2 font-bold text-right">IVA</th><th className="px-3 py-2 font-bold text-right">Importe</th>
             </tr></thead>
