@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CreditCard, LogOut, Menu, Moon, Palette, Plus, Search, Settings, Shield, ShieldCheck, Sun, SunMoon } from 'lucide-react';
+import { CreditCard, LogOut, Menu, Moon, Plus, Search, Settings, Shield, ShieldCheck, Sun, SunMoon } from 'lucide-react';
 import type { Cliente, Empresa, ModuloId, OrdenTrabajo, Perfil, Vehiculo } from '../types';
 import { derivarMarca, normalizarHex } from './colorMarca';
 import { atajosMovil, construirMenu, opcionesNuevo, type AccionNuevo, type ResultadoBusqueda } from './navegacion';
 import { Icono } from './iconos';
 import { Boton, Ventana } from './componentes';
 import Buscador from './Buscador';
-import ColorYAspecto from './ColorYAspecto';
 import type { Tema } from './tema';
 
 /** Lo que el marco le pide a la aplicación: ir a una pestaña, opcionalmente con una orden («nuevo» o «buscar») para ella. */
@@ -30,7 +29,6 @@ interface Props {
   onSuscripcion: () => void;
   onAdmin: () => void;
   onConfiguracion: () => void;
-  onGuardarColor: (hex: string) => Promise<void>;
   /** Aspecto elegido por la persona y si se está pintando en oscuro ahora mismo. */
   tema: Tema;
   oscuro: boolean;
@@ -66,7 +64,6 @@ export default function Marco(p: Props) {
   const nuevos = useMemo(() => opcionesNuevo(modulos), [modulos]);
   const [buscando, setBuscando] = useState(false);
   const [masAbierto, setMasAbierto] = useState(false);
-  const [colorAbierto, setColorAbierto] = useState(false);
   const nuevo = usePopover();
   const cuenta = usePopover();
   const permitidos = useMemo(() => ({ taller: modulos.includes('taller'), vehiculos: modulos.includes('vehiculos'), clientes: modulos.includes('clientes') }), [modulos]);
@@ -161,7 +158,6 @@ export default function Marco(p: Props) {
                 {esAdmin && p.mostrarSuscripcion && itemCuenta(<CreditCard />, 'Suscripción', p.onSuscripcion)}
                 {esAdmin && itemCuenta(<Shield />, 'Panel de administración', p.onAdmin)}
                 {esAdmin && itemCuenta(<Settings />, 'Configuración de empresa', p.onConfiguracion)}
-                {esAdmin && itemCuenta(<Palette />, 'Color y aspecto', () => setColorAbierto(true))}
                 <hr />
                 <div className="u-aspecto" role="group" aria-label="Aspecto">
                   {ASPECTOS.map(([id, texto, Ico]) => (
@@ -209,7 +205,6 @@ export default function Marco(p: Props) {
           {esAdmin && p.mostrarSuscripcion && <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); p.onSuscripcion(); }}><CreditCard />Suscripción</button>}
           {esAdmin && <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); p.onAdmin(); }}><Shield />Panel de administración</button>}
           {esAdmin && <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); p.onConfiguracion(); }}><Settings />Configuración de empresa</button>}
-          {esAdmin && <button type="button" className="u-nav" onClick={() => { setMasAbierto(false); setColorAbierto(true); }}><Palette />Color y aspecto</button>}
           <div className="u-aspecto" role="group" aria-label="Aspecto">
             {ASPECTOS.map(([id, texto, Ico]) => (
               <button key={id} type="button" aria-pressed={p.tema === id} onClick={() => p.onTema(id)}><Ico aria-hidden="true" />{texto}</button>
@@ -220,7 +215,6 @@ export default function Marco(p: Props) {
       )}
 
       {buscando && <Buscador datos={p.datos} permitidos={permitidos} onElegir={elegirBusqueda} onCerrar={() => setBuscando(false)} />}
-      {colorAbierto && <ColorYAspecto colorActual={empresa.brandColor} onGuardar={p.onGuardarColor} onCerrar={() => setColorAbierto(false)} />}
     </div>
   );
 }

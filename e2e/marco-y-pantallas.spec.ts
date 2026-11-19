@@ -92,21 +92,28 @@ test('el botón Nuevo abre el formulario de la pestaña elegida', async ({ page 
   await expect(page.getByText('Nueva Orden de Trabajo').first()).toBeVisible({ timeout: 15_000 });
 });
 
-test('Color y aspecto enseña cómo queda y avisa del contraste (sin guardar)', async ({ page }) => {
+test('el color de la empresa se elige solo en Configuración → Logo y color (no está duplicado en el menú) y enseña el contraste sin guardar', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await activarNuevo(page);
   await page.getByTestId('menu-cuenta').click();
-  await page.getByRole('menuitem', { name: 'Color y aspecto' }).click();
-  const ventana = page.getByRole('dialog', { name: 'Color y aspecto' });
-  await expect(ventana).toBeVisible();
-  await expect(ventana.getByTestId('guardar-color')).toBeDisabled(); // sin cambios no hay nada que guardar
-  await ventana.getByRole('button', { name: 'Amarillo', exact: true }).click();
-  await expect(ventana.getByTestId('lectura-color')).toContainText('oscuro'); // color claro: texto oscuro
-  await ventana.getByRole('button', { name: 'Verde', exact: true }).click();
-  await expect(ventana.getByTestId('lectura-color')).toContainText('blanco');
-  await expect(ventana.getByTestId('guardar-color')).toBeEnabled();
+  // En el menú de la cuenta queda lo personal (claro/oscuro); el color es de la empresa y no se repite aquí.
+  await expect(page.getByRole('menuitem', { name: 'Configuración de empresa' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Color y aspecto' })).toHaveCount(0);
+  await expect(page.getByTestId('tema-oscuro')).toBeVisible();
+  await page.getByRole('menuitem', { name: 'Configuración de empresa' }).click();
+  const ventana = page.getByRole('dialog', { name: 'Configuración de Empresa' });
+  await expect(ventana).toBeVisible({ timeout: 15_000 });
+  await ventana.getByRole('tab', { name: 'Logo y color' }).click();
+  const selector = ventana.getByTestId('selector-color');
+  await expect(selector).toBeVisible();
+  await selector.getByRole('button', { name: 'Amarillo', exact: true }).click();
+  await expect(selector.getByTestId('lectura-color')).toContainText('oscuro'); // color claro: texto oscuro
+  await selector.getByRole('button', { name: 'Verde', exact: true }).click();
+  await expect(selector.getByTestId('lectura-color')).toContainText('blanco');
+  // El logo subido no se pinta sobre el color elegido: el cuadro del logo solo toma el color cuando se enseñan las iniciales.
   await captura(page, 'escritorio-color');
-  await page.keyboard.press('Escape');
+  // Sin guardar nada: Esc con cambios pendientes no cierra la ventana, así que se descarta el cambio con «Cancelar».
+  await ventana.getByRole('button', { name: 'Cancelar', exact: true }).last().click();
   await expect(ventana).toHaveCount(0);
 });
 

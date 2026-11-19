@@ -936,7 +936,6 @@ export default function App() {
           onSuscripcion={() => setSuscripcionOpen(true)}
           onAdmin={() => setAdminPanelOpen(true)}
           onConfiguracion={() => setSettingsOpen(true)}
-          onGuardarColor={(hex) => handleSaveEmpresa({ brandColor: hex })}
           tema={tema}
           oscuro={oscuro}
           onTema={cambiarTema}

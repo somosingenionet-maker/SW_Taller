@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { avisarError } from '../lib/avisos';
 import { contrastText } from '../utils/color';
 import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioTemplates';
+import SelectorColorMarca from '../ui/SelectorColorMarca';
 import VerifactuSettings from './VerifactuSettings';
 import AjustesInspeccion from './AjustesInspeccion';
 import AjustesReservas from './AjustesReservas';
@@ -92,21 +93,6 @@ const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutoma
   logoBase64: '',
   logoUrl: '',
 };
-
-const BRAND_COLORS = [
-  { label: 'Azul',       value: '#2563eb' },
-  { label: 'Índigo',     value: '#4f46e5' },
-  { label: 'Violeta',    value: '#7c3aed' },
-  { label: 'Rosa',       value: '#db2777' },
-  { label: 'Rojo',       value: '#dc2626' },
-  { label: 'Naranja',    value: '#ea580c' },
-  { label: 'Ámbar',      value: '#d97706' },
-  { label: 'Verde',      value: '#16a34a' },
-  { label: 'Teal',       value: '#0d9488' },
-  { label: 'Cian',       value: '#0891b2' },
-  { label: 'Slate',      value: '#475569' },
-  { label: 'Negro',      value: '#111827' },
-];
 
 export default function CompanySettingsPanel({ config, pestanaInicial, onSave, onClose }: Props) {
   const [draft, setDraft] = useState<Empresa>({ ...config });
@@ -408,9 +394,9 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
                 <div className="grid lg:grid-cols-2 gap-5" data-testid="seccion-marca">
                   <Tarjeta titulo="Logo" ayuda="Es el logo de tu taller, no el de Doonty Motor (ese es fijo). Sale arriba a la derecha de la aplicación, en las facturas, en las órdenes impresas y en los correos a tus clientes.">
                     <div className="flex items-center gap-5">
-                      <div className="w-24 h-24 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-md border border-slate-200" style={{ backgroundColor: draft.brandColor }}>
+                      <div className="w-24 h-24 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-md border border-slate-200" style={{ backgroundColor: draft.logoBase64 ? '#ffffff' : draft.brandColor }} data-testid="vista-logo">
                         {draft.logoBase64 ? (
-                          <img src={draft.logoBase64} alt="logo" className="w-full h-full object-contain" />
+                          <img src={draft.logoBase64} alt="logo" className="w-full h-full object-contain p-1.5" />
                         ) : (
                           <span className="font-black text-3xl tracking-tighter" style={{ color: previewText }}>{initials}</span>
                         )}
@@ -430,44 +416,8 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
                     </div>
                   </Tarjeta>
 
-                  <Tarjeta titulo="Color de marca" ayuda="El color de tu taller en botones, menús y enlaces.">
-                    <div className="grid grid-cols-6 gap-3">
-                      {BRAND_COLORS.map(c => (
-                        <button
-                          key={c.value}
-                          title={c.label}
-                          aria-label={c.label}
-                          onClick={() => set('brandColor', c.value)}
-                          className="w-10 h-10 rounded-xl border-2 transition-transform hover:scale-110 shadow-sm cursor-pointer"
-                          style={{
-                            backgroundColor: c.value,
-                            borderColor: draft.brandColor === c.value ? '#ffffff' : 'transparent',
-                            outline: draft.brandColor === c.value ? `2px solid ${c.value}` : 'none',
-                            outlineOffset: '1px',
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input type="color" value={draft.brandColor} onChange={e => set('brandColor', e.target.value)} aria-label="Color personalizado" className="w-12 h-12 rounded-xl border border-slate-200 cursor-pointer p-0.5" />
-                      <div>
-                        <p className="text-sm text-slate-600">Color personalizado</p>
-                        <p className="text-sm font-mono text-slate-800">{draft.brandColor}</p>
-                      </div>
-                    </div>
-                    <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
-                      <div className="px-4 py-3.5 flex items-center gap-3" style={{ backgroundColor: draft.brandColor, color: previewText }}>
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0" style={{ backgroundColor: `${previewText === '#ffffff' ? '#00000033' : '#ffffff33'}`, color: previewText }}>{initials}</div>
-                        <div className="min-w-0">
-                          <p className="font-bold leading-tight text-sm truncate">{draft.nombre || 'Nombre empresa'}</p>
-                          <p className="text-xs opacity-80 truncate">{draft.tagline || 'Descripción'}</p>
-                        </div>
-                      </div>
-                      <div className="px-4 py-2.5 bg-white text-xs text-slate-500 flex items-center gap-2">
-                        <span className="font-semibold" style={{ color: draft.brandColor }}>Vista previa</span>
-                        <span className="ml-auto font-mono">{draft.brandColor} · texto {previewText === '#ffffff' ? 'blanco' : 'negro'}</span>
-                      </div>
-                    </div>
+                  <Tarjeta titulo="Color de marca" ayuda="El color de tu taller en botones, menú, enlaces y pasos, y también en las páginas que abren tus clientes. Se guarda con el botón «Guardar» de abajo.">
+                    <SelectorColorMarca color={draft.brandColor} onChange={(hex) => set('brandColor', hex)} />
                   </Tarjeta>
                 </div>
               )}
