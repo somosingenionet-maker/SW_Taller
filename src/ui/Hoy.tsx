@@ -94,7 +94,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
       {puede('facturas') && facturasVencidas > 0 && (
         <div className="u-aviso peligro" role="status">
           <AlertTriangle aria-hidden="true" />
-          <span>Tienes {facturasVencidas} {plural(facturasVencidas, 'factura vencida', 'facturas vencidas')} sin cobrar ({fmt2(resumen?.importeVencido ?? 0)} €)</span>
+          <span>Tienes {facturasVencidas} {plural(facturasVencidas, 'factura vencida', 'facturas vencidas')} sin cobrar ({fmt2(resumen?.importeVencido ?? 0)} €)</span>
           <button type="button" className="u-enlace" onClick={() => onNavegar('facturas')}>Ver facturas →</button>
         </div>
       )}
@@ -102,9 +102,9 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
         <div className={`u-aviso ${pagosProveedores.vencidas.n > 0 ? 'peligro' : 'aviso'}`} data-testid="aviso-pagos-proveedores" role="status">
           <AlertTriangle aria-hidden="true" />
           <span>
-            {pagosProveedores.vencidas.n > 0 && <>Tienes {pagosProveedores.vencidas.n} {plural(pagosProveedores.vencidas.n, 'pago a proveedores vencido', 'pagos a proveedores vencidos')} ({fmt2(pagosProveedores.vencidas.importe)} €)</>}
+            {pagosProveedores.vencidas.n > 0 && <>Tienes {pagosProveedores.vencidas.n} {plural(pagosProveedores.vencidas.n, 'pago a proveedores vencido', 'pagos a proveedores vencidos')} ({fmt2(pagosProveedores.vencidas.importe)} €)</>}
             {pagosProveedores.vencidas.n > 0 && pagosProveedores.semana.n > 0 && ' y '}
-            {pagosProveedores.semana.n > 0 && <>{pagosProveedores.vencidas.n > 0 ? '' : 'Tienes '}{pagosProveedores.semana.n} que {plural(pagosProveedores.semana.n, 'vence', 'vencen')} esta semana ({fmt2(pagosProveedores.semana.importe)} €)</>}
+            {pagosProveedores.semana.n > 0 && <>{pagosProveedores.vencidas.n > 0 ? '' : 'Tienes '}{pagosProveedores.semana.n} que {plural(pagosProveedores.semana.n, 'vence', 'vencen')} esta semana ({fmt2(pagosProveedores.semana.importe)} €)</>}
           </span>
           <button type="button" className="u-enlace" onClick={() => onNavegar('compras', 'porpagar')}>Ver lo que debo →</button>
         </div>
@@ -129,15 +129,15 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
               </>}
               {t.esperando.length > 0 && <>
                 <div className="u-sub">Presupuestos sin respuesta · {t.esperando.length}</div>
-                {t.esperando.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Enviado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} €${x.orden.estado === 'presupuesto' ? '' : ' · coche ya en el taller'}${x.orden.presupuestoRecordadoEn && (x.orden.presupuestoRecordatorios ?? 0) > 0 ? ` · avisado ${x.orden.presupuestoRecordatorios === 1 ? 'una vez' : 'dos veces'}` : ''}`} chip={<Chip tono="presupuesto">Esperando</Chip>} />)}
+                {t.esperando.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Enviado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} €${x.orden.estado === 'presupuesto' ? '' : ' · coche ya en el taller'}${x.orden.presupuestoRecordadoEn && (x.orden.presupuestoRecordatorios ?? 0) > 0 ? ` · avisado ${x.orden.presupuestoRecordatorios === 1 ? 'una vez' : 'dos veces'}` : ''}`} chip={<Chip tono="presupuesto">Esperando</Chip>} />)}
               </>}
               {t.rechazados.length > 0 && <>
                 <div className="u-sub">Presupuestos rechazados · {t.rechazados.length}</div>
-                {t.rechazados.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Rechazado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} € · habla con el cliente`} chip={<Chip tono="peligro">Rechazado</Chip>} />)}
+                {t.rechazados.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Rechazado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} € · habla con el cliente`} chip={<Chip tono="peligro">Rechazado</Chip>} />)}
               </>}
               {t.aprobados.length > 0 && <>
                 <div className="u-sub">Aprobados: falta recibir el coche · {t.aprobados.length}</div>
-                {t.aprobados.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Aprobado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} €`} chip={<Chip tono="presupuesto">Aprobado</Chip>} />)}
+                {t.aprobados.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Aprobado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} €`} chip={<Chip tono="presupuesto">Aprobado</Chip>} />)}
               </>}
               {t.porEnviar.length > 0 && <>
                 <div className="u-sub">Presupuestos por enviar · {t.porEnviar.length}</div>
@@ -178,7 +178,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
             <Tarjeta>
               <div className="u-card-cab"><h3>Resumen</h3></div>
               <div className="u-kpis">
-                {puede('facturas') && <div className="u-kpi"><small>Facturado este mes</small><strong>{fmt2(resumen?.importeMesActual ?? 0)} €</strong><span>{resumen?.facturasMesActual ?? 0} {plural(resumen?.facturasMesActual ?? 0, 'factura emitida', 'facturas emitidas')}</span></div>}
+                {puede('facturas') && <div className="u-kpi"><small>Facturado este mes</small><strong>{fmt2(resumen?.importeMesActual ?? 0)} €</strong><span>{resumen?.facturasMesActual ?? 0} {plural(resumen?.facturasMesActual ?? 0, 'factura emitida', 'facturas emitidas')}</span></div>}
                 {puede('alertas') && <div className="u-kpi"><small>Avisos para hoy</small><strong>{avisosHoy.length}</strong><span>{avisosHoy.length > 0 ? 'Esperan que los resuelvas' : 'Todo al día'}</span></div>}
               </div>
             </Tarjeta>

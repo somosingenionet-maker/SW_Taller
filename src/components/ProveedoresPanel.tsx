@@ -4,6 +4,8 @@ import type { Proveedor } from '../types';
 import { createProveedor, deleteProveedor, updateProveedor } from '../lib/data/proveedores';
 import { avisarError, avisarOk } from '../lib/avisos';
 import ConfirmDialog from './ConfirmDialog';
+import { TarjetaLista } from '../ui/componentes';
+import { useMovil } from '../ui/useMovil';
 
 const campo = 'w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400';
 const VACIO: Omit<Proveedor, 'id'> = { nombre: '', nif: '', telefono: '', correo: '', contacto: '', direccion: '', diasPago: 0, notas: '', activo: true };
@@ -83,6 +85,7 @@ export function ProveedorFormModal({ proveedor, onGuardado, onClose }: { proveed
 interface Props { proveedores: Proveedor[]; cargando: boolean; onCambio: (lista: Proveedor[]) => void }
 
 export default function ProveedoresPanel({ proveedores, cargando, onCambio }: Props) {
+  const movil = useMovil();
   const [buscar, setBuscar] = useState('');
   const [verInactivos, setVerInactivos] = useState(false);
   const [formulario, setFormulario] = useState<{ proveedor?: Proveedor } | null>(null);
@@ -128,7 +131,24 @@ export default function ProveedoresPanel({ proveedores, cargando, onCambio }: Pr
           </div>
         ) : (
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-            <table className="w-full text-sm">
+            {movil ? (
+            <div className="u-tl-lista" style={{ padding: 12 }} data-testid="lista-proveedores-movil">
+              {visibles.map((p) => (
+                <TarjetaLista
+                  key={p.id} data-testid="fila-proveedor" atenuada={!p.activo}
+                  titulo={<>{p.nombre}{!p.activo && <span className="block text-[10px] font-bold text-slate-500">Desactivado</span>}</>}
+                  importe={p.diasPago > 0 ? `${p.diasPago} días` : 'Contado'}
+                  lineas={[p.nif ? `NIF ${p.nif}` : null, [p.contacto, p.telefono].filter(Boolean).join(' · ') || null]}
+                  acciones={<>
+                    <button onClick={() => setFormulario({ proveedor: p })} title="Editar" aria-label="Editar" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl cursor-pointer"><Edit2 className="w-4 h-4" /></button>
+                    <button onClick={() => void alternar(p)} title={p.activo ? 'Desactivar' : 'Activar'} aria-label={p.activo ? 'Desactivar' : 'Activar'} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl cursor-pointer"><Power className="w-4 h-4" /></button>
+                    <button onClick={() => setABorrar(p)} title="Eliminar" aria-label="Eliminar" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                  </>}
+                />
+              ))}
+            </div>
+          ) : (
+          <table className="w-full text-sm">
               <thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
                 <th className="px-4 py-2.5 font-bold">Proveedor</th><th className="px-3 py-2.5 font-bold">NIF</th><th className="px-3 py-2.5 font-bold">Contacto</th>
                 <th className="px-3 py-2.5 font-bold text-right">Pago</th><th className="px-3 py-2.5" />
@@ -151,6 +171,7 @@ export default function ProveedoresPanel({ proveedores, cargando, onCambio }: Pr
                 ))}
               </tbody>
             </table>
+          )}
           </div>
         )}
 

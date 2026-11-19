@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { Intencion } from '../ui/navegacion';
+import { TarjetaLista } from '../ui/componentes';
+import { useMovil } from '../ui/useMovil';
 import { AlertTriangle, Ban, Check, CircleDollarSign, Eye, FileSpreadsheet, FileText, Image as ImagenIcono, Paperclip, Plus, Search, ShoppingCart, Trash2, Undo2, X } from 'lucide-react';
 import type { Cliente, Compra, CompraAdjunto, Empresa, Producto, Proveedor } from '../types';
 import { anularCompra, editarDatosCompra, getCompra, listCompras, marcarPagoCompra } from '../lib/data/compras';
@@ -58,6 +60,7 @@ interface Props {
 }
 
 export default function ComprasTab({ productos, onStockCambiado, empresa, clientes, puedeFacturas, vistaInicial = 'compras', onPagosCambiados, intencion }: Props) {
+  const movil = useMovil();
   const [vista, setVista] = useState<'compras' | 'porpagar' | 'proveedores'>(vistaInicial);
   const [periodo, setPeriodo] = useState<Periodo>('trimestre');
   const [estado, setEstado] = useState<'todas' | EstadoVisible>('todas');
@@ -176,6 +179,23 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
                 {compras.length === 0 && <p className="text-xs mt-1">Registra la factura de un proveedor con «Nueva compra».</p>}
               </div>
             ) : (
+              movil ? (
+              <div className="u-tl-lista" data-testid="lista-compras-movil">
+                {visibles.map((c) => {
+                  const ev = estadoVisible(c, hoy);
+                  return (
+                    <TarjetaLista
+                      key={c.id} data-testid="fila-compra" atenuada={c.estado === 'anulada'}
+                      onClick={() => setDetalle(c.id)}
+                      titulo={<>{c.proveedorNombre}<span className="block text-xs font-normal text-slate-500">{c.numero}{(c.numAdjuntos ?? 0) > 0 && <Paperclip className="inline w-3.5 h-3.5 ml-1.5 text-slate-400" aria-label="Tiene factura adjunta" />}</span></>}
+                      importe={`${fmt2(c.total)}\u00a0€`}
+                      lineas={[formatDate(c.fecha), ev === 'vencida' && c.fechaVencimiento ? `Vencida desde el ${formatDate(c.fechaVencimiento)}` : null]}
+                      pie={<span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${ESTADO_UI[ev].clase}`}>{ESTADO_UI[ev].texto}</span>}
+                    />
+                  );
+                })}
+              </div>
+              ) : (
               <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
                 <table className="w-full text-sm">
                   <thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
@@ -200,6 +220,7 @@ export default function ComprasTab({ productos, onStockCambiado, empresa, client
                   </tbody>
                 </table>
               </div>
+              )
             )}
           {hayMas && <p className="text-xs text-amber-700 flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" /> Hay más compras de las que se muestran: elige un periodo más corto.</p>}
         </>

@@ -26,7 +26,7 @@ export function BloquePresupuesto({ selected, clientes, vehiculos, empresa, onCa
       <div id="bloque-presupuesto" className="rounded-2xl border border-green-200 bg-green-50 p-4 space-y-1" data-testid="presupuesto-aprobado">
         <p className="text-xs font-bold uppercase text-slate-500">Presupuesto</p>
         <p className="text-sm font-semibold text-green-800 flex items-center gap-1.5"><Check size={14} /> Aprobado por el cliente</p>
-        {a && <p className="text-xs text-slate-500">{a.nombre} · {new Date(a.en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })} · {fmt2(a.total)} €</p>}
+        {a && <p className="text-xs text-slate-500">{a.nombre} · {new Date(a.en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })} · {fmt2(a.total)} €</p>}
       </div>
     );
   }
@@ -205,7 +205,7 @@ export function BloqueLineasNuevas({ selected, clientes, vehiculos, empresa, onM
       <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
         <Bell size={11} /> Se añadieron {pendientes.length} línea{pendientes.length === 1 ? '' : 's'} nueva{pendientes.length === 1 ? '' : 's'}
       </p>
-      <p className="text-xs text-slate-600">¿Avisamos al cliente de este añadido ({fmt2(totalAnadido)} € IVA incl.)?</p>
+      <p className="text-xs text-slate-600">¿Avisamos al cliente de este añadido ({fmt2(totalAnadido)} € IVA incl.)?</p>
       <div className="flex gap-2 flex-wrap">
         {waLink ? (
           <a href={waLink} target="_blank" rel="noopener noreferrer"

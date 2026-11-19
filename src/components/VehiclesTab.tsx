@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
-import { Matricula } from '../ui/componentes';
+import { Matricula, TarjetaLista } from '../ui/componentes';
+import { useMovil } from '../ui/useMovil';
 import { Vehiculo, Cliente, Empresa, OTEstado, EventoOT } from '../types';
 import type { NuevoAviso as DatosAviso } from '../lib/data/avisos';
 import NuevoAviso from './NuevoAviso';
@@ -71,6 +72,7 @@ export default function VehiclesTab({
 }: VehiclesTabProps) {
   const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const movil = useMovil();
   const [selectedVehiculo, setSelectedVehiculo] = useState<Vehiculo | null>(null);
   const [expandedOtId, setExpandedOtId] = useState<string | null>(null);
 
@@ -344,6 +346,25 @@ export default function VehiclesTab({
           </div>
 
           <div className="overflow-x-auto">
+            {movil ? (
+            <div className="u-tl-lista" style={{ marginBottom: 8 }} data-testid="lista-vehiculos-movil">
+              {pagedVehiculos.length === 0 ? (
+                <p className="text-center py-8 text-xs font-semibold text-slate-400">{searchTerm ? 'Ningún vehículo coincide con la búsqueda.' : 'No hay vehículos registrados. Pulse «Alta Vehículo» para empezar.'}</p>
+              ) : pagedVehiculos.map((veh) => (
+                <TarjetaLista
+                  key={veh.id} id={`veh-row-${veh.id}`}
+                  onClick={() => setSelectedVehiculo(veh)} seleccionada={selectedVehiculo?.id === veh.id}
+                  titulo={`${veh.marca} ${veh.modelo}`}
+                  importe={<Matricula matricula={veh.matricula} />}
+                  lineas={[`${formatKm(veh.kilometraje)} km`, veh.bastidor]}
+                  acciones={<>
+                    <button onClick={() => handleEditClick(veh)} title="Editar" aria-label="Editar" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition"><PenTool className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteClick(veh.id)} title="Eliminar" aria-label="Eliminar" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xl transition"><Trash2 className="w-4 h-4" /></button>
+                  </>}
+                />
+              ))}
+            </div>
+            ) : (
             <table className="w-full text-left text-sm table-auto border-collapse" id="vehicles-table">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 font-semibold text-xs uppercase tracking-wider">
@@ -408,6 +429,7 @@ export default function VehiclesTab({
                 )}
               </tbody>
             </table>
+            )}
             <Pagination
               currentPage={currentPage}
               totalItems={filteredVehiculos.length}

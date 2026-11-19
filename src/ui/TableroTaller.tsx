@@ -89,7 +89,7 @@ export default function TableroTaller({ ordenes, vehiculos, clientes, onSelect, 
                         </span>
                       )}
                       <span className="u-tarjeta-fila">
-                        <strong>{ot.total > 0 ? `${fmt2(ot.total)} €` : <span className="u-muted">Por definir</span>}</strong>
+                        <strong>{ot.total > 0 ? `${fmt2(ot.total)} €` : <span className="u-muted">Por definir</span>}</strong>
                         {estado === 'presupuesto' && ot.presupuestoEstado === 'enviado' && <Chip tono="listo">Enviado</Chip>}
                         {(estado === 'recibido' || estado === 'en_reparacion') && ot.presupuestoEstado === 'enviado' && ot.presupuestoAprobado === false && <Chip tono="peligro">Rechazado</Chip>}
                         {(estado === 'recibido' || estado === 'en_reparacion') && ot.presupuestoEstado === 'enviado' && ot.presupuestoAprobado == null && <Chip tono="presupuesto">Pdte. respuesta</Chip>}

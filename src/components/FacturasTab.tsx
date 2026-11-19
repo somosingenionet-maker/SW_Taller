@@ -1,5 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useMemo } from 'react';
 import type { Intencion } from '../ui/navegacion';
+import { TarjetaLista } from '../ui/componentes';
+import { useMovil } from '../ui/useMovil';
 import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText, FileSpreadsheet } from 'lucide-react';
 import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa, EnvioAeat } from '../types';
 import { dispararEnvioAeat } from '../lib/data/verifactu';
@@ -521,6 +523,7 @@ export default function FacturasTab({
   clientes, vehiculos, empresa,
   onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura, puedeVerCompras = false, intencion,
 }: FacturasTabProps) {
+  const movil = useMovil();
   const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null }>({ open: false, factura: null });
   const [viewingDoc, setViewingDoc] = useState<Factura | null>(null);
   // Del botón «Nuevo» del nuevo diseño: abre el formulario de factura.
@@ -690,27 +693,10 @@ export default function FacturasTab({
   };
 
   /** Misma tabla tanto para la vista sin agrupar como para cada grupo (semana/mes/año). */
-  const renderTablaFacturas = (lista: Factura[]) => (
-    <table className="w-full text-sm">
-      <thead className="bg-slate-50 border-b border-slate-100">
-        <tr>
-          {['Número', 'Cliente', 'Vehículo', 'Fecha', 'Vencimiento', 'Estado', 'Total', 'Acciones'].map(h => (
-            <th key={h} className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-4 py-3">{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-50">
-        {lista.map(f => {
-          const esBorrador = f.estado === 'borrador';
-          const transiciones = TRANSICIONES_VALIDAS[f.estado] ?? [];
-          return (
-            <tr key={f.id} className="hover:bg-slate-50 transition">
-              <td className="px-4 py-3 font-bold text-slate-700 text-xs">{numeroMostrado(f)}</td>
-              <td className="px-4 py-3 text-xs text-slate-600">{nombreCliente(f.clienteId)}</td>
-              <td className="px-4 py-3 text-xs text-slate-500">{nombreVehiculo(f.vehiculoId)}</td>
-              <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fecha)}</td>
-              <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fechaVencimiento)}</td>
-              <td className="px-4 py-3">
+  /** Selector de estado (o la etiqueta, si ya no admite cambios) y el envío a Hacienda de una factura. Lo usan la tabla y la tarjeta del móvil. */
+  const estadoFactura = (f: Factura) => {
+    const transiciones = TRANSICIONES_VALIDAS[f.estado] ?? [];
+    return (
                 <div className="flex flex-col items-start gap-1">
                 {transiciones.length > 0 ? (
                   <select
@@ -730,9 +716,12 @@ export default function FacturasTab({
                   <EnvioAeatBadge envio={f.envioAeat} />
                 )}
                 </div>
-              </td>
-              <td className="px-4 py-3 text-xs font-bold text-slate-700">{fmt(f.total)} €</td>
-              <td className="px-4 py-3">
+    );
+  };
+  /** Ver, emitir, editar y eliminar una factura. */
+  const accionesFactura = (f: Factura) => {
+    const esBorrador = f.estado === 'borrador';
+    return (
                 <div className="flex gap-1">
                   <button onClick={() => setViewingDoc(f)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition cursor-pointer" title="Ver / Descargar">
                     <Receipt className="w-3.5 h-3.5" />
@@ -759,10 +748,45 @@ export default function FacturasTab({
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </td>
-            </tr>
-          );
-        })}
+    );
+  };
+
+  /** Misma lista tanto para la vista sin agrupar como para cada grupo (semana/mes/año): tabla en escritorio, tarjetas en el móvil. */
+  const renderTablaFacturas = (lista: Factura[]) => movil ? (
+    <div className="u-tl-lista" style={{ padding: 12 }} data-testid="lista-facturas-movil">
+      {lista.map(f => (
+        <TarjetaLista
+          key={f.id}
+          titulo={numeroMostrado(f)}
+          importe={`${fmt(f.total)}\u00a0€`}
+          lineas={[[nombreCliente(f.clienteId), nombreVehiculo(f.vehiculoId)].filter(Boolean).join(' · '), `${formatDate(f.fecha)} · vence ${formatDate(f.fechaVencimiento)}`]}
+          pie={estadoFactura(f)}
+          acciones={accionesFactura(f)}
+        />
+      ))}
+    </div>
+  ) : (
+    <table className="w-full text-sm">
+      <thead className="bg-slate-50 border-b border-slate-100">
+        <tr>
+          {['Número', 'Cliente', 'Vehículo', 'Fecha', 'Vencimiento', 'Estado', 'Total', 'Acciones'].map(h => (
+            <th key={h} className="text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider px-4 py-3">{h}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-50">
+        {lista.map(f => (
+          <tr key={f.id} className="hover:bg-slate-50 transition">
+            <td className="px-4 py-3 font-bold text-slate-700 text-xs">{numeroMostrado(f)}</td>
+            <td className="px-4 py-3 text-xs text-slate-600">{nombreCliente(f.clienteId)}</td>
+            <td className="px-4 py-3 text-xs text-slate-500">{nombreVehiculo(f.vehiculoId)}</td>
+            <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fecha)}</td>
+            <td className="px-4 py-3 text-xs text-slate-500">{formatDate(f.fechaVencimiento)}</td>
+            <td className="px-4 py-3">{estadoFactura(f)}</td>
+            <td className="px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">{fmt(f.total)} €</td>
+            <td className="px-4 py-3">{accionesFactura(f)}</td>
+          </tr>
+        ))}
       </tbody>
     </table>
   );

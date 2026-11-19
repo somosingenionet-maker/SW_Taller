@@ -362,6 +362,36 @@ test('móvil: ninguna sección sobresale de la pantalla y el contenido no se arr
   }
 });
 
+test('móvil: las listas son tarjetas (sin tablas anchas) y el € va pegado al importe', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await activarNuevo(page);
+  const listas: [Parameters<typeof irA>[1], string][] = [
+    ['En el taller', 'lista-ordenes-movil'], ['Clientes', 'lista-clientes-movil'], ['Vehículos', 'lista-vehiculos-movil'],
+    ['Facturas', 'lista-facturas-movil'], ['Inventario', 'lista-productos-movil'],
+  ];
+  for (const [seccion, id] of listas) {
+    // En escritorio sigue la tabla de siempre.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await irA(page, seccion);
+    await expect(page.getByRole('status', { name: 'Cargando' })).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.locator('main table').first(), `${seccion}: en escritorio hay tabla`).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId(id)).toHaveCount(0);
+    // En el móvil son tarjetas.
+    await page.setViewportSize({ width: 390, height: 800 });
+    await expect(page.getByTestId(id), `${seccion}: en el móvil hay tarjetas`).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('main table'), `${seccion}: en el móvil no debe quedar ninguna tabla ancha`).toHaveCount(0);
+    // Ningún importe parte el € en otra línea.
+    const partidos = await page.evaluate(() => [...document.querySelectorAll('.u-tl-imp')].filter((e) => (e as HTMLElement).getBoundingClientRect().height > 30).map((e) => e.textContent));
+    expect(partidos, `${seccion}: importes con el € en otra línea`).toEqual([]);
+  }
+  // En el taller el importe lleva el € al lado, con un espacio que no se parte.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await irA(page, 'En el taller');
+  await page.setViewportSize({ width: 390, height: 800 });
+  await expect(page.getByTestId('lista-ordenes-movil').locator('.u-tl-imp', { hasText: '€' }).first()).toHaveText(/\d,\d{2}\u00a0€/);
+});
+
 test('Configuración de empresa: ventana grande con menú de secciones, tarjetas y pie fijo (sin guardar nada)', async ({ page }) => {
   test.setTimeout(90_000);
   const fallos = errores(page);

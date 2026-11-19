@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
+import { TarjetaLista } from '../ui/componentes';
+import { useMovil } from '../ui/useMovil';
 import { Matricula } from '../ui/componentes';
 import { Cliente, InteraccionCliente, NotificacionCliente, Vehiculo, Empresa } from '../types';
 import type { NuevoAviso as DatosAviso } from '../lib/data/avisos';
@@ -54,6 +56,7 @@ export default function CrmTab({
   notificaciones,
   onCrearAviso
 }: CrmTabProps) {
+  const movil = useMovil();
   const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCliente, setSelectedCliente] = useState<Cliente | null>(null);
@@ -386,6 +389,24 @@ export default function CrmTab({
           </div>
 
           <div className="overflow-x-auto">
+            {movil ? (
+            <div className="u-tl-lista" style={{ marginBottom: 8 }} data-testid="lista-clientes-movil">
+              {filteredClientes.length === 0 ? (
+                <p className="text-center py-8 text-xs font-semibold text-slate-400">{searchTerm ? 'Ningún cliente coincide con la búsqueda.' : 'No hay clientes registrados. Pulse «Nuevo Cliente» para empezar.'}</p>
+              ) : pagedClientes.map((cli) => (
+                <TarjetaLista
+                  key={cli.id} id={`cli-row-${cli.id}`}
+                  onClick={() => setSelectedCliente(cli)} seleccionada={selectedCliente?.id === cli.id}
+                  titulo={`${cli.nombre} ${cli.apellidos}`}
+                  lineas={[cli.correo, [cli.nifNiePasaporte, cli.telefono].filter(Boolean).join(' · ')]}
+                  acciones={<>
+                    <button onClick={() => handleEditClick(cli)} title="Editar ficha" aria-label="Editar ficha" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition"><PenTool className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteClick(cli.id)} title="Borrar ficha" aria-label="Borrar ficha" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xl transition"><Trash2 className="w-4 h-4" /></button>
+                  </>}
+                />
+              ))}
+            </div>
+            ) : (
             <table className="w-full text-left text-sm table-auto border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 text-slate-400 font-semibold text-xs uppercase tracking-wider">
@@ -446,6 +467,7 @@ export default function CrmTab({
                 )}
               </tbody>
             </table>
+            )}
             <Pagination
               currentPage={currentPage}
               totalItems={filteredClientes.length}

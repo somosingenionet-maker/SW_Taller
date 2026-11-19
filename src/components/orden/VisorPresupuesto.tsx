@@ -144,8 +144,8 @@ export default function VisorPresupuesto({ ot, empresa, clientes, vehiculos, onC
                         <td className="py-2 text-slate-800">{l.descripcion}</td>
                         <td className="py-2 text-center text-xs text-slate-500">{TIPO_META[l.tipo].label}</td>
                         <td className="py-2 text-right font-mono text-slate-600">{l.cantidad}</td>
-                        <td className="py-2 text-right font-mono text-slate-600">{fmt2(l.precioUnitario)} €</td>
-                        <td className="py-2 text-right font-mono font-semibold text-slate-800">{fmt2(l.subtotal)} €</td>
+                        <td className="py-2 text-right font-mono text-slate-600">{fmt2(l.precioUnitario)} €</td>
+                        <td className="py-2 text-right font-mono font-semibold text-slate-800">{fmt2(l.subtotal)} €</td>
                       </tr>
                     ))}
                   </tbody>
@@ -157,15 +157,15 @@ export default function VisorPresupuesto({ ot, empresa, clientes, vehiculos, onC
             <div className="border-t-2 border-slate-200 pt-4 space-y-1.5">
               <div className="flex justify-between text-sm text-slate-500">
                 <span>Base imponible</span>
-                <span className="font-mono">{fmt2(ot.subtotal)} €</span>
+                <span className="font-mono">{fmt2(ot.subtotal)} €</span>
               </div>
               <div className="flex justify-between text-sm text-slate-500">
                 <span>IVA ({ot.ivaPct}%)</span>
-                <span className="font-mono">{fmt2(ot.totalIva)} €</span>
+                <span className="font-mono">{fmt2(ot.totalIva)} €</span>
               </div>
               <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
                 <span>TOTAL</span>
-                <span className="font-mono text-lg">{fmt2(ot.total)} €</span>
+                <span className="font-mono text-lg">{fmt2(ot.total)} €</span>
               </div>
             </div>
 
@@ -194,14 +194,14 @@ export default function VisorPresupuesto({ ot, empresa, clientes, vehiculos, onC
             {ot.aceptacionPresupuesto && !firmasPDF.presupuesto && (
               <p className="text-xs text-slate-600 pt-2">
                 <span className="font-semibold">Aceptación del presupuesto:</span> aceptado por {ot.aceptacionPresupuesto.nombre} desde el portal del cliente
-                el {fechaHoraFirma(ot.aceptacionPresupuesto.en)} (importe {fmt2(ot.aceptacionPresupuesto.total)} €).
+                el {fechaHoraFirma(ot.aceptacionPresupuesto.en)} (importe {fmt2(ot.aceptacionPresupuesto.total)} €).
               </p>
             )}
             {(firmasPDF.presupuesto || (esListo && firmasPDF.entrega)) && (
               <div className="grid grid-cols-2 gap-8 pt-2">
                 {firmasPDF.presupuesto && (
                   <FirmaImpresa titulo="Aceptación del presupuesto" firma={firmasPDF.presupuesto}
-                    nota={firmasPDF.presupuesto.total != null ? `importe ${fmt2(firmasPDF.presupuesto.total)} €` : undefined} />
+                    nota={firmasPDF.presupuesto.total != null ? `importe ${fmt2(firmasPDF.presupuesto.total)} €` : undefined} />
                 )}
                 {esListo && firmasPDF.entrega && <FirmaImpresa titulo="Conformidad en la entrega" firma={firmasPDF.entrega} />}
               </div>

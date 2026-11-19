@@ -20,7 +20,7 @@ export default function LineaTipoYProducto({
   const opciones = productos.map((p) => ({
     value: p.id,
     label: p.nombre,
-    sublabel: `Stock: ${p.stockActual} ${p.unidad} · Costo: ${fmt2(p.costo)} €`,
+    sublabel: `Stock: ${p.stockActual} ${p.unidad} · Costo: ${fmt2(p.costo)} €`,
   }));
 
   const aplicarProducto = (p: Producto) => {

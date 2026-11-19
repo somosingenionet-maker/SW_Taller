@@ -21,6 +21,29 @@ export function Chip({ tono = 'neutro', children, ...resto }: { tono?: TonoChip;
   return <span className={`u-chip ${tono}`} {...resto}>{children}</span>;
 }
 
+/**
+ * Una fila de lista en forma de tarjeta, para el móvil (donde una tabla ancha obliga a deslizar de lado). Arriba, el título y el importe; debajo,
+ * las líneas de detalle; al pie, lo que quieras (estado…) y a la derecha los botones de acción. El importe no se parte nunca: el € va pegado.
+ * Si se pasa `onClick`, toda la tarjeta se puede pulsar (las acciones no disparan ese clic).
+ */
+export function TarjetaLista({ titulo, importe, lineas, pie, acciones, onClick, atenuada, seleccionada, className = '', ...resto }: {
+  titulo: ReactNode; importe?: ReactNode; lineas?: ReactNode[]; pie?: ReactNode; acciones?: ReactNode; onClick?: () => void; atenuada?: boolean; seleccionada?: boolean;
+} & Omit<React.HTMLAttributes<HTMLDivElement>, 'onClick' | 'title'>) {
+  const clases = ['u-tl', onClick ? 'u-tl-pulsable' : '', atenuada ? 'u-tl-atenuada' : '', seleccionada ? 'u-tl-sel' : '', className].filter(Boolean).join(' ');
+  return (
+    <div className={clases} {...(onClick ? { role: 'button', tabIndex: 0, onClick, onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } } : {})} {...resto}>
+      <div className="u-tl-cab"><div className="u-tl-tit">{titulo}</div>{importe != null && <div className="u-tl-imp">{importe}</div>}</div>
+      {lineas?.filter(Boolean).map((l, i) => <div key={i} className="u-tl-lin">{l}</div>)}
+      {(pie || acciones) && (
+        <div className="u-tl-pie">
+          <div className="u-tl-pie-izq">{pie}</div>
+          {acciones && <div className="u-tl-acc" onClick={(e) => e.stopPropagation()}>{acciones}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** El llavero: la seña de identidad de Doonty. Cada coche del taller es un llavero cuyo color es el de su estado (el tablero es el panel de llaves). */
 export function Llavero({ estado }: { estado?: string }) {
   return <span className={`u-llave u-e-${estado ?? 'neutro'}`} aria-hidden="true"><KeyRound /></span>;

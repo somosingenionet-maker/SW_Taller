@@ -422,3 +422,16 @@ button.u-aviso-paso { cursor: pointer; } button.u-aviso-paso:hover { filter: bri
    anchas se desplazan dentro de su propia caja sin arrastrar la página. */
 html, body { overscroll-behavior-x: none; }
 .u-app .overflow-x-auto { overscroll-behavior-x: contain; }
+
+/* Tarjetas de lista (móvil): sustituyen a las tablas anchas. El importe no se parte: el € queda al lado de la cifra. */
+.u-tl-lista { display: grid; gap: 10px; }
+.u-tl { display: grid; gap: 5px; text-align: left; width: 100%; background: var(--u-surface); color: var(--u-ink); border: 1px solid var(--u-line); border-radius: 14px; padding: 12px 14px; font: inherit; }
+.u-tl-pulsable { cursor: pointer; } .u-tl-pulsable:active { background: var(--u-surface-2); }
+.u-tl-sel { border-color: var(--u-brand-ink); } .u-tl-atenuada { opacity: .5; }
+.u-tl-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.u-tl-tit { min-width: 0; font-weight: 700; font-size: 15.5px; overflow-wrap: anywhere; }
+.u-tl-imp { flex: none; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
+.u-tl-lin { color: var(--u-muted); font-size: 14px; overflow-wrap: anywhere; }
+.u-tl-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 3px; }
+.u-tl-pie-izq { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.u-tl-acc { display: flex; gap: 4px; margin-left: auto; }

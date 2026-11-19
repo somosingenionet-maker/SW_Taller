@@ -5,6 +5,8 @@ import {
   Package, Search, Plus, Edit2, Trash2, X, Check, AlertTriangle, History, PackagePlus, ArrowUpCircle, SlidersHorizontal, Download, Upload
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
+import { TarjetaLista } from '../ui/componentes';
+import { useMovil } from '../ui/useMovil';
 import ImportarCsvModal from './ImportarCsvModal';
 import { downloadCsv } from '../utils/csvExport';
 import { formatEuros } from '../utils/moneda';
@@ -39,6 +41,7 @@ const EMPTY_FORM: FormState = {
 const UNIDADES = ['unidad', 'litro', 'kg', 'metro', 'caja'];
 
 export default function InventarioTab({ productos, onAddProducto, onUpdateProducto, onDeleteProducto, onRegistrarMovimiento, onImportado }: InventarioTabProps) {
+  const movil = useMovil();
   const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [soloStockBajo, setSoloStockBajo] = useState(false);
@@ -220,6 +223,28 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto">
+          {movil ? (
+            <div className="u-tl-lista" style={{ padding: 12 }} data-testid="lista-productos-movil">
+              {filtrados.map((p) => (
+                <TarjetaLista
+                  key={p.id}
+                  titulo={<>{p.nombre}{p.sku && <span className="block text-[11px] font-normal text-slate-400 font-mono">{p.sku}</span>}</>}
+                  importe={formatEuros(p.precioVenta).replace(/\s/g, '\u00a0')}
+                  lineas={[`Costo ${formatEuros(p.costo).replace(/\s/g, '\u00a0')}`, bajoStock(p) ? `Stock bajo: mínimo ${p.stockMinimo}` : null]}
+                  pie={<>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${bajoStock(p) ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{p.stockActual} {p.unidad}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{p.activo ? 'Activo' : 'Inactivo'}</span>
+                  </>}
+                  acciones={<>
+                    <button onClick={() => setHistorialProducto(p)} title="Historial de movimientos" aria-label="Historial de movimientos" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"><History className="w-4 h-4" /></button>
+                    <button onClick={() => setMovimientoProducto(p)} title="Registrar entrada / ajustar stock" aria-label="Registrar entrada o ajustar stock" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"><PackagePlus className="w-4 h-4" /></button>
+                    <button onClick={() => openEdit(p)} title="Editar" aria-label="Editar" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"><Edit2 className="w-4 h-4" /></button>
+                    <button onClick={() => { setConfirmDelete(p); setDeleteError(''); }} title="Eliminar" aria-label="Eliminar" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                  </>}
+                />
+              ))}
+            </div>
+          ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">
@@ -271,6 +296,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
               ))}
             </tbody>
           </table>
+          )}
         </div>
       )}
 
