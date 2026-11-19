@@ -6,7 +6,7 @@ import { listTecnicos } from '../lib/data/tecnicos';
 import { fmt2 } from '../utils/moneda';
 import type { AvisoPagos } from '../utils/compras';
 import type { AccionPaso } from '../utils/guiaInicial';
-import type { ItemAviso } from '../utils/avisos';
+import { resumenPendientes, type ItemAviso } from '../utils/avisos';
 import GuiaInicial from '../components/GuiaInicial';
 import { Boton, Chip, Llavero, Matricula, Tarjeta } from './componentes';
 import { saludo, tareasHoy, textoDias, type TareaOrden } from './tareasHoy';
@@ -51,7 +51,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
   const clientePorId = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
   const citasHoy = useMemo(() => citas.filter((c) => (c.estado === 'pendiente' || c.estado === 'confirmada') && c.fechaHora.slice(0, 10) === hoyIso).sort((a, b) => a.fechaHora.localeCompare(b.fechaHora)), [citas, hoyIso]);
   const avisosHoy = useMemo(() => avisos.filter((a) => a.fase === 'para_hoy'), [avisos]);
-  const avisosVencidos = useMemo(() => avisosHoy.filter((a) => a.urgencia === 'vencido'), [avisosHoy]);
+  const resumenAvisos = useMemo(() => resumenPendientes(avisosHoy), [avisosHoy]);
 
   const nombreCoche = (x: TareaOrden) => (x.vehiculo ? `${x.vehiculo.marca} ${x.vehiculo.modelo}` : `Orden ${x.orden.numero}`);
   const nombreCliente = (x: TareaOrden) => (x.cliente ? `${x.cliente.nombre} ${x.cliente.apellidos}`.trim() : '');
@@ -112,7 +112,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
       {puede('alertas') && avisosHoy.length > 0 && (
         <div className="u-aviso aviso" role="status" data-testid="hoy-avisos">
           <AlertTriangle aria-hidden="true" />
-          <span>{avisosHoy.length} {plural(avisosHoy.length, 'aviso a un cliente necesita', 'avisos a clientes necesitan')} tu atención (WhatsApp, vencimientos, cambios de aceite…){avisosVencidos.length > 0 ? ` · ${avisosVencidos.length} ya ${plural(avisosVencidos.length, 'vencido', 'vencidos')}` : ''}</span>
+          <span>Tienes {avisosHoy.length} {plural(avisosHoy.length, 'aviso a un cliente pendiente', 'avisos a clientes pendientes')}: {resumenAvisos}</span>
           <button type="button" className="u-enlace" onClick={() => onNavegar('alertas')}>Ver avisos →</button>
         </div>
       )}
@@ -179,7 +179,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
               <div className="u-card-cab"><h3>Resumen</h3></div>
               <div className="u-kpis">
                 {puede('facturas') && <div className="u-kpi"><small>Facturado este mes</small><strong>{fmt2(resumen?.importeMesActual ?? 0)} €</strong><span>{resumen?.facturasMesActual ?? 0} {plural(resumen?.facturasMesActual ?? 0, 'factura emitida', 'facturas emitidas')}</span></div>}
-                {puede('alertas') && <div className="u-kpi"><small>Avisos para hoy</small><strong>{avisosHoy.length}</strong><span>{avisosVencidos.length > 0 ? `${avisosVencidos.length} ya vencidos` : 'Todo al día'}</span></div>}
+                {puede('alertas') && <div className="u-kpi"><small>Avisos para hoy</small><strong>{avisosHoy.length}</strong><span>{avisosHoy.length > 0 ? 'Esperan que los resuelvas' : 'Todo al día'}</span></div>}
               </div>
             </Tarjeta>
           )}

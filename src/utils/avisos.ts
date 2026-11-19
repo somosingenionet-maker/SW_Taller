@@ -257,6 +257,24 @@ export function textoCanal(it: Pick<ItemAviso, 'canal' | 'enElProximoEnvio' | 's
   return 'Sin correo ni teléfono en su ficha';
 }
 
+// ---- Resumen para «Hoy» ----
+
+const FRASE_PENDIENTE: Record<PorQue, [string, string]> = {
+  whatsapp: ['por mandar por WhatsApp', 'por mandar por WhatsApp'],
+  correo_manual: ['por enviar por correo', 'por enviar por correo'],
+  sin_contacto: ['sin correo ni teléfono para avisar', 'sin correo ni teléfono para avisar'],
+  vencido_antiguo: ['vencimiento sin renovar desde hace tiempo', 'vencimientos sin renovar desde hace tiempo'],
+  anotar_aceite: ['cambio de aceite sin anotar el próximo', 'cambios de aceite sin anotar el próximo'],
+};
+const ORDEN_FRASES: PorQue[] = ['anotar_aceite', 'vencido_antiguo', 'whatsapp', 'correo_manual', 'sin_contacto'];
+
+/** Qué hay pendiente, dicho con claridad para el aviso de «Hoy»: «1 cambio de aceite sin anotar el próximo, 2 por mandar por WhatsApp». */
+export function resumenPendientes(items: Pick<ItemAviso, 'fase' | 'porQue'>[]): string {
+  const cuenta = new Map<PorQue, number>();
+  for (const it of items) if (it.fase === 'para_hoy' && it.porQue) cuenta.set(it.porQue, (cuenta.get(it.porQue) ?? 0) + 1);
+  return ORDEN_FRASES.filter((p) => cuenta.has(p)).map((p) => `${cuenta.get(p)} ${FRASE_PENDIENTE[p][cuenta.get(p) === 1 ? 0 : 1]}`).join(', ');
+}
+
 // ---- Mensajes ----
 
 const fechaCorta = (iso: string) => { const [a, m, d] = iso.slice(0, 10).split('-').map(Number); return `${d}/${m}/${a}`; };

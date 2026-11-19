@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Alerta, AvisoCliente, Cliente, OrdenTrabajo, Vehiculo } from '../types';
-import { agruparPorMes, canalDelCliente, construirAvisos, mensajeParaCliente, siguienteRepeticion, textoCanal, tipoEventoDe, type ConfigAvisos } from './avisos';
+import { agruparPorMes, canalDelCliente, construirAvisos, mensajeParaCliente, resumenPendientes, siguienteRepeticion, textoCanal, tipoEventoDe, type ConfigAvisos } from './avisos';
 
 const HOY = '2026-11-20';
 const config: ConfigAvisos = { automatico: true, antelacion: 14, itv: true, seguro: true, impuesto: true };
@@ -208,5 +208,20 @@ describe('tipoEventoDe y siguienteRepeticion', () => {
   it('un aviso que se repite cada 6 meses cuenta desde su fecha, o desde hoy si ya quedó atrás', () => {
     expect(siguienteRepeticion('2026-11-20', 6, HOY)).toBe('2027-05-20');
     expect(siguienteRepeticion('2026-03-01', 6, HOY)).toBe('2027-05-20');
+  });
+});
+
+describe('resumenPendientes (el aviso de «Hoy»)', () => {
+  it('dice qué hay pendiente, en singular o plural, sin ejemplos genéricos', () => {
+    expect(resumenPendientes([{ fase: 'para_hoy', porQue: 'anotar_aceite' }])).toBe('1 cambio de aceite sin anotar el próximo');
+    expect(resumenPendientes([
+      { fase: 'para_hoy', porQue: 'whatsapp' }, { fase: 'para_hoy', porQue: 'whatsapp' },
+      { fase: 'para_hoy', porQue: 'vencido_antiguo' }, { fase: 'para_hoy', porQue: 'anotar_aceite' }, { fase: 'para_hoy', porQue: 'anotar_aceite' },
+    ])).toBe('2 cambios de aceite sin anotar el próximo, 1 vencimiento sin renovar desde hace tiempo, 2 por mandar por WhatsApp');
+  });
+
+  it('solo cuenta lo que espera a una persona', () => {
+    expect(resumenPendientes([{ fase: 'programado' }, { fase: 'avisado' }])).toBe('');
+    expect(resumenPendientes([{ fase: 'para_hoy', porQue: 'sin_contacto' }, { fase: 'para_hoy', porQue: 'correo_manual' }])).toBe('1 por enviar por correo, 1 sin correo ni teléfono para avisar');
   });
 });
