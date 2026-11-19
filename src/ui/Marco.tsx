@@ -82,7 +82,7 @@ export default function Marco(p: Props) {
 
   const elegirBusqueda = useCallback((r: ResultadoBusqueda) => { setBuscando(false); onIr(r.modulo, { tipo: 'buscar', texto: r.busqueda }); }, [onIr]);
   const insignia = (id: ModuloId): { n: number; clase: string; etiqueta: string } | null => {
-    if (id === 'alertas' && p.alertasActivas > 0) return { n: p.alertasActivas, clase: 'alerta', etiqueta: `${p.alertasActivas} activas` };
+    if (id === 'alertas' && p.alertasActivas > 0) return { n: p.alertasActivas, clase: 'alerta', etiqueta: `${p.alertasActivas} para hoy` };
     if (id === 'compras' && p.pagos.n > 0) return { n: p.pagos.n, clase: p.pagos.vencidas ? 'alerta' : 'aviso', etiqueta: `${p.pagos.n} pagos a proveedores pendientes` };
     return null;
   };

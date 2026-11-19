@@ -23,7 +23,7 @@ test('el marco: menú por tareas con texto, cuenta sin restos del diseño anteri
   await page.setViewportSize({ width: 1440, height: 900 });
   await activarNuevo(page);
   const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
-  for (const t of ['Hoy', 'En el taller', 'Citas', 'Clientes', 'Facturas']) await expect(menu.getByRole('button', { name: t })).toBeVisible();
+  for (const t of ['Hoy', 'En el taller', 'Citas', 'Clientes', 'Facturas']) await expect(menu.getByRole('button', { name: t, exact: true })).toBeVisible();
   await captura(page, 'escritorio-hoy');
   await page.reload();
   await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
@@ -42,7 +42,7 @@ test('todas las pestañas cargan dentro del marco', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await activarNuevo(page);
   const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
-  for (const t of ['En el taller', 'Citas', 'Clientes', 'Vehículos', 'Alertas', 'Facturas', 'Compras', 'Inventario', 'Rentabilidad', 'Hoy']) {
+  for (const t of ['En el taller', 'Citas', 'Clientes', 'Vehículos', 'Avisos', 'Facturas', 'Compras', 'Inventario', 'Rentabilidad', 'Hoy']) {
     await menu.getByRole('button', { name: new RegExp(`^${t}`) }).click();
     await expect(page.getByRole('status', { name: 'Cargando' }), `${t} se queda cargando`).toHaveCount(0, { timeout: 15_000 });
     await expect(page.locator('main h2').first(), `${t} no pinta su título`).toBeVisible({ timeout: 15_000 });
@@ -57,7 +57,7 @@ test('todas las pestañas cargan dentro del marco', async ({ page }) => {
 test('Ctrl K busca por matrícula y lleva a la pestaña con la búsqueda hecha', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await activarNuevo(page);
-  await page.getByRole('navigation', { name: 'Menú principal', exact: true }).getByRole('button', { name: 'Hoy' }).click();
+  await page.getByRole('navigation', { name: 'Menú principal', exact: true }).getByRole('button', { name: 'Hoy', exact: true }).click();
   await page.keyboard.press('Control+k');
   const buscador = page.getByRole('dialog', { name: 'Buscar' });
   await expect(buscador).toBeVisible();
@@ -150,7 +150,7 @@ test('Hoy: lista lo que hay en el taller y cada fila lleva a su orden', async ({
   await expect(page.locator('main input:not([type]), main input[type="text"], main input[type="search"]').first()).toHaveValue(/OT-/);
 
   // «Recibir un coche» abre la recepción.
-  await page.getByRole('navigation', { name: 'Menú principal', exact: true }).getByRole('button', { name: 'Hoy' }).click();
+  await page.getByRole('navigation', { name: 'Menú principal', exact: true }).getByRole('button', { name: 'Hoy', exact: true }).click();
   await page.getByTestId('hoy-recibir').click();
   await expect(page.getByText('Nueva Orden de Trabajo').first()).toBeVisible({ timeout: 15_000 });
   expect(fallos, fallos.join('\n')).toEqual([]);
@@ -286,7 +286,7 @@ test('aspecto: el modo oscuro se elige, se recuerda y se aplica a todas las pest
   await expect(page.locator('html')).toHaveAttribute('data-tema', 'oscuro');
 
   const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
-  for (const t of ['Hoy', 'En el taller', 'Citas', 'Clientes', 'Vehículos', 'Alertas', 'Facturas', 'Rentabilidad', 'Compras', 'Inventario']) {
+  for (const t of ['Hoy', 'En el taller', 'Citas', 'Clientes', 'Vehículos', 'Avisos', 'Facturas', 'Rentabilidad', 'Compras', 'Inventario']) {
     await menu.getByRole('button', { name: new RegExp(`^${t}`) }).click();
     await expect(page.getByRole('status', { name: 'Cargando' })).toHaveCount(0, { timeout: 15_000 });
     await expect(page.locator('main h2').first()).toBeVisible({ timeout: 15_000 });

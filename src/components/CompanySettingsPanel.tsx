@@ -37,7 +37,7 @@ const GRUPOS: { titulo: string; items: { id: TabId; titulo: string; descripcion:
     { id: 'marca', titulo: 'Logo y color', descripcion: 'La imagen de tu taller en la aplicación, en los documentos y en las páginas que ven tus clientes.', icono: Palette },
   ] },
   { titulo: 'Clientes', items: [
-    { id: 'recordatorios', titulo: 'Recordatorios', descripcion: 'Avisos automáticos por correo de ITV, seguro, impuesto y cambio de aceite.', icono: Bell },
+    { id: 'recordatorios', titulo: 'Recordatorios', descripcion: 'Qué avisos salen solos por correo, con cuánta antelación y con qué mensaje.', icono: Bell },
     { id: 'reservas', titulo: 'Reservas online', descripcion: 'Que tus clientes pidan cita desde tu propia página.', icono: CalendarCheck },
   ] },
   { titulo: 'Taller', items: [
@@ -78,7 +78,7 @@ function Campo({ etiqueta, id, children }: { etiqueta: string; id?: string; chil
 
 
 /** Valores de marca por defecto para el botón "Restaurar por defecto" (id/activo/recordatorios/numeración de facturas se conservan). */
-const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura' | 'facturaMostrarQr' | 'verifactuEnvioActivo' | 'verifactuEntorno' | 'verifactuNumeroInstalacion' | 'fotosRetencionMeses'> = {
+const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutomaticosActivos' | 'plantillasRecordatorios' | 'facturaPrefijo' | 'siguienteNumeroFactura' | 'facturaMostrarQr' | 'verifactuEnvioActivo' | 'verifactuEntorno' | 'verifactuNumeroInstalacion' | 'fotosRetencionMeses' | 'avisosAntelacionDias' | 'avisosItv' | 'avisosSeguro' | 'avisosImpuesto' | 'reservasActivas' | 'reservasSlug'> = {
   nombre: 'Mi Empresa',
   tagline: '',
   razonSocial: '',
@@ -478,10 +478,34 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
                     <label className="flex items-start justify-between gap-4 cursor-pointer">
                       <span className="text-sm text-slate-700 flex items-start gap-3 leading-relaxed">
                         <Mail className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
-                        Enviar por email a los clientes, automáticamente, los recordatorios de ITV, seguro e impuesto y los avisos del cambio de aceite (resumen al entregar, recordatorio antes del próximo cambio y último aviso si no vuelve), y recordar al cliente los informes de inspección sin responder y los presupuestos enviados sin respuesta (a los 3 y a los 7 días, como mucho dos avisos).
+                        Enviar por email a los clientes, automáticamente, los avisos de ITV, seguro e impuesto (según lo que marques abajo), los avisos personalizados que programes y los del cambio de aceite (resumen al entregar, recordatorio antes del próximo cambio y último aviso si no vuelve), y recordar al cliente los informes de inspección sin responder y los presupuestos enviados sin respuesta (a los 3 y a los 7 días, como mucho dos avisos).
                       </span>
                       <input type="checkbox" checked={draft.recordatoriosAutomaticosActivos} onChange={e => setDraft(prev => ({ ...prev, recordatoriosAutomaticosActivos: e.target.checked }))} className="w-5 h-5 shrink-0 mt-0.5 cursor-pointer" />
                     </label>
+                  </Tarjeta>
+                  <Tarjeta titulo="Qué vigilar y cuándo avisar" ayuda="Los vencimientos que no marques no se vigilan ni te llenan la pantalla de Avisos. El cambio de aceite y los avisos personalizados («neumáticos en 6 meses») siempre están activos.">
+                    <fieldset>
+                      <legend className="text-sm font-semibold text-slate-700 mb-2">Vencimientos del coche que avisamos</legend>
+                      <div className="flex flex-wrap gap-x-6 gap-y-2">
+                        {([['avisosItv', 'ITV'], ['avisosSeguro', 'Seguro'], ['avisosImpuesto', 'Impuesto de circulación']] as const).map(([clave, texto]) => (
+                          <label key={clave} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input type="checkbox" checked={draft[clave]} onChange={e => setDraft(prev => ({ ...prev, [clave]: e.target.checked }))} className="w-4 h-4 cursor-pointer" data-testid={`cfg-${clave}`} /> {texto}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <fieldset>
+                      <legend className="text-sm font-semibold text-slate-700 mb-2">¿Con cuánta antelación se avisa al cliente?</legend>
+                      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Antelación de los avisos">
+                        {([7, 14, 30] as const).map(d => (
+                          <button key={d} type="button" aria-pressed={draft.avisosAntelacionDias === d} data-testid={`cfg-antelacion-${d}`}
+                            onClick={() => setDraft(prev => ({ ...prev, avisosAntelacionDias: d }))}
+                            className={`px-3 py-1.5 rounded-xl text-sm font-semibold border cursor-pointer ${draft.avisosAntelacionDias === d ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                            {d} días antes
+                          </button>
+                        ))}
+                      </div>
+                    </fieldset>
                   </Tarjeta>
                   <Tarjeta titulo="Mensaje de cada recordatorio" ayuda={<>Viene con el texto por defecto: puedes editarlo o dejarlo tal cual. Variables disponibles: {VARIABLES_DISPONIBLES.join(', ')}.</>}>
                     {(Object.keys(TIPO_LABEL) as AlertaTipo[]).map(tipo => (

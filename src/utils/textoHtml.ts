@@ -26,4 +26,5 @@ export const NOMBRE_EVENTO: Record<string, string> = {
   cambio_aceite: 'Cambio de aceite: recordatorio',
   aceite_vencido: 'Cambio de aceite: último aviso',
   aceite_resumen: 'Cambio de aceite: resumen al entregar',
+  aviso_personalizado: 'Aviso personalizado',
 };

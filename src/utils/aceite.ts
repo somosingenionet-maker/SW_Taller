@@ -57,17 +57,19 @@ export function urgenciaAceite(proximaFecha: string | undefined, hoy: string, pr
 }
 
 // Mismas ventanas que supabase/functions/enviar-recordatorios/logic.ts (avisoAceite). Aquí solo
-// sirven para pintar el estado en Alertas; lo que se envía de verdad lo decide el servidor.
-const DIAS_AVISO = 14, KM_AVISO = 500, DIAS_ULTIMO_AVISO = 7, DIAS_TOPE = 60;
+// sirven para pintar el estado en Avisos; lo que se envía de verdad lo decide el servidor.
+/** Días de antelación por defecto; cada taller puede elegir 7, 14 o 30 (empresas.avisos_antelacion_dias). */
+export const DIAS_AVISO = 14;
+const KM_AVISO = 500, DIAS_ULTIMO_AVISO = 7, DIAS_TOPE = 60;
 
 /** Qué correo de aceite está pendiente de salir hoy para una alerta: recordatorio, último aviso o ninguno. */
 export function avisoAceitePendiente(
   alerta: { fechaLimite?: string; kilometrajeLimite?: number; recordatorioEnviadoEn?: string; ultimoAvisoEnviadoEn?: string },
-  vehiculoKm: number, hoy: string,
+  vehiculoKm: number, hoy: string, antelacion: number = DIAS_AVISO,
 ): 'recordatorio' | 'vencido' | null {
   const dias = alerta.fechaLimite ? diasHasta(alerta.fechaLimite.slice(0, 10), hoy) : null;
   if (dias != null && dias <= -DIAS_ULTIMO_AVISO) return dias >= -DIAS_TOPE && !alerta.ultimoAvisoEnviadoEn ? 'vencido' : null;
   if (alerta.recordatorioEnviadoEn) return null;
   const porKm = alerta.kilometrajeLimite != null && alerta.kilometrajeLimite - vehiculoKm <= KM_AVISO;
-  return (dias != null && dias <= DIAS_AVISO) || porKm ? 'recordatorio' : null;
+  return (dias != null && dias <= antelacion) || porKm ? 'recordatorio' : null;
 }

@@ -2,9 +2,11 @@ import { useState, useMemo, useEffect } from 'react';
 import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
 import { Matricula } from '../ui/componentes';
-import { Vehiculo, Cliente, OTEstado, EventoOT } from '../types';
+import { Vehiculo, Cliente, Empresa, OTEstado, EventoOT } from '../types';
+import type { NuevoAviso as DatosAviso } from '../lib/data/avisos';
+import NuevoAviso from './NuevoAviso';
 import {
-  Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, Upload, ClipboardList
+  BellPlus, Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, Upload, ClipboardList
 } from 'lucide-react';
 import ConfirmDialog from './ConfirmDialog';
 import ImportarCsvModal from './ImportarCsvModal';
@@ -32,6 +34,9 @@ interface VehiclesTabProps {
   onImportado: () => void | Promise<void>;
   /** Orden que llega del botón «Nuevo» o del buscador global del nuevo diseño (cada una trae un número distinto). */
   intencion?: Intencion;
+  /** Para programar un aviso al dueño desde la ficha del coche («neumáticos en 6 meses»). */
+  empresa?: Empresa;
+  onCrearAviso?: (a: DatosAviso) => Promise<void>;
 }
 
 const OT_ESTADO_LABEL: Record<OTEstado, string> = {
@@ -53,6 +58,8 @@ const OT_ESTADO_COLOR: Record<OTEstado, string> = {
 };
 
 export default function VehiclesTab({
+  empresa,
+  onCrearAviso,
   vehiculos,
   clientes = [],
   onAddVehiculo,
@@ -92,6 +99,9 @@ export default function VehiclesTab({
       .catch(() => setHistorialPorOt(prev => ({ ...prev, [expandedOtId]: [] })))
       .finally(() => setHistorialCargando(null));
   }, [expandedOtId, historialPorOt]);
+  const [programandoAviso, setProgramandoAviso] = useState(false);
+  /** El dueño del coche (el cliente que lo tiene asociado), si lo hay. */
+  const duenoDe = (vehiculoId: string) => clientes.find((c) => c.vehiculosAsociados?.includes(vehiculoId));
   const [isAddingOpen, setIsAddingOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -499,6 +509,14 @@ export default function VehiclesTab({
                 />
 
                 <InspeccionesVehiculo vehiculoId={selectedVehiculo.id} />
+
+                {empresa && onCrearAviso && duenoDe(selectedVehiculo.id) && (
+                  <div className="bg-slate-50/60 rounded-2xl border border-slate-100 p-4 flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-xs text-slate-500">¿Hay algo que recordarle al dueño más adelante? Neumáticos, frenos, la revisión…</p>
+                    <button type="button" onClick={() => setProgramandoAviso(true)} data-testid="vehiculo-programar-aviso"
+                      className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 bg-white text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-50 cursor-pointer"><BellPlus className="w-3.5 h-3.5" /> Programar un aviso</button>
+                  </div>
+                )}
               </div>
 
               {/* Historial de Órdenes de Trabajo */}
@@ -686,7 +704,7 @@ export default function VehiclesTab({
                 </div>
 
                 <div className="border-t border-slate-100 pt-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Fechas de Control de Alertas</h4>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Fechas de vencimiento (para los avisos)</h4>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
@@ -835,7 +853,7 @@ export default function VehiclesTab({
                 </div>
 
                 <div className="border-t border-slate-100 pt-4 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Fechas de Control de Alertas</h4>
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Fechas de vencimiento (para los avisos)</h4>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
@@ -889,6 +907,14 @@ export default function VehiclesTab({
               </form>
             </div>
           </div>
+      )}
+      {programandoAviso && empresa && onCrearAviso && selectedVehiculo && duenoDe(selectedVehiculo.id) && (
+        <NuevoAviso
+          empresa={empresa} clientes={clientes} vehiculos={vehiculos}
+          clienteIdInicial={duenoDe(selectedVehiculo.id)!.id} vehiculoIdInicial={selectedVehiculo.id}
+          onGuardar={async (a) => { await onCrearAviso(a); setProgramandoAviso(false); }}
+          onCerrar={() => setProgramandoAviso(false)}
+        />
       )}
     </div>
   );

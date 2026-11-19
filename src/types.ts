@@ -167,6 +167,26 @@ export interface Alerta {
   ultimoAvisoEnviadoEn?: string;
 }
 
+/** Aviso personalizado a un cliente («neumáticos en 6 meses»). `avisarEn` es el día en que se le avisa, no un vencimiento. */
+export interface AvisoCliente {
+  id: string;
+  clienteId: string;
+  vehiculoId?: string;
+  motivo: string;
+  /** Texto para el cliente (con variables). Vacío = texto por defecto del motivo. */
+  mensaje: string;
+  /** Nota interna: el cliente no la ve. */
+  nota?: string;
+  avisarEn?: string;
+  avisarKm?: number;
+  /** Cada cuántos meses vuelve a programarse tras avisar. Undefined = una sola vez. */
+  repetirMeses?: number;
+  estado: 'programado' | 'enviado' | 'hecho' | 'descartado';
+  enviadoEn?: string;
+  canal?: 'email' | 'whatsapp';
+  ordenId?: string;
+}
+
 export interface NotificacionCliente {
   id: string;
   clienteId: string;
@@ -176,8 +196,8 @@ export interface NotificacionCliente {
   mensaje: string;
   fechaEnvio: string;
   leido: boolean;
-  tipoEvento: 'mantenimiento_preventivo' | 'itv_proxima' | 'vencimiento_seguro' | 'impuesto_proximo' | 'reparacion_lista' | 'cambio_aceite' | 'aceite_vencido' | 'aceite_resumen';
-  /** 'automatico' = disparado por el cron de recordatorios; 'manual' = despachado desde el simulador. */
+  tipoEvento: 'mantenimiento_preventivo' | 'itv_proxima' | 'vencimiento_seguro' | 'impuesto_proximo' | 'reparacion_lista' | 'cambio_aceite' | 'aceite_vencido' | 'aceite_resumen' | 'aviso_personalizado';
+  /** 'automatico' = lo mandó solo el envío diario; 'manual' = lo mandó una persona del taller (WhatsApp asistido o «Enviar ahora»). */
   origen: 'manual' | 'automatico';
 }
 
@@ -251,6 +271,15 @@ export interface Empresa {
   verifactuNumeroInstalacion: string;
   /** Meses desde la entrega de una orden tras los que se borran sus fotos (recepción e inspección). */
   fotosRetencionMeses: 3 | 6 | 12 | 24;
+  /** Días antes de un vencimiento (ITV, seguro, impuesto, aceite) en que se avisa al cliente. */
+  avisosAntelacionDias: 7 | 14 | 30;
+  /** Qué vencimientos vigila este taller. El cambio de aceite y los avisos personalizados siempre están activos. */
+  avisosItv: boolean;
+  avisosSeguro: boolean;
+  avisosImpuesto: boolean;
+  /** Reservas online activas y dirección pública: los avisos incluyen el enlace para pedir cita. */
+  reservasActivas: boolean;
+  reservasSlug: string;
 }
 
 /** Identificador de módulo funcional. Controla qué pestañas ve cada usuario. */

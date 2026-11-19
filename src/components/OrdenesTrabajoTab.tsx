@@ -2,7 +2,7 @@ import { comprimirImagen, OPCIONES_FOTO } from '../utils/imagen';
 import { useState, useMemo, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  ClipboardList, Plus, Search, ChevronRight, X, Check, Trash2,
+  BellPlus, ClipboardList, Plus, Search, ChevronRight, X, Check, Trash2,
   Car, User, Calendar, Gauge, Wrench, AlertCircle, FileText,
   Pencil, List, LayoutGrid, Camera, ImageOff, Droplet
 } from 'lucide-react';
@@ -27,6 +27,8 @@ import type { Intencion } from '../ui/navegacion';
 import TableroTaller from '../ui/TableroTaller';
 import PasosOrden from '../ui/PasosOrden';
 import AltaRapida from './AltaRapida';
+import NuevoAviso from './NuevoAviso';
+import type { NuevoAviso as DatosAviso } from '../lib/data/avisos';
 import BadgeEstado from './orden/BadgeEstado';
 import VisorPresupuesto from './orden/VisorPresupuesto';
 import { BloqueAvisoListo, BloqueAvisoTecnico, BloqueLineasNuevas, BloquePresupuesto, HistorialOrden } from './orden/BloquesFicha';
@@ -60,9 +62,11 @@ interface Props {
   /** Alta rápida desde la orden: crea un cliente / un vehículo (ya a nombre de su dueño) sin salir de la recepción. */
   onCrearCliente?: (input: NuevoCliente) => Promise<Cliente>;
   onCrearVehiculo?: (input: NuevoVehiculo, clienteId: string) => Promise<Vehiculo>;
+  /** Programar un aviso al cliente desde una orden ya lista o entregada («neumáticos en 6 meses»). */
+  onCrearAviso?: (a: DatosAviso) => Promise<void>;
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo, onCrearAviso }: Props) {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
   const [search, setSearch] = useState('');
@@ -99,6 +103,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const [guardandoOT, setGuardandoOT] = useState(false);
   const [createTipo, setCreateTipo] = useState<'presupuesto' | 'recibido'>('presupuesto');
   const [altaRapida, setAltaRapida] = useState<{ modo: 'cliente' | 'vehiculo'; texto: string } | null>(null);
+  const [programandoAviso, setProgramandoAviso] = useState(false);
   const [otForm, setOTForm] = useState<OTForm>(EMPTY_OT_FORM);
   const [formLineas, setFormLineas] = useState<LineaOT[]>([]);
   const [newLinea, setNewLinea] = useState<LineaForm>(EMPTY_LINEA);
@@ -991,6 +996,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     <FileText size={14} /> Ver / imprimir resumen de reparación
                   </button>
                 )}
+                {onCrearAviso && (selected.estado === 'listo' || selected.estado === 'entregado') && (
+                  <button type="button" onClick={() => setProgramandoAviso(true)} data-testid="orden-programar-aviso"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer">
+                    <BellPlus size={14} /> Recordarle algo más adelante (neumáticos, frenos…)
+                  </button>
+                )}
 
                 {/* Totals */}
                 {totalesSelected && selected.lineas.length > 0 && (
@@ -1091,6 +1102,15 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
             setOTForm(f => ({ ...f, ...(clienteId ? { clienteId } : {}), ...(vehiculoId ? { vehiculoId } : {}) }));
             setAltaRapida(null);
           }}
+        />
+      )}
+
+      {programandoAviso && onCrearAviso && selected && (
+        <NuevoAviso
+          empresa={empresa} clientes={clientes} vehiculos={vehiculos}
+          clienteIdInicial={selected.clienteId} vehiculoIdInicial={selected.vehiculoId} ordenId={selected.id}
+          onGuardar={async (a) => { await onCrearAviso(a); setProgramandoAviso(false); }}
+          onCerrar={() => setProgramandoAviso(false)}
         />
       )}
 

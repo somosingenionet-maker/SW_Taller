@@ -5,7 +5,7 @@ import { abrirDesdeCuenta, irA, login, type Seccion } from './helpers';
 // algún trozo no se puede cargar, si salta un error de JavaScript o si la consola registra un error:
 // es la red de seguridad de que el troceado no ha dejado ninguna pantalla rota.
 
-const PESTANAS: Seccion[] = ['Citas', 'Inventario', 'Vehículos', 'Clientes', 'En el taller', 'Alertas', 'Rentabilidad', 'Facturas', 'Compras', 'Hoy'];
+const PESTANAS: Seccion[] = ['Citas', 'Inventario', 'Vehículos', 'Clientes', 'En el taller', 'Avisos', 'Rentabilidad', 'Facturas', 'Compras', 'Hoy'];
 
 test('todas las pestañas cargan sin errores', async ({ page }) => {
   test.setTimeout(120_000);

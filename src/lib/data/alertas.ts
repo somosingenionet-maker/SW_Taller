@@ -30,9 +30,28 @@ export async function listAlertas(): Promise<Alerta[]> {
   return (data ?? []).map((r) => mapAlerta(r as unknown as AlertaRow));
 }
 
-/** Fuerza el envío inmediato del recordatorio automático de una alerta (Edge Function, cualquier miembro de la empresa). */
-export async function forzarRecordatorio(alertaId: string): Promise<void> {
-  const { data, error } = await supabase.functions.invoke('enviar-recordatorios', { body: { action: 'forzar', alertaId } });
+/** Deja una alerta de lado sin cambiar la fecha del vehículo («no aplica»: vendido, lo lleva otro…). */
+export async function descartarAlerta(id: string): Promise<void> {
+  const { error } = await supabase.from('alertas').update({ estado: 'atendida' }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Anota que se avisó al cliente a mano (WhatsApp). Igual que el envío automático: el «último aviso» de un aceite vencido
+ * cierra también el recordatorio, que ya no tiene sentido.
+ */
+export async function registrarAvisoAlerta(alerta: Alerta, aviso: 'recordatorio' | 'vencido'): Promise<void> {
+  const ahora = new Date().toISOString();
+  const cambios = aviso === 'vencido'
+    ? { ultimo_aviso_enviado_en: ahora, recordatorio_enviado_en: alerta.recordatorioEnviadoEn ?? ahora }
+    : { recordatorio_enviado_en: ahora };
+  const { error } = await supabase.from('alertas').update(cambios).eq('id', alerta.id);
+  if (error) throw new Error(error.message);
+}
+
+/** Fuerza el envío inmediato por correo de una alerta o de un aviso personalizado (Edge Function, cualquier miembro de la empresa). */
+export async function forzarRecordatorio(ref: { alertaId?: string; avisoId?: string }): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('enviar-recordatorios', { body: { action: 'forzar', ...ref } });
   if (error) {
     let message = error.message;
     const context = (error as { context?: Response }).context;

@@ -3,7 +3,7 @@
 // arrancar el servidor HTTP ni llamar a Resend/Supabase.
 
 export type TipoAlerta = 'itv' | 'seguro' | 'impuesto' | 'aceite';
-export type TipoEvento = 'itv_proxima' | 'vencimiento_seguro' | 'impuesto_proximo' | 'cambio_aceite' | 'aceite_vencido' | 'aceite_resumen';
+export type TipoEvento = 'itv_proxima' | 'vencimiento_seguro' | 'impuesto_proximo' | 'cambio_aceite' | 'aceite_vencido' | 'aceite_resumen' | 'aviso_personalizado';
 
 /** Qué correo se envía de una alerta: el recordatorio previo o, solo en aceite, el último aviso ya vencida. */
 export type Aviso = 'recordatorio' | 'vencido';
@@ -43,6 +43,8 @@ export const BRAND_COLOR_DEFAULT = '#2563eb';
 // Ventanas de aviso: cuántos días/km antes del vencimiento se manda el
 // recordatorio del lote automático.
 export const DIAS_AVISO_VENCIMIENTO = 14;
+/** ITV, seguro e impuesto vencidos hace más de estos días no salen solos: el dato probablemente ya no vale y decide una persona (ver «Avisos»). */
+export const DIAS_TOPE_VENCIDO = 30;
 /** Aceite: se avisa también cuando al coche le faltan estos km (o menos) para el cambio. */
 export const KM_AVISO_ACEITE = 500;
 /** Aceite: el «último aviso» sale cuando han pasado estos días de la fecha sin que el coche vuelva… */
@@ -90,6 +92,8 @@ export function sustituirVariables(texto: string, valores: Record<string, string
 
 export type EmpresaEmail = {
   id: string;
+  /** Enlace público de reserva online, si el taller la tiene activa: los avisos llevan un botón «Pedir cita». */
+  reserva_url?: string | null;
   nombre: string;
   plantillas_recordatorios: Partial<Record<TipoAlerta, string>> | null;
   logo_url: string | null;
@@ -134,18 +138,22 @@ type Marco = {
   icono: string;
   /** Texto del mensaje, ya con las variables sustituidas (sin escapar: se escapa aquí). */
   cuerpo: string;
+  /** Vacío = el aviso no es de un coche concreto y no se dibuja el recuadro. */
   vehiculoDesc: string;
   /** Líneas del recuadro bajo el vehículo (texto plano; se escapan aquí). */
   detalles: string[];
+  /** Botón «Pedir cita» bajo el mensaje (solo https). */
+  citaUrl?: string | null;
 };
 
 /** Maquetación común de todos los correos automáticos. Todo lo que viene de datos se escapa. */
-function maquetar({ empresa, etiqueta, icono, cuerpo, vehiculoDesc, detalles }: Marco): string {
+function maquetar({ empresa, etiqueta, icono, cuerpo, vehiculoDesc, detalles, citaUrl }: Marco): string {
   const color = /^#[0-9a-fA-F]{6}$/.test(empresa.brand_color?.trim() ?? '') ? empresa.brand_color!.trim() : BRAND_COLOR_DEFAULT;
   const textoSobreColor = contrastText(color);
   const nombre = escaparHtml(empresa.nombre);
   const contacto = escaparHtml([empresa.correo, empresa.telefono, empresa.web].filter(Boolean).join(' · '));
   const logo = empresa.logo_url && /^https:\/\//.test(empresa.logo_url) ? escaparHtml(empresa.logo_url) : null;
+  const cita = citaUrl && /^https:\/\//.test(citaUrl) ? escaparHtml(citaUrl) : null;
 
   return `
 <div style="background-color:#f1f5f9; padding:32px 16px; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
@@ -174,7 +182,12 @@ function maquetar({ empresa, etiqueta, icono, cuerpo, vehiculoDesc, detalles }: 
         ${escaparHtml(cuerpo)}
       </td>
     </tr>
-    <tr>
+    ${cita ? `<tr>
+      <td style="padding:20px 28px 0;">
+        <a href="${cita}" style="display:inline-block; background-color:${color}; color:${textoSobreColor}; font-size:14px; font-weight:700; text-decoration:none; padding:12px 22px; border-radius:10px;">Pedir cita</a>
+      </td>
+    </tr>` : ''}
+    ${vehiculoDesc ? `<tr>
       <td style="padding:24px 28px 28px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
           <tr>
@@ -185,7 +198,7 @@ function maquetar({ empresa, etiqueta, icono, cuerpo, vehiculoDesc, detalles }: 
           </tr>
         </table>
       </td>
-    </tr>
+    </tr>` : '<tr><td style="padding:0 0 20px;"></td></tr>'}
     <tr>
       <td style="padding:0 28px 28px; border-top:1px solid #f1f5f9;">
         <p style="color:#94a3b8; font-size:12px; margin:20px 0 0;">
@@ -230,7 +243,7 @@ export function construirEmail(
     detalles.push(`Vencimiento: ${fechaLarga(alerta.fecha_limite)}`);
   }
 
-  const html = maquetar({ empresa, etiqueta: ETIQUETA_TIPO[tipo], icono: ICONO_TIPO[tipo], cuerpo, vehiculoDesc, detalles });
+  const html = maquetar({ empresa, etiqueta: ETIQUETA_TIPO[tipo], icono: ICONO_TIPO[tipo], cuerpo, vehiculoDesc, detalles, citaUrl: empresa.reserva_url });
   return { asunto: `${vencido ? ASUNTO_ACEITE_VENCIDO : ASUNTO[tipo]} — ${vehiculoDesc}`, html };
 }
 
@@ -279,18 +292,6 @@ export function construirEmailResumen(
   return { asunto: `${ASUNTO_ACEITE_RESUMEN} — ${vehiculoDesc}`, html };
 }
 
-// Decide si una alerta de ITV/seguro/impuesto cae dentro de la ventana de aviso del lote diario —
-// un fallo aquí significa clientes avisados demasiado tarde (o nunca).
-export function dentroDeVentanaAviso(
-  _tipo: TipoAlerta,
-  alerta: { fecha_limite: string | null; kilometraje_limite: number | null },
-  _vehiculoKm: number,
-  fechaLimiteAviso: Date,
-): boolean {
-  if (!alerta.fecha_limite) return false;
-  return new Date(alerta.fecha_limite) <= fechaLimiteAviso;
-}
-
 /** Días desde `hoy` hasta `fecha` (negativo si ya pasó). Ambas «AAAA-MM-DD». */
 export function diasHasta(fecha: string, hoy: string): number {
   return Math.round((Date.parse(`${fecha.slice(0, 10)}T00:00:00Z`) - Date.parse(`${hoy}T00:00:00Z`)) / 86_400_000);
@@ -309,13 +310,67 @@ export type AlertaAceite = {
  *     a salir (avisos activados tarde), se envía este directamente y ya no el recordatorio.
  * Pasados 60 días no se envía nada: el dato es viejo y solo molestaría.
  */
-export function avisoAceite(alerta: AlertaAceite, vehiculoKm: number, hoy: string): Aviso | null {
+export function avisoAceite(alerta: AlertaAceite, vehiculoKm: number, hoy: string, antelacion: number = DIAS_AVISO_VENCIMIENTO): Aviso | null {
   const dias = alerta.fecha_limite ? diasHasta(alerta.fecha_limite, hoy) : null;
   if (dias != null && dias <= -DIAS_ULTIMO_AVISO) {
     return dias >= -DIAS_TOPE_ULTIMO_AVISO && !alerta.ultimo_aviso_enviado_en ? 'vencido' : null;
   }
   if (alerta.recordatorio_enviado_en) return null;
-  const porFecha = dias != null && dias <= DIAS_AVISO_VENCIMIENTO;
+  const porFecha = dias != null && dias <= antelacion;
   const porKm = alerta.kilometraje_limite != null && alerta.kilometraje_limite - vehiculoKm <= KM_AVISO_ACEITE;
   return porFecha || porKm ? 'recordatorio' : null;
+}
+
+/**
+ * ¿Sale hoy el recordatorio de un vencimiento (ITV, seguro, impuesto)? Desde `antelacion` días antes de la fecha, y hasta
+ * DIAS_TOPE_VENCIDO días después: más atrasado que eso lo decide una persona desde «Avisos» (no se manda «vence el…» de un mes atrás).
+ */
+export function vencimientoToca(fechaLimite: string | null, hoy: string, antelacion: number = DIAS_AVISO_VENCIMIENTO): boolean {
+  if (!fechaLimite) return false;
+  const dias = diasHasta(fechaLimite, hoy);
+  return dias <= antelacion && dias >= -DIAS_TOPE_VENCIDO;
+}
+
+// ---- Avisos personalizados ----
+
+export const PLANTILLA_PERSONALIZADO_DEFAULT =
+  'Hola {{cliente}},\n\nTe escribimos desde {{empresa}} para recordarte lo que hablamos sobre tu vehículo {{vehiculo}}.\n\nEscríbenos o llámanos cuando quieras.';
+
+export type AvisoPersonalizado = {
+  motivo: string; mensaje: string; avisar_en: string | null; avisar_km: number | null; repetir_meses: number | null;
+};
+
+/** ¿Toca avisar hoy? Por fecha (la fecha elegida o pasada) o por km (faltan KM_AVISO_ACEITE o menos). */
+export function avisoPersonalizadoToca(a: Pick<AvisoPersonalizado, 'avisar_en' | 'avisar_km'>, vehiculoKm: number | null, hoy: string): boolean {
+  if (a.avisar_en && diasHasta(a.avisar_en, hoy) <= 0) return true;
+  return a.avisar_km != null && vehiculoKm != null && a.avisar_km - vehiculoKm <= KM_AVISO_ACEITE;
+}
+
+/** «AAAA-MM-DD» más `meses` meses; el 31 de agosto + 6 meses se queda en el último día del mes de destino. */
+export function sumarMesesIso(iso: string, meses: number): string {
+  const [a, m, d] = iso.slice(0, 10).split('-').map(Number);
+  const destino = new Date(Date.UTC(a, m - 1 + meses, 1));
+  const ultimo = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate();
+  destino.setUTCDate(Math.min(d, ultimo));
+  return destino.toISOString().slice(0, 10);
+}
+
+/** Fecha en que se vuelve a programar un aviso que se repite: cuenta desde la fecha prevista, o desde hoy si ya quedó atrás. */
+export function siguienteRepeticion(avisarEn: string, repetirMeses: number, hoy: string): string {
+  const f = sumarMesesIso(avisarEn, repetirMeses);
+  return f > hoy ? f : sumarMesesIso(hoy, repetirMeses);
+}
+
+export function construirEmailPersonalizado(
+  empresa: EmpresaEmail,
+  cliente: { nombre: string },
+  vehiculo: { marca: string; modelo: string; matricula: string } | null,
+  aviso: Pick<AvisoPersonalizado, 'motivo' | 'mensaje'>,
+): { asunto: string; html: string } {
+  const vehiculoDesc = vehiculo ? `${vehiculo.marca} ${vehiculo.modelo} (${vehiculo.matricula})` : '';
+  const cuerpo = sustituirVariables(aviso.mensaje.trim() || PLANTILLA_PERSONALIZADO_DEFAULT, {
+    cliente: cliente.nombre, vehiculo: vehiculoDesc, empresa: empresa.nombre,
+  });
+  const html = maquetar({ empresa, etiqueta: aviso.motivo, icono: '🔔', cuerpo, vehiculoDesc, detalles: [], citaUrl: empresa.reserva_url });
+  return { asunto: `${aviso.motivo}${vehiculoDesc ? ` — ${vehiculoDesc}` : ''}`, html };
 }

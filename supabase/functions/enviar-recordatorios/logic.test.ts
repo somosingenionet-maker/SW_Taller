@@ -3,8 +3,11 @@ import {
   contrastText,
   sustituirVariables,
   construirEmail,
-  dentroDeVentanaAviso,
-  DIAS_AVISO_VENCIMIENTO,
+  vencimientoToca,
+  avisoPersonalizadoToca,
+  siguienteRepeticion,
+  sumarMesesIso,
+  construirEmailPersonalizado,
   avisoAceite,
   lineasFiltros,
   resumenTieneContenido,
@@ -154,28 +157,32 @@ Deno.test('construirEmail: sin logo, no incluye la celda de imagen', () => {
   assertEquals(html.includes('<img'), false);
 });
 
-// -------- dentroDeVentanaAviso --------
-// Determina si un cliente recibe o no el recordatorio automático — un fallo
-// aquí significa avisos que nunca llegan o llegan demasiado tarde.
-Deno.test('dentroDeVentanaAviso: itv/seguro/impuesto entran cuando la fecha límite ya está dentro de la ventana', () => {
-  const hoy = new Date('2026-01-01T00:00:00Z');
-  const limiteAviso = new Date(hoy);
-  limiteAviso.setUTCDate(limiteAviso.getUTCDate() + DIAS_AVISO_VENCIMIENTO);
-  const alerta = { fecha_limite: '2026-01-10', kilometraje_limite: null };
-  assertEquals(dentroDeVentanaAviso('itv', alerta, 0, limiteAviso), true);
+// -------- vencimientoToca --------
+// Decide si un cliente recibe o no el recordatorio automático de ITV/seguro/impuesto — un fallo aquí
+// significa avisos que nunca llegan, llegan tarde o salen con una fecha de hace meses.
+Deno.test('vencimientoToca: entra cuando la fecha ya está dentro de la antelación', () => {
+  assertEquals(vencimientoToca('2026-01-10', '2026-01-01'), true);
+  assertEquals(vencimientoToca('2026-01-15', '2026-01-01'), true); // justo a 14 días
 });
 
-Deno.test('dentroDeVentanaAviso: itv/seguro/impuesto NO entran si el vencimiento está fuera de la ventana', () => {
-  const hoy = new Date('2026-01-01T00:00:00Z');
-  const limiteAviso = new Date(hoy);
-  limiteAviso.setUTCDate(limiteAviso.getUTCDate() + DIAS_AVISO_VENCIMIENTO);
-  const alerta = { fecha_limite: '2026-06-01', kilometraje_limite: null };
-  assertEquals(dentroDeVentanaAviso('seguro', alerta, 0, limiteAviso), false);
+Deno.test('vencimientoToca: no entra si el vencimiento queda fuera de la antelación', () => {
+  assertEquals(vencimientoToca('2026-06-01', '2026-01-01'), false);
+  assertEquals(vencimientoToca('2026-01-16', '2026-01-01'), false); // 15 días con antelación de 14
 });
 
-Deno.test('dentroDeVentanaAviso: itv/seguro/impuesto sin fecha_limite nunca entra', () => {
-  const alerta = { fecha_limite: null, kilometraje_limite: null };
-  assertEquals(dentroDeVentanaAviso('impuesto', alerta, 0, new Date()), false);
+Deno.test('vencimientoToca: la antelación de cada taller manda (7 o 30 días)', () => {
+  assertEquals(vencimientoToca('2026-01-20', '2026-01-01', 30), true);
+  assertEquals(vencimientoToca('2026-01-20', '2026-01-01', 7), false);
+});
+
+Deno.test('vencimientoToca: vencido hace poco sale; vencido hace más de 30 días lo decide una persona', () => {
+  assertEquals(vencimientoToca('2025-12-20', '2026-01-01'), true);   // hace 12 días
+  assertEquals(vencimientoToca('2025-12-02', '2026-01-01'), true);   // hace 30 días justos
+  assertEquals(vencimientoToca('2025-12-01', '2026-01-01'), false);  // hace 31 días
+});
+
+Deno.test('vencimientoToca: sin fecha límite nunca entra', () => {
+  assertEquals(vencimientoToca(null, '2026-01-01'), false);
 });
 
 // -------- avisoAceite --------
@@ -265,4 +272,64 @@ Deno.test('cuandoAceite / kmTexto / fechas', () => {
   assertEquals(kmTexto(1234567), '1.234.567');
   assertEquals(fechaLarga('2027-01-05'), '5 de enero de 2027');
   assertEquals(diasHasta('2026-11-22', '2026-11-12'), 10);
+});
+
+// -------- Avisos: antelación del aceite, reserva online, avisos personalizados --------
+Deno.test('avisoAceite: la antelación del taller también cuenta (30 días: ya toca; 7: aún no)', () => {
+  const a = alertaAceite({ fecha_limite: '2026-12-05' }); // en 23 días
+  assertEquals(avisoAceite(a, 0, HOY, 30), 'recordatorio');
+  assertEquals(avisoAceite(a, 0, HOY, 7), null);
+});
+
+Deno.test('construirEmail: con reservas online activas lleva el botón «Pedir cita»; sin ellas, no', () => {
+  const args = [{ nombre: 'Ana', apellidos: 'García' }, { marca: 'Seat', modelo: 'Ibiza', matricula: '1111AAA' }, { fecha_limite: '2026-10-01', kilometraje_limite: null }] as const;
+  const con = construirEmail('itv', empresaFixture({ reserva_url: 'https://motor.doonty.com/reservar/taller-gil' }), ...args).html;
+  assertStringIncludes(con, 'Pedir cita');
+  assertStringIncludes(con, 'href="https://motor.doonty.com/reservar/taller-gil"');
+  assertEquals(construirEmail('itv', empresaFixture(), ...args).html.includes('Pedir cita'), false);
+  // Un enlace que no sea https no llega al correo.
+  assertEquals(construirEmail('itv', empresaFixture({ reserva_url: 'javascript:alert(1)' }), ...args).html.includes('Pedir cita'), false);
+});
+
+Deno.test('avisoPersonalizadoToca: por fecha cumplida o atrasada, por km cuando faltan 500 o menos', () => {
+  assertEquals(avisoPersonalizadoToca({ avisar_en: '2026-11-12', avisar_km: null }, null, HOY), true);
+  assertEquals(avisoPersonalizadoToca({ avisar_en: '2026-10-01', avisar_km: null }, null, HOY), true);
+  assertEquals(avisoPersonalizadoToca({ avisar_en: '2026-11-13', avisar_km: null }, null, HOY), false);
+  assertEquals(avisoPersonalizadoToca({ avisar_en: null, avisar_km: 50_300 }, 50_000, HOY), true);
+  assertEquals(avisoPersonalizadoToca({ avisar_en: null, avisar_km: 60_000 }, 50_000, HOY), false);
+  assertEquals(avisoPersonalizadoToca({ avisar_en: null, avisar_km: 50_300 }, null, HOY), false); // sin coche no hay km con que comparar
+});
+
+Deno.test('sumarMesesIso / siguienteRepeticion: fin de mes y avisos atrasados', () => {
+  assertEquals(sumarMesesIso('2026-08-31', 6), '2027-02-28');
+  assertEquals(sumarMesesIso('2026-11-12', 12), '2027-11-12');
+  assertEquals(siguienteRepeticion('2026-11-12', 6, HOY), '2027-05-12');
+  assertEquals(siguienteRepeticion('2026-01-05', 6, HOY), '2027-05-12'); // ya quedó atrás: cuenta desde hoy
+});
+
+Deno.test('construirEmailPersonalizado: su texto, con variables y botón de cita; el motivo es la etiqueta y el asunto', () => {
+  const { asunto, html } = construirEmailPersonalizado(
+    empresaFixture({ reserva_url: 'https://motor.doonty.com/reservar/taller-gil' }),
+    { nombre: 'Ana' }, { marca: 'Seat', modelo: 'Ibiza', matricula: '1111AAA' },
+    { motivo: 'Neumáticos', mensaje: 'Hola {{cliente}}, los neumáticos del {{vehiculo}} ya tocan.' },
+  );
+  assertEquals(asunto, 'Neumáticos — Seat Ibiza (1111AAA)');
+  assertStringIncludes(html, 'Hola Ana, los neumáticos del Seat Ibiza (1111AAA) ya tocan.');
+  assertStringIncludes(html, 'NEUMÁTICOS');
+  assertStringIncludes(html, 'Pedir cita');
+});
+
+Deno.test('construirEmailPersonalizado: sin texto usa el genérico; lo que viene de la base de datos se escapa', () => {
+  const vacio = construirEmailPersonalizado(empresaFixture(), { nombre: 'Ana' }, { marca: 'Seat', modelo: 'Ibiza', matricula: '1111AAA' }, { motivo: 'Pintura', mensaje: '   ' });
+  assertStringIncludes(vacio.html, 'recordarte lo que hablamos sobre tu vehículo Seat Ibiza (1111AAA)');
+  const malo = construirEmailPersonalizado(empresaFixture(), { nombre: '<b>Ana</b>' }, null, { motivo: '<script>x</script>', mensaje: 'Hola {{cliente}}' });
+  assertEquals(malo.html.includes('<script>'), false);
+  assertEquals(malo.html.includes('<b>Ana</b>'), false);
+  assertStringIncludes(malo.html, '&lt;b&gt;Ana&lt;/b&gt;');
+});
+
+Deno.test('construirEmailPersonalizado: sin vehículo no dibuja el recuadro del coche', () => {
+  const { asunto, html } = construirEmailPersonalizado(empresaFixture(), { nombre: 'Ana' }, null, { motivo: 'Llamar', mensaje: 'Hola {{cliente}}' });
+  assertEquals(asunto, 'Llamar');
+  assertEquals(html.includes('border-radius:12px'), false);
 });

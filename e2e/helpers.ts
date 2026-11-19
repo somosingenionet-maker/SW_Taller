@@ -3,9 +3,9 @@ import { Page, expect } from '@playwright/test';
 /** Menú principal de la aplicación (barra lateral en escritorio). */
 export const menuPrincipal = (page: Page) => page.getByRole('navigation', { name: 'Menú principal', exact: true });
 
-export type Seccion = 'Hoy' | 'En el taller' | 'Citas' | 'Clientes' | 'Vehículos' | 'Alertas' | 'Facturas' | 'Rentabilidad' | 'Compras' | 'Inventario';
+export type Seccion = 'Hoy' | 'En el taller' | 'Citas' | 'Clientes' | 'Vehículos' | 'Avisos' | 'Facturas' | 'Rentabilidad' | 'Compras' | 'Inventario';
 
-/** Pulsa una sección del menú (el nombre puede llevar un contador detrás, p. ej. «Alertas 52»). */
+/** Pulsa una sección del menú (el nombre puede llevar un contador detrás, p. ej. «Avisos 52»). */
 export async function irA(page: Page, seccion: Seccion) {
   await menuPrincipal(page).getByRole('button', { name: new RegExp(`^${seccion}`) }).click();
 }

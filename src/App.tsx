@@ -11,15 +11,17 @@ import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, guardarA
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, asociarVehiculo, NuevoCliente } from './lib/data/clientes';
 import { listOrdenesTablero, createOrden, updateOrden, deleteOrden, getOrden } from './lib/data/ordenes';
 import { avisoDelMecanico } from './utils/avisoMecanico';
-import { listAlertas, forzarRecordatorio } from './lib/data/alertas';
-import { listNotificaciones, deleteNotificacion } from './lib/data/notificaciones';
+import { listAlertas, forzarRecordatorio, descartarAlerta, registrarAvisoAlerta } from './lib/data/alertas';
+import { listAvisos, crearAviso, descartarAviso, registrarEnvioAviso, type NuevoAviso } from './lib/data/avisos';
+import { listNotificaciones, registrarNotificacionManual } from './lib/data/notificaciones';
+import { configDeEmpresa, construirAvisos, descripcionVehiculo, hoyLocal, tipoEventoDe, type ItemAviso } from './utils/avisos';
 import { createFactura, updateFactura, deleteFactura, emitirFactura, cambiarEstadoFactura } from './lib/data/facturas';
 import { listPagosCercanos } from './lib/data/compras';
 import { avisoPagos, hoyIso, sumarDias, type AvisoPagos } from './utils/compras';
 import { listProductos, createProducto, updateProducto, deleteProducto, registrarMovimiento, NuevoMovimiento } from './lib/data/productos';
 import { listCitas, createCita, updateCita, deleteCita } from './lib/data/citas';
 import { getEmpresa, updateEmpresa } from './lib/data/empresa';
-import { Vehiculo, Cliente, Alerta, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, OTEstado, Empresa, Producto, Cita } from './types';
+import { Vehiculo, Cliente, Alerta, AvisoCliente, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, OTEstado, Empresa, Producto, Cita } from './types';
 import Cargando from './components/Cargando';
 import { lazyConReintento } from './lib/lazy';
 import { derivarMarca, normalizarHex } from './ui/colorMarca';
@@ -38,7 +40,7 @@ const cargarVehiculos = () => import('./components/VehiclesTab');
 const cargarTaller = () => import('./components/OrdenesTrabajoTab');
 const cargarClientes = () => import('./components/CrmTab');
 const cargarRentabilidad = () => import('./components/AnalyticsTab');
-const cargarAlertas = () => import('./components/AlertsNotificationsTab');
+const cargarAlertas = () => import('./ui/AvisosTab');
 const cargarFacturas = () => import('./components/FacturasTab');
 const cargarInventario = () => import('./components/InventarioTab');
 const cargarAgenda = () => import('./components/AgendaTab');
@@ -47,7 +49,7 @@ const VehiclesTab = lazyConReintento(cargarVehiculos);
 const OrdenesTrabajoTab = lazyConReintento(cargarTaller);
 const CrmTab = lazyConReintento(cargarClientes);
 const AnalyticsTab = lazyConReintento(cargarRentabilidad);
-const AlertsNotificationsTab = lazyConReintento(cargarAlertas);
+const AvisosTab = lazyConReintento(cargarAlertas);
 const FacturasTab = lazyConReintento(cargarFacturas);
 const InventarioTab = lazyConReintento(cargarInventario);
 const AgendaTab = lazyConReintento(cargarAgenda);
@@ -117,6 +119,7 @@ export default function App() {
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
+  const [avisosPersonalizados, setAvisosPersonalizados] = useState<AvisoCliente[]>([]);
   const [notificaciones, setNotificaciones] = useState<NotificacionCliente[]>([]);
   // Alcance acotado (listOrdenesTablero: activas + entregadas de los
   // últimos 30 días) — SOLO para el Tablero/Kanban de Taller, el único
@@ -288,6 +291,9 @@ export default function App() {
   const recargarAlertas = useCallback(async () => {
     setAlertas(await listAlertas());
   }, []);
+  const recargarAvisos = useCallback(async () => {
+    setAvisosPersonalizados(await listAvisos());
+  }, []);
   const recargarNotificaciones = useCallback(async () => {
     setNotificaciones(await listNotificaciones());
   }, []);
@@ -310,6 +316,7 @@ export default function App() {
     if (currentUser) {
       void Promise.allSettled([recargarVehiculos(), recargarClientes(), recargarOrdenes()]).then(() => setDatosListos(true));
       recargarAlertas();
+      recargarAvisos().catch(() => undefined);
       recargarNotificaciones();
       recargarProductos();
       recargarCitas();
@@ -319,11 +326,12 @@ export default function App() {
       setClientes([]);
       setOrdenesTrabajo([]);
       setAlertas([]);
+      setAvisosPersonalizados([]);
       setNotificaciones([]);
       setProductos([]);
       setCitas([]);
     }
-  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarNotificaciones, recargarProductos, recargarCitas]);
+  }, [currentUser, recargarVehiculos, recargarClientes, recargarOrdenes, recargarAlertas, recargarAvisos, recargarNotificaciones, recargarProductos, recargarCitas]);
 
   // Realtime: el mecánico marca tareas desde su Portal (sin pasar por esta
   // sesión ni por este usuario) — sin esto, el progreso solo se vería tras
@@ -473,37 +481,51 @@ export default function App() {
     return actualizado;
   }, [recargarClientes]);
 
-  // Las acciones de Alertas se lanzan desde un botón sin formulario detrás: el error se avisa aquí.
+  // Acciones de Avisos. Los errores los enseña la propia pantalla (cada fila muestra el suyo), por eso aquí se dejan subir.
+  const recargarTodoAvisos = useCallback(() => Promise.all([recargarAlertas(), recargarAvisos(), recargarNotificaciones()]).then(() => undefined), [recargarAlertas, recargarAvisos, recargarNotificaciones]);
 
-  const handleForzarRecordatorio = useCallback(async (alertaId: string) => {
-    await forzarRecordatorio(alertaId);
+  const handleEnviarCorreoAviso = useCallback(async (ref: { alertaId?: string; avisoId?: string }) => {
+    await forzarRecordatorio(ref);
+    await recargarTodoAvisos();
+  }, [recargarTodoAvisos]);
+
+  // WhatsApp asistido: primero se marca el aviso (si fallara el historial, es mejor que quede sin anotar que avisar dos veces), luego se anota en el historial.
+  const handleAvisoManual = useCallback(async (item: ItemAviso, mensaje: string) => {
+    if (!item.clienteId) throw new Error('El aviso no tiene cliente.');
+    const alerta = item.alertaId ? alertas.find((a) => a.id === item.alertaId) : undefined;
+    const personalizado = item.avisoId ? avisosPersonalizados.find((a) => a.id === item.avisoId) : undefined;
+    if (alerta) await registrarAvisoAlerta(alerta, item.aviso ?? 'recordatorio');
+    else if (personalizado) await registrarEnvioAviso(personalizado, 'whatsapp', hoyLocal());
+    else throw new Error('No se encontró el aviso.');
+    const veh = vehiculos.find((v) => v.id === item.vehiculoId);
+    await registrarNotificacionManual({
+      clienteId: item.clienteId, vehiculoId: item.vehiculoId, tipoEvento: tipoEventoDe(item), mensaje,
+      asunto: `${item.motivo}${veh ? ` — ${descripcionVehiculo(veh)}` : ''}`,
+    });
+    await recargarTodoAvisos();
+  }, [alertas, avisosPersonalizados, vehiculos, recargarTodoAvisos]);
+
+  const handleDescartarAviso = useCallback(async (item: ItemAviso) => {
+    if (item.alertaId) await descartarAlerta(item.alertaId);
+    else if (item.avisoId) await descartarAviso(item.avisoId);
+    await recargarTodoAvisos();
+  }, [recargarTodoAvisos]);
+
+  const handleCrearAviso = useCallback(async (a: NuevoAviso) => {
+    await crearAviso(a);
+    await recargarAvisos();
+  }, [recargarAvisos]);
+
+  // Renovar ITV/seguro/impuesto = poner la nueva fecha en el vehículo; el disparador de la base reabre la alerta con el ciclo nuevo.
+  const handleRenovarVencimiento = useCallback(async (vehId: string, tipo: Exclude<AlertaTipo, 'aceite'>, nuevaFecha: string) => {
+    const veh = vehiculos.find((v) => v.id === vehId);
+    if (!veh) throw new Error('No se encontró el vehículo.');
+    const actualizado = { ...veh };
+    if (tipo === 'itv') actualizado.itvVencimiento = nuevaFecha;
+    else if (tipo === 'seguro') actualizado.seguroVencimiento = nuevaFecha;
+    else actualizado.impuestoVencimiento = nuevaFecha;
+    await handleUpdateVehiculo(actualizado);
     await recargarAlertas();
-    await recargarNotificaciones();
-  }, [recargarAlertas, recargarNotificaciones]);
-
-  const handleDeleteNotificacion = useCallback(async (id: string) => {
-    try {
-      await deleteNotificacion(id);
-      await recargarNotificaciones();
-    } catch (err) {
-      avisarError(err, 'No se pudo eliminar la notificación.');
-    }
-  }, [recargarNotificaciones]);
-
-  const handleTriggerAutoRenew = useCallback(async (vehId: string, tipo: Exclude<AlertaTipo, 'aceite'>, nuevaFecha: string) => {
-    const veh = vehiculos.find(v => v.id === vehId);
-    if (!veh) return;
-    const updatedVeh = { ...veh };
-    if (tipo === 'itv') updatedVeh.itvVencimiento = nuevaFecha;
-    else if (tipo === 'seguro') updatedVeh.seguroVencimiento = nuevaFecha;
-    else if (tipo === 'impuesto') updatedVeh.impuestoVencimiento = nuevaFecha;
-    try {
-      await handleUpdateVehiculo(updatedVeh);
-      // El trigger de BD reabre/actualiza la alerta correspondiente.
-      await recargarAlertas();
-    } catch (err) {
-      avisarError(err, 'No se pudo actualizar la fecha del vehículo.');
-    }
   }, [vehiculos, handleUpdateVehiculo, recargarAlertas]);
 
   // Factura handlers (Supabase) — FacturasTab gestiona su propia carga
@@ -636,7 +658,12 @@ export default function App() {
   const irA = useCallback<IrA>((tab, orden) => { navegar(tab); if (orden) setIntencion({ ...orden, n: Date.now() }); }, [navegar]);
   const pagosAvisoCount = pagosProv ? pagosProv.vencidas.n + pagosProv.semana.n : 0;
 
-  const activeAlertsCount = useMemo(() => alertas.filter(a => a.estado === 'activa').length, [alertas]);
+  // La cola de avisos (vencimientos + personalizados): alimenta la pantalla Avisos, el contador del menú y «Hoy».
+  const itemsAvisos = useMemo(
+    () => (empresa ? construirAvisos({ alertas, personalizados: avisosPersonalizados, clientes, vehiculos, config: configDeEmpresa(empresa), hoy: hoyLocal() }) : []),
+    [empresa, alertas, avisosPersonalizados, clientes, vehiculos],
+  );
+  const avisosParaHoy = useMemo(() => itemsAvisos.filter((i) => i.fase === 'para_hoy').length, [itemsAvisos]);
 
   const brandColor = empresa?.brandColor ?? '#E8590C';
 
@@ -702,7 +729,7 @@ export default function App() {
             citas={citas}
             clientes={clientes}
             vehiculos={vehiculos}
-            alertas={alertas}
+            avisos={itemsAvisos}
             modulos={activeModulos}
             empresa={empresa}
             ordenes={ordenesTrabajo}
@@ -739,6 +766,8 @@ export default function App() {
             onDeleteVehiculo={handleDeleteVehiculo}
             onGuardarAceite={handleGuardarAceite}
             onImportado={recargarVehiculos}
+            empresa={empresa}
+            onCrearAviso={handleCrearAviso}
           />
         )}
 
@@ -758,6 +787,7 @@ export default function App() {
             onRefrescada={handleOrdenRefrescada}
             onCreateProducto={handleAddProducto}
             onVistaAmpliaChange={setTallerVistaAmplia}
+            onCrearAviso={handleCrearAviso}
           />
         )}
 
@@ -784,14 +814,23 @@ export default function App() {
         )}
 
         {activeTab === 'alertas' && (
-          <AlertsNotificationsTab
+          <AvisosTab
+            empresa={empresa}
+            esAdmin={currentUser.rol === 'admin'}
+            items={itemsAvisos}
             alertas={alertas}
+            personalizados={avisosPersonalizados}
             notificaciones={notificaciones}
             clientes={clientes}
             vehiculos={vehiculos}
-            onForzarRecordatorio={handleForzarRecordatorio}
-            onDeleteNotificacion={handleDeleteNotificacion}
-            onTriggerAutoRenew={handleTriggerAutoRenew}
+            hoy={hoyLocal()}
+            onEnviarCorreo={handleEnviarCorreoAviso}
+            onAvisoManual={handleAvisoManual}
+            onRenovar={handleRenovarVencimiento}
+            onDescartar={handleDescartarAviso}
+            onCrearAviso={handleCrearAviso}
+            onActivarAutomatico={async () => { try { await handleSaveEmpresa({ recordatoriosAutomaticosActivos: true }); } catch (err) { avisarError(err, 'No se pudo activar los envíos automáticos.'); } }}
+            onAbrirAjustes={() => { setSettingsTab('recordatorios'); setSettingsOpen(true); }}
           />
         )}
 
@@ -877,7 +916,7 @@ export default function App() {
           modulos={activeModulos}
           activo={activeTab}
           onIr={irA}
-          alertasActivas={activeAlertsCount}
+          alertasActivas={avisosParaHoy}
           pagos={{ n: pagosAvisoCount, vencidas: !!pagosProv && pagosProv.vencidas.n > 0 }}
           datos={{ clientes, vehiculos, ordenes: ordenesTrabajo }}
           avisos={avisosPago}

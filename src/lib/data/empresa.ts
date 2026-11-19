@@ -2,7 +2,7 @@ import { supabase } from '../supabase';
 import type { AlertaTipo, Empresa } from '../../types';
 
 const SELECT =
-  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura, factura_mostrar_qr, verifactu_envio_activo, verifactu_entorno, verifactu_numero_instalacion, fotos_retencion_meses';
+  'id, nombre, tagline, razon_social, nif, direccion_fiscal, correo, telefono, web, ciudad, brand_color, logo_base64, logo_url, activo, recordatorios_automaticos_activos, plantillas_recordatorios, factura_prefijo, siguiente_numero_factura, factura_mostrar_qr, verifactu_envio_activo, verifactu_entorno, verifactu_numero_instalacion, fotos_retencion_meses, avisos_antelacion_dias, avisos_itv, avisos_seguro, avisos_impuesto, reservas_activas, reservas_slug';
 
 type EmpresaRow = {
   id: string; nombre: string; tagline: string; razon_social: string; nif: string;
@@ -17,6 +17,12 @@ type EmpresaRow = {
   verifactu_entorno: string;
   verifactu_numero_instalacion: string;
   fotos_retencion_meses: number;
+  avisos_antelacion_dias: number;
+  avisos_itv: boolean;
+  avisos_seguro: boolean;
+  avisos_impuesto: boolean;
+  reservas_activas: boolean;
+  reservas_slug: string | null;
 };
 
 function mapEmpresa(r: EmpresaRow): Empresa {
@@ -44,6 +50,12 @@ function mapEmpresa(r: EmpresaRow): Empresa {
     verifactuEntorno: r.verifactu_entorno === 'produccion' ? 'produccion' : 'pruebas',
     verifactuNumeroInstalacion: r.verifactu_numero_instalacion,
     fotosRetencionMeses: ([3, 6, 12, 24] as const).find((m) => m === r.fotos_retencion_meses) ?? 6,
+    avisosAntelacionDias: ([7, 14, 30] as const).find((d) => d === r.avisos_antelacion_dias) ?? 14,
+    avisosItv: r.avisos_itv,
+    avisosSeguro: r.avisos_seguro,
+    avisosImpuesto: r.avisos_impuesto,
+    reservasActivas: r.reservas_activas,
+    reservasSlug: r.reservas_slug ?? '',
   };
 }
 
@@ -70,6 +82,10 @@ function toRow(c: Partial<Empresa>) {
   if (c.verifactuEnvioActivo !== undefined) row.verifactu_envio_activo = c.verifactuEnvioActivo;
   if (c.verifactuEntorno !== undefined) row.verifactu_entorno = c.verifactuEntorno;
   if (c.fotosRetencionMeses !== undefined) row.fotos_retencion_meses = c.fotosRetencionMeses;
+  if (c.avisosAntelacionDias !== undefined) row.avisos_antelacion_dias = c.avisosAntelacionDias;
+  if (c.avisosItv !== undefined) row.avisos_itv = c.avisosItv;
+  if (c.avisosSeguro !== undefined) row.avisos_seguro = c.avisosSeguro;
+  if (c.avisosImpuesto !== undefined) row.avisos_impuesto = c.avisosImpuesto;
   return row;
 }
 

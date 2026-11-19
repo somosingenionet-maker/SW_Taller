@@ -21,7 +21,7 @@ const MODULOS_BASE = [
   { id: 'vehiculos' as ModuloId, label: 'Vehículos', desc: 'Fichas de los vehículos' },
   { id: 'clientes' as ModuloId, label: 'Clientes CRM', desc: 'Fichas de clientes y sus notas de seguimiento' },
   { id: 'taller' as ModuloId, label: 'Taller', desc: 'Órdenes de trabajo, tablero y mecánicos' },
-  { id: 'alertas' as ModuloId, label: 'Alertas', desc: 'ITV, seguro, impuesto y cambio de aceite, y los avisos a clientes' },
+  { id: 'alertas' as ModuloId, label: 'Avisos', desc: 'Avisos a clientes: ITV, seguro, impuesto, cambio de aceite y avisos personalizados' },
   { id: 'rentabilidad' as ModuloId, label: 'Rentabilidad', desc: 'Márgenes, costes y rankings de clientes y mecánicos' },
   { id: 'facturas' as ModuloId, label: 'Facturas', desc: 'Facturas y su envío a la AEAT (VeriFactu)' },
 ];

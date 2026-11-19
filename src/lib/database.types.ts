@@ -99,6 +99,63 @@ export type Database = {
           },
         ]
       }
+      avisos_cliente: {
+        Row: {
+          avisar_en: string | null
+          avisar_km: number | null
+          canal: string | null
+          cliente_id: string
+          created_at: string
+          empresa_id: string
+          enviado_en: string | null
+          estado: string
+          id: string
+          mensaje: string
+          motivo: string
+          nota: string | null
+          orden_id: string | null
+          repetir_meses: number | null
+          updated_at: string
+          vehiculo_id: string | null
+        }
+        Insert: {
+          avisar_en?: string | null
+          avisar_km?: number | null
+          canal?: string | null
+          cliente_id: string
+          created_at?: string
+          empresa_id: string
+          enviado_en?: string | null
+          estado?: string
+          id?: string
+          mensaje?: string
+          motivo: string
+          nota?: string | null
+          orden_id?: string | null
+          repetir_meses?: number | null
+          updated_at?: string
+          vehiculo_id?: string | null
+        }
+        Update: {
+          avisar_en?: string | null
+          avisar_km?: number | null
+          canal?: string | null
+          cliente_id?: string
+          created_at?: string
+          empresa_id?: string
+          enviado_en?: string | null
+          estado?: string
+          id?: string
+          mensaje?: string
+          motivo?: string
+          nota?: string | null
+          orden_id?: string | null
+          repetir_meses?: number | null
+          updated_at?: string
+          vehiculo_id?: string | null
+        }
+        Relationships: []
+      }
       citas: {
         Row: {
           cancelada_por: string | null
@@ -547,6 +604,10 @@ export type Database = {
           factura_mostrar_qr: boolean
           factura_prefijo: string
           fotos_aviso_enviado_en: string | null
+          avisos_antelacion_dias: number
+          avisos_impuesto: boolean
+          avisos_itv: boolean
+          avisos_seguro: boolean
           fotos_retencion_meses: number
           id: string
           logo_base64: string
@@ -597,6 +658,10 @@ export type Database = {
           factura_mostrar_qr?: boolean
           factura_prefijo?: string
           fotos_aviso_enviado_en?: string | null
+          avisos_antelacion_dias?: number
+          avisos_impuesto?: boolean
+          avisos_itv?: boolean
+          avisos_seguro?: boolean
           fotos_retencion_meses?: number
           id?: string
           logo_base64?: string
@@ -647,6 +712,10 @@ export type Database = {
           factura_mostrar_qr?: boolean
           factura_prefijo?: string
           fotos_aviso_enviado_en?: string | null
+          avisos_antelacion_dias?: number
+          avisos_impuesto?: boolean
+          avisos_itv?: boolean
+          avisos_seguro?: boolean
           fotos_retencion_meses?: number
           id?: string
           logo_base64?: string

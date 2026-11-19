@@ -7,10 +7,12 @@
 //    se autoriza igual que admin-users/manage-empresas (Authorization:
 //    Bearer <token de usuario>), y no respeta la ventana de aviso ni el
 //    filtro de "ya enviado" (es una orden explícita, puede reenviar).
+//    Sirve para una alerta (alertaId) o para un aviso personalizado (avisoId).
 import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import {
-  TipoAlerta, TIPO_EVENTO, DIAS_AVISO_VENCIMIENTO, DIAS_ULTIMO_AVISO, DIAS_RESUMEN_ENTREGA, construirEmail, construirEmailResumen,
-  dentroDeVentanaAviso, avisoAceite, diasHasta, resumenTieneContenido, type Aviso, type EmpresaEmail, type FiltrosOrden,
+  TipoAlerta, TIPO_EVENTO, DIAS_AVISO_VENCIMIENTO, DIAS_ULTIMO_AVISO, DIAS_RESUMEN_ENTREGA, construirEmail, construirEmailResumen, construirEmailPersonalizado,
+  vencimientoToca, avisoAceite, avisoPersonalizadoToca, siguienteRepeticion, diasHasta, resumenTieneContenido,
+  type Aviso, type AvisoPersonalizado, type EmpresaEmail, type FiltrosOrden,
 } from './logic.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
 import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
@@ -23,6 +25,7 @@ const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
 const CRON_SHARED_SECRET = Deno.env.get('CRON_SHARED_SECRET')!;
 const RESEND_FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL') ?? 'onboarding@resend.dev';
+const APP_URL = (Deno.env.get('APP_URL') ?? 'https://motor.doonty.com').replace(/\/+$/, '');
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -39,7 +42,15 @@ function json(body: unknown, status = 200) {
 // Nunca se usa logo_base64 aquí: incrustar un logo en base64 en el HTML del
 // correo es una señal clásica de spam para Gmail y similares — se usa la
 // URL pública de Storage (logo_url) en su lugar, o directamente sin logo.
-type Empresa = EmpresaEmail;
+/** Columnas de la empresa que hacen falta para enviar: textos, marca, ajustes de avisos y reserva online. */
+const EMPRESA_COLS = 'id, nombre, plantillas_recordatorios, logo_url, brand_color, correo, telefono, web, avisos_antelacion_dias, avisos_itv, avisos_seguro, avisos_impuesto, reservas_activas, reservas_slug';
+type EmpresaFila = Omit<EmpresaEmail, 'reserva_url'> & {
+  avisos_antelacion_dias: number; avisos_itv: boolean; avisos_seguro: boolean; avisos_impuesto: boolean;
+  reservas_activas: boolean; reservas_slug: string | null;
+};
+/** La empresa lista para los correos: con el enlace de reserva si la tiene activa. */
+type Empresa = EmpresaEmail & Pick<EmpresaFila, 'avisos_antelacion_dias' | 'avisos_itv' | 'avisos_seguro' | 'avisos_impuesto'>;
+const conEnlaceReserva = (e: EmpresaFila): Empresa => ({ ...e, reserva_url: e.reservas_activas && e.reservas_slug ? `${APP_URL}/reservar/${e.reservas_slug}` : null });
 type Vehiculo = { id: string; marca: string; modelo: string; matricula: string; kilometraje: number };
 type Cliente = { id: string; nombre: string; apellidos: string; correo: string | null; no_avisar?: boolean | null };
 type Alerta = {
@@ -81,6 +92,7 @@ async function enviarRecordatorioAlerta(
   vehiculo: Vehiculo,
   cliente: Cliente,
   aviso: Aviso = 'recordatorio',
+  origen: 'automatico' | 'manual' = 'automatico',
 ): Promise<void> {
   if (!cliente.correo) throw new Error('El cliente no tiene correo registrado.');
   const tipo = alerta.tipo as TipoAlerta;
@@ -98,7 +110,7 @@ async function enviarRecordatorioAlerta(
     mensaje: html,
     leido: false,
     tipo_evento: vencido ? 'aceite_vencido' : TIPO_EVENTO[tipo],
-    origen: 'automatico',
+    origen,
   });
   const ahora = new Date().toISOString();
   // El último aviso cierra también el recordatorio: si este no llegó a salir, ya no tiene sentido.
@@ -107,8 +119,47 @@ async function enviarRecordatorioAlerta(
     .eq('id', alerta.id);
 }
 
-/** Camino 2: un miembro del taller fuerza el envío de una alerta concreta ya mismo. */
-async function manejarForzado(admin: SupabaseClient, req: Request, alertaId: string) {
+type AvisoFila = AvisoPersonalizado & { id: string; cliente_id: string; vehiculo_id: string | null; enviado_en: string | null; canal?: string | null };
+
+/**
+ * Envía un aviso personalizado por correo. Se reserva ANTES de enviar (estado → enviado, solo si seguía programado): si dos lotes o un
+ * clic coinciden, solo uno lo consigue. Si el correo no sale, vuelve a como estaba. Si se repite, se reprograma para la siguiente vez.
+ * Devuelve false si otro lo había reservado ya.
+ */
+async function enviarAvisoPersonalizado(
+  admin: SupabaseClient, empresa: Empresa, aviso: AvisoFila, vehiculo: Vehiculo | null, cliente: Cliente, hoy: string,
+  origen: 'automatico' | 'manual',
+): Promise<boolean> {
+  if (!cliente.correo) throw new Error('El cliente no tiene correo registrado.');
+  const ahora = new Date().toISOString();
+  const { data: reservado } = await admin.from('avisos_cliente')
+    .update({ estado: 'enviado', enviado_en: ahora, canal: 'email' })
+    .eq('id', aviso.id).eq('estado', 'programado').select('id');
+  if (!reservado?.length) return false;
+
+  const { asunto, html } = construirEmailPersonalizado(empresa, cliente, vehiculo, aviso);
+  try {
+    await enviarCorreo(empresa, cliente.correo, asunto, html);
+  } catch (e) {
+    await admin.from('avisos_cliente').update({ estado: 'programado', enviado_en: aviso.enviado_en, canal: aviso.canal ?? null }).eq('id', aviso.id);
+    throw e;
+  }
+  // Ya salió: lo que falle a partir de aquí no debe deshacer el envío ni repetirlo.
+  const { error: histErr } = await admin.from('notificaciones_cliente').insert({
+    empresa_id: empresa.id, cliente_id: cliente.id, vehiculo_id: vehiculo?.id ?? null, tipo_envio: 'email',
+    asunto, mensaje: html, leido: false, tipo_evento: 'aviso_personalizado', origen,
+  });
+  if (histErr) Sentry.captureException(histErr);
+  if (aviso.repetir_meses && aviso.avisar_en) {
+    const { error: repErr } = await admin.from('avisos_cliente')
+      .update({ estado: 'programado', avisar_en: siguienteRepeticion(aviso.avisar_en, aviso.repetir_meses, hoy) }).eq('id', aviso.id);
+    if (repErr) Sentry.captureException(repErr);
+  }
+  return true;
+}
+
+/** Camino 2: un miembro del taller fuerza el envío de una alerta o de un aviso personalizado ya mismo. */
+async function manejarForzado(admin: SupabaseClient, req: Request, ref: { alertaId: string; avisoId: string }) {
   const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
   if (!token) return json({ error: 'No autenticado' }, 401);
 
@@ -122,23 +173,53 @@ async function manejarForzado(admin: SupabaseClient, req: Request, alertaId: str
     .eq('id', callerData.user.id)
     .single();
   if (perfilErr || !callerPerfil?.empresa_id) return json({ error: 'No autorizado' }, 403);
-  // Enviar un aviso a un cliente a mano es del módulo Alertas.
-  if (!perfilTieneModulo(callerPerfil, 'alertas')) return json({ error: mensajeSinModulo('Alertas') }, 403);
+  // Enviar un aviso a un cliente a mano es del módulo Avisos (id interno «alertas»).
+  if (!perfilTieneModulo(callerPerfil, 'alertas')) return json({ error: mensajeSinModulo('Avisos') }, 403);
 
-  if (!alertaId) return json({ error: 'Falta el id de la alerta.' }, 400);
+  if (!ref.alertaId && !ref.avisoId) return json({ error: 'Falta el aviso.' }, 400);
+  return ref.avisoId ? forzarAviso(admin, callerPerfil.empresa_id, ref.avisoId) : forzarAlerta(admin, callerPerfil.empresa_id, ref.alertaId);
+}
 
+async function forzarAviso(admin: SupabaseClient, empresaId: string, avisoId: string) {
+  const { data: aviso } = await admin.from('avisos_cliente')
+    .select('id, empresa_id, cliente_id, vehiculo_id, motivo, mensaje, avisar_en, avisar_km, repetir_meses, estado, enviado_en, canal')
+    .eq('id', avisoId).single();
+  if (!aviso) return json({ error: 'Aviso no encontrado.' }, 404);
+  if (aviso.empresa_id !== empresaId) return json({ error: 'No autorizado' }, 403);
+  if (aviso.estado !== 'programado') return json({ error: 'Este aviso ya no está programado.' }, 400);
+
+  const { data: empresa } = await admin.from('empresas').select(EMPRESA_COLS).eq('id', empresaId).single();
+  if (!empresa) return json({ error: 'Empresa no encontrada.' }, 404);
+  const { data: cliente } = await admin.from('clientes').select('id, nombre, apellidos, correo, no_avisar').eq('id', aviso.cliente_id).single();
+  if (!cliente?.correo) return json({ error: 'El cliente no tiene correo registrado.' }, 400);
+  if (cliente.no_avisar) return json({ error: 'Este cliente pidió no recibir avisos. Quita la marca «No enviarle avisos» en su ficha si ha cambiado de opinión.' }, 400);
+  const { data: vehiculo } = aviso.vehiculo_id
+    ? await admin.from('vehiculos').select('id, marca, modelo, matricula, kilometraje').eq('id', aviso.vehiculo_id).single()
+    : { data: null };
+
+  try {
+    const enviado = await enviarAvisoPersonalizado(admin, conEnlaceReserva(empresa as EmpresaFila), aviso as AvisoFila, vehiculo, cliente, hoyMadrid(), 'manual');
+    return enviado ? json({ ok: true }) : json({ error: 'Este aviso ya se estaba enviando.' }, 409);
+  } catch (e) {
+    Sentry.captureException(e);
+    await Sentry.flush(2000);
+    return json({ error: e instanceof Error ? e.message : 'Error inesperado enviando el aviso.' }, 500);
+  }
+}
+
+async function forzarAlerta(admin: SupabaseClient, empresaId: string, alertaId: string) {
   const { data: alerta, error: alertaErr } = await admin
     .from('alertas')
     .select('id, empresa_id, vehiculo_id, tipo, estado, fecha_limite, kilometraje_limite, recordatorio_enviado_en, ultimo_aviso_enviado_en')
     .eq('id', alertaId)
     .single();
   if (alertaErr || !alerta) return json({ error: 'Alerta no encontrada.' }, 404);
-  if (alerta.empresa_id !== callerPerfil.empresa_id) return json({ error: 'No autorizado' }, 403);
+  if (alerta.empresa_id !== empresaId) return json({ error: 'No autorizado' }, 403);
   if (alerta.estado === 'atendida') return json({ error: 'Esta alerta ya está atendida.' }, 400);
 
   const { data: empresa, error: empresaErr } = await admin
     .from('empresas')
-    .select('id, nombre, plantillas_recordatorios, logo_url, brand_color, correo, telefono, web')
+    .select(EMPRESA_COLS)
     .eq('id', alerta.empresa_id)
     .single();
   if (empresaErr || !empresa) return json({ error: 'Empresa no encontrada.' }, 404);
@@ -170,12 +251,43 @@ async function manejarForzado(admin: SupabaseClient, req: Request, alertaId: str
     ? 'vencido' : 'recordatorio';
 
   try {
-    await enviarRecordatorioAlerta(admin, empresa, alerta, vehiculo, cliente, aviso);
+    await enviarRecordatorioAlerta(admin, conEnlaceReserva(empresa as EmpresaFila), alerta, vehiculo, cliente, aviso, 'manual');
     return json({ ok: true });
   } catch (e) {
     Sentry.captureException(e);
     await Sentry.flush(2000);
     return json({ error: e instanceof Error ? e.message : 'Error inesperado enviando el recordatorio.' }, 500);
+  }
+}
+
+/** Avisos personalizados de la empresa que tocan hoy y tienen un cliente con correo. */
+async function enviarAvisosPersonalizados(
+  admin: SupabaseClient, empresa: Empresa, hoy: string,
+  resumen: { enviados: number; fallidos: number; personalizados: number; errores: string[] },
+) {
+  const { data: avisos, error } = await admin.from('avisos_cliente')
+    .select('id, cliente_id, vehiculo_id, motivo, mensaje, avisar_en, avisar_km, repetir_meses, enviado_en, canal')
+    .eq('empresa_id', empresa.id).eq('estado', 'programado');
+  if (error) { resumen.errores.push(`empresa ${empresa.id} (avisos personalizados): ${error.message}`); return; }
+
+  for (const aviso of avisos ?? []) {
+    try {
+      const { data: vehiculo } = aviso.vehiculo_id
+        ? await admin.from('vehiculos').select('id, marca, modelo, matricula, kilometraje').eq('id', aviso.vehiculo_id).single()
+        : { data: null };
+      if (!avisoPersonalizadoToca(aviso, vehiculo?.kilometraje ?? null, hoy)) continue;
+      const { data: cliente } = await admin.from('clientes').select('id, nombre, apellidos, correo, no_avisar').eq('id', aviso.cliente_id).single();
+      // Sin correo, o si pidió no recibir avisos, no se envía: el taller lo ve en «Para hoy» (WhatsApp) o no se le avisa.
+      if (!cliente?.correo || cliente.no_avisar) continue;
+      if (await enviarAvisoPersonalizado(admin, empresa, aviso as AvisoFila, vehiculo, cliente, hoy, 'automatico')) {
+        resumen.enviados++;
+        resumen.personalizados++;
+      }
+    } catch (e) {
+      resumen.fallidos++;
+      resumen.errores.push(`aviso ${aviso.id}: ${e instanceof Error ? e.message : String(e)}`);
+      Sentry.captureException(e);
+    }
   }
 }
 
@@ -243,21 +355,22 @@ async function enviarResumenesAceite(
 
 /** Camino 1: lote diario disparado por pg_cron para todas las empresas con el opt-in activo. */
 async function manejarLote(admin: SupabaseClient) {
-  const resumen = { empresas: 0, alertasEvaluadas: 0, enviados: 0, fallidos: 0, resumenesAceite: 0, errores: [] as string[] };
+  const resumen = { empresas: 0, alertasEvaluadas: 0, enviados: 0, fallidos: 0, resumenesAceite: 0, personalizados: 0, errores: [] as string[] };
   const hoy = hoyMadrid();
 
   try {
-    const { data: empresas, error: empresasErr } = await admin
+    const { data: filas, error: empresasErr } = await admin
       .from('empresas')
-      .select('id, nombre, plantillas_recordatorios, logo_url, brand_color, correo, telefono, web')
+      .select(EMPRESA_COLS)
       .eq('activo', true)
       .eq('recordatorios_automaticos_activos', true);
     if (empresasErr) throw empresasErr;
 
-    const limiteFecha = new Date();
-    limiteFecha.setDate(limiteFecha.getDate() + DIAS_AVISO_VENCIMIENTO);
-
-    for (const empresa of empresas ?? []) {
+    for (const fila of (filas ?? []) as EmpresaFila[]) {
+      const empresa = conEnlaceReserva(fila);
+      const antelacion = fila.avisos_antelacion_dias ?? DIAS_AVISO_VENCIMIENTO;
+      // Cada taller elige qué vencimientos vigila; el cambio de aceite y los avisos personalizados siempre están activos.
+      const vigila: Record<string, boolean> = { itv: fila.avisos_itv, seguro: fila.avisos_seguro, impuesto: fila.avisos_impuesto, aceite: true };
       resumen.empresas++;
 
       const { data: alertas, error: alertasErr } = await admin
@@ -283,15 +396,16 @@ async function manejarLote(admin: SupabaseClient) {
           if (!vehiculo) continue;
 
           const tipo = alerta.tipo as TipoAlerta;
+          if (!vigila[tipo]) continue;
           let aviso: Aviso = 'recordatorio';
           if (tipo === 'aceite') {
             const toca = avisoAceite({
               fecha_limite: alerta.fecha_limite, kilometraje_limite: alerta.kilometraje_limite,
               recordatorio_enviado_en: alerta.recordatorio_enviado_en, ultimo_aviso_enviado_en: alerta.ultimo_aviso_enviado_en,
-            }, vehiculo.kilometraje, hoy);
+            }, vehiculo.kilometraje, hoy, antelacion);
             if (!toca) continue;
             aviso = toca;
-          } else if (alerta.recordatorio_enviado_en || !dentroDeVentanaAviso(tipo, alerta, vehiculo.kilometraje, limiteFecha)) {
+          } else if (alerta.recordatorio_enviado_en || !vencimientoToca(alerta.fecha_limite, hoy, antelacion)) {
             continue;
           }
 
@@ -321,6 +435,7 @@ async function manejarLote(admin: SupabaseClient) {
         }
       }
 
+      await enviarAvisosPersonalizados(admin, empresa, hoy, resumen);
       await enviarResumenesAceite(admin, empresa, hoy, resumen);
     }
 
@@ -347,7 +462,7 @@ Deno.serve(conSentry(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
   if (body.action === 'forzar') {
-    return manejarForzado(admin, req, String(body.alertaId ?? ''));
+    return manejarForzado(admin, req, { alertaId: String(body.alertaId ?? ''), avisoId: String(body.avisoId ?? '') });
   }
 
   if (req.headers.get('x-cron-secret') !== CRON_SHARED_SECRET) {

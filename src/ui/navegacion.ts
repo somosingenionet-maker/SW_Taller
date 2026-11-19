@@ -19,7 +19,7 @@ const MENU: { titulo: string; items: ItemMenu[] }[] = [
   { titulo: 'Clientes y coches', items: [
     { id: 'clientes', etiqueta: 'Clientes', icono: 'clientes' },
     { id: 'vehiculos', etiqueta: 'Vehículos', icono: 'vehiculos' },
-    { id: 'alertas', etiqueta: 'Alertas', icono: 'alertas' },
+    { id: 'alertas', etiqueta: 'Avisos', icono: 'alertas' },
   ] },
   { titulo: 'Dinero', items: [
     { id: 'facturas', etiqueta: 'Facturas', icono: 'facturas' },

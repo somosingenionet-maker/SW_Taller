@@ -58,7 +58,7 @@ test('un usuario con solo Taller no puede leer lo de otros módulos (comprobado 
     await expect(menuPrincipal(p2).getByRole('button', { name: /^En el taller/ })).toBeVisible({ timeout: 20_000 });
     const boton = (n: string) => menuPrincipal(p2).getByRole('button', { name: new RegExp(`^${n}`) });
     for (const n of ['Hoy', 'En el taller']) await expect(boton(n)).toBeVisible();
-    for (const n of ['Facturas', 'Citas', 'Alertas', 'Rentabilidad', 'Inventario', 'Clientes', 'Vehículos', 'Compras']) await expect(boton(n), `no debería ver la sección ${n}`).toHaveCount(0);
+    for (const n of ['Facturas', 'Citas', 'Avisos', 'Rentabilidad', 'Inventario', 'Clientes', 'Vehículos', 'Compras']) await expect(boton(n), `no debería ver la sección ${n}`).toHaveCount(0);
 
     // La pantalla de Inicio y el Taller funcionan, sin avisos de error.
     await p2.waitForTimeout(2500);
@@ -91,7 +91,7 @@ test('un usuario con solo Taller no puede leer lo de otros módulos (comprobado 
     expect((await aeat.json()).error).toContain('módulo Facturas');
     const aviso = await request.post(`${URL_SB}/functions/v1/enviar-recordatorios`, { headers: cabeceras(token), data: { action: 'forzar', alertaId: 'no-importa' } });
     expect(aviso.status()).toBe(403);
-    expect((await aviso.json()).error).toContain('módulo Alertas');
+    expect((await aviso.json()).error).toContain('módulo Avisos');
 
     expect(errores, errores.join('\n')).toEqual([]);
     await ctx.close();

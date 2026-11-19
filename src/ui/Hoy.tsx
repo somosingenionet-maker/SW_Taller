@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CalendarClock, Plus } from 'lucide-react';
-import type { Alerta, Cita, Cliente, Empresa, ModuloId, OrdenTrabajo, Perfil, Vehiculo } from '../types';
+import type { Cita, Cliente, Empresa, ModuloId, OrdenTrabajo, Perfil, Vehiculo } from '../types';
 import { getFacturasResumen, type FacturasResumen } from '../lib/data/facturas';
 import { listTecnicos } from '../lib/data/tecnicos';
 import { fmt2 } from '../utils/moneda';
 import type { AvisoPagos } from '../utils/compras';
 import type { AccionPaso } from '../utils/guiaInicial';
+import type { ItemAviso } from '../utils/avisos';
 import GuiaInicial from '../components/GuiaInicial';
 import { Boton, Chip, Llavero, Matricula, Tarjeta } from './componentes';
 import { saludo, tareasHoy, textoDias, type TareaOrden } from './tareasHoy';
@@ -16,7 +17,8 @@ interface Props {
   citas: Cita[];
   clientes: Cliente[];
   vehiculos: Vehiculo[];
-  alertas: Alerta[];
+  /** Cola de avisos a clientes (vencimientos y personalizados); aquí solo interesan los que esperan a una persona. */
+  avisos: ItemAviso[];
   modulos: ModuloId[];
   empresa: Empresa;
   /** Órdenes ya cargadas por la aplicación (activas y entregadas hace poco), siempre al día. */
@@ -32,7 +34,7 @@ const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : vari
 const hora = (iso: string) => new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
 /** «Hoy»: lo que toca hacer ahora en el taller, antes que cifras. Cada fila lleva a la orden. */
-export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, modulos, empresa, ordenes, datosListos, onIr, onNavegar, pagosProveedores, onAbrirEmpresa }: Props) {
+export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, modulos, empresa, ordenes, datosListos, onIr, onNavegar, pagosProveedores, onAbrirEmpresa }: Props) {
   const puede = (m: ModuloId) => modulos.includes(m);
   const esAdmin = currentUser.rol === 'admin';
 
@@ -48,8 +50,8 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, 
   const t = useMemo(() => tareasHoy(ordenes, vehiculos, clientes), [ordenes, vehiculos, clientes]);
   const clientePorId = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
   const citasHoy = useMemo(() => citas.filter((c) => (c.estado === 'pendiente' || c.estado === 'confirmada') && c.fechaHora.slice(0, 10) === hoyIso).sort((a, b) => a.fechaHora.localeCompare(b.fechaHora)), [citas, hoyIso]);
-  const alertasPend = useMemo(() => alertas.filter((a) => a.estado !== 'atendida'), [alertas]);
-  const alertasVencidas = useMemo(() => alertasPend.filter((a) => a.fechaLimite && a.fechaLimite < hoyIso), [alertasPend, hoyIso]);
+  const avisosHoy = useMemo(() => avisos.filter((a) => a.fase === 'para_hoy'), [avisos]);
+  const avisosVencidos = useMemo(() => avisosHoy.filter((a) => a.urgencia === 'vencido'), [avisosHoy]);
 
   const nombreCoche = (x: TareaOrden) => (x.vehiculo ? `${x.vehiculo.marca} ${x.vehiculo.modelo}` : `Orden ${x.orden.numero}`);
   const nombreCliente = (x: TareaOrden) => (x.cliente ? `${x.cliente.nombre} ${x.cliente.apellidos}`.trim() : '');
@@ -107,11 +109,11 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, 
           <button type="button" className="u-enlace" onClick={() => onNavegar('compras', 'porpagar')}>Ver lo que debo →</button>
         </div>
       )}
-      {puede('alertas') && alertasVencidas.length > 0 && (
-        <div className="u-aviso aviso" role="status">
+      {puede('alertas') && avisosHoy.length > 0 && (
+        <div className="u-aviso aviso" role="status" data-testid="hoy-avisos">
           <AlertTriangle aria-hidden="true" />
-          <span>{alertasVencidas.length} {plural(alertasVencidas.length, 'alerta vencida', 'alertas vencidas')} (ITV, seguro, aceite…) de {alertasPend.length} pendientes</span>
-          <button type="button" className="u-enlace" onClick={() => onNavegar('alertas')}>Ver alertas →</button>
+          <span>{avisosHoy.length} {plural(avisosHoy.length, 'aviso a un cliente espera', 'avisos a clientes esperan')} a que los mandes (WhatsApp, vencimientos…){avisosVencidos.length > 0 ? ` · ${avisosVencidos.length} ya ${plural(avisosVencidos.length, 'vencido', 'vencidos')}` : ''}</span>
+          <button type="button" className="u-enlace" onClick={() => onNavegar('alertas')}>Ver avisos →</button>
         </div>
       )}
 
@@ -177,7 +179,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, 
               <div className="u-card-cab"><h3>Resumen</h3></div>
               <div className="u-kpis">
                 {puede('facturas') && <div className="u-kpi"><small>Facturado este mes</small><strong>{fmt2(resumen?.importeMesActual ?? 0)} €</strong><span>{resumen?.facturasMesActual ?? 0} {plural(resumen?.facturasMesActual ?? 0, 'factura emitida', 'facturas emitidas')}</span></div>}
-                {puede('alertas') && <div className="u-kpi"><small>Alertas pendientes</small><strong>{alertasPend.length}</strong><span>{alertasVencidas.length > 0 ? `${alertasVencidas.length} ya vencidas` : 'Todo al día'}</span></div>}
+                {puede('alertas') && <div className="u-kpi"><small>Avisos para hoy</small><strong>{avisosHoy.length}</strong><span>{avisosVencidos.length > 0 ? `${avisosVencidos.length} ya vencidos` : 'Todo al día'}</span></div>}
               </div>
             </Tarjeta>
           )}
