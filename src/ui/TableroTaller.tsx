@@ -2,7 +2,7 @@ import { Check, Droplet, Wrench } from 'lucide-react';
 import type { Cliente, OTEstado, OrdenTrabajo, Vehiculo } from '../types';
 import { fmt2 } from '../utils/moneda';
 import { resumenTiempos, textoDuracion } from '../utils/duracionTarea';
-import { Chip, Placa } from './componentes';
+import { Chip, Matricula } from './componentes';
 import { diasDesde } from '../components/orden/utilidades';
 import { NOMBRE_ESTADO, PASOS_ORDEN, esRetroceso, siguientePaso } from './etapasOrden';
 
@@ -18,6 +18,17 @@ interface Props {
   setDragOtId: React.Dispatch<React.SetStateAction<string | null>>;
   dragOverEstado: OTEstado | null;
   setDragOverEstado: React.Dispatch<React.SetStateAction<OTEstado | null>>;
+}
+
+/** Avance de las tareas como los dientes de una llave: uno por tarea (hasta 12), llenos los hechos. */
+function Dientes({ total, hechas, terminado }: { total: number; hechas: number; terminado: boolean }) {
+  const n = Math.min(total, 12);
+  const llenos = total <= 12 ? hechas : Math.round((hechas / total) * n);
+  return (
+    <i className="u-dientes" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={hechas} aria-label="Tareas hechas">
+      {Array.from({ length: n }, (_, k) => <u key={k} className={k < llenos ? (terminado ? 'ok' : 'on') : ''} style={{ height: 6 + ((k * 5) % 4) * 2 }} />)}
+    </i>
+  );
 }
 
 /** Tablero del taller (nuevo diseño): una columna por paso, con la matrícula bien a la vista y un botón con lo que toca después. Se puede arrastrar. */
@@ -60,12 +71,12 @@ export default function TableroTaller({ ordenes, vehiculos, clientes, onSelect, 
                 const enTaller = estado === 'recibido' || estado === 'en_reparacion' || estado === 'listo';
                 const terminado = t.tareas > 0 && t.hechas === t.tareas;
                 return (
-                  <article key={ot.id} className={`u-tarjeta-ot${dragOtId === ot.id ? ' arrastrando' : ''}`} draggable data-testid="tarjeta-orden"
+                  <article key={ot.id} className={`u-tarjeta-ot u-e-${ot.estado}${dragOtId === ot.id ? ' arrastrando' : ''}`} draggable data-testid="tarjeta-orden"
                     onDragStart={(e) => { e.dataTransfer.setData('text/plain', ot.id); setDragOtId(ot.id); }}
                     onDragEnd={() => { setDragOtId(null); setDragOverEstado(null); }}>
                     <button type="button" className="u-tarjeta-abrir" onClick={() => onSelect(ot)} aria-label={`Abrir ${ot.numero}${veh ? `, ${veh.marca} ${veh.modelo}` : ''}`}>
                       <span className="u-tarjeta-fila">
-                        {veh ? <Placa matricula={veh.matricula} /> : <span className="u-num">{ot.numero}</span>}
+                        {veh ? <Matricula matricula={veh.matricula} /> : <span className="u-num">{ot.numero}</span>}
                         <span className={`u-dias${aviso ? ' aviso' : ''}`}>{texto}</span>
                       </span>
                       <b>{veh ? `${veh.marca} ${veh.modelo}` : '—'}{ot.esCambioAceite && <Droplet aria-label="Cambio de aceite" size={13} style={{ marginLeft: 6, verticalAlign: -2 }} />}</b>
@@ -74,7 +85,7 @@ export default function TableroTaller({ ordenes, vehiculos, clientes, onSelect, 
                         <span className="u-avance">
                           <span><Wrench aria-hidden="true" size={12} /> {ot.tecnicoAsignado || 'Sin técnico'}</span>
                           {t.tareas > 0 && <span className={terminado ? 'ok' : ''}>{terminado && <Check aria-hidden="true" size={12} />}{t.hechas}/{t.tareas}{t.minutosReales > 0 && ` · ${textoDuracion(t.minutosReales)}`}</span>}
-                          {t.tareas > 0 && <i role="progressbar" aria-valuemin={0} aria-valuemax={t.tareas} aria-valuenow={t.hechas} aria-label="Tareas hechas"><u style={{ width: `${(t.hechas / t.tareas) * 100}%` }} className={terminado ? 'ok' : ''} /></i>}
+                          {t.tareas > 0 && <Dientes total={t.tareas} hechas={t.hechas} terminado={terminado} />}
                         </span>
                       )}
                       <span className="u-tarjeta-fila">

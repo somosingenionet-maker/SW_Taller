@@ -162,7 +162,7 @@ test('Taller: el tablero enseña matrículas y la ficha de la orden se abre en u
   const tablero = page.getByTestId('tablero-taller');
   await expect(tablero).toBeVisible({ timeout: 15_000 });
   await expect(tablero.getByTestId('tarjeta-orden').first()).toBeVisible();
-  await expect(tablero.getByRole('img', { name: /^Matrícula / }).first()).toBeVisible();
+  await expect(tablero.getByTestId('matricula').first()).toBeVisible();
   await captura(page, 'escritorio-tablero');
 
   // El botón del siguiente paso de un presupuesto abre la recepción (no cambia nada hasta confirmarla).
@@ -198,7 +198,7 @@ test('Clientes y Vehículos: lista a todo el ancho y la ficha se abre en una ven
   const menu = page.getByRole('navigation', { name: 'Menú principal', exact: true });
 
   await menu.getByRole('button', { name: 'Vehículos' }).click();
-  await expect(page.getByRole('img', { name: /^Matrícula / }).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('matricula').first()).toBeVisible({ timeout: 15_000 });
   await captura(page, 'vehiculos-lista');
   await page.locator('main tbody tr[id^="veh-row-"]').first().click();
   const fichaV = page.getByRole('dialog', { name: 'Ficha del vehículo' });

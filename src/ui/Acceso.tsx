@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { KeyRound } from 'lucide-react';
 
 /** Marco de las pantallas de acceso (entrar, alta, contraseña nueva, verificación): panel de marca a la izquierda y el formulario centrado. */
 export default function PantallaAcceso({ logo, ancha, children }: { logo?: string | null; ancha?: boolean; children: ReactNode }) {
@@ -17,7 +18,7 @@ export default function PantallaAcceso({ logo, ancha, children }: { logo?: strin
             <li>Facturas, compras y citas online, listas para tu gestoría.</li>
           </ul>
         </div>
-        <span className="u-placa"><b>E</b><span>2026 DNT</span></span>
+        <span className="u-llavero-deco"><span className="u-llave u-e-listo"><KeyRound /></span><span><b>Listo para entregar</b><span className="u-matri">1234 ABC</span></span></span>
       </aside>
       <main className="u-acceso-form">
         <div className={`u-acceso-caja${ancha ? ' ancha' : ''}`}>

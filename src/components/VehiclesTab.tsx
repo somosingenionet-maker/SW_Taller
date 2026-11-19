@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
-import { Placa } from '../ui/componentes';
+import { Matricula } from '../ui/componentes';
 import { Vehiculo, Cliente, OTEstado, EventoOT } from '../types';
 import {
   Car, Search, Plus, Wrench, Calendar, Shield, CreditCard, PenTool, Trash2, X, Check, Save, Download, Upload, ClipboardList
@@ -370,7 +370,7 @@ export default function VehiclesTab({
                         </div>
                       </td>
                       <td className="py-3.5 px-2">
-                        <Placa matricula={veh.matricula} />
+                        <Matricula matricula={veh.matricula} />
                       </td>
                       <td className="py-3.5 px-2 font-mono text-slate-600 text-xs">
                         {formatKm(veh.kilometraje)} km

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { KeyRound, X } from 'lucide-react';
 
 // Piezas del nuevo diseño. Pequeñas, accesibles de serie (foco visible, teclado, nombres para lectores de pantalla) y sin estilos sueltos:
 // todo sale de ui.css. Las pantallas nuevas se montan solo con esto.
@@ -21,9 +21,14 @@ export function Chip({ tono = 'neutro', children, ...resto }: { tono?: TonoChip;
   return <span className={`u-chip ${tono}`} {...resto}>{children}</span>;
 }
 
-/** La matrícula, dibujada como una de verdad: es la seña de identidad del nuevo diseño. */
-export function Placa({ matricula }: { matricula: string }) {
-  return <span className="u-placa" role="img" aria-label={`Matrícula ${matricula}`}><b aria-hidden="true">E</b><span aria-hidden="true">{matricula}</span></span>;
+/** El llavero: la seña de identidad de Doonty. Cada coche del taller es un llavero cuyo color es el de su estado (el tablero es el panel de llaves). */
+export function Llavero({ estado }: { estado?: string }) {
+  return <span className={`u-llave u-e-${estado ?? 'neutro'}`} aria-hidden="true"><KeyRound /></span>;
+}
+
+/** La matrícula como texto, bien legible (monoespaciada y espaciada) y sin marco. */
+export function Matricula({ matricula }: { matricula: string }) {
+  return <span className="u-matri" data-testid="matricula">{matricula}</span>;
 }
 
 const FOCALIZABLES = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';

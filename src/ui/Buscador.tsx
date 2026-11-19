@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import { buscarGlobal, type ResultadoBusqueda } from './navegacion';
-import { Chip, Placa } from './componentes';
+import { Chip, Llavero, Matricula } from './componentes';
 import type { Cliente, OrdenTrabajo, Vehiculo } from '../types';
 
 const GRUPOS: { tipo: ResultadoBusqueda['tipo']; titulo: string }[] = [
@@ -56,8 +56,8 @@ export default function Buscador({ datos, permitidos, onElegir, onCerrar }: {
                   return (
                     <button key={`${r.tipo}-${r.id}`} type="button" role="option" aria-selected={sel === mio} className={`u-pal-item${sel === mio ? ' sel' : ''}`}
                       onMouseEnter={() => setSel(mio)} onClick={() => onElegir(r)} data-testid="resultado-busqueda">
-                      {r.matricula ? <Placa matricula={r.matricula} /> : <Chip tono="neutro">Cliente</Chip>}
-                      <span style={{ minWidth: 0 }}><b style={{ fontWeight: 600 }}>{r.titulo}</b><br /><span style={{ color: 'var(--u-muted)', fontSize: 13.5 }}>{r.detalle}</span></span>
+                      {r.matricula ? <Llavero /> : <Chip tono="neutro">Cliente</Chip>}
+                      <span style={{ minWidth: 0 }}><b style={{ fontWeight: 600 }}>{r.titulo}</b><br /><span style={{ color: 'var(--u-muted)', fontSize: 13.5 }}>{r.matricula && <><Matricula matricula={r.matricula} /> · </>}{r.detalle}</span></span>
                     </button>
                   );
                 })}

@@ -7,7 +7,7 @@ import { fmt2 } from '../utils/moneda';
 import type { AvisoPagos } from '../utils/compras';
 import type { AccionPaso } from '../utils/guiaInicial';
 import GuiaInicial from '../components/GuiaInicial';
-import { Boton, Chip, Placa, Tarjeta } from './componentes';
+import { Boton, Chip, Llavero, Matricula, Tarjeta } from './componentes';
 import { saludo, tareasHoy, textoDias, type TareaOrden } from './tareasHoy';
 import type { IrA } from './Marco';
 
@@ -56,8 +56,8 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, 
   const abrir = (x: TareaOrden) => onIr('taller', { tipo: 'buscar', texto: x.orden.numero });
   const FilaOrden = ({ x, texto, chip }: { x: TareaOrden; texto: string; chip?: React.ReactNode }) => (
     <button type="button" className="u-fila" onClick={() => abrir(x)} data-testid="hoy-orden">
-      {x.vehiculo ? <Placa matricula={x.vehiculo.matricula} /> : <Chip>{x.orden.numero}</Chip>}
-      <span className="u-fila-txt"><b>{nombreCoche(x)}{nombreCliente(x) ? ` · ${nombreCliente(x)}` : ''}</b><span>{texto}</span></span>
+      <Llavero estado={x.orden.estado} />
+      <span className="u-fila-txt"><b>{nombreCoche(x)}{nombreCliente(x) ? ` · ${nombreCliente(x)}` : ''}</b><span>{x.vehiculo && <><Matricula matricula={x.vehiculo.matricula} /> · </>}{texto}</span></span>
       {chip}
     </button>
   );

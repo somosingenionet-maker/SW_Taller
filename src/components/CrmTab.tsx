@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
-import { Placa } from '../ui/componentes';
+import { Matricula } from '../ui/componentes';
 import { Cliente, InteraccionCliente, Vehiculo, Empresa } from '../types';
 import {
   Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, Upload, PenTool, Car, Link2, Copy, RefreshCw, ShieldOff
@@ -532,7 +532,7 @@ export default function CrmTab({
                         <div key={vid} className="flex items-center gap-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs">
                           <Car className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                           <span className="font-semibold text-slate-700">{v.marca} {v.modelo}</span>
-                          <span className="ml-auto"><Placa matricula={v.matricula} /></span>
+                          <span className="ml-auto"><Matricula matricula={v.matricula} /></span>
                         </div>
                       );
                     })}
