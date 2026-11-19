@@ -372,3 +372,5 @@ button.u-aviso-paso { cursor: pointer; } button.u-aviso-paso:hover { filter: bri
 .u-app .uppercase, .animate-modal-pop .uppercase, .u-ajustes .uppercase, [data-panel-lateral] .uppercase { text-transform: none; }
 .u-app :is(.tracking-wider, .tracking-widest), .animate-modal-pop :is(.tracking-wider, .tracking-widest), .u-ajustes :is(.tracking-wider, .tracking-widest), [data-panel-lateral] :is(.tracking-wider, .tracking-widest) { letter-spacing: normal; }
 .u-fila-txt .u-matri { display: inline; font-size: 1em; }
+
+.u-avatar-logo { width: 32px; height: 32px; border-radius: 9px; object-fit: contain; background: #fff; border: 1px solid var(--u-line); display: block; }

@@ -27,6 +27,9 @@ test('el marco: menú por tareas con texto, cuenta sin restos del diseño anteri
   await captura(page, 'escritorio-hoy');
   await page.reload();
   await expect(page.getByTestId('marco-nuevo')).toBeVisible({ timeout: 15_000 });
+  // El logo del taller (si lo tiene) ocupa el botón de la cuenta; el de Doonty Motor sigue fijo en el menú.
+  await expect(page.getByTestId('menu-cuenta').locator('img.u-avatar-logo')).toBeVisible();
+  await expect(page.locator('.u-rail .u-logo-img')).toHaveAttribute('src', '/logo-doonty.svg');
   await page.getByTestId('menu-cuenta').click();
   await expect(page.getByRole('menuitem', { name: 'Cerrar sesión' })).toBeVisible();
   await expect(page.getByRole('menuitem', { name: /diseño/i })).toHaveCount(0);

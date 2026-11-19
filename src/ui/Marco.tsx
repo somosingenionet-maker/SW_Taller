@@ -89,6 +89,8 @@ export default function Marco(p: Props) {
 
   const marca = useMemo(() => derivarMarca(normalizarHex(empresa.brandColor) ?? '#E8590C', p.oscuro), [empresa.brandColor, p.oscuro]);
   const iniciales = (usuario.nombre || '?').trim()[0]?.toUpperCase() ?? '?';
+  // El logo del propio taller (el que sube en Configuración → Logo y color) va en el botón de la cuenta; el de Doonty Motor queda fijo en el menú.
+  const logoTaller = empresa.logoBase64 || empresa.logoUrl || '';
 
   const botonNav = (id: ModuloId, etiqueta: string, cerrar?: boolean) => {
     const ins = insignia(id);
@@ -147,7 +149,9 @@ export default function Marco(p: Props) {
 
           <div className="u-rel" ref={cuenta.ref}>
             <Boton soloIcono onClick={() => { nuevo.setAbierto(false); cuenta.setAbierto(!cuenta.abierto); }} aria-haspopup="menu" aria-expanded={cuenta.abierto} aria-label="Mi cuenta" data-testid="menu-cuenta">
-              <span className="u-avatar" aria-hidden="true">{iniciales}</span>
+              {logoTaller
+                ? <img className="u-avatar-logo" src={logoTaller} alt="" />
+                : <span className="u-avatar" aria-hidden="true">{iniciales}</span>}
             </Boton>
             {cuenta.abierto && (
               <div className="u-menu" role="menu" aria-label="Mi cuenta">

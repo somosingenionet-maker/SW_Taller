@@ -406,7 +406,7 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
 
               {activeTab === 'marca' && (
                 <div className="grid lg:grid-cols-2 gap-5" data-testid="seccion-marca">
-                  <Tarjeta titulo="Logo" ayuda="Sale en la aplicación, en las facturas, en las órdenes impresas y en los correos a tus clientes.">
+                  <Tarjeta titulo="Logo" ayuda="Es el logo de tu taller, no el de Doonty Motor (ese es fijo). Sale arriba a la derecha de la aplicación, en las facturas, en las órdenes impresas y en los correos a tus clientes.">
                     <div className="flex items-center gap-5">
                       <div className="w-24 h-24 rounded-2xl flex items-center justify-center overflow-hidden shrink-0 shadow-md border border-slate-200" style={{ backgroundColor: draft.brandColor }}>
                         {draft.logoBase64 ? (
