@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Alerta, AvisoCliente, Cliente, Vehiculo } from '../types';
+import type { Alerta, AvisoCliente, Cliente, OrdenTrabajo, Vehiculo } from '../types';
 import { agruparPorMes, canalDelCliente, construirAvisos, mensajeParaCliente, siguienteRepeticion, textoCanal, tipoEventoDe, type ConfigAvisos } from './avisos';
 
 const HOY = '2026-11-20';
@@ -14,8 +14,10 @@ const vehiculo = (o: Partial<Vehiculo> = {}): Vehiculo => ({
 const alerta = (o: Partial<Alerta> = {}): Alerta => ({ id: 'a1', vehiculoId: 'v1', tipo: 'itv', descripcion: '', estado: 'activa', fechaLimite: '2026-11-30', ...o });
 const aviso = (o: Partial<AvisoCliente> = {}): AvisoCliente => ({ id: 'p1', clienteId: 'c1', vehiculoId: 'v1', motivo: 'Neumáticos', mensaje: '', avisarEn: '2026-11-20', estado: 'programado', ...o });
 
-const construir = (o: { alertas?: Alerta[]; personalizados?: AvisoCliente[]; clientes?: Cliente[]; vehiculos?: Vehiculo[]; config?: Partial<ConfigAvisos> }) =>
-  construirAvisos({ alertas: o.alertas ?? [], personalizados: o.personalizados ?? [], clientes: o.clientes ?? [cliente()], vehiculos: o.vehiculos ?? [vehiculo()], config: { ...config, ...o.config }, hoy: HOY });
+const orden = (o: Partial<OrdenTrabajo> = {}) => ({ id: 'ot1', numero: 'OT-1', clienteId: 'c1', vehiculoId: 'v1', estado: 'listo', esCambioAceite: true, ...o }) as OrdenTrabajo;
+
+const construir = (o: { alertas?: Alerta[]; personalizados?: AvisoCliente[]; ordenes?: OrdenTrabajo[]; clientes?: Cliente[]; vehiculos?: Vehiculo[]; config?: Partial<ConfigAvisos> }) =>
+  construirAvisos({ alertas: o.alertas ?? [], personalizados: o.personalizados ?? [], ordenes: o.ordenes, clientes: o.clientes ?? [cliente()], vehiculos: o.vehiculos ?? [vehiculo()], config: { ...config, ...o.config }, hoy: HOY });
 
 describe('canalDelCliente', () => {
   it('correo válido → correo; sin correo con teléfono → whatsapp; nada → sin contacto; no avisar manda sobre todo', () => {
@@ -130,6 +132,23 @@ describe('construirAvisos: personalizados', () => {
   it('los ya enviados, hechos o descartados no aparecen; el cliente que no quiere avisos tampoco', () => {
     expect(construir({ personalizados: [aviso({ estado: 'enviado' }), aviso({ id: 'p2', estado: 'descartado' })] })).toEqual([]);
     expect(construir({ personalizados: [aviso()], clientes: [cliente({ noAvisar: true })] })).toEqual([]);
+  });
+});
+
+describe('construirAvisos: cambio de aceite sin próximo cambio anotado', () => {
+  it('una orden de aceite lista o entregada sin el próximo cambio anotado espera a una persona', () => {
+    for (const estado of ['listo', 'entregado'] as const) {
+      const [it] = construir({ ordenes: [orden({ estado })] });
+      expect(it).toMatchObject({ origen: 'orden', fase: 'para_hoy', porQue: 'anotar_aceite', ordenId: 'ot1', ordenNumero: 'OT-1', urgencia: 'hoy', clave: 'o:ot1' });
+      expect(it.cuando).toContain('OT-1');
+    }
+  });
+
+  it('no sale si el próximo ya está anotado, si aún no está terminada, si no es de aceite o si el cliente no quiere avisos', () => {
+    expect(construir({ ordenes: [orden({ aceiteAnotadoEn: '2026-11-13T10:00:00Z' })] })).toEqual([]);
+    expect(construir({ ordenes: [orden({ estado: 'en_reparacion' }), orden({ id: 'ot2', estado: 'presupuesto' }), orden({ id: 'ot3', estado: 'cancelado' })] })).toEqual([]);
+    expect(construir({ ordenes: [orden({ esCambioAceite: false })] })).toEqual([]);
+    expect(construir({ ordenes: [orden()], clientes: [cliente({ noAvisar: true })] })).toEqual([]);
   });
 });
 

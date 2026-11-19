@@ -121,6 +121,64 @@ test.describe('Avisos', () => {
     });
   });
 
+  test('la ficha del cliente enseña lo que está por avisarle y todo lo que ya se le mandó', async ({ page, request }) => {
+    await conClienteTemporal(page, request, { telefono: '600 11 22 33', conCoche: true }, async ({ id, nombre, token }) => {
+      await insertar(request, token, 'avisos_cliente', { cliente_id: id, motivo: 'Frenos', mensaje: 'Hola', avisar_en: '2099-01-10' });
+      await insertar(request, token, 'notificaciones_cliente', {
+        cliente_id: id, tipo_envio: 'whatsapp', asunto: 'Neumáticos — Seat Prueba', mensaje: 'Hola, toca revisar los neumáticos.', tipo_evento: 'aviso_personalizado', origen: 'manual',
+      });
+      await page.reload();
+      await irA(page, 'Clientes');
+      await page.getByPlaceholder('Buscar por nombre, documento (NIF/NIE) o email...').fill(nombre);
+      await page.locator('main tbody tr[id^="cli-row-"]').first().click();
+      const ficha = page.getByTestId('avisos-cliente');
+      await expect(ficha).toBeVisible();
+      await expect(ficha.getByTestId('avisos-cliente-proximo')).toContainText('Frenos');
+      await expect(ficha.getByTestId('avisos-cliente-proximo')).toContainText('Avisar el');
+      await expect(ficha.getByText('Enviados · 1')).toBeVisible();
+      const enviado = ficha.getByTestId('avisos-cliente-enviado');
+      await expect(enviado).toContainText('Aviso personalizado');
+      await expect(enviado).toContainText('enviado por el taller');
+      await enviado.getByRole('button').click();
+      await expect(enviado).toContainText('Hola, toca revisar los neumáticos.');
+
+      // Se puede programar un aviso desde la propia ficha, con el cliente ya elegido.
+      await ficha.getByTestId('cliente-programar-aviso').click();
+      const dialogo = page.getByTestId('nuevo-aviso');
+      await expect(dialogo).toContainText(nombre);
+      await dialogo.getByRole('button', { name: 'Cancelar' }).click();
+      await expect(dialogo).toHaveCount(0);
+    });
+  });
+
+  test('una orden de aceite lista sin el próximo cambio anotado sale en «Para hoy» y se resuelve desde ahí', async ({ page, request }) => {
+    await conClienteTemporal(page, request, { correo: 'zz-aceite@tallerejemplo.test', conCoche: true }, async ({ id, token }) => {
+      const coche = (await (await request.get(`${URL_SB}/rest/v1/cliente_vehiculo?cliente_id=eq.${id}&select=vehiculo_id`, { headers: cab(token) })).json() as { vehiculo_id: string }[])[0].vehiculo_id;
+      const numero = `ZZ-${randomBytes(3).toString('hex')}`;
+      await insertar(request, token, 'ordenes_trabajo', { numero, cliente_id: id, vehiculo_id: coche, estado: 'listo', es_cambio_aceite: true });
+      await page.reload();
+      await irA(page, 'Avisos');
+      const fila = page.getByTestId('aviso-fila').filter({ hasText: numero });
+      await expect(fila).toBeVisible({ timeout: 10_000 });
+      await expect(fila).toContainText('Cambio de aceite');
+      await expect(fila).toContainText('Sin esto no se le avisará');
+
+      await fila.getByTestId('aviso-anotar-aceite').click();
+      const dialogo = page.getByTestId('anotar-aceite');
+      await dialogo.getByRole('button', { name: 'En 6 meses' }).click();
+      await dialogo.getByRole('button', { name: 'Guardar próximo cambio' }).click();
+      await expect(fila).toHaveCount(0, { timeout: 10_000 });
+
+      // Quedó anotado en la ficha del coche y se creó el aviso de aceite, que ahora está programado.
+      const alertas = await (await request.get(`${URL_SB}/rest/v1/alertas?vehiculo_id=eq.${coche}&tipo=eq.aceite&select=estado,fecha_limite`, { headers: cab(token) })).json() as { estado: string; fecha_limite: string }[];
+      expect(alertas).toHaveLength(1);
+      expect(alertas[0].estado).toBe('activa');
+      await page.getByTestId('avisos-vista-programados').click();
+      await expect(page.getByTestId('aviso-programado').filter({ hasText: 'Cambio de aceite' }).filter({ hasText: 'Seat Prueba' })).toBeVisible();
+      await borrar(request, token, `ordenes_trabajo?numero=eq.${numero}`);
+    });
+  });
+
   test('el aviso de que los envíos automáticos están apagados lleva a activarlos o a los ajustes', async ({ page }) => {
     await login(page);
     await irA(page, 'Avisos');

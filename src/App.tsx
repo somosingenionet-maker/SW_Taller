@@ -9,7 +9,7 @@ import { avisar, avisarError, escucharAvisos, type Aviso } from './lib/avisos';
 import { getSuscripcion, type Suscripcion } from './lib/data/suscripcion';
 import { listVehiculos, createVehiculo, updateVehiculo, deleteVehiculo, guardarAceite, NuevoVehiculo, AceiteVehiculo } from './lib/data/vehiculos';
 import { listClientes, createCliente, updateCliente, deleteCliente, anonymizeCliente, addInteraccion, setPortalToken, asociarVehiculo, NuevoCliente } from './lib/data/clientes';
-import { listOrdenesTablero, createOrden, updateOrden, deleteOrden, getOrden } from './lib/data/ordenes';
+import { listOrdenesTablero, createOrden, updateOrden, deleteOrden, getOrden, anotarProximoCambio } from './lib/data/ordenes';
 import { avisoDelMecanico } from './utils/avisoMecanico';
 import { listAlertas, forzarRecordatorio, descartarAlerta, registrarAvisoAlerta } from './lib/data/alertas';
 import { listAvisos, crearAviso, descartarAviso, registrarEnvioAviso, type NuevoAviso } from './lib/data/avisos';
@@ -612,6 +612,11 @@ export default function App() {
     void recargarAlertas().catch(() => undefined); // el próximo cambio mueve la alerta de aceite
   }, [recargarVehiculos, recargarAlertas]);
 
+  // Desde Avisos: anota el próximo cambio de una orden de aceite ya hecha; la orden, el coche y la alerta se refrescan.
+  const handleAnotarAceite = useCallback(async (ordenId: string, fecha: string, km: number | null) => {
+    handleOrdenRefrescada(await anotarProximoCambio(ordenId, fecha, km));
+  }, [handleOrdenRefrescada]);
+
   const handleGuardarAceite = useCallback(async (vehiculoId: string, datos: AceiteVehiculo) => {
     await guardarAceite(vehiculoId, datos);
     await recargarVehiculos();
@@ -660,8 +665,8 @@ export default function App() {
 
   // La cola de avisos (vencimientos + personalizados): alimenta la pantalla Avisos, el contador del menú y «Hoy».
   const itemsAvisos = useMemo(
-    () => (empresa ? construirAvisos({ alertas, personalizados: avisosPersonalizados, clientes, vehiculos, config: configDeEmpresa(empresa), hoy: hoyLocal() }) : []),
-    [empresa, alertas, avisosPersonalizados, clientes, vehiculos],
+    () => (empresa ? construirAvisos({ alertas, personalizados: avisosPersonalizados, ordenes: ordenesTrabajo, clientes, vehiculos, config: configDeEmpresa(empresa), hoy: hoyLocal() }) : []),
+    [empresa, alertas, avisosPersonalizados, ordenesTrabajo, clientes, vehiculos],
   );
   const avisosParaHoy = useMemo(() => itemsAvisos.filter((i) => i.fase === 'para_hoy').length, [itemsAvisos]);
 
@@ -804,6 +809,9 @@ export default function App() {
             onAddInteraccion={handleAddInteraccion}
             onSetPortalToken={handleSetPortalToken}
             onImportado={recargarClientes}
+            avisos={itemsAvisos}
+            notificaciones={notificaciones}
+            onCrearAviso={handleCrearAviso}
           />
         )}
 
@@ -829,6 +837,8 @@ export default function App() {
             onRenovar={handleRenovarVencimiento}
             onDescartar={handleDescartarAviso}
             onCrearAviso={handleCrearAviso}
+            onAnotarAceite={handleAnotarAceite}
+            onAbrirOrden={(numero) => irA('taller', { tipo: 'buscar', texto: numero })}
             onActivarAutomatico={async () => { try { await handleSaveEmpresa({ recordatoriosAutomaticosActivos: true }); } catch (err) { avisarError(err, 'No se pudo activar los envíos automáticos.'); } }}
             onAbrirAjustes={() => { setSettingsTab('recordatorios'); setSettingsOpen(true); }}
           />

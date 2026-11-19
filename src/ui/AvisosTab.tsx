@@ -5,6 +5,8 @@ import type { NuevoAviso as DatosAviso } from '../lib/data/avisos';
 import { waHref } from '../utils/whatsapp';
 import { agruparPorMes, descripcionVehiculo, mensajeParaCliente, textoCanal, type ItemAviso } from '../utils/avisos';
 import { proximaRenovacion } from '../utils/renovacion';
+import { sumarMeses } from '../utils/aceite';
+import { formatKm } from '../utils/moneda';
 import { formatDate } from '../utils/dateFormat';
 import { NOMBRE_EVENTO, textoDeHtml } from '../utils/textoHtml';
 import { mensajeDeError } from '../lib/errores';
@@ -28,6 +30,9 @@ interface Props {
   onRenovar: (vehiculoId: string, tipo: Exclude<AlertaTipo, 'aceite'>, nuevaFecha: string) => Promise<void>;
   onDescartar: (item: ItemAviso) => Promise<void>;
   onCrearAviso: (a: DatosAviso) => Promise<void>;
+  /** Anota el próximo cambio de aceite a raíz de una orden ya hecha (la ficha del coche y el aviso se actualizan solos). */
+  onAnotarAceite: (ordenId: string, fecha: string, km: number | null) => Promise<void>;
+  onAbrirOrden: (numero: string) => void;
   onActivarAutomatico: () => Promise<void>;
   onAbrirAjustes: () => void;
 }
@@ -42,7 +47,7 @@ const nombreCliente = (c?: Cliente) => (c ? `${c.nombre} ${c.apellidos}`.trim() 
  */
 export default function AvisosTab({
   empresa, esAdmin, items, alertas, personalizados, notificaciones, clientes, vehiculos, hoy,
-  onEnviarCorreo, onAvisoManual, onRenovar, onDescartar, onCrearAviso, onActivarAutomatico, onAbrirAjustes,
+  onEnviarCorreo, onAvisoManual, onRenovar, onDescartar, onCrearAviso, onAnotarAceite, onAbrirOrden, onActivarAutomatico, onAbrirAjustes,
 }: Props) {
   const [vista, setVista] = useState<Vista>('hoy');
   const [nuevo, setNuevo] = useState(false);
@@ -51,6 +56,7 @@ export default function AvisosTab({
   const [error, setError] = useState<{ clave: string; texto: string } | null>(null);
   const [descartando, setDescartando] = useState<ItemAviso | null>(null);
   const [renovando, setRenovando] = useState<ItemAviso | null>(null);
+  const [anotandoAceite, setAnotandoAceite] = useState<ItemAviso | null>(null);
   const [activando, setActivando] = useState(false);
   const [filtro, setFiltro] = useState('');
   const [abierta, setAbierta] = useState<string | null>(null);
@@ -116,7 +122,22 @@ export default function AvisosTab({
 
   const esVencimiento = (item: ItemAviso) => item.origen === 'alerta' && item.tipo !== 'aceite';
 
+  const filaAceitePendiente = (item: ItemAviso) => (
+    <div key={item.clave} className="u-av-fila" data-testid="aviso-fila" data-clave={item.clave}>
+      <span className={`u-av-punto ${item.urgencia}`} aria-hidden="true" />
+      <div className="u-av-txt">
+        {cabeceraFila(item)}
+        <small className="u-av-canal"><TriangleAlert aria-hidden="true" />Sin esto no se le avisará de su próximo cambio de aceite. Si no era un cambio de aceite, quita la marca en la orden.</small>
+      </div>
+      <div className="u-av-acc">
+        <Boton variante="principal" onClick={() => setAnotandoAceite(item)} data-testid="aviso-anotar-aceite">Anotar próximo cambio</Boton>
+        <Boton variante="fantasma" onClick={() => onAbrirOrden(item.ordenNumero!)}>Abrir la orden</Boton>
+      </div>
+    </div>
+  );
+
   const filaPara = (item: ItemAviso) => {
+    if (item.origen === 'orden') return filaAceitePendiente(item);
     const ocupado = trabajando === item.clave;
     const enConfirmacion = confirmando?.item.clave === item.clave;
     return (
@@ -299,6 +320,14 @@ export default function AvisosTab({
         />
       )}
 
+      {anotandoAceite && (
+        <AnotarProximoAceite
+          item={anotandoAceite} vehiculo={anotandoAceite.vehiculoId ? vehiculoPorId.get(anotandoAceite.vehiculoId) : undefined}
+          onCerrar={() => setAnotandoAceite(null)}
+          onGuardar={async (fecha, km) => { await onAnotarAceite(anotandoAceite.ordenId!, fecha, km); setAnotandoAceite(null); }}
+        />
+      )}
+
       {renovando && (
         <RenovarVencimiento
           item={renovando} vehiculo={renovando.vehiculoId ? vehiculoPorId.get(renovando.vehiculoId) : undefined} hoy={hoy}
@@ -350,6 +379,47 @@ function RenovarVencimiento({ item, vehiculo, hoy, onGuardar, onCerrar }: {
           <Boton variante="principal" type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar y cerrar el aviso'}</Boton>
           <Boton variante="fantasma" onClick={onCerrar} disabled={guardando}>Cancelar</Boton>
         </div>
+      </form>
+    </Ventana>
+  );
+}
+
+function AnotarProximoAceite({ item, vehiculo, onGuardar, onCerrar }: {
+  item: ItemAviso; vehiculo?: Vehiculo; onGuardar: (fecha: string, km: number | null) => Promise<void>; onCerrar: () => void;
+}) {
+  const [fecha, setFecha] = useState('');
+  const [km, setKm] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+  const atajo = (meses: number) => (
+    <Boton onClick={() => { setFecha(sumarMeses(meses)); setError(''); }} aria-pressed={fecha === sumarMeses(meses)}>{meses === 12 ? 'En 1 año' : `En ${meses} meses`}</Boton>
+  );
+  const guardar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) { setError('Indica la fecha del próximo cambio.'); return; }
+    const kmNum = km.trim() === '' ? null : Number(km);
+    if (kmNum !== null && (!Number.isInteger(kmNum) || kmNum <= 0)) { setError('Los kilómetros del próximo cambio no son válidos.'); return; }
+    setGuardando(true); setError('');
+    try { await onGuardar(fecha, kmNum); } catch (err) { setError(mensajeDeError(err, 'No se pudo anotar el próximo cambio.')); setGuardando(false); }
+  };
+  return (
+    <Ventana titulo="Próximo cambio de aceite" onCerrar={onCerrar}>
+      <form onSubmit={guardar} data-testid="anotar-aceite">
+        <p className="u-av-nota">{vehiculo ? descripcionVehiculo(vehiculo) : ''} · {item.ordenNumero}. Con esto la ficha del coche queda al día y se le avisará solo cuando toque.</p>
+        <div className="u-acciones" role="group" aria-label="Atajos de fecha">{atajo(6)}{atajo(12)}</div>
+        <label className="u-campo" style={{ marginTop: 14 }}>
+          <span>Fecha del próximo cambio</span>
+          <input type="date" className="u-sola" value={fecha} onChange={(e) => { setFecha(e.target.value); setError(''); }} />
+        </label>
+        <label className="u-campo">
+          <span>O a los km (opcional)</span>
+          <input type="number" min="1" step="1" inputMode="numeric" className="u-sola" value={km} onChange={(e) => { setKm(e.target.value); setError(''); }} placeholder={vehiculo ? `más de ${formatKm(vehiculo.kilometraje)}` : ''} />
+        </label>
+        <div className="u-acciones">
+          <Boton variante="principal" type="submit" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar próximo cambio'}</Boton>
+          <Boton variante="fantasma" onClick={onCerrar} disabled={guardando}>Cancelar</Boton>
+        </div>
+        {error && <p className="u-error" role="alert" style={{ marginTop: 12 }}>{error}</p>}
       </form>
     </Ventana>
   );

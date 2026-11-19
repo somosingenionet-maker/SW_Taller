@@ -112,7 +112,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
       {puede('alertas') && avisosHoy.length > 0 && (
         <div className="u-aviso aviso" role="status" data-testid="hoy-avisos">
           <AlertTriangle aria-hidden="true" />
-          <span>{avisosHoy.length} {plural(avisosHoy.length, 'aviso a un cliente espera', 'avisos a clientes esperan')} a que los mandes (WhatsApp, vencimientos…){avisosVencidos.length > 0 ? ` · ${avisosVencidos.length} ya ${plural(avisosVencidos.length, 'vencido', 'vencidos')}` : ''}</span>
+          <span>{avisosHoy.length} {plural(avisosHoy.length, 'aviso a un cliente necesita', 'avisos a clientes necesitan')} tu atención (WhatsApp, vencimientos, cambios de aceite…){avisosVencidos.length > 0 ? ` · ${avisosVencidos.length} ya ${plural(avisosVencidos.length, 'vencido', 'vencidos')}` : ''}</span>
           <button type="button" className="u-enlace" onClick={() => onNavegar('alertas')}>Ver avisos →</button>
         </div>
       )}

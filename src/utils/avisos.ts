@@ -1,4 +1,4 @@
-import type { Alerta, AlertaTipo, AvisoCliente, Cliente, Empresa, NotificacionCliente, Vehiculo } from '../types';
+import type { Alerta, AlertaTipo, AvisoCliente, Cliente, Empresa, NotificacionCliente, OrdenTrabajo, Vehiculo } from '../types';
 import { avisoAceitePendiente, diasHasta, sumarMeses } from './aceite';
 import { sumarDias } from './compras';
 import { formatDate } from './dateFormat';
@@ -21,7 +21,7 @@ export type CanalAviso = 'correo' | 'whatsapp' | 'sin_contacto' | 'no_avisar';
 export type FaseAviso = 'para_hoy' | 'programado' | 'avisado';
 export type Urgencia = 'vencido' | 'hoy' | 'pronto' | 'luego';
 /** Por qué un aviso espera a una persona. */
-export type PorQue = 'whatsapp' | 'correo_manual' | 'sin_contacto' | 'vencido_antiguo';
+export type PorQue = 'whatsapp' | 'correo_manual' | 'sin_contacto' | 'vencido_antiguo' | 'anotar_aceite';
 
 export interface ConfigAvisos {
   /** El interruptor general de envíos automáticos (Configuración → Recordatorios). */
@@ -38,7 +38,10 @@ export const configDeEmpresa = (e: Pick<Empresa, 'recordatoriosAutomaticosActivo
 
 export interface ItemAviso {
   clave: string;
-  origen: 'alerta' | 'personalizado';
+  /** `orden`: una orden de cambio de aceite lista o entregada a la que falta anotar el próximo cambio (sin eso no habrá aviso). */
+  origen: 'alerta' | 'personalizado' | 'orden';
+  ordenId?: string;
+  ordenNumero?: string;
   alertaId?: string;
   avisoId?: string;
   tipo: AlertaTipo | 'personalizado';
@@ -120,6 +123,8 @@ function porQueEspera(canal: CanalAviso, automatico: boolean): PorQue | null {
 export interface EntradaAvisos {
   alertas: Alerta[];
   personalizados: AvisoCliente[];
+  /** Órdenes cargadas por la aplicación (activas y entregadas hace poco). Solo se miran las de cambio de aceite. */
+  ordenes?: OrdenTrabajo[];
   clientes: Cliente[];
   vehiculos: Vehiculo[];
   config: ConfigAvisos;
@@ -128,7 +133,7 @@ export interface EntradaAvisos {
 }
 
 /** Todos los avisos abiertos del taller, ordenados por urgencia. Los clientes que pidieron no recibir avisos no aparecen. */
-export function construirAvisos({ alertas, personalizados, clientes, vehiculos, config, hoy }: EntradaAvisos): ItemAviso[] {
+export function construirAvisos({ alertas, personalizados, ordenes = [], clientes, vehiculos, config, hoy }: EntradaAvisos): ItemAviso[] {
   const vehiculoPorId = new Map(vehiculos.map((v) => [v.id, v]));
   const clientePorId = new Map(clientes.map((c) => [c.id, c]));
   const clienteDeVehiculo = new Map<string, Cliente>();
@@ -196,6 +201,20 @@ export function construirAvisos({ alertas, personalizados, clientes, vehiculos, 
     if (!porFecha && !porKm) { items.push({ ...base, fase: 'programado', saleEl: fecha }); continue; }
     const porQue = porQueEspera(canal, config.automatico);
     items.push(porQue ? { ...base, fase: 'para_hoy', porQue } : { ...base, fase: 'programado', enElProximoEnvio: true });
+  }
+
+  // Un cambio de aceite ya hecho (orden lista o entregada) sin el próximo cambio anotado: nunca habrá aviso hasta que se anote.
+  for (const o of ordenes) {
+    if (!o.esCambioAceite || o.aceiteAnotadoEn || (o.estado !== 'listo' && o.estado !== 'entregado')) continue;
+    const cli = clientePorId.get(o.clienteId);
+    const canal = canalDelCliente(cli);
+    if (canal === 'no_avisar') continue;
+    items.push({
+      clave: `o:${o.id}`, origen: 'orden', ordenId: o.id, ordenNumero: o.numero, tipo: 'aceite', motivo: 'Cambio de aceite',
+      clienteId: o.clienteId, vehiculoId: o.vehiculoId, fase: 'para_hoy', porQue: 'anotar_aceite', canal,
+      fecha: null, kmObjetivo: null, dias: null, urgencia: 'hoy',
+      cuando: `Falta anotar cuándo le toca el próximo · ${o.numero}`,
+    });
   }
 
   return ordenarAvisos(items);

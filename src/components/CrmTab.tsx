@@ -2,7 +2,10 @@ import { useState, useMemo, useEffect } from 'react';
 import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
 import { Matricula } from '../ui/componentes';
-import { Cliente, InteraccionCliente, Vehiculo, Empresa } from '../types';
+import { Cliente, InteraccionCliente, NotificacionCliente, Vehiculo, Empresa } from '../types';
+import type { NuevoAviso as DatosAviso } from '../lib/data/avisos';
+import type { ItemAviso } from '../utils/avisos';
+import AvisosCliente from './AvisosCliente';
 import {
   Users, UserPlus, Search, Mail, Phone, MapPin, CreditCard, Clock, MessageSquare, Plus, Trash2, X, Check, Save, Download, Upload, PenTool, Car, Link2, Copy, RefreshCw, ShieldOff
 } from 'lucide-react';
@@ -29,6 +32,10 @@ interface CrmTabProps {
   onImportado: () => void | Promise<void>;
   /** Orden que llega del botón «Nuevo» o del buscador global del nuevo diseño (cada una trae un número distinto). */
   intencion?: Intencion;
+  /** Historial y avisos pendientes del cliente (la cola de avisos del taller y los mensajes ya enviados). */
+  avisos: ItemAviso[];
+  notificaciones: NotificacionCliente[];
+  onCrearAviso: (a: DatosAviso) => Promise<void>;
 }
 
 export default function CrmTab({
@@ -42,7 +49,10 @@ export default function CrmTab({
   onAddInteraccion,
   onSetPortalToken,
   onImportado,
-  intencion
+  intencion,
+  avisos,
+  notificaciones,
+  onCrearAviso
 }: CrmTabProps) {
   const [showImport, setShowImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -590,6 +600,11 @@ export default function CrmTab({
                   Enlace personal sin contraseña: el cliente ve el estado de su vehículo, aprueba presupuestos y consulta sus facturas.
                 </p>
               </div>
+
+              <AvisosCliente
+                cliente={selectedCliente} clientes={clientes} vehiculos={vehiculos} empresa={empresa}
+                avisos={avisos} notificaciones={notificaciones} onCrearAviso={onCrearAviso}
+              />
 
               {/* Interactions Timeline */}
               <div className="space-y-4 pt-4 border-t border-slate-50">
