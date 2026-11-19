@@ -8,7 +8,7 @@
 // Todo lo demás (Supabase, funciones, tipografías, otros dominios) lo gestiona el navegador sin
 // pasar por aquí.
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE_APP = `doonty-app-${VERSION}`;
 const CACHE_ASSETS = `doonty-assets-${VERSION}`;
 const OFFLINE_URL = '/offline.html';
