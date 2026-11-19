@@ -411,3 +411,9 @@ button.u-aviso-paso { cursor: pointer; } button.u-aviso-paso:hover { filter: bri
   .u-av-acc { width: 100%; justify-content: flex-start; padding-left: 22px; }
   .u-av-ajustes { margin-left: 0; width: 100%; text-align: left; }
 }
+
+/* Foco de los campos de texto: borde del color del taller con un halo suave, sin el contorno desplazado de los botones
+   (que se veía pegado encima del campo y recortado por los cuadros). Los botones y enlaces conservan su contorno. */
+.u-app :is(input, textarea, select):focus-visible { outline: none; border-color: var(--u-brand-ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--u-brand-ink) 20%, transparent); }
+/* El buscador (Ctrl K) ya está dentro de su propio cuadro: el campo no necesita marca, solo el cursor. */
+.u-pal-caja input:focus-visible { box-shadow: none; border-color: transparent; }
