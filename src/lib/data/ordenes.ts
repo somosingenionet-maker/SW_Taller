@@ -14,6 +14,7 @@ const SELECT =
   // De las firmas solo quién, cuándo y por cuánto: el dibujo (PNG) no viaja en los listados.
   'firma_presupuesto_nombre, firma_presupuesto_en, firma_presupuesto_total, firma_entrega_nombre, firma_entrega_en, ' +
   'aceptacion_presupuesto_nombre, aceptacion_presupuesto_en, aceptacion_presupuesto_total, ' +
+  'presupuesto_enviado_en, presupuesto_recordatorios, presupuesto_recordado_en, ' +
   'checklist_recepcion, checklist_observaciones, fotos_recepcion, ' +
   'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, duracion_min, notificado_cliente, inspeccion_punto_id ), ' +
   'eventos_ot ( fecha, descripcion )';
@@ -40,6 +41,7 @@ type OrdenRow = {
   firma_presupuesto_nombre?: string | null; firma_presupuesto_en?: string | null; firma_presupuesto_total?: number | null;
   firma_entrega_nombre?: string | null; firma_entrega_en?: string | null;
   aceptacion_presupuesto_nombre?: string | null; aceptacion_presupuesto_en?: string | null; aceptacion_presupuesto_total?: number | null;
+  presupuesto_enviado_en?: string | null; presupuesto_recordatorios?: number | null; presupuesto_recordado_en?: string | null;
   filtro_aire?: string | null; filtro_aceite?: string | null; filtro_combustible?: string | null; filtro_habitaculo?: string | null;
   checklist_recepcion: ChecklistItemRow[] | null; checklist_observaciones: string | null;
   fotos_recepcion: string[] | null;
@@ -105,6 +107,9 @@ export function mapOrden(r: OrdenRow): OrdenTrabajo {
     firmaEntrega: r.firma_entrega_en ? { nombre: r.firma_entrega_nombre ?? '', en: r.firma_entrega_en } : undefined,
     aceptacionPresupuesto: r.aceptacion_presupuesto_en
       ? { nombre: r.aceptacion_presupuesto_nombre ?? '', en: r.aceptacion_presupuesto_en, total: Number(r.aceptacion_presupuesto_total ?? 0) } : undefined,
+    presupuestoEnviadoEn: r.presupuesto_enviado_en ?? undefined,
+    presupuestoRecordatorios: r.presupuesto_recordatorios ?? undefined,
+    presupuestoRecordadoEn: r.presupuesto_recordado_en ?? undefined,
     checklistRecepcion: r.checklist_recepcion ?? undefined,
     checklistObservaciones: r.checklist_observaciones ?? undefined,
     fotosRecepcion: r.fotos_recepcion ?? undefined,

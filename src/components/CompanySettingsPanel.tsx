@@ -478,7 +478,7 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
                     <label className="flex items-start justify-between gap-4 cursor-pointer">
                       <span className="text-sm text-slate-700 flex items-start gap-3 leading-relaxed">
                         <Mail className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
-                        Enviar por email a los clientes, automáticamente, los recordatorios de ITV, seguro e impuesto y los avisos del cambio de aceite (resumen al entregar, recordatorio antes del próximo cambio y último aviso si no vuelve).
+                        Enviar por email a los clientes, automáticamente, los recordatorios de ITV, seguro e impuesto y los avisos del cambio de aceite (resumen al entregar, recordatorio antes del próximo cambio y último aviso si no vuelve), y recordar al cliente los informes de inspección sin responder y los presupuestos enviados sin respuesta (a los 3 y a los 7 días, como mucho dos avisos).
                       </span>
                       <input type="checkbox" checked={draft.recordatoriosAutomaticosActivos} onChange={e => setDraft(prev => ({ ...prev, recordatoriosAutomaticosActivos: e.target.checked }))} className="w-5 h-5 shrink-0 mt-0.5 cursor-pointer" />
                     </label>

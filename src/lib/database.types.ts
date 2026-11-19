@@ -1367,6 +1367,9 @@ export type Database = {
           aceite_resumen_enviado_en: string | null
           aceptacion_presupuesto_dispositivo: string | null
           aceptacion_presupuesto_en: string | null
+          presupuesto_enviado_en: string | null
+          presupuesto_recordatorios: number
+          presupuesto_recordado_en: string | null
           aceptacion_presupuesto_ip: string | null
           aceptacion_presupuesto_nombre: string | null
           aceptacion_presupuesto_texto: string | null
@@ -1419,6 +1422,9 @@ export type Database = {
           aceite_resumen_enviado_en?: string | null
           aceptacion_presupuesto_dispositivo?: string | null
           aceptacion_presupuesto_en?: string | null
+          presupuesto_enviado_en?: string | null
+          presupuesto_recordatorios?: number
+          presupuesto_recordado_en?: string | null
           aceptacion_presupuesto_ip?: string | null
           aceptacion_presupuesto_nombre?: string | null
           aceptacion_presupuesto_texto?: string | null
@@ -1471,6 +1477,9 @@ export type Database = {
           aceite_resumen_enviado_en?: string | null
           aceptacion_presupuesto_dispositivo?: string | null
           aceptacion_presupuesto_en?: string | null
+          presupuesto_enviado_en?: string | null
+          presupuesto_recordatorios?: number
+          presupuesto_recordado_en?: string | null
           aceptacion_presupuesto_ip?: string | null
           aceptacion_presupuesto_nombre?: string | null
           aceptacion_presupuesto_texto?: string | null

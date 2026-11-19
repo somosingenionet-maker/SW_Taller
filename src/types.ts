@@ -103,6 +103,11 @@ export interface OrdenTrabajo {
   firmaPresupuesto?: { nombre: string; en: string; total: number };
   /** El cliente aceptó el presupuesto desde su portal (sin dibujar firma): quién, cuándo y por qué importe. */
   aceptacionPresupuesto?: { nombre: string; en: string; total: number };
+  /** Cuándo se envió (o reenvió) el presupuesto al cliente; de aquí cuentan los recordatorios automáticos. */
+  presupuestoEnviadoEn?: string;
+  /** Recordatorios automáticos ya mandados por este envío (0, 1 o 2) y cuándo fue el último. */
+  presupuestoRecordatorios?: number;
+  presupuestoRecordadoEn?: string;
   /** Firma en pantalla de la entrega del vehículo (sin el dibujo). */
   firmaEntrega?: { nombre: string; en: string };
   /** Registro cronológico de eventos de esta OT. */

@@ -1,5 +1,7 @@
 // Seguimiento automático de inspecciones: los dos correos al cliente. Puro y probado.
-import { colorValido, escaparHtml, textoSobre } from '../_shared/correo.ts';
+import { colorValido, escaparHtml, fechaLarga, textoSobre } from '../_shared/correo.ts';
+
+export { fechaLarga };
 
 export type TipoSeguimiento = 'sin_responder' | 'pendientes';
 
@@ -17,13 +19,6 @@ export function puntosPendientesDe(valor: unknown): PuntoPendiente[] {
     }))
     // Primero lo urgente.
     .sort((a, b) => (a.estado === b.estado ? 0 : a.estado === 'urgente' ? -1 : 1));
-}
-
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-/** «14 de noviembre de 2026», en la hora de Madrid. */
-export function fechaLarga(iso: string): string {
-  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso)).split('-').map(Number);
-  return `${p[2]} de ${MESES[p[1] - 1]} de ${p[0]}`;
 }
 
 export function construirCorreoSeguimiento(

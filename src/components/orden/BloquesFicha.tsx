@@ -4,7 +4,7 @@ import { avisarError } from '../../lib/avisos';
 import { fmt2 } from '../../utils/moneda';
 import { waHref } from '../../utils/whatsapp';
 import EnviarPresupuesto from '../EnviarPresupuesto';
-import { calcTotals, mailHref } from './utilidades';
+import { calcTotals, mailHref, textoRecordatoriosPresupuesto } from './utilidades';
 
 // Los bloques de la ficha de una orden que piden algo al taller: presupuesto, avisos al cliente y al técnico, e historial.
 
@@ -45,6 +45,10 @@ export function BloquePresupuesto({ selected, clientes, vehiculos, empresa, onCa
             ? 'El coche ya está en el taller. Cuando tengas el diagnóstico y las líneas con su precio, envíaselo al cliente: recibe un enlace a su portal donde lo aprueba desde el móvil, y queda guardada su aceptación.'
             : 'Envíaselo al cliente: recibe un enlace a su portal donde lo acepta o lo rechaza desde el móvil.'}
       </p>
+      {(() => {
+        const aviso = textoRecordatoriosPresupuesto(selected);
+        return aviso ? <p className="text-xs text-slate-500" data-testid="recordatorios-presupuesto">{aviso}</p> : null;
+      })()}
       {enTaller && !enviado && !(selected.total > 0) && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">Aún no hay importe: añade las líneas de trabajo y recambios para poder enviarlo.</p>
       )}

@@ -41,3 +41,10 @@ export function botonCorreo(color: string | null | undefined, texto: string, enl
   const c = colorValido(color);
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px;"><tr><td style="background-color:${c};border-radius:10px;"><a href="${escaparHtml(enlace)}" style="display:inline-block;padding:13px 24px;color:${textoSobre(c)};font-size:15px;font-weight:700;text-decoration:none;">${escaparHtml(texto)}</a></td></tr></table>`;
 }
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+/** «14 de noviembre de 2026», en la hora de Madrid. */
+export function fechaLarga(iso: string): string {
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso)).split('-').map(Number);
+  return `${p[2]} de ${MESES[p[1] - 1]} de ${p[0]}`;
+}

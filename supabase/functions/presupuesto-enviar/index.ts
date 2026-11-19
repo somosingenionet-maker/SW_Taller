@@ -49,7 +49,7 @@ async function manejarEnviar(admin: SupabaseClient, req: Request, otId: string, 
   if (!otId) return json({ error: 'Falta la orden.' }, 400);
 
   const { data: ot } = await admin.from('ordenes_trabajo')
-    .select('id, empresa_id, numero, estado, total, cliente_id, vehiculo_id, presupuesto_estado, presupuesto_aprobado, aceptacion_presupuesto_en')
+    .select('id, empresa_id, numero, estado, total, cliente_id, vehiculo_id, presupuesto_estado, presupuesto_aprobado, aceptacion_presupuesto_en, presupuesto_enviado_en, presupuesto_recordatorios, presupuesto_recordado_en')
     .eq('id', otId).maybeSingle();
   if (!ot) return json({ error: 'Orden no encontrada.' }, 404);
   if (ot.empresa_id !== perfil.empresa_id) return json({ error: 'No autorizado' }, 403);
@@ -80,9 +80,13 @@ async function manejarEnviar(admin: SupabaseClient, req: Request, otId: string, 
   const enlace = `${APP_URL}/portal/${portalToken}`;
 
   // Se marca como enviado ANTES de mandar el correo (y solo si seguía igual): dos clics seguidos no envían dos veces.
-  const anterior = { presupuesto_estado: ot.presupuesto_estado, presupuesto_aprobado: ot.presupuesto_aprobado };
+  const anterior = {
+    presupuesto_estado: ot.presupuesto_estado, presupuesto_aprobado: ot.presupuesto_aprobado,
+    presupuesto_enviado_en: ot.presupuesto_enviado_en, presupuesto_recordatorios: ot.presupuesto_recordatorios, presupuesto_recordado_en: ot.presupuesto_recordado_en,
+  };
   const { data: marcada, error: marcarErr } = await admin.from('ordenes_trabajo')
-    .update({ presupuesto_estado: 'enviado', presupuesto_aprobado: null })
+    // Cada envío (o reenvío) reinicia la cuenta de los recordatorios automáticos.
+    .update({ presupuesto_estado: 'enviado', presupuesto_aprobado: null, presupuesto_enviado_en: new Date().toISOString(), presupuesto_recordatorios: 0, presupuesto_recordado_en: null })
     .eq('id', otId).in('estado', ESTADOS_PRESUPUESTABLES).is('aceptacion_presupuesto_en', null).select('id');
   if (marcarErr || !marcada?.length) return json({ error: 'No se pudo marcar el presupuesto como enviado.' }, 409);
 

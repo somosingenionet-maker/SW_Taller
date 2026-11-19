@@ -127,7 +127,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, alertas, 
               </>}
               {t.esperando.length > 0 && <>
                 <div className="u-sub">Presupuestos sin respuesta · {t.esperando.length}</div>
-                {t.esperando.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Enviado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} €${x.orden.estado === 'presupuesto' ? '' : ' · coche ya en el taller'}`} chip={<Chip tono="presupuesto">Esperando</Chip>} />)}
+                {t.esperando.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`Enviado ${textoDias(x.dias)} · ${fmt2(x.orden.total)} €${x.orden.estado === 'presupuesto' ? '' : ' · coche ya en el taller'}${x.orden.presupuestoRecordadoEn && (x.orden.presupuestoRecordatorios ?? 0) > 0 ? ` · avisado ${x.orden.presupuestoRecordatorios === 1 ? 'una vez' : 'dos veces'}` : ''}`} chip={<Chip tono="presupuesto">Esperando</Chip>} />)}
               </>}
               {t.rechazados.length > 0 && <>
                 <div className="u-sub">Presupuestos rechazados · {t.rechazados.length}</div>

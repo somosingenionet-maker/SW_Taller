@@ -30,3 +30,18 @@ export function progresoTareas(ot: OrdenTrabajo): { total: number; hechas: numbe
   const hechas = tareas.filter(l => l.completado).length;
   return { total: tareas.length, hechas, terminado: tareas.length > 0 && hechas === tareas.length };
 }
+
+/**
+ * Qué decir sobre los recordatorios automáticos de un presupuesto enviado y sin respuesta (null si no procede).
+ * Salen a los 3 días del envío y a los 7, como mucho dos. Un presupuesto enviado antes de existir esta función se
+ * marcó como «ya recordado» sin fecha de aviso: de ese no se dice nada.
+ */
+export function textoRecordatoriosPresupuesto(ot: Pick<OrdenTrabajo, 'presupuestoEstado' | 'presupuestoAprobado' | 'aceptacionPresupuesto' | 'presupuestoRecordatorios' | 'presupuestoRecordadoEn'>): string | null {
+  if (ot.presupuestoEstado !== 'enviado' || ot.presupuestoAprobado != null || ot.aceptacionPresupuesto) return null;
+  const n = ot.presupuestoRecordatorios ?? 0;
+  const dia = (iso: string) => new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  if (n === 0) return 'Si no responde, el sistema le avisará solo a los 3 días del envío y, si sigue sin responder, a los 7 (con los recordatorios automáticos activados).';
+  if (!ot.presupuestoRecordadoEn) return null;
+  if (n === 1) return `Ya se le avisó el ${dia(ot.presupuestoRecordadoEn)}. Habrá un último aviso a los 7 días del envío.`;
+  return `Ya se le avisó dos veces (la última el ${dia(ot.presupuestoRecordadoEn)}). No se le avisará más.`;
+}

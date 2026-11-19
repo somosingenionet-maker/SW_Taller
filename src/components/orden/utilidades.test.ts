@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { LineaOT, OrdenTrabajo } from '../../types';
 
-import { calcTotals, diasDesde, ESTADOS_SIN_AVISO_EXTRA, mailHref, progresoTareas } from './utilidades';
+import { calcTotals, diasDesde, ESTADOS_SIN_AVISO_EXTRA, mailHref, progresoTareas, textoRecordatoriosPresupuesto } from './utilidades';
 import { waHref } from '../../utils/whatsapp';
 
 function linea(overrides: Partial<LineaOT> = {}): LineaOT {
@@ -114,5 +114,30 @@ describe('ESTADOS_SIN_AVISO_EXTRA', () => {
     expect(ESTADOS_SIN_AVISO_EXTRA).not.toContain('recibido');
     expect(ESTADOS_SIN_AVISO_EXTRA).not.toContain('en_reparacion');
     expect(ESTADOS_SIN_AVISO_EXTRA).not.toContain('listo');
+  });
+});
+
+describe('textoRecordatoriosPresupuesto', () => {
+  const base = { presupuestoEstado: 'enviado' as const };
+  it('sin enviar, ya respondido o aceptado no se dice nada', () => {
+    expect(textoRecordatoriosPresupuesto({ presupuestoEstado: 'pendiente' })).toBeNull();
+    expect(textoRecordatoriosPresupuesto({ ...base, presupuestoAprobado: false })).toBeNull();
+    expect(textoRecordatoriosPresupuesto({ ...base, presupuestoAprobado: true })).toBeNull();
+    expect(textoRecordatoriosPresupuesto({ ...base, aceptacionPresupuesto: { nombre: 'Ana', en: '2026-11-17T10:00:00Z', total: 10 } })).toBeNull();
+  });
+  it('recién enviado, avisa de cuándo se le recordará', () => {
+    expect(textoRecordatoriosPresupuesto(base)).toContain('a los 3 días');
+    expect(textoRecordatoriosPresupuesto({ ...base, presupuestoRecordatorios: 0 })).toContain('a los 7');
+  });
+  it('tras el primer aviso, dice cuándo fue y que habrá uno último', () => {
+    const r = textoRecordatoriosPresupuesto({ ...base, presupuestoRecordatorios: 1, presupuestoRecordadoEn: '2026-11-17T09:00:00Z' });
+    expect(r).toContain('Ya se le avisó el');
+    expect(r).toContain('último aviso');
+  });
+  it('tras el segundo, no habrá más', () => {
+    expect(textoRecordatoriosPresupuesto({ ...base, presupuestoRecordatorios: 2, presupuestoRecordadoEn: '2026-11-21T09:00:00Z' })).toContain('No se le avisará más');
+  });
+  it('un presupuesto anterior a esta función (marcado como recordado sin fecha) no dice nada', () => {
+    expect(textoRecordatoriosPresupuesto({ ...base, presupuestoRecordatorios: 2 })).toBeNull();
   });
 });
