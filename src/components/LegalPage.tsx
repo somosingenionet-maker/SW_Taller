@@ -448,9 +448,11 @@ function Terminos() {
           la ley obligue a conservar esas facturas.
         </p>
         <p>
-          <b>Precio.</b> El plan de pago cuesta 89 € al mes o 961,20 € al año (10 % de descuento), más el
-          IVA aplicable. Incluye todas las funciones, sin límite de usuarios ni de órdenes de trabajo. Los
-          servicios opcionales de migración de datos y formación, si los contratas, se presupuestan aparte.
+          <b>Precio.</b> El plan de pago cuesta 69,90 € al mes o 754,92 € al año (10 % de descuento sobre
+          doce mensualidades), más el IVA aplicable. Incluye todas las funciones, sin límite de usuarios ni
+          de órdenes de trabajo. Al contratar por primera vez se cobra además una cuota de alta única de
+          199 € más IVA, en la primera factura y tanto en el plan mensual como en el anual; no se vuelve a
+          cobrar si más adelante cancelas y te suscribes de nuevo.
         </p>
         <p>
           <b>Cobro.</b> La suscripción se cobra por adelantado al inicio de cada periodo y se renueva

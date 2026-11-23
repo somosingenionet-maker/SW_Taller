@@ -64,8 +64,8 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, onClose }: P
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
                   {([
-                    { id: 'mensual', titulo: 'Mensual', precio: '89 €', nota: 'al mes + IVA' },
-                    { id: 'anual', titulo: 'Anual', precio: '961,20 €', nota: 'al año + IVA · 10 % de ahorro' },
+                    { id: 'mensual', titulo: 'Mensual', precio: '69,90\u00a0€', nota: 'al mes + IVA' },
+                    { id: 'anual', titulo: 'Anual', precio: '754,92\u00a0€', nota: 'al año + IVA · 10\u00a0% de ahorro' },
                   ] as const).map((o) => (
                     <button key={o.id} onClick={() => setPlan(o.id)} aria-pressed={plan === o.id}
                       className={`text-left rounded-2xl border p-3 transition cursor-pointer ${plan === o.id ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' : 'border-slate-200 hover:bg-slate-50'}`}>
@@ -75,6 +75,9 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, onClose }: P
                     </button>
                   ))}
                 </div>
+                {!s.tieneCliente && (
+                  <p className="text-xs text-slate-500">La primera factura incluye además la <b>cuota de alta de 199&nbsp;€ + IVA</b>, una sola vez.</p>
+                )}
                 <button onClick={() => void ir(() => iniciarCheckout(plan))} disabled={ocupado}
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl transition cursor-pointer disabled:opacity-60">
                   <ShieldCheck className="w-4 h-4" /> {ocupado ? 'Abriendo el pago…' : 'Suscribirme'}

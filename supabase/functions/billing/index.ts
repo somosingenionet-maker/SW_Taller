@@ -5,6 +5,7 @@
 //   STRIPE_SECRET_KEY    clave secreta de Stripe (sk_test_… en pruebas, sk_live_… en producción)
 //   STRIPE_PRICE_MENSUAL id del precio mensual (price_…)
 //   STRIPE_PRICE_ANUAL   id del precio anual (price_…)
+//   STRIPE_PRICE_ALTA    (opcional) id del precio único de la cuota de alta (price_…); sin él no se cobra alta
 //   STRIPE_TAX_RATE_IVA  (opcional) id de la tasa de IVA 21 % (txr_…)
 //   APP_URL              (opcional) por defecto https://motor.doonty.com
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -12,7 +13,7 @@ import { stripeApi } from '../_shared/stripe.ts';
 import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
 import { permitirPeticion } from '../_shared/rateLimit.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
-import { esPlan, paramsCheckout, paramsPortal, tieneSuscripcionViva } from './logic.ts';
+import { cobraAlta, esPlan, paramsCheckout, paramsPortal, tieneSuscripcionViva } from './logic.ts';
 
 initSentry('billing');
 
@@ -22,6 +23,7 @@ const STRIPE_KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
 const CFG = {
   precioMensual: Deno.env.get('STRIPE_PRICE_MENSUAL') ?? '',
   precioAnual: Deno.env.get('STRIPE_PRICE_ANUAL') ?? '',
+  precioAlta: Deno.env.get('STRIPE_PRICE_ALTA') || undefined,
   tasaIva: Deno.env.get('STRIPE_TAX_RATE_IVA') || undefined,
   appUrl: (Deno.env.get('APP_URL') ?? 'https://motor.doonty.com').replace(/\/+$/, ''),
 };
@@ -74,7 +76,7 @@ Deno.serve(conSentry(async (req) => {
       }
       const sesion = await stripeApi<{ url: string }>(STRIPE_KEY, 'checkout/sessions', paramsCheckout({
         empresaId: empresa.id, email: perfil.email ?? userData.user.email ?? '', plan: body.plan,
-        clienteStripe: empresa.stripe_customer_id, cfg: CFG,
+        clienteStripe: empresa.stripe_customer_id, conAlta: cobraAlta(empresa, CFG), cfg: CFG,
       }));
       return json({ url: sesion.url });
     }

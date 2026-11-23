@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@1';
-import { esPlan, paramsCheckout, paramsPortal, tieneSuscripcionViva } from './logic.ts';
+import { cobraAlta, esPlan, paramsCheckout, paramsPortal, tieneSuscripcionViva } from './logic.ts';
 
 const cfg = { precioMensual: 'price_m', precioAnual: 'price_a', tasaIva: 'txr_21', appUrl: 'https://motor.doonty.com' };
 
@@ -44,4 +44,21 @@ Deno.test('suscripción viva: activa o en impago con id de Stripe; no si cancela
   assertEquals(tieneSuscripcionViva({ stripe_subscription_id: 'sub_1', estado_suscripcion: 'cancelada' }), false);
   assertEquals(tieneSuscripcionViva({ stripe_subscription_id: null, estado_suscripcion: 'activa' }), false);
   assertEquals(tieneSuscripcionViva({ stripe_subscription_id: null, estado_suscripcion: 'prueba' }), false);
+});
+
+Deno.test('alta: se añade como segundo concepto con IVA, en mensual y en anual', () => {
+  const c = { ...cfg, precioAlta: 'price_alta' };
+  for (const plan of ['mensual', 'anual'] as const) {
+    const p = paramsCheckout({ empresaId: 'e', email: 'a@x.com', plan, clienteStripe: null, conAlta: true, cfg: c }) as Record<string, any>;
+    assertEquals(p.line_items.length, 2);
+    assertEquals(p.line_items[1], { price: 'price_alta', quantity: 1, tax_rates: ['txr_21'] });
+  }
+  const sin = paramsCheckout({ empresaId: 'e', email: 'a@x.com', plan: 'mensual', clienteStripe: null, conAlta: false, cfg: c }) as Record<string, any>;
+  assertEquals(sin.line_items.length, 1);
+});
+
+Deno.test('alta: solo en la primera suscripción y solo si está configurada', () => {
+  assertEquals(cobraAlta({ stripe_subscription_id: null }, { precioAlta: 'price_alta' }), true);
+  assertEquals(cobraAlta({ stripe_subscription_id: 'sub_viejo' }, { precioAlta: 'price_alta' }), false);
+  assertEquals(cobraAlta({ stripe_subscription_id: null }, { precioAlta: undefined }), false);
 });

@@ -26,8 +26,10 @@ configuración**, no se copia. Los pasos 2 a 6 son del panel de Stripe y de Supa
 ## 2. Producto y precios (modo real)
 
 - [ ] Crear el producto «Doonty Motor».
-- [ ] Precio **mensual**: 89 € cada mes. Anotar su id (`price_...`).
-- [ ] Precio **anual**: 961,20 € cada año (10 % de descuento). Anotar su id.
+- [ ] Precio **mensual**: 69,90 € cada mes. Anotar su id (`price_...`).
+- [ ] Precio **anual**: 754,92 € cada año (12 × 69,90 € con 10 % de descuento). Anotar su id.
+- [ ] Precio de **pago único** «Cuota de alta»: 199 €. Anotar su id. Se cobra en la primera factura
+  (mensual o anual) y no se repite si el taller cancela y vuelve.
 - [ ] **No** activar Stripe Tax ni «cobrar impuestos automáticamente»: el IVA se añade con una tasa
   fija; activarlo a la vez cobraría el IVA dos veces.
 
@@ -69,6 +71,7 @@ En Supabase → Edge Functions → Secrets, **sustituir** los de pruebas por los
 | `STRIPE_WEBHOOK_SECRET` | el `whsec_...` del webhook **real** |
 | `STRIPE_PRICE_MENSUAL` | el `price_...` mensual real |
 | `STRIPE_PRICE_ANUAL` | el `price_...` anual real |
+| `STRIPE_PRICE_ALTA` | el `price_...` de la cuota de alta real (sin él no se cobra alta) |
 | `STRIPE_TAX_RATE_IVA` | el `txr_...` real |
 | `APP_URL` | `https://motor.doonty.com` |
 
