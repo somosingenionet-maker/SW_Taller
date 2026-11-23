@@ -54,7 +54,7 @@ export function paramsCheckout(args: {
     ],
     // Solo tarjeta: sin esto Stripe ofrece todo lo activado en la cuenta (Klarna, Amazon Pay…), con
     // comisiones de hasta el triple. Si se añade el adeudo SEPA, revisar antes el webhook (cobro diferido).
-    payment_method_types: ['card'],
+    allowed_payment_method_types: ['card'],
     allow_promotion_codes: true, // cupones del programa fundador y referidos
     billing_address_collection: 'required',
     tax_id_collection: { enabled: true }, // NIF/CIF del taller para la factura

@@ -14,7 +14,8 @@ Deno.test('checkout mensual nuevo: enlaza la empresa por tres vías y usa el cor
   assertEquals(p.customer, undefined);
   assertEquals(p.success_url, 'https://motor.doonty.com/?suscripcion=ok');
   assertEquals(p.allow_promotion_codes, true);
-  assertEquals(p.payment_method_types, ['card']);
+  assertEquals(p.allowed_payment_method_types, ['card']);
+  assertEquals(p.payment_method_types, undefined); // retirado en la API 2026-09-30.endive: Stripe responde 400
 });
 
 Deno.test('plan anual usa el precio anual', () => {
