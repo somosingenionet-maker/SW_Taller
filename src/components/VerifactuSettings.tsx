@@ -79,7 +79,7 @@ export default function VerifactuSettings({ draft, setDraft }: Props) {
         <ShieldCheck className="w-3.5 h-3.5" /> Facturación electrónica (VERI*FACTU)
       </p>
       <p className="text-[10px] text-slate-400 -mt-1">
-        Desde el 1 ene 2027 (empresas) y el 1 jul 2027 (autónomos) las facturas deben enviarse a la AEAT. Doonty Motor las envía
+        Hacienda ha anunciado que, a partir de octubre de 2028, las facturas deberán enviarse a la AEAT. Doonty Motor las envía
         automáticamente al emitirlas, con el certificado electrónico de tu empresa — el mismo que usas en la sede de la AEAT.
       </p>
 
