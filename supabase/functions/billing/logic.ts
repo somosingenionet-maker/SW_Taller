@@ -52,6 +52,9 @@ export function paramsCheckout(args: {
       // Un precio de pago único en modo suscripción se cobra una sola vez, en la primera factura.
       ...(conAlta && cfg.precioAlta ? [{ price: cfg.precioAlta, quantity: 1, ...iva }] : []),
     ],
+    // Solo tarjeta: sin esto Stripe ofrece todo lo activado en la cuenta (Klarna, Amazon Pay…), con
+    // comisiones de hasta el triple. Si se añade el adeudo SEPA, revisar antes el webhook (cobro diferido).
+    payment_method_types: ['card'],
     allow_promotion_codes: true, // cupones del programa fundador y referidos
     billing_address_collection: 'required',
     tax_id_collection: { enabled: true }, // NIF/CIF del taller para la factura
