@@ -58,12 +58,32 @@ test('servicios: crear y editar en Configuración, y elegirlo en la mano de obra
   await opcion.click();
   await expect(descripcion).toHaveValue(texto);
   await expect(linea.getByLabel('Precio por hora € *')).toHaveValue('42.5');
+  // Con el teclado: flechas para moverse por la lista y Enter para elegir.
+  await descripcion.fill(nombre.slice(4));
+  await expect(page.getByRole('listbox', { name: 'Servicios del taller' })).toContainText('Servicios que contienen');
+  await descripcion.press('ArrowDown');
+  await descripcion.press('Enter');
+  await expect(descripcion).toHaveValue(texto);
   // En mano de obra la cantidad son horas y admite decimales.
   await linea.getByLabel('Horas *').fill('1.5');
   await expect(linea.getByLabel('Horas *')).toHaveValue('1.5');
   // Lo escrito a mano que no está en la lista se puede guardar en el catálogo (el usuario de pruebas es administrador).
   await descripcion.fill('Algo que no existe en el catálogo e2e');
   await expect(page.getByRole('option', { name: /Guardar «Algo que no existe en el catálogo e2e» en mis servicios/ })).toBeVisible();
+  await page.keyboard.press('Escape');
+  // El buscador de productos abre su lista hacia arriba si debajo no cabe (como el de servicios).
+  await page.setViewportSize({ width: 1440, height: 560 });
+  await linea.locator('select').first().selectOption('producto');
+  const disparador = linea.getByRole('button', { name: /Buscar producto/ });
+  await disparador.scrollIntoViewIfNeeded();
+  await disparador.click();
+  const buscador = linea.getByPlaceholder('Buscar...');
+  await expect(buscador).toBeVisible();
+  const cajaBoton = (await disparador.boundingBox())!;
+  if (560 - (cajaBoton.y + cajaBoton.height) < 320 && cajaBoton.y > 260) {
+    expect((await buscador.boundingBox())!.y).toBeLessThan(cajaBoton.y);
+  }
+  await page.screenshot({ path: 'test-results/producto-hacia-arriba.png' });
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
 

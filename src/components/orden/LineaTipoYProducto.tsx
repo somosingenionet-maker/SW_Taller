@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import type { LineaOTTipo, Producto } from '../../types';
 import { fmt2 } from '../../utils/moneda';
 import { textoPrecioServicio, type Servicio } from '../../lib/data/servicios';
@@ -10,6 +10,9 @@ import SearchableSelect from '../SearchableSelect';
 import { EMPTY_LINEA, TIPO_META, type LineaForm } from './constantes';
 
 type SetForm = (updater: (f: LineaForm) => LineaForm) => void;
+
+/** ¿Abrir la lista hacia arriba? Solo si debajo no cabe y encima sí (el campo suele estar al pie de una ventana). */
+const abrirHaciaArriba = (r: DOMRect, alto = 320) => window.innerHeight - r.bottom < alto && r.top > alto - 60;
 
 /**
  * Descripción de una línea de mano de obra: se escribe libre, pero debajo salen los servicios del catálogo que
@@ -24,10 +27,12 @@ function DescripcionManoDeObra({ form, setForm, servicios, onCrearServicio }: {
   const [guardando, setGuardando] = useState(false);
   // Hacia arriba si debajo no cabe: el campo suele estar al final de una ventana con pie fijo que la cortaría.
   const [haciaArriba, setHaciaArriba] = useState(false);
+  // Opción resaltada con las flechas del teclado (-1 = ninguna).
+  const [resaltada, setResaltada] = useState(-1);
   const campoRef = useRef<HTMLInputElement>(null);
   const abrir = () => {
     const r = campoRef.current?.getBoundingClientRect();
-    if (r) setHaciaArriba(window.innerHeight - r.bottom < 320 && r.top > 260);
+    if (r) setHaciaArriba(abrirHaciaArriba(r));
     setAbierto(true);
   };
   const texto = form.descripcion.trim();
@@ -38,6 +43,21 @@ function DescripcionManoDeObra({ form, setForm, servicios, onCrearServicio }: {
   const elegir = (s: Servicio) => {
     setForm((f) => ({ ...f, descripcion: s.reparacion, precioUnitario: s.precio ?? f.precioUnitario }));
     setAbierto(false);
+    setResaltada(-1);
+  };
+  const teclas = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') { setAbierto(false); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!abierto) { abrir(); return; }
+      if (!opciones.length) return;
+      setResaltada((i) => e.key === 'ArrowDown' ? Math.min(i + 1, opciones.length - 1) : Math.max(i - 1, 0));
+      return;
+    }
+    if (e.key === 'Enter' && abierto && resaltada >= 0 && opciones[resaltada]) {
+      e.preventDefault();
+      elegir(opciones[resaltada]);
+    }
   };
   const guardar = async () => {
     if (!onCrearServicio) return;
@@ -53,25 +73,34 @@ function DescripcionManoDeObra({ form, setForm, servicios, onCrearServicio }: {
 
   return (
     <div className="relative">
+      <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" aria-hidden="true" />
       <input
         type="text"
-        placeholder="Descripción o servicio *"
+        placeholder="Buscar servicio o escribir *"
         value={form.descripcion}
         ref={campoRef}
-        onChange={(e) => { setForm((f) => ({ ...f, descripcion: e.target.value })); if (!abierto) abrir(); }}
+        onChange={(e) => { setForm((f) => ({ ...f, descripcion: e.target.value })); setResaltada(-1); if (!abierto) abrir(); }}
         onFocus={abrir}
         onBlur={() => setAbierto(false)}
-        onKeyDown={(e) => { if (e.key === 'Escape') setAbierto(false); }}
+        onKeyDown={teclas}
         aria-label="Descripción de la mano de obra"
         aria-autocomplete="list"
-        className="w-full px-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none"
+        aria-expanded={abierto}
+        className="w-full pl-6 pr-2 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
       />
-      {abierto && (opciones.length > 0 || puedeGuardar) && (
+      {abierto && (servicios.some((s) => s.activo) || puedeGuardar) && (
         // onMouseDown + preventDefault: elegir antes de que el campo pierda el foco y cierre la lista.
         <ul role="listbox" aria-label="Servicios del taller" className={`absolute z-50 ${haciaArriba ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 right-0 sm:right-auto sm:min-w-[18rem] max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-2xl shadow-lg py-1`}>
-          {opciones.map((s) => (
-            <li key={s.id} role="option" aria-selected={false} onMouseDown={(e) => { e.preventDefault(); elegir(s); }}
-              className="px-3 py-1.5 cursor-pointer hover:bg-blue-50 flex items-center justify-between gap-2">
+          <li role="presentation" className="px-3 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100 mb-1">
+            {texto ? `Servicios que contienen «${texto}»` : 'Servicios del taller · escribe para buscar'}
+          </li>
+          {opciones.length === 0 && !puedeGuardar && (
+            <li role="presentation" className="px-3 py-2 text-xs text-slate-400">Ningún servicio coincide. Puedes dejar tu texto tal cual.</li>
+          )}
+          {opciones.map((s, i) => (
+            <li key={s.id} role="option" aria-selected={i === resaltada} onMouseDown={(e) => { e.preventDefault(); elegir(s); }}
+              onMouseEnter={() => setResaltada(i)}
+              className={`px-3 py-1.5 cursor-pointer flex items-center justify-between gap-2 ${i === resaltada ? 'bg-blue-50' : 'hover:bg-blue-50'}`}>
               <span className="text-xs text-slate-800 truncate">{s.nombre}</span>
               <span className={`text-[11px] whitespace-nowrap ${s.precio === null ? 'text-slate-400 italic' : 'text-slate-500 font-mono'}`}>{textoPrecioServicio(s.precio)}</span>
             </li>

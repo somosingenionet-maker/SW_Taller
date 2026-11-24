@@ -32,6 +32,8 @@ export default function SearchableSelect({
   createLabel = 'Crear',
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
+  // Hacia arriba si debajo no cabe la lista (p. ej. el último campo de una ventana con pie fijo) y encima sí.
+  const [haciaArriba, setHaciaArriba] = useState(false);
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,7 +91,11 @@ export default function SearchableSelect({
       {/* Trigger button */}
       <button
         type="button"
-        onClick={() => setOpen(prev => !prev)}
+        onClick={() => {
+          const r = containerRef.current?.getBoundingClientRect();
+          if (r && !open) setHaciaArriba(window.innerHeight - r.bottom < 320 && r.top > 260);
+          setOpen(prev => !prev);
+        }}
         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white flex items-center justify-between gap-2 focus:outline-none focus:ring-2 focus:ring-blue-400 hover:border-slate-300 transition text-left"
       >
         <span className={selected ? 'text-slate-800' : 'text-slate-400'}>
@@ -115,7 +121,7 @@ export default function SearchableSelect({
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden">
+        <div className={`absolute z-50 ${haciaArriba ? 'bottom-full mb-1' : 'top-full mt-1'} w-full bg-white border border-slate-200 rounded-2xl shadow-lg overflow-hidden`}>
           {/* Search input */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100">
             <Search size={13} className="text-slate-400 shrink-0" />
