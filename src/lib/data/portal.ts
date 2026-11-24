@@ -10,6 +10,8 @@ export interface PortalVehiculo {
 }
 
 export interface PortalPresupuestoLinea {
+  /** En mano de obra la cantidad son horas. Puede faltar si la función del servidor es anterior. */
+  tipo?: 'mano_de_obra' | 'producto';
   descripcion: string;
   cantidad: number;
   precioUnitario: number;

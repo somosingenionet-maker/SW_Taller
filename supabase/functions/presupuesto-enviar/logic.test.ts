@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from 'jsr:@std/assert@1';
-import { construirCorreoPresupuesto, motivoNoEnviable } from './logic.ts';
+import { construirCorreoPresupuesto, motivoNoEnviable, sufijoCantidad } from './logic.ts';
 
 const base = { estado: 'presupuesto', total: 123.4, presupuesto_aprobado: null, aceptacion_presupuesto_en: null };
 
@@ -42,4 +42,12 @@ Deno.test('con muchas líneas se resumen, y un color o logo inválidos se ignora
   assertStringIncludes(html, '…y 3 líneas más');
   assertEquals(html.includes('http://inseguro'), false);
   assertStringIncludes(html, '#2563eb');
+});
+
+Deno.test('cantidad en el correo: horas en mano de obra, unidades en productos', () => {
+  assertEquals(sufijoCantidad({ tipo: 'mano_de_obra', cantidad: 1.5 }), ' · 1,5 h');
+  assertEquals(sufijoCantidad({ tipo: 'mano_de_obra', cantidad: 1 }), ' · 1 h');
+  assertEquals(sufijoCantidad({ tipo: 'producto', cantidad: 2 }), ' × 2');
+  assertEquals(sufijoCantidad({ tipo: 'producto', cantidad: 1 }), '');
+  assertEquals(sufijoCantidad({ cantidad: 1 }), '');
 });

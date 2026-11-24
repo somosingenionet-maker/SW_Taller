@@ -18,12 +18,20 @@ export function motivoNoEnviable(
   return null;
 }
 
+/** Lo que va detrás del texto de la línea: « · 1,5 h» en mano de obra (sus cantidades son horas), « × 2» en productos. */
+export function sufijoCantidad(l: { tipo?: string | null; cantidad: number }): string {
+  const n = Number(l.cantidad);
+  const texto = (Math.round(n * 100) / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 });
+  if (l.tipo === 'mano_de_obra') return ` · ${texto} h`;
+  return n !== 1 ? ` × ${texto}` : '';
+}
+
 export function construirCorreoPresupuesto(
   empresa: { nombre: string; brand_color?: string | null; logo_url?: string | null; correo?: string | null; telefono?: string | null },
   cliente: { nombre: string },
   vehiculo: string,
   numero: string,
-  lineas: { descripcion: string; cantidad: number; subtotal: number }[],
+  lineas: { descripcion: string; cantidad: number; subtotal: number; tipo?: string | null }[],
   total: number,
   enlace: string,
 ): { asunto: string; html: string } {
@@ -34,7 +42,7 @@ export function construirCorreoPresupuesto(
   const mostradas = lineas.slice(0, 8);
   const resto = lineas.length - mostradas.length;
   const filas = mostradas.map((l) =>
-    `<tr><td style="padding:6px 0;border-top:1px solid #f1f5f9;color:#475569;font-size:13px;">${escaparHtml(l.descripcion)}${l.cantidad !== 1 ? ` × ${l.cantidad}` : ''}</td><td align="right" style="padding:6px 0;border-top:1px solid #f1f5f9;color:#334155;font-size:13px;font-weight:600;white-space:nowrap;">${eur(l.subtotal)} €</td></tr>`).join('');
+    `<tr><td style="padding:6px 0;border-top:1px solid #f1f5f9;color:#475569;font-size:13px;">${escaparHtml(l.descripcion)}${sufijoCantidad(l)}</td><td align="right" style="padding:6px 0;border-top:1px solid #f1f5f9;color:#334155;font-size:13px;font-weight:600;white-space:nowrap;">${eur(l.subtotal)} €</td></tr>`).join('');
   const p = (t: string) => `<p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.65;">${t}</p>`;
   const html = `<!DOCTYPE html><html lang="es"><body style="margin:0;padding:0;background-color:#f1f5f9;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;"><tr><td align="center" style="padding:32px 16px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">

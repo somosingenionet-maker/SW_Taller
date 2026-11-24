@@ -140,13 +140,14 @@ export async function guardarPunto(
   if (error) throw new Error(error.message);
 }
 
-/** Pone en un punto la reparación y el precio del servicio que sugería la plantilla. */
-export async function aplicarSugerencia(punto: Pick<InspeccionPunto, 'id' | 'reparacion' | 'reparacionSugerida' | 'precioSugerido'>): Promise<void> {
-  await guardarPunto(punto.id, {
-    precio: punto.precioSugerido,
-    // Si el mecánico ya escribió su propio texto, se respeta; solo se completa si estaba vacío.
-    reparacion: punto.reparacion?.trim() ? punto.reparacion : punto.reparacionSugerida,
-  });
+/**
+ * Pone en un punto el texto de la reparación que sugería la plantilla. Solo el texto: el precio del servicio es
+ * por hora, así que el de la reparación lo escribe el taller.
+ */
+export async function aplicarSugerencia(punto: Pick<InspeccionPunto, 'id' | 'reparacion' | 'reparacionSugerida'>): Promise<void> {
+  // Si el mecánico ya escribió su propio texto, se respeta; solo se completa si estaba vacío.
+  if (punto.reparacion?.trim() || !punto.reparacionSugerida?.trim()) return;
+  await guardarPunto(punto.id, { reparacion: punto.reparacionSugerida });
 }
 
 export async function guardarNotaGeneral(inspeccionId: string, nota: string | null): Promise<void> {

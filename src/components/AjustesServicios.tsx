@@ -20,7 +20,7 @@ function validar(b: Borrador): { error: string } | { nombre: string; reparacion:
   const precio = parsearPrecio(b.precio);
   if (!nombre) return { error: 'Escribe el nombre del servicio (hasta 80 caracteres).' };
   if (!reparacion) return { error: 'El texto de la línea puede tener hasta 300 caracteres.' };
-  if (precio === undefined) return { error: 'Escribe un precio válido, por ejemplo 64 o 64,50, o déjalo vacío.' };
+  if (precio === undefined) return { error: 'Escribe un precio por hora válido, por ejemplo 45 o 45,50, o déjalo vacío.' };
   return { nombre, reparacion, precio };
 }
 
@@ -28,7 +28,7 @@ function Campos({ b, set }: { b: Borrador; set: (b: Borrador) => void }) {
   return (
     <>
       <input value={b.nombre} onChange={(e) => set({ ...b, nombre: e.target.value })} placeholder="Nombre (p. ej. Cambio de pastillas)" aria-label="Nombre del servicio" maxLength={80} className={campo} />
-      <input value={b.precio} onChange={(e) => set({ ...b, precio: e.target.value })} placeholder="Precio €" aria-label="Precio del servicio" inputMode="decimal" className={`${campo} sm:w-28`} />
+      <input value={b.precio} onChange={(e) => set({ ...b, precio: e.target.value })} placeholder="€ / hora" aria-label="Precio por hora del servicio" inputMode="decimal" className={`${campo} sm:w-28`} />
       <input value={b.reparacion} onChange={(e) => set({ ...b, reparacion: e.target.value })} placeholder="Texto en la orden y para el cliente (si lo dejas vacío, el nombre)" aria-label="Texto de la reparación" maxLength={300} className={`${campo} sm:col-span-2`} />
     </>
   );
@@ -69,7 +69,7 @@ export function ListaServicios({ servicios, recargar }: { servicios: Servicio[];
       <div>
         <p className="text-xs font-bold text-slate-600">Servicios del taller</p>
         <p className="text-[11px] text-slate-400">
-          Al añadir mano de obra a una orden se eligen de esta lista y se rellenan solos el texto y el precio. También los usa la inspección. Precio sin IVA; si lo dejas vacío se escribe en cada orden.
+          Al añadir mano de obra a una orden se eligen de esta lista y se rellenan solos el texto y el precio por hora; en la orden solo queda poner las horas. Precio por hora sin IVA; si lo dejas vacío se escribe en cada orden.
         </p>
         {sinPrecio > 0 && <p className="text-[11px] text-amber-700 mt-1">{sinPrecio === 1 ? 'Un servicio no tiene' : `${sinPrecio} servicios no tienen`} precio todavía.</p>}
       </div>

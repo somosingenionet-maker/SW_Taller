@@ -3,7 +3,7 @@ import { BellRing, Camera, CheckCircle2, ClipboardCheck, Copy, Mail, MessageCirc
 import type { Empresa, OrdenTrabajo } from '../types';
 import { supabase } from '../lib/supabase';
 import { getOrden } from '../lib/data/ordenes';
-import { listServicios, textoPrecioServicio, type Servicio } from '../lib/data/servicios';
+import { listServicios, type Servicio } from '../lib/data/servicios';
 import { listPlantillas, type PlantillaResumen } from '../lib/data/plantillasInspeccion';
 import { tipoDispositivo } from '../lib/data/firmas';
 import InformeInspeccionImpreso from './InformeInspeccionImpreso';
@@ -133,7 +133,7 @@ function PuntoRevision({ punto, urls, editable, servicios, onGuardar, onBorrarFo
       {editable && sugerenciaPendiente(punto) && (
         <div className="flex items-center justify-between gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-xs" data-testid="sugerencia">
           <span className="text-blue-800 min-w-0">
-            <Sparkles size={11} className="inline -mt-0.5 mr-1" />Sugerido: <span className="font-semibold">{punto.servicioNombre}</span> · {fmt2(punto.precioSugerido ?? 0)} €
+            <Sparkles size={11} className="inline -mt-0.5 mr-1" />Sugerido: <span className="font-semibold">{punto.reparacionSugerida}</span>
           </span>
           <button type="button" onClick={() => void onUsarSugerencia()} className="shrink-0 px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold cursor-pointer">Usar</button>
         </div>
@@ -149,9 +149,9 @@ function PuntoRevision({ punto, urls, editable, servicios, onGuardar, onBorrarFo
             className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           {servicios.some((x) => x.activo) && (
             <select value="" aria-label={`Poner un servicio en ${punto.nombre}`} className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-              onChange={(e) => { const sv = servicios.find((x) => x.id === e.target.value); if (!sv) return; setReparacion(sv.reparacion); if (sv.precio === null) { void onGuardar({ reparacion: sv.reparacion }); return; } setPrecio(String(sv.precio).replace('.', ',')); void onGuardar({ reparacion: sv.reparacion, precio: sv.precio }); }}>
+              onChange={(e) => { const sv = servicios.find((x) => x.id === e.target.value); if (!sv) return; setReparacion(sv.reparacion); void onGuardar({ reparacion: sv.reparacion }); }}>
               <option value="">Poner un servicio del catálogo…</option>
-              {servicios.filter((x) => x.activo).map((x) => <option key={x.id} value={x.id}>{x.nombre} · {textoPrecioServicio(x.precio)}</option>)}
+              {servicios.filter((x) => x.activo).map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
             </select>
           )}
           <div className="flex items-center gap-2">
@@ -200,7 +200,7 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
     if (c) { setConservar(c.conservar); setFotosBorradas(c.borradasEn); }
   }, [ot.id]);
 
-  // Plantillas (para elegir al iniciar) y servicios (para sugerir precio) del taller.
+  // Plantillas (para elegir al iniciar) y servicios (para poner el texto de la reparación) del taller.
   useEffect(() => {
     listPlantillas().then((l) => { setPlantillas(l); setPlantillaElegida(l.find((p) => p.esDefecto)?.id ?? l[0]?.id ?? ''); }).catch(() => setPlantillas([]));
     listServicios().then(setServicios).catch(() => setServicios([]));

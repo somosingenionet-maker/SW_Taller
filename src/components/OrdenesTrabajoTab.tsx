@@ -35,6 +35,8 @@ import BadgeEstado from './orden/BadgeEstado';
 import VisorPresupuesto from './orden/VisorPresupuesto';
 import { BloqueAvisoListo, BloqueAvisoTecnico, BloqueLineasNuevas, BloquePresupuesto, HistorialOrden } from './orden/BloquesFicha';
 import LineaTipoYProducto from './orden/LineaTipoYProducto';
+import CamposCantidadPrecio from './orden/CamposCantidadPrecio';
+import { cantidadValida, textoCantidad, textoPrecioLinea } from '../utils/cantidadLinea';
 import { crearServicio, listServicios, type Servicio } from '../lib/data/servicios';
 import CrearProductoRapidoModal from './orden/CrearProductoRapidoModal';
 import {
@@ -235,7 +237,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   }, [intencion?.n]);
 
   const handleAddLinea = () => {
-    if (!newLinea.descripcion || newLinea.cantidad === '' || newLinea.precioUnitario === '') return;
+    if (!newLinea.descripcion || !cantidadValida(newLinea.cantidad) || newLinea.precioUnitario === '') return;
     if (newLinea.tipo === 'producto' && !newLinea.productoId) return;
     const linea: LineaOT = {
       id: 'lot-' + Date.now(),
@@ -259,7 +261,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   };
 
   const handleSaveEditLinea = (id: string) => {
-    if (!editLineaForm.descripcion || editLineaForm.cantidad === '' || editLineaForm.precioUnitario === '') return;
+    if (!editLineaForm.descripcion || !cantidadValida(editLineaForm.cantidad) || editLineaForm.precioUnitario === '') return;
     setFormLineas(prev => prev.map(l => l.id !== id ? l : {
       ...l,
       cantidad: Number(editLineaForm.cantidad),
@@ -974,8 +976,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                   {TIPO_META[l.tipo].label}
                                 </span>
                               </td>
-                              <td className="px-3 py-2 text-right text-slate-600">{l.cantidad}</td>
-                              <td className="px-3 py-2 text-right font-mono">{fmt2(l.precioUnitario)} €</td>
+                              <td className="px-3 py-2 text-right text-slate-600 whitespace-nowrap">{textoCantidad(l.tipo, l.cantidad)}</td>
+                              <td className="px-3 py-2 text-right font-mono whitespace-nowrap">{textoPrecioLinea(l.tipo, l.precioUnitario)}</td>
                               <td className="px-3 py-2 text-right font-mono font-semibold">{fmt2(l.subtotal)} €</td>
                             </tr>
                           ))}
@@ -1294,23 +1296,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       onCrearServicio={esAdmin ? crearServicioRapido : undefined}
                                     bloquearTipo
                                   />
-                                  <div className="grid grid-cols-3 gap-2">
-                                    <input type="number" min="1" step="1" value={editOTEditLineaForm.cantidad}
-                                      onChange={e => setEditOTEditLineaForm(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none"
-                                      placeholder={editOTEditLineaForm.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'} />
-                                    <input type="number" min="0" step="0.01" value={editOTEditLineaForm.precioUnitario}
-                                      onChange={e => setEditOTEditLineaForm(f => ({ ...f, precioUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none" placeholder="Precio venta € *" />
-                                    <input type="number" min="0" step="0.01" value={editOTEditLineaForm.costoUnitario}
-                                      onChange={e => setEditOTEditLineaForm(f => ({ ...f, costoUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none" placeholder="Coste taller €" />
-                                  </div>
+                                  <CamposCantidadPrecio form={editOTEditLineaForm} setForm={setEditOTEditLineaForm} resaltado />
                                   <div className="flex gap-2 justify-end">
                                     <button type="button" onClick={() => setEditOTEditingLineaId(null)}
                                       className="px-2 py-1 rounded-xl border border-slate-200 text-xs text-slate-500 hover:bg-slate-50">Cancelar</button>
                                     <button type="button" onClick={() => {
-                                      if (!editOTEditLineaForm.descripcion || editOTEditLineaForm.cantidad === '' || editOTEditLineaForm.precioUnitario === '') return;
+                                      if (!editOTEditLineaForm.descripcion || !cantidadValida(editOTEditLineaForm.cantidad) || editOTEditLineaForm.precioUnitario === '') return;
                                       setEditOTLineas(prev => prev.map(x => x.id !== l.id ? x : {
                                         ...x,
                                         cantidad: Number(editOTEditLineaForm.cantidad),
@@ -1329,8 +1320,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                           ) : (
                             <tr key={l.id}>
                               <td className="px-3 py-1.5 text-slate-700">{l.descripcion} <span className="text-slate-400 text-[9px]">({TIPO_META[l.tipo].label})</span></td>
-                              <td className="px-3 py-1.5 text-right">{l.cantidad}</td>
-                              <td className="px-3 py-1.5 text-right font-mono">{fmt2(l.precioUnitario)} €</td>
+                              <td className="px-3 py-1.5 text-right whitespace-nowrap">{textoCantidad(l.tipo, l.cantidad)}</td>
+                              <td className="px-3 py-1.5 text-right font-mono whitespace-nowrap">{textoPrecioLinea(l.tipo, l.precioUnitario)}</td>
                               <td className="px-3 py-1.5 text-right font-mono font-semibold">{fmt2(l.subtotal)} €</td>
                               <td className="px-3 py-1.5 text-right">
                                 <div className="flex items-center justify-end gap-2">
@@ -1359,22 +1350,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       servicios={servicios}
                       onCrearServicio={esAdmin ? crearServicioRapido : undefined}
                     />
-                    <div className="grid grid-cols-3 gap-2">
-                      <input type="number" min="1" step="1" value={editOTNewLinea.cantidad}
-                        onChange={e => setEditOTNewLinea(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
-                        placeholder={editOTNewLinea.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'}
-                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
-                      <input type="number" min="0" step="0.01" value={editOTNewLinea.precioUnitario}
-                        onChange={e => setEditOTNewLinea(f => ({ ...f, precioUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                        placeholder="Precio venta € *"
-                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
-                      <input type="number" min="0" step="0.01" value={editOTNewLinea.costoUnitario}
-                        onChange={e => setEditOTNewLinea(f => ({ ...f, costoUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                        placeholder="Coste taller €"
-                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
-                    </div>
+                    <CamposCantidadPrecio form={editOTNewLinea} setForm={setEditOTNewLinea} />
                     <button type="button" onClick={() => {
-                      if (!editOTNewLinea.descripcion || editOTNewLinea.cantidad === '' || editOTNewLinea.precioUnitario === '') return;
+                      if (!editOTNewLinea.descripcion || !cantidadValida(editOTNewLinea.cantidad) || editOTNewLinea.precioUnitario === '') return;
                       if (editOTNewLinea.tipo === 'producto' && !editOTNewLinea.productoId) return;
                       const linea: LineaOT = {
                         id: 'lot-' + Date.now(),
@@ -1666,18 +1644,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       onCrearServicio={esAdmin ? crearServicioRapido : undefined}
                                     bloquearTipo
                                   />
-                                  <div className="grid grid-cols-3 gap-2">
-                                    <input type="number" min="1" step="1" value={editLineaForm.cantidad}
-                                      onChange={e => setEditLineaForm(f => ({ ...f, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none"
-                                      placeholder={editLineaForm.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'} />
-                                    <input type="number" min="0" step="0.01" value={editLineaForm.precioUnitario}
-                                      onChange={e => setEditLineaForm(f => ({ ...f, precioUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none" placeholder="Precio venta € *" />
-                                    <input type="number" min="0" step="0.01" value={editLineaForm.costoUnitario}
-                                      onChange={e => setEditLineaForm(f => ({ ...f, costoUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                                      className="px-2 py-1.5 border border-blue-300 rounded-xl text-xs font-mono focus:outline-none" placeholder="Coste taller €" />
-                                  </div>
+                                  <CamposCantidadPrecio form={editLineaForm} setForm={setEditLineaForm} resaltado />
                                   <div className="flex gap-2 justify-end">
                                     <button type="button" onClick={() => setEditingLineaId(null)}
                                       className="px-2 py-1 rounded-xl border border-slate-200 text-xs text-slate-500 hover:bg-slate-50">Cancelar</button>
@@ -1692,8 +1659,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                           ) : (
                             <tr key={l.id}>
                               <td className="px-3 py-1.5 text-slate-700">{l.descripcion} <span className="text-slate-400 text-[9px]">({TIPO_META[l.tipo].label})</span></td>
-                              <td className="px-3 py-1.5 text-right">{l.cantidad}</td>
-                              <td className="px-3 py-1.5 text-right font-mono">{fmt2(l.precioUnitario)} €</td>
+                              <td className="px-3 py-1.5 text-right whitespace-nowrap">{textoCantidad(l.tipo, l.cantidad)}</td>
+                              <td className="px-3 py-1.5 text-right font-mono whitespace-nowrap">{textoPrecioLinea(l.tipo, l.precioUnitario)}</td>
                               <td className="px-3 py-1.5 text-right font-mono font-semibold">{fmt2(l.subtotal)} €</td>
                               <td className="px-3 py-1.5 text-right">
                                 <div className="flex items-center justify-end gap-2">
@@ -1718,17 +1685,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       servicios={servicios}
                       onCrearServicio={esAdmin ? crearServicioRapido : undefined}
                     />
-                    <div className="grid grid-cols-3 gap-2">
-                      <input type="number" min="1" step="1" placeholder={newLinea.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'} value={newLinea.cantidad}
-                        onChange={e => setNewLinea(l => ({ ...l, cantidad: e.target.value === '' ? '' : Math.max(1, Math.round(Number(e.target.value))) }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
-                      <input type="number" min="0" step="0.01" placeholder="Precio venta € *" value={newLinea.precioUnitario}
-                        onChange={e => setNewLinea(l => ({ ...l, precioUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
-                      <input type="number" min="0" step="0.01" placeholder="Coste taller €" value={newLinea.costoUnitario}
-                        onChange={e => setNewLinea(l => ({ ...l, costoUnitario: e.target.value === '' ? '' : Number(e.target.value) }))}
-                        className="px-2 py-1.5 border border-slate-200 rounded-xl text-xs font-mono focus:outline-none" />
-                    </div>
+                    <CamposCantidadPrecio form={newLinea} setForm={setNewLinea} />
                     <button type="button" onClick={handleAddLinea}
                       className="w-full py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1">
                       <Plus size={11} /> Añadir línea

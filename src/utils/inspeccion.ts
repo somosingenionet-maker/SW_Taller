@@ -121,7 +121,11 @@ export interface PuntoConSugerencia {
   estado: EstadoPunto | null; precio: number | null; precioSugerido: number | null; reparacion: string | null; reparacionSugerida: string | null;
 }
 
-/** ¿Tiene este punto una sugerencia que aún no se ha aplicado? Solo en puntos con problema y sin precio. */
+/**
+ * ¿Tiene este punto una reparación sugerida que aún no se ha puesto? Solo en puntos con problema y sin texto de
+ * reparación. La sugerencia es solo el texto: el precio de los servicios es por hora y el de la reparación lo pone
+ * el taller a mano.
+ */
 export function sugerenciaPendiente(p: PuntoConSugerencia): boolean {
-  return necesitaDetalle(p.estado) && !(p.precio != null && p.precio > 0) && p.precioSugerido != null && p.precioSugerido > 0;
+  return necesitaDetalle(p.estado) && !p.reparacion?.trim() && !!p.reparacionSugerida?.trim();
 }

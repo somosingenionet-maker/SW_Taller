@@ -4,6 +4,7 @@ import { Printer, X } from 'lucide-react';
 import type { Cliente, Empresa, OrdenTrabajo, Vehiculo } from '../../types';
 import { getFirmas, type FirmasOrden as Firmas } from '../../lib/data/firmas';
 import { fmt2, formatKm } from '../../utils/moneda';
+import { textoCantidad, textoPrecioLinea } from '../../utils/cantidadLinea';
 import { resumenFiltros } from '../../utils/aceite';
 import { formatDate as fechaLarga } from '../../utils/dateFormat';
 import { fechaHoraFirma } from '../../utils/firma';
@@ -143,8 +144,8 @@ export default function VisorPresupuesto({ ot, empresa, clientes, vehiculos, onC
                       <tr key={l.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
                         <td className="py-2 text-slate-800">{l.descripcion}</td>
                         <td className="py-2 text-center text-xs text-slate-500">{TIPO_META[l.tipo].label}</td>
-                        <td className="py-2 text-right font-mono text-slate-600">{l.cantidad}</td>
-                        <td className="py-2 text-right font-mono text-slate-600">{fmt2(l.precioUnitario)} €</td>
+                        <td className="py-2 text-right font-mono text-slate-600 whitespace-nowrap">{textoCantidad(l.tipo, l.cantidad)}</td>
+                        <td className="py-2 text-right font-mono text-slate-600 whitespace-nowrap">{textoPrecioLinea(l.tipo, l.precioUnitario)}</td>
                         <td className="py-2 text-right font-mono font-semibold text-slate-800">{fmt2(l.subtotal)} €</td>
                       </tr>
                     ))}

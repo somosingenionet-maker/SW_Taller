@@ -176,7 +176,7 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
   for (const ot of presupuestosOt) {
     const { data: lineas } = await admin
       .from('lineas_ot')
-      .select('descripcion, cantidad, precio_unitario, subtotal')
+      .select('tipo, descripcion, cantidad, precio_unitario, subtotal')
       .eq('ot_id', ot.id)
       .order('posicion');
     const vehiculo = (vehiculos ?? []).find(v => v.id === ot.vehiculo_id);
@@ -189,7 +189,7 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
       // El texto que se acepta lo escribe el servidor: es exactamente lo que se guardará como prueba.
       textoAceptacion: textoAceptacion(ot.numero, descripcionVehiculo, Number(ot.total)),
       lineas: (lineas ?? []).map(l => ({
-        descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precio_unitario, subtotal: l.subtotal,
+        tipo: l.tipo, descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precio_unitario, subtotal: l.subtotal,
       })),
     });
   }

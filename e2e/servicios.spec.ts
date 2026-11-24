@@ -31,16 +31,16 @@ test('servicios: crear y editar en Configuración, y elegirlo en la mano de obra
   await expect(fila).toContainText('sin precio');
 
   await fila.getByRole('button', { name: `Editar ${nombre}` }).click();
-  await seccion.locator('li.bg-blue-50\\/40').getByLabel('Precio del servicio').fill('42,50');
+  await seccion.locator('li.bg-blue-50\\/40').getByLabel('Precio por hora del servicio').fill('42,50');
   await seccion.locator('li.bg-blue-50\\/40').getByRole('button', { name: 'Guardar' }).click();
-  await expect(fila).toContainText('42,50 €', { timeout: 10_000 });
+  await expect(fila).toContainText('42,50 €/h', { timeout: 10_000 });
   // Un precio mal escrito avisa junto al botón y no guarda.
   await alta.getByLabel('Nombre del servicio').fill('x');
-  await alta.getByLabel('Precio del servicio').fill('abc');
+  await alta.getByLabel('Precio por hora del servicio').fill('abc');
   await alta.getByRole('button', { name: 'Añadir servicio' }).click();
-  await expect(seccion.getByRole('alert')).toContainText('precio válido');
+  await expect(seccion.getByRole('alert')).toContainText('precio por hora válido');
   await alta.getByLabel('Nombre del servicio').fill('');
-  await alta.getByLabel('Precio del servicio').fill('');
+  await alta.getByLabel('Precio por hora del servicio').fill('');
   await ventana.getByRole('button', { name: /Cerrar|Cancelar/ }).first().click();
   await expect(ventana).not.toBeVisible({ timeout: 5_000 });
 
@@ -54,10 +54,13 @@ test('servicios: crear y editar en Configuración, y elegirlo en la mano de obra
   await expect(page.getByRole('listbox', { name: 'Servicios del taller' })).toBeVisible();
   await descripcion.fill(nombre.slice(4)); // parte del nombre, en minúsculas
   const opcion = page.getByRole('listbox', { name: 'Servicios del taller' }).getByRole('option').filter({ hasText: nombre });
-  await expect(opcion).toContainText('42,50 €');
+  await expect(opcion).toContainText('42,50 €/h');
   await opcion.click();
   await expect(descripcion).toHaveValue(texto);
-  await expect(linea.getByPlaceholder('Precio venta € *')).toHaveValue('42.5');
+  await expect(linea.getByLabel('Precio por hora € *')).toHaveValue('42.5');
+  // En mano de obra la cantidad son horas y admite decimales.
+  await linea.getByLabel('Horas *').fill('1.5');
+  await expect(linea.getByLabel('Horas *')).toHaveValue('1.5');
   // Lo escrito a mano que no está en la lista se puede guardar en el catálogo (el usuario de pruebas es administrador).
   await descripcion.fill('Algo que no existe en el catálogo e2e');
   await expect(page.getByRole('option', { name: /Guardar «Algo que no existe en el catálogo e2e» en mis servicios/ })).toBeVisible();

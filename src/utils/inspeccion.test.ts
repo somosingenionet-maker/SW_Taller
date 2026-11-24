@@ -110,12 +110,15 @@ describe('edición de plantillas', () => {
 
 describe('sugerenciaPendiente', () => {
   const base = { estado: 'urgente' as const, precio: null, precioSugerido: 64, reparacion: null, reparacionSugerida: 'Cambio' };
-  it('solo con problema, sin precio puesto y con precio sugerido', () => {
+  it('solo con problema, sin texto de reparación puesto y con texto sugerido; el precio no cuenta', () => {
     expect(sugerenciaPendiente(base)).toBe(true);
     expect(sugerenciaPendiente({ ...base, estado: 'bien' })).toBe(false);
     expect(sugerenciaPendiente({ ...base, estado: null })).toBe(false);
-    expect(sugerenciaPendiente({ ...base, precio: 70 })).toBe(false);
-    expect(sugerenciaPendiente({ ...base, precioSugerido: null })).toBe(false);
-    expect(sugerenciaPendiente({ ...base, precioSugerido: 0 })).toBe(false);
+    expect(sugerenciaPendiente({ ...base, reparacion: 'Lo que escribió el mecánico' })).toBe(false);
+    expect(sugerenciaPendiente({ ...base, reparacion: '  ' })).toBe(true);
+    expect(sugerenciaPendiente({ ...base, reparacionSugerida: null })).toBe(false);
+    // Ni el precio puesto ni el sugerido (que antes era el del servicio y ahora es por hora) cambian nada.
+    expect(sugerenciaPendiente({ ...base, precio: 70 })).toBe(true);
+    expect(sugerenciaPendiente({ ...base, precioSugerido: null })).toBe(true);
   });
 });

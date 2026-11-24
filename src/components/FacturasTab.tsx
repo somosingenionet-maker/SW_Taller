@@ -17,6 +17,7 @@ import { fmt2 } from '../utils/moneda';
 import ConfirmDialog from './ConfirmDialog';
 import Pagination from './Pagination';
 import QRCode from 'qrcode';
+import { textoCantidadSimple } from '../utils/cantidadLinea';
 
 const ExportarGestoria = lazy(() => import('./ExportarGestoria'));
 
@@ -234,7 +235,7 @@ function FacturaPrintable({
               {f.lineas.map((l, i) => (
                 <tr key={l.id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                   <td className="px-3 py-2 text-slate-700">{l.descripcion}</td>
-                  <td className="px-3 py-2 text-center text-slate-600">{l.cantidad}</td>
+                  <td className="px-3 py-2 text-center text-slate-600">{textoCantidadSimple(l.cantidad)}</td>
                   <td className="px-3 py-2 text-right font-mono text-slate-600">{fmt(l.precioUnitario)} €</td>
                   <td className="px-3 py-2 text-right font-mono font-semibold text-slate-800">{fmt(l.subtotal)} €</td>
                 </tr>

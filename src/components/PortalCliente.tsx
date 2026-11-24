@@ -5,6 +5,7 @@ import { ErrorPortal } from '../lib/data/invocarPortal';
 import ErrorPortalPantalla from './ErrorPortalPantalla';
 import { formatDate } from '../utils/dateFormat';
 import { fmt2, formatKm } from '../utils/moneda';
+import { textoCantidad, textoCantidadSimple } from '../utils/cantidadLinea';
 import { aclarar, CabeceraTarjeta, CLASE_TARJETA, ColumnaExterna, HeroExterno, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
 
 interface Props {
@@ -115,7 +116,7 @@ function PresupuestoCard({ p, color, token, nombreCliente, onRespondido }: {
       <div className="divide-y divide-slate-100">
         {p.lineas.map((l, i) => (
           <div key={i} className="flex justify-between text-xs py-1.5 text-slate-600">
-            <span>{l.descripcion} {l.cantidad !== 1 ? `× ${l.cantidad}` : ''}</span>
+            <span>{l.descripcion}{l.tipo === 'mano_de_obra' ? ` · ${textoCantidad('mano_de_obra', l.cantidad)}` : l.cantidad !== 1 ? ` × ${textoCantidadSimple(l.cantidad)}` : ''}</span>
             <span className="font-semibold text-slate-700">{fmt(l.subtotal)} €</span>
           </div>
         ))}

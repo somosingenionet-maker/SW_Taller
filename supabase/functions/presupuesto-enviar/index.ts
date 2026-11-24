@@ -93,7 +93,7 @@ async function manejarEnviar(admin: SupabaseClient, req: Request, otId: string, 
   if (porCorreo) {
     const { data: veh } = await admin.from('vehiculos').select('marca, modelo, matricula').eq('id', ot.vehiculo_id).single();
     const vehiculo = veh ? `${veh.marca} ${veh.modelo} (${veh.matricula})` : 'vehículo';
-    const { data: lineas } = await admin.from('lineas_ot').select('descripcion, cantidad, subtotal').eq('ot_id', otId).order('posicion');
+    const { data: lineas } = await admin.from('lineas_ot').select('tipo, descripcion, cantidad, subtotal').eq('ot_id', otId).order('posicion');
     const { asunto, html } = construirCorreoPresupuesto(empresa, cliente, vehiculo, ot.numero, lineas ?? [], Number(ot.total), enlace);
     try {
       await enviarCorreo(empresa.nombre, empresa.correo, cliente.correo!, asunto, html);
