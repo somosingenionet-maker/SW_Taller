@@ -64,3 +64,27 @@ Deno.test('alta: solo en la primera suscripción y solo si está configurada', (
   assertEquals(cobraAlta({ stripe_subscription_id: 'sub_viejo' }, { precioAlta: 'price_alta' }), false);
   assertEquals(cobraAlta({ stripe_subscription_id: null }, { precioAlta: undefined }), false);
 });
+
+// ── Datos fiscales obligatorios antes de pagar ──
+import { nifValido, normalizarNif, problemaDatosFiscales } from './logic.ts';
+
+Deno.test('NIF: DNI, NIE y entidades con su control; normaliza espacios, guiones y prefijo ES', () => {
+  for (const ok of ['12345678Z', 'X1234567L', 'Y5483982Z', 'B67776815', 'B12345674', 'Q2826000H', ' b-6777 6815 ', 'ES12345678Z', 'es-B67776815']) {
+    assertEquals(nifValido(ok), true, ok);
+  }
+  for (const mal of ['12345678A', 'X1234567A', 'B67776816', 'Q2826000A', 'B1234567', '1234567Z', '', 'ABCDEFGHI']) {
+    assertEquals(nifValido(mal), false, mal);
+  }
+  assertEquals(normalizarNif(' b-6777.6815 '), 'B67776815');
+});
+
+Deno.test('datos fiscales: dice qué falta, comprueba el NIF y pide código postal', () => {
+  const bien = { razon_social: 'Taller Pepe S.L.', nif: 'B67776815', direccion_fiscal: 'Calle Mayor 4, 07006', ciudad: 'Palma' };
+  assertEquals(problemaDatosFiscales(bien), null);
+  assertEquals(problemaDatosFiscales({ ...bien, direccion_fiscal: 'Calle Mayor 4', ciudad: '07006 Palma' }), null);
+  assertEquals(problemaDatosFiscales({ razon_social: '', nif: null, direccion_fiscal: ' ', ciudad: 'Palma' }),
+    'Para poder hacerte la factura necesitamos la razón social, el NIF y la dirección fiscal de tu empresa.');
+  assertEquals(problemaDatosFiscales({ ...bien, nif: '' }), 'Para poder hacerte la factura necesitamos el NIF de tu empresa.');
+  assertEquals(problemaDatosFiscales({ ...bien, nif: 'B67776816' })?.startsWith('El NIF no es correcto'), true);
+  assertEquals(problemaDatosFiscales({ ...bien, direccion_fiscal: 'Calle Mayor 4' }), 'Falta el código postal en la dirección fiscal.');
+});

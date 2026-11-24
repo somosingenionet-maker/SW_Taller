@@ -1,13 +1,22 @@
 import { useState } from 'react';
 import { CreditCard, ExternalLink, ShieldCheck, X } from 'lucide-react';
 import { abrirPortal, avisoSuscripcion, diasRestantes, finPeriodo, iniciarCheckout, type Suscripcion } from '../lib/data/suscripcion';
+import { updateEmpresa } from '../lib/data/empresa';
+import type { Empresa } from '../types';
 
 interface Props {
   suscripcion: Suscripcion;
   /** Solo el administrador de la empresa puede pagar o gestionar la suscripción. */
   esAdmin: boolean;
+  empresa: Empresa;
+  /** Tras guardar los datos de facturación, para que el resto de la app los vea. */
+  onEmpresaActualizada: (e: Empresa) => void;
   onClose: () => void;
 }
+
+type DatosFacturacion = Pick<Empresa, 'razonSocial' | 'nif' | 'direccionFiscal' | 'ciudad'>;
+const completos = (d: DatosFacturacion) => [d.razonSocial, d.nif, d.direccionFiscal, d.ciudad].every((v) => v.trim() !== '');
+const entrada = 'w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-200';
 
 const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
 
@@ -17,10 +26,33 @@ const ETIQUETA: Record<Suscripcion['estado'], string> = {
 };
 
 /** Estado de la suscripción y botones para pagar o gestionar el método de pago en Stripe. */
-export default function SuscripcionPanel({ suscripcion: s, esAdmin, onClose }: Props) {
+export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onEmpresaActualizada, onClose }: Props) {
   const [plan, setPlan] = useState<'mensual' | 'anual'>('anual');
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
+  const [datos, setDatos] = useState<DatosFacturacion>({
+    razonSocial: empresa.razonSocial, nif: empresa.nif, direccionFiscal: empresa.direccionFiscal, ciudad: empresa.ciudad,
+  });
+  // Se piden siempre que falte algo; si ya están, se enseñan resumidos con opción de cambiarlos.
+  const [editandoDatos, setEditandoDatos] = useState(!completos({ razonSocial: empresa.razonSocial, nif: empresa.nif, direccionFiscal: empresa.direccionFiscal, ciudad: empresa.ciudad }));
+  const set = (k: keyof DatosFacturacion, v: string) => setDatos((d) => ({ ...d, [k]: v }));
+
+  /** Guarda los datos de facturación si han cambiado y abre el pago. El servidor vuelve a comprobarlos. */
+  const suscribirme = () => void ir(async () => {
+    const limpio: DatosFacturacion = {
+      razonSocial: datos.razonSocial.trim(), nif: datos.nif.toUpperCase().replace(/[\s.\-]/g, ''),
+      direccionFiscal: datos.direccionFiscal.trim(), ciudad: datos.ciudad.trim(),
+    };
+    if (!completos(limpio)) { setEditandoDatos(true); throw new Error('Rellena los datos de facturación para continuar.'); }
+    const cambiados = (Object.keys(limpio) as (keyof DatosFacturacion)[]).some((k) => limpio[k] !== empresa[k]);
+    if (cambiados) onEmpresaActualizada(await updateEmpresa(empresa.id, limpio));
+    try {
+      return await iniciarCheckout(plan);
+    } catch (e) {
+      setEditandoDatos(true); // si el servidor rechaza el NIF o la dirección, que se vean para corregirlos
+      throw e;
+    }
+  });
   const aviso = avisoSuscripcion(s);
   const puedePagar = s.estado !== 'sin_limite' && !(s.estadoStripe === 'activa' && s.tieneCliente && s.estado !== 'vencida');
 
@@ -78,7 +110,28 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, onClose }: P
                 {!s.tieneCliente && (
                   <p className="text-xs text-slate-500">La primera factura incluye además la <b>cuota de alta de 199&nbsp;€ + IVA</b>, una sola vez.</p>
                 )}
-                <button onClick={() => void ir(() => iniciarCheckout(plan))} disabled={ocupado}
+                <div className="border border-slate-200 rounded-2xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-700">Datos de facturación</p>
+                    {!editandoDatos && (
+                      <button onClick={() => setEditandoDatos(true)} className="text-xs font-bold text-blue-600 hover:underline cursor-pointer">Cambiar</button>
+                    )}
+                  </div>
+                  {editandoDatos ? (
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-slate-500">Los necesitamos para hacerte la factura de cada cobro.</p>
+                      <input aria-label="Razón social" placeholder="Razón social o nombre completo" value={datos.razonSocial} onChange={(e) => set('razonSocial', e.target.value)} className={entrada} />
+                      <input aria-label="NIF" placeholder="NIF (B12345678, 12345678Z…)" value={datos.nif} onChange={(e) => set('nif', e.target.value)} className={entrada} />
+                      <input aria-label="Dirección fiscal" placeholder="Dirección y código postal" value={datos.direccionFiscal} onChange={(e) => set('direccionFiscal', e.target.value)} className={entrada} />
+                      <input aria-label="Ciudad" placeholder="Ciudad" value={datos.ciudad} onChange={(e) => set('ciudad', e.target.value)} className={entrada} />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {datos.razonSocial} · {datos.nif}<br />{datos.direccionFiscal}, {datos.ciudad}
+                    </p>
+                  )}
+                </div>
+                <button onClick={suscribirme} disabled={ocupado}
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl transition cursor-pointer disabled:opacity-60">
                   <ShieldCheck className="w-4 h-4" /> {ocupado ? 'Abriendo el pago…' : 'Suscribirme'}
                 </button>

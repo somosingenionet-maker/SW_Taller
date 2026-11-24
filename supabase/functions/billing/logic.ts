@@ -66,6 +66,61 @@ export function paramsCheckout(args: {
   };
 }
 
+// ── Datos fiscales del taller ──
+// Daniel factura cada cobro a mano, así que sin razón social, NIF y dirección no se puede pagar. Se piden
+// en la app y no en Stripe porque no está claro que el NIF de Stripe para España (es_cif, ejemplo
+// «A12345678») acepte el NIF de un autónomo (12345678Z) o un NIE.
+
+/** «b-1234 5678», «ES12345678Z» → «B12345678», «12345678Z». */
+export function normalizarNif(v: string): string {
+  return v.toUpperCase().replace(/[\s.\-]/g, '').replace(/^ES(?=[A-Z0-9]{9}$)/, '');
+}
+
+const LETRAS_DNI = 'TRWAGMYFPDXBNJZSQVHLCKE';
+
+/** NIF español: DNI, NIE o NIF de entidad (antiguo CIF), con su dígito o letra de control. */
+export function nifValido(entrada: string): boolean {
+  const v = normalizarNif(entrada);
+  let m = v.match(/^(\d{8})([A-Z])$/); // DNI
+  if (m) return LETRAS_DNI[Number(m[1]) % 23] === m[2];
+  m = v.match(/^([XYZ])(\d{7})([A-Z])$/); // NIE
+  if (m) return LETRAS_DNI[Number('XYZ'.indexOf(m[1]) + m[2]) % 23] === m[3];
+  // Entidades y NIF K/L/M: letra + 7 cifras + control (cifra o letra según el tipo).
+  m = v.match(/^([ABCDEFGHJKLMNPQRSUVW])(\d{7})([0-9A-Z])$/);
+  if (!m) return false;
+  let suma = 0;
+  m[2].split('').forEach((c, i) => {
+    const n = Number(c);
+    if (i % 2 === 0) { const d = n * 2; suma += Math.floor(d / 10) + (d % 10); } else suma += n;
+  });
+  const digito = (10 - (suma % 10)) % 10;
+  const letra = 'JABCDEFGHI'[digito];
+  // K, L y M (personas sin DNI): las fuentes difieren en el cálculo; se acepta cualquiera de los dos.
+  if ('KLM'.includes(m[1])) return m[3] === letra || LETRAS_DNI[Number(m[2]) % 23] === m[3];
+  if ('PQRSNW'.includes(m[1])) return m[3] === letra;
+  if ('ABEH'.includes(m[1])) return m[3] === String(digito);
+  return m[3] === String(digito) || m[3] === letra;
+}
+
+export interface DatosFiscales { razon_social: string | null; nif: string | null; direccion_fiscal: string | null; ciudad: string | null }
+
+/** Lo que impide facturar al taller, en una frase para él; null si está todo. */
+export function problemaDatosFiscales(e: DatosFiscales): string | null {
+  const faltan = [
+    !(e.razon_social ?? '').trim() && 'la razón social',
+    !(e.nif ?? '').trim() && 'el NIF',
+    !(e.direccion_fiscal ?? '').trim() && 'la dirección fiscal',
+    !(e.ciudad ?? '').trim() && 'la ciudad',
+  ].filter(Boolean) as string[];
+  if (faltan.length) {
+    const lista = faltan.length === 1 ? faltan[0] : `${faltan.slice(0, -1).join(', ')} y ${faltan.at(-1)}`;
+    return `Para poder hacerte la factura necesitamos ${lista} de tu empresa.`;
+  }
+  if (!nifValido(e.nif ?? '')) return 'El NIF no es correcto. Revisa que esté completo y con su letra o cifra final.';
+  if (!/\b\d{5}\b/.test(`${e.direccion_fiscal} ${e.ciudad}`)) return 'Falta el código postal en la dirección fiscal.';
+  return null;
+}
+
 export function paramsPortal(clienteStripe: string, appUrl: string): Record<string, unknown> {
   return { customer: clienteStripe, locale: 'es', return_url: `${appUrl}/?suscripcion=portal` };
 }

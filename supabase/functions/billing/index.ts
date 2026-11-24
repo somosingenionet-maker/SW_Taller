@@ -13,7 +13,7 @@ import { stripeApi } from '../_shared/stripe.ts';
 import { falta2Factor, MENSAJE_2FACTOR } from '../_shared/mfa.ts';
 import { permitirPeticion } from '../_shared/rateLimit.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
-import { cobraAlta, esPlan, paramsCheckout, paramsPortal, tieneSuscripcionViva } from './logic.ts';
+import { cobraAlta, esPlan, paramsCheckout, paramsPortal, problemaDatosFiscales, tieneSuscripcionViva } from './logic.ts';
 
 initSentry('billing');
 
@@ -62,7 +62,7 @@ Deno.serve(conSentry(async (req) => {
 
   const { data: empresa } = await admin
     .from('empresas')
-    .select('id, stripe_customer_id, stripe_subscription_id, estado_suscripcion')
+    .select('id, stripe_customer_id, stripe_subscription_id, estado_suscripcion, razon_social, nif, direccion_fiscal, ciudad')
     .eq('id', perfil.empresa_id)
     .single();
   if (!empresa) return json({ error: 'Empresa no encontrada.' }, 404);
@@ -74,6 +74,8 @@ Deno.serve(conSentry(async (req) => {
       if (tieneSuscripcionViva(empresa)) {
         return json({ error: 'Ya tienes una suscripción activa. Usa «Gestionar suscripción» para cambiarla.' }, 409);
       }
+      const problema = problemaDatosFiscales(empresa);
+      if (problema) return json({ error: problema, datosFiscales: true }, 422);
       const sesion = await stripeApi<{ url: string }>(STRIPE_KEY, 'checkout/sessions', paramsCheckout({
         empresaId: empresa.id, email: perfil.email ?? userData.user.email ?? '', plan: body.plan,
         clienteStripe: empresa.stripe_customer_id, conAlta: cobraAlta(empresa, CFG), cfg: CFG,

@@ -894,7 +894,7 @@ export default function App() {
       <Suspense fallback={null}>
       {seguridadOpen && <SeguridadModal onClose={() => setSeguridadOpen(false)} />}
       {suscripcionOpen && suscripcion && (
-        <SuscripcionPanel suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} onClose={() => setSuscripcionOpen(false)} />
+        <SuscripcionPanel suscripcion={suscripcion} esAdmin={currentUser.rol === 'admin'} empresa={empresa} onEmpresaActualizada={setEmpresa} onClose={() => setSuscripcionOpen(false)} />
       )}
 
       {settingsOpen && (
