@@ -55,6 +55,9 @@ export function paramsCheckout(args: {
     // Solo tarjeta: sin esto Stripe ofrece todo lo activado en la cuenta (Klarna, Amazon Pay…), con
     // comisiones de hasta el triple. Si se añade el adeudo SEPA, revisar antes el webhook (cobro diferido).
     allowed_payment_method_types: ['card'],
+    // Siempre en euros: sin esto Stripe ofrece pagar en la moneda local del cliente (Adaptive Pricing,
+    // p. ej. COP desde Colombia) y la factura de Daniel tiene que ir en EUR.
+    adaptive_pricing: { enabled: false },
     allow_promotion_codes: true, // cupones del programa fundador y referidos
     billing_address_collection: 'required',
     tax_id_collection: { enabled: true }, // NIF/CIF del taller para la factura
