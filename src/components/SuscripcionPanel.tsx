@@ -15,7 +15,15 @@ interface Props {
 }
 
 type DatosFacturacion = Pick<Empresa, 'razonSocial' | 'nif' | 'direccionFiscal' | 'ciudad'>;
-const completos = (d: DatosFacturacion) => [d.razonSocial, d.nif, d.direccionFiscal, d.ciudad].every((v) => v.trim() !== '');
+/** En pantalla el código postal va aparte; en la base se guarda al final de la dirección fiscal. */
+type DatosForm = { razonSocial: string; nif: string; direccion: string; cp: string; ciudad: string };
+const separarCp = (dir: string): { direccion: string; cp: string } => {
+  const alFinal = dir.match(/^(.*?)[,\s]*\b(\d{5})\s*$/);
+  if (alFinal) return { direccion: alFinal[1].trim(), cp: alFinal[2] };
+  return { direccion: dir, cp: dir.match(/\b\d{5}\b/)?.[0] ?? '' }; // CP en medio: se deja donde está
+};
+const unirCp = (direccion: string, cp: string) => (new RegExp(`\\b${cp}\\b`).test(direccion) ? direccion : `${direccion}, ${cp}`);
+const completos = (d: DatosForm) => [d.razonSocial, d.nif, d.direccion, d.cp, d.ciudad].every((v) => v.trim() !== '');
 const entrada = 'w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-200';
 
 const fecha = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' }) : '—');
@@ -30,20 +38,22 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onE
   const [plan, setPlan] = useState<'mensual' | 'anual'>('anual');
   const [error, setError] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const [datos, setDatos] = useState<DatosFacturacion>({
-    razonSocial: empresa.razonSocial, nif: empresa.nif, direccionFiscal: empresa.direccionFiscal, ciudad: empresa.ciudad,
-  });
+  const [datos, setDatos] = useState<DatosForm>(() => ({
+    razonSocial: empresa.razonSocial, nif: empresa.nif, ...separarCp(empresa.direccionFiscal), ciudad: empresa.ciudad,
+  }));
   // Se piden siempre que falte algo; si ya están, se enseñan resumidos con opción de cambiarlos.
-  const [editandoDatos, setEditandoDatos] = useState(!completos({ razonSocial: empresa.razonSocial, nif: empresa.nif, direccionFiscal: empresa.direccionFiscal, ciudad: empresa.ciudad }));
-  const set = (k: keyof DatosFacturacion, v: string) => setDatos((d) => ({ ...d, [k]: v }));
+  const [editandoDatos, setEditandoDatos] = useState(() => !completos({ razonSocial: empresa.razonSocial, nif: empresa.nif, ...separarCp(empresa.direccionFiscal), ciudad: empresa.ciudad }));
+  const set = (k: keyof DatosForm, v: string) => setDatos((d) => ({ ...d, [k]: v }));
 
   /** Guarda los datos de facturación si han cambiado y abre el pago. El servidor vuelve a comprobarlos. */
   const suscribirme = () => void ir(async () => {
-    const limpio: DatosFacturacion = {
+    const f: DatosForm = {
       razonSocial: datos.razonSocial.trim(), nif: datos.nif.toUpperCase().replace(/[\s.\-]/g, ''),
-      direccionFiscal: datos.direccionFiscal.trim(), ciudad: datos.ciudad.trim(),
+      direccion: datos.direccion.trim().replace(/[,\s]+$/, ''), cp: datos.cp.replace(/\s/g, ''), ciudad: datos.ciudad.trim(),
     };
-    if (!completos(limpio)) { setEditandoDatos(true); throw new Error('Rellena los datos de facturación para continuar.'); }
+    if (!completos(f)) { setEditandoDatos(true); throw new Error('Rellena los datos de facturación para continuar.'); }
+    if (!/^\d{5}$/.test(f.cp)) { setEditandoDatos(true); throw new Error('El código postal son 5 cifras.'); }
+    const limpio: DatosFacturacion = { razonSocial: f.razonSocial, nif: f.nif, direccionFiscal: unirCp(f.direccion, f.cp), ciudad: f.ciudad };
     const cambiados = (Object.keys(limpio) as (keyof DatosFacturacion)[]).some((k) => limpio[k] !== empresa[k]);
     if (cambiados) onEmpresaActualizada(await updateEmpresa(empresa.id, limpio));
     try {
@@ -55,6 +65,9 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onE
   });
   const aviso = avisoSuscripcion(s);
   const puedePagar = s.estado !== 'sin_limite' && !(s.estadoStripe === 'activa' && s.tieneCliente && s.estado !== 'vencida');
+
+  // El error sale justo encima del botón pulsado, que es donde está mirando el taller.
+  const alerta = error && <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>;
 
   const ir = async (fn: () => Promise<string>) => {
     setError(''); setOcupado(true);
@@ -85,8 +98,6 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onE
           )}
           {aviso && <p className={`text-xs ${aviso.nivel === 'error' ? 'text-rose-600' : aviso.nivel === 'aviso' ? 'text-amber-700' : 'text-slate-500'}`}>{aviso.texto}</p>}
         </div>
-
-        {error && <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-4 py-2.5 rounded-xl">{error}</div>}
 
         {!esAdmin ? (
           <p className="text-xs text-slate-500">Solo el administrador de tu empresa puede pagar o gestionar la suscripción. Pídeselo si tu acceso está limitado.</p>
@@ -122,15 +133,19 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onE
                       <p className="text-[11px] text-slate-500">Los necesitamos para hacerte la factura de cada cobro.</p>
                       <input aria-label="Razón social" placeholder="Razón social o nombre completo" value={datos.razonSocial} onChange={(e) => set('razonSocial', e.target.value)} className={entrada} />
                       <input aria-label="NIF" placeholder="NIF (B12345678, 12345678Z…)" value={datos.nif} onChange={(e) => set('nif', e.target.value)} className={entrada} />
-                      <input aria-label="Dirección fiscal" placeholder="Dirección y código postal" value={datos.direccionFiscal} onChange={(e) => set('direccionFiscal', e.target.value)} className={entrada} />
-                      <input aria-label="Ciudad" placeholder="Ciudad" value={datos.ciudad} onChange={(e) => set('ciudad', e.target.value)} className={entrada} />
+                      <input aria-label="Dirección fiscal" placeholder="Dirección (calle y número)" value={datos.direccion} onChange={(e) => set('direccion', e.target.value)} className={entrada} />
+                      <div className="grid grid-cols-[7rem_1fr] gap-2">
+                        <input aria-label="Código postal" placeholder="C. postal" inputMode="numeric" maxLength={5} value={datos.cp} onChange={(e) => set('cp', e.target.value)} className={entrada} />
+                        <input aria-label="Ciudad" placeholder="Ciudad" value={datos.ciudad} onChange={(e) => set('ciudad', e.target.value)} className={entrada} />
+                      </div>
                     </div>
                   ) : (
                     <p className="text-xs text-slate-600 leading-relaxed">
-                      {datos.razonSocial} · {datos.nif}<br />{datos.direccionFiscal}, {datos.ciudad}
+                      {datos.razonSocial} · {datos.nif}<br />{datos.direccion}, {datos.cp} {datos.ciudad}
                     </p>
                   )}
                 </div>
+                {alerta}
                 <button onClick={suscribirme} disabled={ocupado}
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-2xl transition cursor-pointer disabled:opacity-60">
                   <ShieldCheck className="w-4 h-4" /> {ocupado ? 'Abriendo el pago…' : 'Suscribirme'}
@@ -138,6 +153,7 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onE
                 <p className="text-[11px] text-slate-400 text-center">Pago seguro con tarjeta a través de Stripe. Puedes cancelar cuando quieras.</p>
               </div>
             )}
+            {!puedePagar && alerta}
             {s.tieneCliente && (
               <button onClick={() => void ir(abrirPortal)} disabled={ocupado}
                 className="w-full flex items-center justify-center gap-2 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 text-sm font-bold rounded-2xl transition cursor-pointer disabled:opacity-60">
