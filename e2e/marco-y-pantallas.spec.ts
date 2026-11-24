@@ -573,9 +573,9 @@ test('Configuración de empresa: ventana grande con menú de secciones, tarjetas
   expect(caja!.height, 'la ventana es demasiado baja').toBeGreaterThan(700);
 
   const nav = ventana.getByRole('tablist', { name: 'Secciones de la configuración' });
-  await expect(nav.getByRole('tab')).toHaveCount(8);
+  await expect(nav.getByRole('tab')).toHaveCount(9);
   await captura(page, 'ajustes-datos');
-  for (const [tab, texto] of [['Facturación', 'Numeración de facturas'], ['Logo y color', 'Color de marca'], ['Recordatorios', 'Mensaje de cada recordatorio'], ['Reservas online', ''], ['Inspección', ''], ['Fotos', 'Conservar las fotos de cada orden'], ['Técnicos', 'Técnicos del taller']] as const) {
+  for (const [tab, texto] of [['Facturación', 'Numeración de facturas'], ['Logo y color', 'Color de marca'], ['Recordatorios', 'Mensaje de cada recordatorio'], ['Reservas online', ''], ['Servicios', 'Servicios del taller'], ['Inspección', ''], ['Fotos', 'Conservar las fotos de cada orden'], ['Técnicos', 'Técnicos del taller']] as const) {
     await nav.getByRole('tab', { name: tab }).click();
     await expect(ventana.getByRole('heading', { name: tab === 'Facturación' ? 'Facturación' : tab, level: 2 })).toBeVisible();
     if (texto) await expect(ventana.getByText(texto).first()).toBeVisible();

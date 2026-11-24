@@ -1,16 +1,23 @@
 import { supabase } from '../supabase';
+import { fmt2 } from '../../utils/moneda';
 
-/** Servicio predefinido del taller: nombre corto, texto de la reparación y precio sin IVA. */
+/**
+ * Servicio del catálogo del taller: nombre corto, texto de la reparación (lo que ve el cliente y lo que va a la
+ * línea de la orden) y precio sin IVA. Sin precio (null) cuando el taller aún no lo ha puesto: la lista base llega así.
+ */
 export interface Servicio {
   id: string;
   nombre: string;
   reparacion: string;
-  precio: number;
+  precio: number | null;
   activo: boolean;
 }
 
-type Fila = { id: string; nombre: string; reparacion: string; precio: number | string; activo: boolean };
-const map = (f: Fila): Servicio => ({ id: f.id, nombre: f.nombre, reparacion: f.reparacion, precio: Number(f.precio), activo: f.activo });
+type Fila = { id: string; nombre: string; reparacion: string; precio: number | string | null; activo: boolean };
+const map = (f: Fila): Servicio => ({ id: f.id, nombre: f.nombre, reparacion: f.reparacion, precio: f.precio === null ? null : Number(f.precio), activo: f.activo });
+
+/** «64,50 €» o «sin precio». */
+export const textoPrecioServicio = (p: number | null): string => (p === null ? 'sin precio' : `${fmt2(p)} €`);
 const SELECT = 'id, nombre, reparacion, precio, activo';
 
 export async function listServicios(): Promise<Servicio[]> {

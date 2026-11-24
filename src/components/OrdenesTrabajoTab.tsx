@@ -35,6 +35,7 @@ import BadgeEstado from './orden/BadgeEstado';
 import VisorPresupuesto from './orden/VisorPresupuesto';
 import { BloqueAvisoListo, BloqueAvisoTecnico, BloqueLineasNuevas, BloquePresupuesto, HistorialOrden } from './orden/BloquesFicha';
 import LineaTipoYProducto from './orden/LineaTipoYProducto';
+import { crearServicio, listServicios, type Servicio } from '../lib/data/servicios';
 import CrearProductoRapidoModal from './orden/CrearProductoRapidoModal';
 import {
   CHECKLIST_RECEPCION_ITEMS, EMPTY_LINEA, EMPTY_OT_FORM, ENTRADA_PANEL, ESTADO_FLOW, ESTADO_META, MAX_FOTOS_RECEPCION, TIPO_META,
@@ -66,12 +67,22 @@ interface Props {
   onCrearVehiculo?: (input: NuevoVehiculo, clienteId: string) => Promise<Vehiculo>;
   /** Programar un aviso al cliente desde una orden ya lista o entregada («neumáticos en 6 meses»). */
   onCrearAviso?: (a: DatosAviso) => Promise<void>;
+  /** Administrador: puede guardar en el catálogo de servicios lo que escribe a mano en la mano de obra. */
+  esAdmin?: boolean;
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo, onCrearAviso }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo, onCrearAviso, esAdmin = false }: Props) {
   const movil = useMovil();
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
+  // Catálogo de servicios para la mano de obra. Si no carga, se escribe a mano como siempre.
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  useEffect(() => { listServicios().then(setServicios).catch(() => setServicios([])); }, []);
+  const crearServicioRapido = async (texto: string, precio: number | null): Promise<Servicio> => {
+    const s = await crearServicio({ nombre: texto.slice(0, 80).trim(), reparacion: texto.slice(0, 300), precio });
+    setServicios((prev) => [...prev, s].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')));
+    return s;
+  };
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<OTEstado | 'todas'>('todas');
   const [vista, setVista] = useState<'lista' | 'kanban'>('lista');
@@ -1279,6 +1290,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                     setForm={(updater) => setEditOTEditLineaForm(updater)}
                                     productos={productos}
                                     onSolicitarCrearProducto={solicitarCrearProducto}
+                      servicios={servicios}
+                      onCrearServicio={esAdmin ? crearServicioRapido : undefined}
                                     bloquearTipo
                                   />
                                   <div className="grid grid-cols-3 gap-2">
@@ -1343,6 +1356,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       setForm={(updater) => setEditOTNewLinea(updater)}
                       productos={productos}
                       onSolicitarCrearProducto={solicitarCrearProducto}
+                      servicios={servicios}
+                      onCrearServicio={esAdmin ? crearServicioRapido : undefined}
                     />
                     <div className="grid grid-cols-3 gap-2">
                       <input type="number" min="1" step="1" value={editOTNewLinea.cantidad}
@@ -1647,6 +1662,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                                     setForm={(updater) => setEditLineaForm(updater)}
                                     productos={productos}
                                     onSolicitarCrearProducto={solicitarCrearProducto}
+                      servicios={servicios}
+                      onCrearServicio={esAdmin ? crearServicioRapido : undefined}
                                     bloquearTipo
                                   />
                                   <div className="grid grid-cols-3 gap-2">
@@ -1698,6 +1715,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                       setForm={(updater) => setNewLinea(updater)}
                       productos={productos}
                       onSolicitarCrearProducto={solicitarCrearProducto}
+                      servicios={servicios}
+                      onCrearServicio={esAdmin ? crearServicioRapido : undefined}
                     />
                     <div className="grid grid-cols-3 gap-2">
                       <input type="number" min="1" step="1" placeholder={newLinea.tipo === 'mano_de_obra' ? 'Horas *' : 'Cantidad *'} value={newLinea.cantidad}

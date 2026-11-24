@@ -3,7 +3,7 @@ import { BellRing, Camera, CheckCircle2, ClipboardCheck, Copy, Mail, MessageCirc
 import type { Empresa, OrdenTrabajo } from '../types';
 import { supabase } from '../lib/supabase';
 import { getOrden } from '../lib/data/ordenes';
-import { listServicios, type Servicio } from '../lib/data/servicios';
+import { listServicios, textoPrecioServicio, type Servicio } from '../lib/data/servicios';
 import { listPlantillas, type PlantillaResumen } from '../lib/data/plantillasInspeccion';
 import { tipoDispositivo } from '../lib/data/firmas';
 import InformeInspeccionImpreso from './InformeInspeccionImpreso';
@@ -149,9 +149,9 @@ function PuntoRevision({ punto, urls, editable, servicios, onGuardar, onBorrarFo
             className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
           {servicios.some((x) => x.activo) && (
             <select value="" aria-label={`Poner un servicio en ${punto.nombre}`} className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-              onChange={(e) => { const sv = servicios.find((x) => x.id === e.target.value); if (!sv) return; setReparacion(sv.reparacion); setPrecio(String(sv.precio).replace('.', ',')); void onGuardar({ reparacion: sv.reparacion, precio: sv.precio }); }}>
+              onChange={(e) => { const sv = servicios.find((x) => x.id === e.target.value); if (!sv) return; setReparacion(sv.reparacion); if (sv.precio === null) { void onGuardar({ reparacion: sv.reparacion }); return; } setPrecio(String(sv.precio).replace('.', ',')); void onGuardar({ reparacion: sv.reparacion, precio: sv.precio }); }}>
               <option value="">Poner un servicio del catálogo…</option>
-              {servicios.filter((x) => x.activo).map((x) => <option key={x.id} value={x.id}>{x.nombre} · {fmt2(x.precio)} €</option>)}
+              {servicios.filter((x) => x.activo).map((x) => <option key={x.id} value={x.id}>{x.nombre} · {textoPrecioServicio(x.precio)}</option>)}
             </select>
           )}
           <div className="flex items-center gap-2">

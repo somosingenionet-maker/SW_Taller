@@ -1,6 +1,6 @@
 import { blobADataUrl, comprimirImagen, OPCIONES_LOGO } from '../utils/imagen';
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw, Camera, ClipboardCheck, CalendarCheck, ChevronRight } from 'lucide-react';
+import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw, Camera, ClipboardCheck, CalendarCheck, ChevronRight, ListChecks } from 'lucide-react';
 import { AlertaTipo, Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { supabase } from '../lib/supabase';
@@ -10,6 +10,7 @@ import { PLANTILLA_DEFAULT, VARIABLES_DISPONIBLES } from '../utils/recordatorioT
 import SelectorColorMarca from '../ui/SelectorColorMarca';
 import VerifactuSettings from './VerifactuSettings';
 import AjustesInspeccion from './AjustesInspeccion';
+import AjustesServicios from './AjustesServicios';
 import AjustesReservas from './AjustesReservas';
 import { formatearBytes } from '../utils/imagen';
 
@@ -28,7 +29,7 @@ const TIPO_LABEL: Record<AlertaTipo, string> = {
   aceite: 'Cambio de aceite (recordatorio)',
 };
 
-export type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'reservas' | 'inspeccion' | 'fotos' | 'tecnicos';
+export type TabId = 'identidad' | 'fiscal' | 'marca' | 'recordatorios' | 'reservas' | 'servicios' | 'inspeccion' | 'fotos' | 'tecnicos';
 
 /** Las secciones de la configuración, agrupadas por lo que se quiere hacer. Los identificadores son los de siempre (la guía de primeros pasos enlaza a ellos). */
 const GRUPOS: { titulo: string; items: { id: TabId; titulo: string; descripcion: string; icono: typeof Building2 }[] }[] = [
@@ -42,7 +43,8 @@ const GRUPOS: { titulo: string; items: { id: TabId; titulo: string; descripcion:
     { id: 'reservas', titulo: 'Reservas online', descripcion: 'Que tus clientes pidan cita desde tu propia página.', icono: CalendarCheck },
   ] },
   { titulo: 'Taller', items: [
-    { id: 'inspeccion', titulo: 'Inspección', descripcion: 'Servicios predefinidos y plantillas de la inspección digital.', icono: ClipboardCheck },
+    { id: 'servicios', titulo: 'Servicios', descripcion: 'Los trabajos de mano de obra que se eligen al hacer una orden, con su texto y su precio.', icono: ListChecks },
+    { id: 'inspeccion', titulo: 'Inspección', descripcion: 'Plantillas de la inspección digital: qué puntos se revisan y qué servicio se sugiere en cada uno.', icono: ClipboardCheck },
     { id: 'fotos', titulo: 'Fotos', descripcion: 'Cuánto tiempo se conservan las fotos de cada orden.', icono: Camera },
     { id: 'tecnicos', titulo: 'Técnicos', descripcion: 'Quién trabaja en el taller y su enlace personal para ver y marcar sus trabajos.', icono: Wrench },
   ] },
@@ -479,6 +481,12 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
               {activeTab === 'reservas' && (
                 <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-4xl">
                   <AjustesReservas empresaId={config.id} nombreEmpresa={config.nombre} recordatoriosActivos={draft.recordatoriosAutomaticosActivos} />
+                </div>
+              )}
+
+              {activeTab === 'servicios' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 max-w-4xl">
+                  <AjustesServicios />
                 </div>
               )}
 

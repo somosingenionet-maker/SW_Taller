@@ -2014,7 +2014,7 @@ export type Database = {
           empresa_id: string
           id: string
           nombre: string
-          precio: number
+          precio: number | null
           reparacion: string
           updated_at: string
         }
@@ -2024,7 +2024,7 @@ export type Database = {
           empresa_id: string
           id?: string
           nombre: string
-          precio: number
+          precio: number | null
           reparacion: string
           updated_at?: string
         }
@@ -2034,7 +2034,7 @@ export type Database = {
           empresa_id?: string
           id?: string
           nombre?: string
-          precio?: number
+          precio?: number | null
           reparacion?: string
           updated_at?: string
         }

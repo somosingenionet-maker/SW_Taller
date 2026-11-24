@@ -1,76 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, Copy, Plus, Star, Trash2 } from 'lucide-react';
-import {
-  actualizarServicio, borrarServicio, crearServicio, listServicios, type Servicio,
-} from '../lib/data/servicios';
+import { listServicios, textoPrecioServicio, type Servicio } from '../lib/data/servicios';
 import {
   actualizarPunto, anadirPunto, borrarPlantilla, borrarPuntoPlantilla, crearPlantilla, establecerDefecto, getPuntosPlantilla,
   guardarOrden, listPlantillas, renombrarPlantilla, type PlantillaPunto, type PlantillaResumen,
 } from '../lib/data/plantillasInspeccion';
 import { mensajeDeError } from '../lib/errores';
 import { categoriasDe, moverCategoria, moverPunto, nombreValido, parsearPrecio } from '../utils/inspeccion';
-import { fmt2 } from '../utils/moneda';
 
 const campo = 'border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400';
 const boton = 'px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 cursor-pointer';
-
-/** Servicios predefinidos: el texto de la reparación y su precio, para sugerirlos al revisar una inspección. */
-function Servicios({ servicios, recargar }: { servicios: Servicio[]; recargar: () => Promise<void> }) {
-  const [nombre, setNombre] = useState('');
-  const [reparacion, setReparacion] = useState('');
-  const [precio, setPrecio] = useState('');
-  const [error, setError] = useState('');
-  const [ocupado, setOcupado] = useState(false);
-
-  const ejecutar = async (accion: () => Promise<void>, queFallo: string) => {
-    setError(''); setOcupado(true);
-    try { await accion(); await recargar(); } catch (e) { setError(mensajeDeError(e, queFallo)); } finally { setOcupado(false); }
-  };
-
-  const crear = () => {
-    const n = nombreValido(nombre, 80); const r = nombreValido(reparacion, 300); const p = parsearPrecio(precio);
-    if (!n) return setError('Escribe el nombre del servicio (hasta 80 caracteres).');
-    if (!r) return setError('Escribe el texto de la reparación (hasta 300 caracteres).');
-    if (p === null || p === undefined) return setError('Escribe un precio válido, por ejemplo 64 o 64,50.');
-    void ejecutar(async () => { await crearServicio({ nombre: n, reparacion: r, precio: p }); setNombre(''); setReparacion(''); setPrecio(''); }, 'No se pudo crear el servicio.');
-  };
-
-  return (
-    <section className="space-y-3" data-testid="ajustes-servicios">
-      <div>
-        <p className="text-xs font-bold text-slate-600">Servicios predefinidos</p>
-        <p className="text-[11px] text-slate-400">Al revisar una inspección, recepción los elige para poner la reparación y el precio de un toque. Precio sin IVA.</p>
-      </div>
-
-      {servicios.length > 0 && (
-        <ul className="divide-y divide-slate-100 border border-slate-100 rounded-2xl">
-          {servicios.map((s) => (
-            <li key={s.id} className={`px-3 py-2 flex items-center gap-2 text-xs ${s.activo ? '' : 'opacity-50'}`}>
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-slate-700 truncate">{s.nombre}</p>
-                <p className="text-slate-400 truncate">{s.reparacion}</p>
-              </div>
-              <span className="font-bold text-slate-700 whitespace-nowrap">{fmt2(s.precio)} €</span>
-              <button type="button" disabled={ocupado} className={boton} onClick={() => void ejecutar(() => actualizarServicio(s.id, { activo: !s.activo }), 'No se pudo cambiar el servicio.')}>
-                {s.activo ? 'Desactivar' : 'Activar'}
-              </button>
-              <button type="button" disabled={ocupado} aria-label={`Borrar ${s.nombre}`} className="p-1.5 text-slate-400 hover:text-rose-600 cursor-pointer disabled:opacity-50"
-                onClick={() => void ejecutar(() => borrarServicio(s.id), 'No se pudo borrar el servicio.')}><Trash2 size={13} /></button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 bg-slate-50 border border-slate-100 rounded-2xl p-3">
-        <input value={nombre} onChange={(e) => { setNombre(e.target.value); setError(''); }} placeholder="Nombre (p. ej. Cambio de pastillas)" aria-label="Nombre del servicio" maxLength={80} className={campo} />
-        <input value={precio} onChange={(e) => { setPrecio(e.target.value); setError(''); }} placeholder="Precio €" aria-label="Precio del servicio" inputMode="decimal" className={`${campo} sm:w-28`} />
-        <input value={reparacion} onChange={(e) => { setReparacion(e.target.value); setError(''); }} placeholder="Texto de la reparación (lo que verá el cliente)" aria-label="Texto de la reparación" maxLength={300} className={`${campo} sm:col-span-2`} />
-        <button type="button" disabled={ocupado} onClick={crear} className="sm:col-span-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-60 cursor-pointer flex items-center justify-center gap-1.5"><Plus size={13} /> Añadir servicio</button>
-      </div>
-      {error && <p role="alert" className="text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">{error}</p>}
-    </section>
-  );
-}
 
 /** Plantillas de inspección: puntos agrupados en categorías, con un servicio sugerido opcional por punto. */
 function Plantillas({ servicios }: { servicios: Servicio[] }) {
@@ -168,7 +107,7 @@ function Plantillas({ servicios }: { servicios: Servicio[] }) {
                           <select value={p.servicioId ?? ''} aria-label={`Servicio sugerido para ${p.nombre}`} disabled={ocupado} className={`${campo} py-1 text-xs max-w-[11rem]`}
                             onChange={(e) => void ejecutar(() => actualizarPunto(p.id, { servicioId: e.target.value || null }), 'No se pudo asociar el servicio.')}>
                             <option value="">Sin servicio</option>
-                            {serviciosActivos.map((s) => <option key={s.id} value={s.id}>{s.nombre} · {fmt2(s.precio)} €</option>)}
+                            {serviciosActivos.map((s) => <option key={s.id} value={s.id}>{s.nombre} · {textoPrecioServicio(s.precio)}</option>)}
                             {p.servicioId && !serviciosActivos.some((s) => s.id === p.servicioId) && <option value={p.servicioId}>(servicio desactivado)</option>}
                           </select>
                           <button type="button" disabled={ocupado || pi === 0} aria-label={`Subir ${p.nombre}`} className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer" onClick={() => void ejecutar(() => guardarOrden(puntos, moverPunto(puntos, p.id, -1)), 'No se pudo reordenar.')}><ArrowUp size={13} /></button>
@@ -215,7 +154,7 @@ export default function AjustesInspeccion() {
   if (servicios === null) return error ? <p role="alert" className="text-xs text-rose-700">{error}</p> : <p className="text-xs text-slate-400">Cargando…</p>;
   return (
     <div className="space-y-6" data-testid="ajustes-inspeccion">
-      <Servicios servicios={servicios} recargar={recargar} />
+      <p className="text-[11px] text-slate-400">Los servicios que se sugieren en cada punto se editan en Ajustes → Servicios.</p>
       <Plantillas servicios={servicios} />
     </div>
   );

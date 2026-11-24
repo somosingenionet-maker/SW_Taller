@@ -779,6 +779,7 @@ export default function App() {
         {activeTab === 'taller' && (
           <OrdenesTrabajoTab
             intencion={intencion}
+            esAdmin={currentUser.rol === 'admin'}
             ordenes={ordenesTrabajo}
             vehiculos={vehiculos}
             clientes={clientes}
