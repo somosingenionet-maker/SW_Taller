@@ -11,6 +11,7 @@ import { extraerIp, permitirPeticion } from '../_shared/rateLimit.ts';
 import { DIAS_PRUEBA } from '../_shared/stripe.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
 import { esCorreoYaRegistrado, validarRegistro } from './logic.ts';
+import { enviarAvisoPlataforma, fechaCorta } from '../_shared/avisoPlataforma.ts';
 
 initSentry('registro');
 
@@ -101,6 +102,15 @@ Deno.serve(conSentry(async (req) => {
     Sentry.captureException(new Error(`registro: perfil: ${perfilErr.message}`));
     return json({ error: 'No se pudo completar el alta. Inténtalo de nuevo en unos minutos.' }, 500);
   }
+
+  // Aviso interno al dueño de la plataforma. Solo aquí, cuando el taller se ha creado de verdad
+  // (no cuando el correo ya existía). Nunca lanza.
+  await enviarAvisoPlataforma({
+    asunto: `Nuevo taller registrado: ${nombreTaller}`,
+    titulo: 'Se ha registrado un taller nuevo',
+    datos: [['Taller', nombreTaller], ['Persona', nombre], ['Correo', email], ['NIF', nif], ['Prueba hasta', fechaCorta(finPrueba)]],
+    enlace: { texto: 'Abrir Doonty Motor', url: APP_URL },
+  });
 
   return json(RESPUESTA_OK);
 }, CORS_HEADERS));

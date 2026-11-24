@@ -13,6 +13,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { verificarFirmaStripe } from '../_shared/stripe.ts';
 import { EVENTOS_ATENDIDOS, planificarEvento } from './logic.ts';
+import { avisoInternoDelEvento, construirCorreoSuscripcion, correoDelEvento, type CorreoPendiente } from './correos.ts';
+import { enviarAvisoPlataforma } from '../_shared/avisoPlataforma.ts';
 import { initSentry, conSentry, Sentry } from '../_shared/sentry.ts';
 
 initSentry('stripe-webhook');
@@ -20,9 +22,61 @@ initSentry('stripe-webhook');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+const RESEND_FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL') ?? 'onboarding@resend.dev';
+const APP_URL = (Deno.env.get('APP_URL') ?? 'https://motor.doonty.com').replace(/\/+$/, '');
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+/**
+ * Avisa por correo a los administradores del taller (activada, cancelación, terminada). Nunca lanza:
+ * un fallo aquí no debe hacer que Stripe reintente el evento, que ya se aplicó a la base de datos.
+ */
+// deno-lint-ignore no-explicit-any
+async function avisarPorCorreo(admin: any, correo: CorreoPendiente, empresaIdConocida: string | undefined): Promise<void> {
+  try {
+    if (!RESEND_API_KEY) return;
+    let empresaId = empresaIdConocida ?? correo.empresaId;
+    if (!empresaId && correo.clienteStripe) {
+      const { data } = await admin.from('empresas').select('id').eq('stripe_customer_id', correo.clienteStripe).maybeSingle();
+      empresaId = data?.id;
+    }
+    if (!empresaId) return;
+    const { data: empresa } = await admin.from('empresas').select('nombre').eq('id', empresaId).maybeSingle();
+    const { data: admins } = await admin.from('perfiles').select('email')
+      .eq('empresa_id', empresaId).eq('rol', 'admin').eq('activo', true);
+    const destinatarios = [...new Set(((admins ?? []) as { email: string | null }[]).map((a) => (a.email ?? '').trim()).filter(Boolean))];
+    if (!empresa || destinatarios.length === 0) return;
+
+    const { asunto, html } = construirCorreoSuscripcion(correo, empresa.nombre, APP_URL);
+    for (const to of destinatarios) {
+      const resp = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: `Doonty Motor <${RESEND_FROM_EMAIL}>`, to: [to], subject: asunto, html, reply_to: 'send@doonty.com' }),
+      });
+      if (!resp.ok) throw new Error(`Resend ${resp.status}: ${await resp.text()}`);
+    }
+    console.log(JSON.stringify({ correoSuscripcion: correo.tipo, empresaId, enviados: destinatarios.length }));
+  } catch (e) {
+    console.error('No se pudo enviar el correo de suscripción:', e instanceof Error ? e.message : e);
+    Sentry.captureException(e);
+  }
+}
+
+/** Aviso interno al dueño de la plataforma (nueva suscripción, cancelación, baja, cobro fallido). Nunca lanza. */
+// deno-lint-ignore no-explicit-any
+async function avisarPlataforma(admin: any, evento: Record<string, unknown>, empresaId: string): Promise<void> {
+  try {
+    if (!avisoInternoDelEvento(evento, '')) return; // este evento no avisa: ni siquiera consultar
+    const { data: empresa } = await admin.from('empresas').select('nombre').eq('id', empresaId).maybeSingle();
+    const aviso = avisoInternoDelEvento(evento, empresa?.nombre ?? empresaId);
+    if (aviso) await enviarAvisoPlataforma(aviso);
+  } catch (e) {
+    console.error('Aviso interno fallido:', e instanceof Error ? e.message : e);
+  }
+}
 
 Deno.serve(conSentry(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Método no soportado' }, 405);
@@ -71,6 +125,12 @@ Deno.serve(conSentry(async (req) => {
         const { error: extErr } = await admin.rpc('extender_acceso', { p_empresa_id: empresaId, p_hasta: plan.extenderHasta });
         if (extErr) throw new Error(extErr.message);
       }
+
+      // Solo después de aplicar el cambio: así un reintento de Stripe (por un fallo de arriba) no
+      // manda el correo dos veces, porque este punto solo se alcanza una vez por evento.
+      const correo = correoDelEvento(evento);
+      if (correo) await avisarPorCorreo(admin, correo, empresaId);
+      await avisarPlataforma(admin, evento, empresaId);
     }
     return json({ ok: true });
   } catch (e) {
