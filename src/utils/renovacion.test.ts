@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { proximaRenovacion } from './renovacion';
+import { proximaItvTrasPasarla, proximaRenovacion } from './renovacion';
 
 describe('proximaRenovacion', () => {
   it('seguro e impuesto: un año después del vencimiento anterior, no desde hoy', () => {
@@ -23,5 +23,23 @@ describe('proximaRenovacion', () => {
 
   it('29 de febrero: se queda en el último día del mes de destino', () => {
     expect(proximaRenovacion('seguro', '2028-02-29', '2028-02-01')).toBe('2029-02-28');
+  });
+});
+
+describe('proximaItvTrasPasarla', () => {
+  it('dentro de los 30 días antes del vencimiento cuenta desde el vencimiento (no se pierden días)', () => {
+    expect(proximaItvTrasPasarla('2026-11-25', '2026-12-20', 2020)).toBe('2028-12-20');
+    expect(proximaItvTrasPasarla('2026-11-20', '2026-12-20', 2012)).toBe('2027-12-20'); // justo 30 días antes
+    expect(proximaItvTrasPasarla('2026-12-20', '2026-12-20', 2012)).toBe('2027-12-20'); // el mismo día
+  });
+
+  it('antes de esa ventana, o ya vencida, cuenta desde el día de la inspección', () => {
+    expect(proximaItvTrasPasarla('2026-11-19', '2026-12-20', 2012)).toBe('2027-11-19'); // 31 días antes
+    expect(proximaItvTrasPasarla('2026-11-25', '2026-10-01', 2012)).toBe('2027-11-25'); // vencida
+  });
+
+  it('sin vencimiento anterior ni año: desde la inspección y a un año', () => {
+    expect(proximaItvTrasPasarla('2026-11-25')).toBe('2027-11-25');
+    expect(proximaItvTrasPasarla('2026-11-25', '')).toBe('2027-11-25');
   });
 });

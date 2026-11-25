@@ -794,6 +794,7 @@ export default function App() {
             onCreateProducto={handleAddProducto}
             onVistaAmpliaChange={setTallerVistaAmplia}
             onCrearAviso={handleCrearAviso}
+            onAnotarItv={(vehId, fecha) => handleRenovarVencimiento(vehId, 'itv', fecha)}
           />
         )}
 

@@ -26,3 +26,25 @@ function fechaLocal(iso: string): Date {
   const [a, m, d] = iso.slice(0, 10).split('-').map(Number);
   return new Date(a, m - 1, d);
 }
+
+/**
+ * Próxima ITV de un coche que acaba de pasarla (revisión pre-ITV al entregar). Es una PROPUESTA que el taller puede cambiar.
+ * Regla del RD 920/2017 (art. 6.5): si se pasa dentro de los 30 días naturales anteriores al vencimiento, la siguiente se
+ * cuenta desde ese vencimiento (no se pierden días); si no, desde el día de la inspección. Periodicidad de turismo particular,
+ * como `proximaRenovacion`.
+ */
+export function proximaItvTrasPasarla(fechaInspeccion: string, vencimientoAnterior?: string, anioMatriculacion?: number): string {
+  const inspeccion = fechaInspeccion.slice(0, 10);
+  const anterior = vencimientoAnterior?.slice(0, 10);
+  const dentroDeVentana = !!anterior && /^\d{4}-\d{2}-\d{2}$/.test(anterior)
+    && inspeccion <= anterior && restarDias(anterior, 30) <= inspeccion;
+  const base = dentroDeVentana ? anterior! : inspeccion;
+  return sumarMeses(mesesProximaItv(base, anioMatriculacion), fechaLocal(base));
+}
+
+function restarDias(iso: string, dias: number): string {
+  const d = fechaLocal(iso);
+  d.setDate(d.getDate() - dias);
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+}

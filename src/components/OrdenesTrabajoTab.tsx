@@ -35,6 +35,8 @@ import BadgeEstado from './orden/BadgeEstado';
 import VisorPresupuesto from './orden/VisorPresupuesto';
 import { BloqueAvisoListo, BloqueAvisoTecnico, BloqueLineasNuevas, BloquePresupuesto, HistorialOrden } from './orden/BloquesFicha';
 import LineaTipoYProducto from './orden/LineaTipoYProducto';
+import EntregaPreItvModal from './orden/EntregaPreItvModal';
+import { formatDate } from '../utils/dateFormat';
 import CamposCantidadPrecio from './orden/CamposCantidadPrecio';
 import { cantidadValida, textoCantidad, textoPrecioLinea } from '../utils/cantidadLinea';
 import { crearServicio, listServicios, type Servicio } from '../lib/data/servicios';
@@ -71,9 +73,11 @@ interface Props {
   onCrearAviso?: (a: DatosAviso) => Promise<void>;
   /** Administrador: puede guardar en el catálogo de servicios lo que escribe a mano en la mano de obra. */
   esAdmin?: boolean;
+  /** Pre-ITV: al entregar, anota en el vehículo el nuevo vencimiento de la ITV (reabre el aviso con el ciclo nuevo). */
+  onAnotarItv?: (vehiculoId: string, nuevoVencimiento: string) => Promise<void>;
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo, onCrearAviso, esAdmin = false }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo, onCrearAviso, esAdmin = false, onAnotarItv }: Props) {
   const movil = useMovil();
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
@@ -136,6 +140,8 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   const [editOTEditingLineaId, setEditOTEditingLineaId] = useState<string | null>(null);
   const [editOTEditLineaForm, setEditOTEditLineaForm] = useState<LineaForm>(EMPTY_LINEA);
   const [editOTNewLinea, setEditOTNewLinea] = useState<LineaForm>(EMPTY_LINEA);
+  /** Orden pre-ITV que se va a entregar: antes se pregunta si ya pasó la ITV para anotar la nueva fecha. */
+  const [entregaPreItv, setEntregaPreItv] = useState<OrdenTrabajo | null>(null);
   const [recepcionModal, setRecepcionModal] = useState<{
     km: number | ''; fechaEst: string; tecnico: string;
     checklist: Record<string, boolean>; observaciones: string; fotos: string[];
@@ -330,7 +336,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
     }
   };
 
-  const handleEstadoChange = async (ot: OrdenTrabajo, estado: OTEstado) => {
+  /** `itvAnotada`: solo al entregar una pre-ITV — undefined = aún no se ha preguntado; null = se entrega sin anotar. */
+  const handleEstadoChange = async (ot: OrdenTrabajo, estado: OTEstado, itvAnotada?: string | null) => {
+    if (estado === 'entregado' && ot.esPreItv && ot.vehiculoId && onAnotarItv && itvAnotada === undefined) {
+      setEntregaPreItv(ot);
+      return;
+    }
     if (ot.estado === 'presupuesto' && estado === 'recibido') {
       // El modal de recepción se renderiza condicionado a `selected` (lo
       // rellena la ficha de detalle al abrirla) — al arrastrar la tarjeta
@@ -358,7 +369,11 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       ...ot,
       estado,
       fechaActualizacion: now,
-      historial: [...(ot.historial ?? []), evento(EVENTO_LABEL[estado])],
+      historial: [
+        ...(ot.historial ?? []),
+        ...(itvAnotada ? [evento(`ITV pasada: nuevo vencimiento el ${formatDate(itvAnotada)}, anotado en el vehículo`)] : []),
+        evento(EVENTO_LABEL[estado]),
+      ],
     };
     if (estado === 'presupuesto') updated.presupuestoEstado = 'pendiente';
     if (estado === 'entregado' && !ot.fechaEntrega) {
@@ -1760,6 +1775,20 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
               </form>
             </div>
           </div>
+      )}
+
+      {entregaPreItv && (
+        <EntregaPreItvModal
+          ot={entregaPreItv}
+          vehiculo={vehiculos.find(v => v.id === entregaPreItv.vehiculoId)}
+          onAnotarYEntregar={async (fecha) => {
+            await onAnotarItv!(entregaPreItv.vehiculoId, fecha);
+            setEntregaPreItv(null);
+            await handleEstadoChange(entregaPreItv, 'entregado', fecha);
+          }}
+          onEntregarSinAnotar={async () => { setEntregaPreItv(null); await handleEstadoChange(entregaPreItv, 'entregado', null); }}
+          onCerrar={() => setEntregaPreItv(null)}
+        />
       )}
 
       {/* Modal recepción de vehículo (presupuesto aprobado → recibido) */}
