@@ -110,6 +110,7 @@ function filaVehiculo(d: DatosVehiculo): VehiculoInsert {
     marca: d.marca, modelo: d.modelo, anio: d.anio, color: d.color || null, combustible: d.combustible,
     matricula: d.matricula, bastidor: d.bastidor, kilometraje: d.kilometraje,
     itv_vencimiento: d.itv, seguro_vencimiento: d.seguro, impuesto_vencimiento: d.impuesto,
+    ...(d.tipoVehiculo ? { tipo_vehiculo: d.tipoVehiculo } : {}),
   } as VehiculoInsert;
 }
 

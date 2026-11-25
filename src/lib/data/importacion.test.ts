@@ -30,7 +30,7 @@ const cliente = (linea: number, nombre: string, nif = ''): FilaValidada => ({
 });
 const vehiculo = (linea: number, matricula: string, clienteNif = '', clienteCorreo = ''): FilaValidada => ({
   linea, errores: [], avisos: [], duplicado: null,
-  datos: { matricula, marca: 'Seat', modelo: 'Ibiza', bastidor: '', anio: null, color: '', combustible: null, kilometraje: 0, itv: null, seguro: null, impuesto: null, clienteNif, clienteCorreo },
+  datos: { matricula, marca: 'Seat', modelo: 'Ibiza', bastidor: '', anio: null, color: '', combustible: null, tipoVehiculo: null, kilometraje: 0, itv: null, seguro: null, impuesto: null, clienteNif, clienteCorreo },
 });
 const producto = (linea: number, nombre: string, stock: number): FilaValidada => ({
   linea, errores: [], avisos: [], duplicado: null,
@@ -94,6 +94,16 @@ describe('importarFilas — vehículos', () => {
       { cliente_id: 'c-ana', vehiculo_id: 'v0' },
       { cliente_id: 'c-luis', vehiculo_id: 'v1' },
     ]);
+  });
+
+  it('envía el tipo solo si viene en el archivo (si no, la base de datos lo deja como turismo)', async () => {
+    insertar.mockImplementation((_t, rows: unknown[]) => ({ data: rows.map(() => ({ id: 'v' })), error: null }));
+    const furgoneta = vehiculo(2, '1111AAA');
+    (furgoneta.datos as { tipoVehiculo: string | null }).tipoVehiculo = 'furgoneta';
+    await importarFilas('vehiculos', [furgoneta, vehiculo(3, '2222BBB')]);
+    const filas = insertar.mock.calls.find((c) => c[0] === 'vehiculos')![1] as Record<string, unknown>[];
+    expect(filas[0].tipo_vehiculo).toBe('furgoneta');
+    expect('tipo_vehiculo' in filas[1]).toBe(false);
   });
 
   it('no consulta clientes si ningún vehículo trae propietario', async () => {

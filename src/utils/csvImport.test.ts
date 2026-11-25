@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   autoMapear, decodificarArchivo, detectarSeparador, faltanObligatorios, informeOmitidos, MAX_FILAS_IMPORTACION,
-  normalizarCabecera, parsearCsv, parsearCombustible, parsearFecha, parsearNumero, plantillaCsv, validarFilas,
+  normalizarCabecera, parsearCsv, parsearCombustible, parsearFecha, parsearTipoVehiculo, parsearNumero, plantillaCsv, validarFilas,
   type DatosCliente, type DatosProducto, type DatosVehiculo,
 } from './csvImport';
 
@@ -203,6 +203,32 @@ describe('validación de vehículos', () => {
     ], mapeo, existentes);
     expect(r.duplicadas.map((f) => [f.linea, f.duplicado])).toEqual([[2, 'existente'], [4, 'archivo'], [5, 'archivo']]);
     expect(r.validas.map((f) => f.linea)).toEqual([3, 6, 7]);
+  });
+
+  it('lee el tipo turismo/furgoneta; vacío lo deja a la base de datos y uno desconocido avisa', () => {
+    const m = ['matricula', 'marca', 'modelo', 'tipoVehiculo'];
+    const r = validarFilas('vehiculos', [
+      ['1111AAA', 'Ford', 'Transit', 'Furgoneta'],
+      ['2222AAA', 'Seat', 'Ibiza', 'turismo'],
+      ['3333AAA', 'Seat', 'León', ''],
+      ['4444AAA', 'Iveco', 'Daily', 'camión'],
+    ], m);
+    expect(r.validas.map((f) => (f.datos as DatosVehiculo).tipoVehiculo)).toEqual(['furgoneta', 'turismo', null, null]);
+    expect(r.validas[2].avisos).toEqual([]);
+    expect(r.validas[3].avisos).toEqual(['Tipo "camión" no reconocido (turismo o furgoneta): se deja como turismo.']);
+  });
+});
+
+describe('tipo de vehículo', () => {
+  it('reconoce las formas habituales de escribirlo', () => {
+    for (const s of ['Turismo', 'M1', 'coche', 'Automóvil']) expect(parsearTipoVehiculo(s)).toBe('turismo');
+    for (const s of ['Furgoneta', 'N1', 'furgón', 'Furgoneta de mercancías', 'Van']) expect(parsearTipoVehiculo(s)).toBe('furgoneta');
+    expect(parsearTipoVehiculo('moto')).toBeNull();
+  });
+
+  it('la columna «Tipo» va al tipo, pero «Tipo de combustible» se queda en combustible', () => {
+    expect(autoMapear(['Matrícula', 'Tipo', 'Tipo de combustible'], 'vehiculos')).toEqual(['matricula', 'tipoVehiculo', 'combustible']);
+    expect(autoMapear(['Matrícula', 'Tipo de vehículo', 'Combustible'], 'vehiculos')).toEqual(['matricula', 'tipoVehiculo', 'combustible']);
   });
 });
 

@@ -44,3 +44,20 @@ test('Vehículos: el tipo turismo/furgoneta se guarda y se ve en la ficha', asyn
     await expect(resumen).toHaveText(/Turismo \(M1\)/);
   }
 });
+
+test('Vehículos: la importación CSV reconoce la columna «Tipo» (sin importar nada)', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await login(page);
+  await irA(page, 'Vehículos');
+  await page.getByRole('button', { name: /Importar/ }).first().click();
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: 'vehiculos.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('Matrícula;Marca;Modelo;Tipo;Tipo de combustible\n0001ZZZ;Ford;Transit;Furgoneta;Diésel\n0002ZZZ;Seat;Ibiza;Turismo;Gasolina\n'),
+  });
+  const ventana = page.getByRole('dialog');
+  await expect(ventana.getByLabel('Destino de la columna Tipo', { exact: true })).toHaveValue('tipoVehiculo', { timeout: 15_000 });
+  await expect(ventana.getByLabel('Destino de la columna Tipo de combustible')).toHaveValue('combustible');
+  await expect(ventana.getByRole('button', { name: 'Importar 2 vehículos' })).toBeEnabled();
+  await ventana.getByRole('button', { name: 'Cerrar' }).click();
+  await expect(ventana).toHaveCount(0);
+});

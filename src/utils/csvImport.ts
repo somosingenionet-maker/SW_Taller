@@ -3,6 +3,8 @@
 // (sin red ni base de datos) para poder probarlo a fondo; la escritura en la base de datos
 // vive en src/lib/data/importacion.ts y la pantalla en ImportarCsvModal.tsx.
 
+import type { TipoVehiculo } from '../types';
+
 export type EntidadImport = 'clientes' | 'vehiculos' | 'productos';
 
 export const MAX_FILAS_IMPORTACION = 5000;
@@ -132,6 +134,17 @@ export function parsearCombustible(s: string): 'gasolina' | 'diesel' | 'hibrido'
   return COMBUSTIBLES[normalizarCabecera(s)] ?? null;
 }
 
+// Tipo según la ficha técnica: turismo (M1) o furgoneta de mercancías (N1). Decide cada cuánto se propone la ITV.
+const TIPOS_VEHICULO: Record<string, TipoVehiculo> = {
+  turismo: 'turismo', m1: 'turismo', coche: 'turismo', automovil: 'turismo', car: 'turismo', turismom1: 'turismo',
+  furgoneta: 'furgoneta', n1: 'furgoneta', furgon: 'furgoneta', van: 'furgoneta', mercancias: 'furgoneta',
+  furgonetademercancias: 'furgoneta', furgonetamercancias: 'furgoneta', furgonetan1: 'furgoneta', comercial: 'furgoneta',
+  vehiculocomercial: 'furgoneta',
+};
+export function parsearTipoVehiculo(s: string): TipoVehiculo | null {
+  return TIPOS_VEHICULO[normalizarCabecera(s)] ?? null;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ---------------------------------------------------------------------------
@@ -166,6 +179,8 @@ export const CAMPOS: Record<EntidadImport, CampoImport[]> = {
     { clave: 'anio', etiqueta: 'Año', sinonimos: ['anio', 'ano', 'year', 'anomatriculacion', 'aniomatriculacion'], ejemplo: '2018' },
     { clave: 'color', etiqueta: 'Color', sinonimos: ['color', 'colour'], ejemplo: 'Rojo' },
     { clave: 'combustible', etiqueta: 'Combustible', sinonimos: ['combustible', 'fuel', 'carburante', 'motor'], ejemplo: 'Gasolina' },
+    // Después de combustible: así «Tipo de combustible» se queda en combustible y no en el tipo.
+    { clave: 'tipoVehiculo', etiqueta: 'Tipo (turismo o furgoneta)', sinonimos: ['tipo', 'tipovehiculo', 'tipodevehiculo', 'categoria', 'categoriavehiculo', 'clase', 'clasevehiculo', 'tipoturismofurgoneta'], ejemplo: 'Turismo' },
     { clave: 'kilometraje', etiqueta: 'Kilómetros', sinonimos: ['kilometraje', 'km', 'kms', 'kilometros', 'odometro'], ejemplo: '85000' },
     { clave: 'itv', etiqueta: 'Vencimiento ITV', sinonimos: ['itv', 'vencimientoitv', 'proximaitv', 'itvvencimiento', 'fechaitv'], ejemplo: '15/03/2027' },
     { clave: 'seguro', etiqueta: 'Vencimiento seguro', sinonimos: ['seguro', 'vencimientoseguro', 'segurovencimiento', 'fechaseguro'], ejemplo: '01/09/2027' },
@@ -231,6 +246,8 @@ export interface DatosCliente { nombre: string; apellidos: string; nif: string; 
 export interface DatosVehiculo {
   matricula: string; marca: string; modelo: string; bastidor: string; anio: number | null; color: string;
   combustible: 'gasolina' | 'diesel' | 'hibrido' | 'electrico' | 'otro' | null; kilometraje: number;
+  /** null = no viene en el archivo: la base de datos lo deja como turismo. */
+  tipoVehiculo: TipoVehiculo | null;
   itv: string | null; seguro: string | null; impuesto: string | null; clienteNif: string; clienteCorreo: string;
 }
 export interface DatosProducto { nombre: string; sku: string; descripcion: string; precioVenta: number; costo: number; stock: number; stockMinimo: number; unidad: string }
@@ -298,6 +315,11 @@ function validarVehiculo(g: Obtener, avisos: string[], errores: string[]): Datos
     combustible = parsearCombustible(g('combustible'));
     if (combustible === null) avisos.push(`Combustible "${g('combustible')}" no reconocido: se deja vacío.`);
   }
+  let tipoVehiculo: TipoVehiculo | null = null;
+  if (g('tipoVehiculo') !== '') {
+    tipoVehiculo = parsearTipoVehiculo(g('tipoVehiculo'));
+    if (tipoVehiculo === null) avisos.push(`Tipo "${g('tipoVehiculo')}" no reconocido (turismo o furgoneta): se deja como turismo.`);
+  }
   let kilometraje = 0;
   if (g('kilometraje') !== '') {
     const n = parsearNumero(g('kilometraje'));
@@ -316,7 +338,7 @@ function validarVehiculo(g: Obtener, avisos: string[], errores: string[]): Datos
 
   return errores.length ? null : {
     matricula, marca: g('marca'), modelo: g('modelo'), bastidor: g('bastidor').toUpperCase().replace(/\s/g, ''),
-    anio, color: g('color'), combustible, kilometraje, itv, seguro, impuesto,
+    anio, color: g('color'), combustible, tipoVehiculo, kilometraje, itv, seguro, impuesto,
     clienteNif: g('clienteNif').toUpperCase().replace(/\s/g, ''), clienteCorreo: g('clienteCorreo').toLowerCase(),
   };
 }
