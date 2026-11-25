@@ -3,6 +3,13 @@ import { renumerar } from '../../utils/inspeccion';
 
 export interface PlantillaResumen { id: string; nombre: string; esDefecto: boolean }
 
+/**
+ * Plantilla Pre-ITV del sistema (no es del taller ni se edita): se elige con este id al iniciar una inspección o
+ * como origen de una plantilla propia. Sus puntos están en la base de datos (`plantilla_inspeccion_pre_itv`).
+ */
+export const PLANTILLA_PRE_ITV = 'pre-itv';
+export const PUNTOS_PRE_ITV = 55;
+
 export interface PlantillaPunto {
   id: string;
   plantillaId: string;
@@ -36,7 +43,7 @@ export async function getPuntosPlantilla(plantillaId: string): Promise<Plantilla
   return (data as FilaPunto[]).map(mapPunto);
 }
 
-/** Crea una plantilla a partir de la estándar (sin `origenId`) o duplicando otra del taller. */
+/** Crea una plantilla a partir de la estándar (sin `origenId`), de la Pre-ITV (`PLANTILLA_PRE_ITV`) o duplicando otra del taller. */
 export async function crearPlantilla(nombre: string, origenId?: string): Promise<string> {
   const { data, error } = await supabase.rpc('crear_plantilla_inspeccion', { p_nombre: nombre, p_origen: origenId });
   if (error) throw new Error(mensaje(error.message));

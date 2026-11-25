@@ -10,7 +10,7 @@ const SELECT =
   'fecha_entrega, kilometraje_entrada, kilometraje_salida, descripcion_problema, diagnostico, ' +
   'tecnico_asignado, subtotal, iva_pct, total_iva, total, notas, presupuesto_estado, ' +
   'presupuesto_aprobado, notificacion_enviada, updated_at, mecanico_actualizado_en, ' +
-  'es_cambio_aceite, filtro_aire, filtro_aceite, filtro_combustible, filtro_habitaculo, aceite_anotado_en, ' +
+  'es_cambio_aceite, es_pre_itv, filtro_aire, filtro_aceite, filtro_combustible, filtro_habitaculo, aceite_anotado_en, ' +
   // De las firmas solo quién, cuándo y por cuánto: el dibujo (PNG) no viaja en los listados.
   'firma_presupuesto_nombre, firma_presupuesto_en, firma_presupuesto_total, firma_entrega_nombre, firma_entrega_en, ' +
   'aceptacion_presupuesto_nombre, aceptacion_presupuesto_en, aceptacion_presupuesto_total, ' +
@@ -37,7 +37,7 @@ type OrdenRow = {
   total_iva: number; total: number; notas: string | null;
   presupuesto_estado: string | null; presupuesto_aprobado: boolean | null;
   notificacion_enviada: boolean | null; updated_at: string; mecanico_actualizado_en?: string | null;
-  es_cambio_aceite?: boolean | null; aceite_anotado_en?: string | null;
+  es_cambio_aceite?: boolean | null; es_pre_itv?: boolean | null; aceite_anotado_en?: string | null;
   firma_presupuesto_nombre?: string | null; firma_presupuesto_en?: string | null; firma_presupuesto_total?: number | null;
   firma_entrega_nombre?: string | null; firma_entrega_en?: string | null;
   aceptacion_presupuesto_nombre?: string | null; aceptacion_presupuesto_en?: string | null; aceptacion_presupuesto_total?: number | null;
@@ -95,6 +95,7 @@ export function mapOrden(r: OrdenRow): OrdenTrabajo {
     fechaActualizacion: r.updated_at,
     mecanicoActualizadoEn: r.mecanico_actualizado_en ?? undefined,
     esCambioAceite: r.es_cambio_aceite === true,
+    esPreItv: r.es_pre_itv === true,
     filtros: {
       aire: (r.filtro_aire ?? null) as EstadoFiltro,
       aceite: (r.filtro_aceite ?? null) as EstadoFiltro,
@@ -143,6 +144,7 @@ export function toRow(ot: OrdenTrabajo) {
     checklist_recepcion: ot.checklistRecepcion ?? null,
     checklist_observaciones: ot.checklistObservaciones || null,
     fotos_recepcion: ot.fotosRecepcion ?? [],
+    es_pre_itv: ot.esPreItv === true,
   };
 }
 

@@ -1452,6 +1452,7 @@ export type Database = {
           diagnostico: string | null
           empresa_id: string
           es_cambio_aceite: boolean
+          es_pre_itv: boolean
           estado: string
           fecha_entrega: string | null
           fecha_estimada_entrega: string | null
@@ -1507,6 +1508,7 @@ export type Database = {
           diagnostico?: string | null
           empresa_id: string
           es_cambio_aceite?: boolean
+          es_pre_itv?: boolean
           estado: string
           fecha_entrega?: string | null
           fecha_estimada_entrega?: string | null
@@ -1562,6 +1564,7 @@ export type Database = {
           diagnostico?: string | null
           empresa_id?: string
           es_cambio_aceite?: boolean
+          es_pre_itv?: boolean
           estado?: string
           fecha_entrega?: string | null
           fecha_estimada_entrega?: string | null

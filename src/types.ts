@@ -95,6 +95,8 @@ export interface OrdenTrabajo {
   mecanicoActualizadoEn?: string;
   /** La orden es un cambio de aceite: lleva check list de filtros y permite anotar el próximo cambio. */
   esCambioAceite?: boolean;
+  /** El coche viene a pasar la ITV: su inspección usa la plantilla Pre-ITV. */
+  esPreItv?: boolean;
   /** Check list de filtros del cambio de aceite. Cada uno: cambiado, no se cambió o sin revisar (null). */
   filtros?: FiltrosAceite;
   /** Cuándo se anotó el próximo cambio en la ficha del vehículo a raíz de esta orden. */

@@ -1,4 +1,4 @@
-import { Check, Droplet, Wrench } from 'lucide-react';
+import { Check, Droplet, ShieldCheck, Wrench } from 'lucide-react';
 import type { Cliente, OTEstado, OrdenTrabajo, Vehiculo } from '../types';
 import { fmt2 } from '../utils/moneda';
 import { resumenTiempos, textoDuracion } from '../utils/duracionTarea';
@@ -79,7 +79,7 @@ export default function TableroTaller({ ordenes, vehiculos, clientes, onSelect, 
                         {veh ? <Matricula matricula={veh.matricula} /> : <span className="u-num">{ot.numero}</span>}
                         <span className={`u-dias${aviso ? ' aviso' : ''}`}>{texto}</span>
                       </span>
-                      <b>{veh ? `${veh.marca} ${veh.modelo}` : '—'}{ot.esCambioAceite && <Droplet aria-label="Cambio de aceite" size={13} style={{ marginLeft: 6, verticalAlign: -2 }} />}</b>
+                      <b>{veh ? `${veh.marca} ${veh.modelo}` : '—'}{ot.esCambioAceite && <Droplet aria-label="Cambio de aceite" size={13} style={{ marginLeft: 6, verticalAlign: -2 }} />}{ot.esPreItv && <ShieldCheck aria-label="Pre-ITV" size={13} style={{ marginLeft: 6, verticalAlign: -2 }} />}</b>
                       <span className="u-cli">{cli ? `${cli.nombre} ${cli.apellidos}` : '—'} · <span className="u-num">{ot.numero}</span></span>
                       {enTaller && (ot.tecnicoAsignado || t.tareas > 0) && (
                         <span className="u-avance">

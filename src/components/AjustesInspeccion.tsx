@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, Check, Copy, Plus, Star, Trash2 } from 'lucide-react';
 import { listServicios, textoPrecioServicio, type Servicio } from '../lib/data/servicios';
-import {
+import { PLANTILLA_PRE_ITV, PUNTOS_PRE_ITV,
   actualizarPunto, anadirPunto, borrarPlantilla, borrarPuntoPlantilla, crearPlantilla, establecerDefecto, getPuntosPlantilla,
   guardarOrden, listPlantillas, renombrarPlantilla, type PlantillaPunto, type PlantillaResumen,
 } from '../lib/data/plantillasInspeccion';
@@ -40,6 +40,13 @@ function Plantillas({ servicios }: { servicios: Servicio[] }) {
   };
 
   const actual = plantillas?.find((p) => p.id === elegida) ?? null;
+
+  // Copia editable de la Pre-ITV del sistema; sin nombre escrito se llama «Pre-ITV».
+  const crearDesdePreItv = () => {
+    const n = nombreValido(nombreNueva, 60) ?? 'Pre-ITV';
+    void ejecutar(() => crearPlantilla(n, PLANTILLA_PRE_ITV), 'No se pudo crear la plantilla.');
+    setNombreNueva('');
+  };
   const categorias = useMemo(() => categoriasDe(puntos), [puntos]);
   const serviciosActivos = servicios.filter((s) => s.activo);
 
@@ -60,7 +67,9 @@ function Plantillas({ servicios }: { servicios: Servicio[] }) {
             <button type="button" disabled={ocupado} data-testid="crear-plantilla-estandar"
               onClick={() => { const n = nombreValido(nombreNueva, 60); if (!n) return setError('Escribe un nombre para la plantilla.'); void ejecutar(() => crearPlantilla(n), 'No se pudo crear la plantilla.'); setNombreNueva(''); }}
               className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-60 cursor-pointer">Crear desde la estándar</button>
+            <button type="button" disabled={ocupado} className={boton} data-testid="crear-plantilla-pre-itv" onClick={crearDesdePreItv}>Crear desde la Pre-ITV</button>
           </div>
+          <p className="text-[11px] text-slate-400">La Pre-ITV ({PUNTOS_PRE_ITV} puntos del manual de las estaciones ITV) se puede elegir siempre al iniciar una inspección; créala aquí solo si quieres cambiarle puntos.</p>
         </div>
       ) : (
         <>
@@ -75,6 +84,9 @@ function Plantillas({ servicios }: { servicios: Servicio[] }) {
               <input value={nombreNueva} onChange={(e) => setNombreNueva(e.target.value)} placeholder="Nueva plantilla" aria-label="Nombre de la nueva plantilla" maxLength={60} className={`${campo} w-40 py-1.5 text-xs`} />
               <button type="button" disabled={ocupado} className={boton} onClick={() => { const n = nombreValido(nombreNueva, 60); if (!n) return setError('Escribe un nombre para la plantilla.'); void ejecutar(() => crearPlantilla(n, elegida ?? undefined), 'No se pudo crear la plantilla.'); setNombreNueva(''); }}>
                 <Plus size={12} className="inline -mt-0.5" /> Copiar la actual
+              </button>
+              <button type="button" disabled={ocupado} className={boton} data-testid="crear-plantilla-pre-itv" onClick={crearDesdePreItv}>
+                <Plus size={12} className="inline -mt-0.5" /> Desde la Pre-ITV
               </button>
             </span>
           </div>

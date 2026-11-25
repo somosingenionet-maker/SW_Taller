@@ -4,7 +4,7 @@ import type { Empresa, OrdenTrabajo } from '../types';
 import { supabase } from '../lib/supabase';
 import { getOrden } from '../lib/data/ordenes';
 import { listServicios, type Servicio } from '../lib/data/servicios';
-import { listPlantillas, type PlantillaResumen } from '../lib/data/plantillasInspeccion';
+import { listPlantillas, PLANTILLA_PRE_ITV, PUNTOS_PRE_ITV, type PlantillaResumen } from '../lib/data/plantillasInspeccion';
 import { tipoDispositivo } from '../lib/data/firmas';
 import InformeInspeccionImpreso from './InformeInspeccionImpreso';
 import {
@@ -202,9 +202,9 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
 
   // Plantillas (para elegir al iniciar) y servicios (para poner el texto de la reparación) del taller.
   useEffect(() => {
-    listPlantillas().then((l) => { setPlantillas(l); setPlantillaElegida(l.find((p) => p.esDefecto)?.id ?? l[0]?.id ?? ''); }).catch(() => setPlantillas([]));
+    listPlantillas().then((l) => { setPlantillas(l); setPlantillaElegida(ot.esPreItv ? PLANTILLA_PRE_ITV : l.find((p) => p.esDefecto)?.id ?? ''); }).catch(() => setPlantillas([]));
     listServicios().then(setServicios).catch(() => setServicios([]));
-  }, []);
+  }, [ot.esPreItv]);
 
   useEffect(() => {
     setInsp(undefined); setError(''); setAviso('');
@@ -254,14 +254,18 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
         <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><ClipboardCheck size={11} /> Inspección digital</p>
         <p className="text-xs text-slate-500">Lista de comprobaciones con semáforo y fotos. El mecánico la rellena desde su móvil y tú la revisas, pones precio y se la envías al cliente.</p>
         {error && <div role="alert" className="bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-3 py-2 rounded-xl">{error}</div>}
-        {plantillas.length > 1 && (
-          <select value={plantillaElegida} onChange={(e) => setPlantillaElegida(e.target.value)} aria-label="Plantilla de inspección"
-            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-            {plantillas.map((p) => <option key={p.id} value={p.id}>{p.nombre}{p.esDefecto ? ' (por defecto)' : ''}</option>)}
-          </select>
+        {/* Las del taller, la estándar si el taller no tiene una por defecto, y siempre la Pre-ITV del sistema. */}
+        <select value={plantillaElegida} onChange={(e) => setPlantillaElegida(e.target.value)} aria-label="Plantilla de inspección"
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+          {!plantillas.some((p) => p.esDefecto) && <option value="">Estándar (28 puntos)</option>}
+          {plantillas.map((p) => <option key={p.id} value={p.id}>{p.nombre}{p.esDefecto ? ' (por defecto)' : ''}</option>)}
+          <option value={PLANTILLA_PRE_ITV}>Pre-ITV ({PUNTOS_PRE_ITV} puntos del manual de las estaciones ITV)</option>
+        </select>
+        {plantillaElegida === PLANTILLA_PRE_ITV && (
+          <p className="text-[11px] text-slate-500">Puntos que revisa la ITV en un turismo, según el Manual de procedimiento de inspección de las estaciones ITV (versión 7.9). Lo que el coche no lleve se marca «no aplica».</p>
         )}
         <button type="button" disabled={ocupado} data-testid="iniciar-inspeccion"
-          onClick={() => void ejecutar(async () => { setInsp(await crearInspeccion(ot.id, plantillas.length > 1 ? plantillaElegida || undefined : undefined)); }, 'No se pudo iniciar la inspección.', false)}
+          onClick={() => void ejecutar(async () => { setInsp(await crearInspeccion(ot.id, plantillaElegida || undefined)); }, 'No se pudo iniciar la inspección.', false)}
           className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold disabled:opacity-60 cursor-pointer">
           {ocupado ? 'Abriendo…' : 'Iniciar inspección'}
         </button>

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import {
   BellPlus, ClipboardList, Plus, Search, ChevronRight, X, Check, Trash2,
   Car, User, Calendar, Gauge, Wrench, AlertCircle, FileText,
-  Pencil, List, LayoutGrid, Camera, ImageOff, Droplet
+  Pencil, List, LayoutGrid, Camera, ImageOff, Droplet, ShieldCheck
 } from 'lucide-react';
 import { OrdenTrabajo, OTEstado, LineaOT, Vehiculo, Cliente, Tecnico, Empresa, Producto } from '../types';
 import { listTecnicos, setPortalTokenTecnico } from '../lib/data/tecnicos';
@@ -306,6 +306,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       totalIva,
       total,
       esCambioAceite: otForm.esCambioAceite,
+      esPreItv: otForm.esPreItv,
       ...(esPresupuesto ? {} : {
         checklistRecepcion: CHECKLIST_RECEPCION_ITEMS.map(item => ({ item, ok: !!crearChecklist[item] })),
         checklistObservaciones: crearObservaciones || undefined,
@@ -513,6 +514,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       notas: ot.notas ?? '',
       ivaPct: ot.ivaPct,
       esCambioAceite: ot.esCambioAceite ?? false, // no se edita aquí: tiene su propio bloque en la ficha
+      esPreItv: ot.esPreItv ?? false,
     });
     setEditOTLineas([...ot.lineas]);
     setEditOTEditingLineaId(null);
@@ -547,6 +549,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
       tecnicoAsignado: editForm.tecnicoAsignado || undefined,
       notas: editForm.notas || undefined,
       ivaPct: editForm.ivaPct,
+      esPreItv: editForm.esPreItv,
       lineas: lineasFinal,
       subtotal, totalIva, total,
     };
@@ -810,6 +813,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-blue-700 font-bold text-base">{selected.numero}</span>
                     <BadgeEstado estado={selected.estado} presupuestoEstado={selected.presupuestoEstado} presupuestoAprobado={selected.presupuestoAprobado} notificacionEnviada={selected.notificacionEnviada} />
+                    {selected.esPreItv && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold" data-testid="chip-pre-itv"><ShieldCheck size={11} /> Pre-ITV</span>}
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {selected.estado === 'presupuesto' ? 'Solicitud del' : 'Recibido el'} {selected.fechaRecepcion}
@@ -1259,6 +1263,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
                 </div>
 
+                {/* Pre-ITV: la inspección de la orden usará la plantilla Pre-ITV (puntos del manual de las estaciones ITV). */}
+                <label className="flex items-center gap-2.5 px-3 py-2.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition">
+                  <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={editForm.esPreItv}
+                    onChange={e => setEditForm(f => ({ ...f, esPreItv: e.target.checked }))} />
+                  <span className="text-sm text-slate-700 flex items-center gap-1.5"><ShieldCheck size={14} className="text-blue-600" /> Viene a pasar la ITV (revisión pre-ITV)</span>
+                  <span className="text-[11px] text-slate-400 ml-auto hidden sm:inline">La inspección usará la plantilla Pre-ITV</span>
+                </label>
+
                 {/* Diagnóstico */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Diagnóstico técnico</label>
@@ -1547,6 +1559,14 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     onChange={e => setOTForm(f => ({ ...f, esCambioAceite: e.target.checked }))} />
                   <span className="text-sm text-slate-700 flex items-center gap-1.5"><Droplet size={14} className="text-blue-600" /> Es un cambio de aceite</span>
                   <span className="text-[11px] text-slate-400 ml-auto hidden sm:inline">Añade el check list de filtros y el próximo cambio</span>
+                </label>
+
+                {/* Pre-ITV: la inspección de la orden usará la plantilla Pre-ITV (puntos del manual de las estaciones ITV). */}
+                <label className="flex items-center gap-2.5 px-3 py-2.5 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition">
+                  <input type="checkbox" className="w-4 h-4 accent-blue-600" checked={otForm.esPreItv}
+                    onChange={e => setOTForm(f => ({ ...f, esPreItv: e.target.checked }))} />
+                  <span className="text-sm text-slate-700 flex items-center gap-1.5"><ShieldCheck size={14} className="text-blue-600" /> Viene a pasar la ITV (revisión pre-ITV)</span>
+                  <span className="text-[11px] text-slate-400 ml-auto hidden sm:inline">La inspección usará la plantilla Pre-ITV</span>
                 </label>
 
                 {/* Diagnóstico — solo al recibir el vehículo */}

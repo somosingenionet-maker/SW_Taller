@@ -67,6 +67,7 @@ export interface OTForm {
   notas: string;
   ivaPct: number;
   esCambioAceite: boolean;
+  esPreItv: boolean;
 }
 
 export const EMPTY_OT_FORM: OTForm = {
@@ -81,4 +82,5 @@ export const EMPTY_OT_FORM: OTForm = {
   notas: '',
   ivaPct: IVA_DEFAULT,
   esCambioAceite: false,
+  esPreItv: false,
 };
