@@ -1,8 +1,12 @@
+export type TipoVehiculo = 'turismo' | 'furgoneta';
+
 export interface Vehiculo {
   id: string;
   marca: string;
   modelo: string;
   anio?: number;
+  /** Según la ficha técnica: turismo (M1) o furgoneta de mercancías hasta 3.500 kg (N1). Cambia la periodicidad de la ITV. */
+  tipoVehiculo?: TipoVehiculo;
   color?: string;
   combustible?: 'gasolina' | 'diesel' | 'hibrido' | 'electrico' | 'otro';
   matricula: string;

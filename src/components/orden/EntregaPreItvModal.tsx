@@ -20,7 +20,7 @@ export default function EntregaPreItvModal({ ot, vehiculo, onAnotarYEntregar, on
   onCerrar: () => void;
 }) {
   const hoy = hoyLocal();
-  const propuesta = (dia: string) => proximaItvTrasPasarla(dia, vehiculo?.itvVencimiento, vehiculo?.anio);
+  const propuesta = (dia: string) => proximaItvTrasPasarla(dia, vehiculo?.itvVencimiento, vehiculo?.anio, vehiculo?.tipoVehiculo);
   const [pasadaEl, setPasadaEl] = useState(hoy);
   const [vencimiento, setVencimiento] = useState(() => propuesta(hoy));
   const [tocada, setTocada] = useState(false);
@@ -71,8 +71,9 @@ export default function EntregaPreItvModal({ ot, vehiculo, onAnotarYEntregar, on
             <span className="block text-xs font-semibold text-slate-600 mb-1">Nueva fecha de vencimiento de la ITV</span>
             <input type="date" value={vencimiento} onChange={(e) => { setVencimiento(e.target.value); setTocada(true); setError(''); }} className={inputCls} />
             <span className="block text-[11px] text-slate-400 mt-1">
-              Propuesta para un turismo particular según su edad; si se pasa en los 30 días antes del vencimiento, cuenta desde ese vencimiento.
-              Cámbiala si la tarjeta ITV dice otra cosa.
+              Propuesta para {vehiculo?.tipoVehiculo === 'furgoneta' ? 'una furgoneta de mercancías' : 'un turismo'}
+              {vehiculo?.anio ? ` de ${vehiculo.anio}` : ' sin año de matriculación en la ficha (se propone el plazo más corto)'}; si se pasa en los 30 días
+              antes del vencimiento, cuenta desde ese vencimiento. Cámbiala si la tarjeta ITV dice otra cosa.
             </span>
           </label>
           {error && <p className="text-xs text-rose-600" role="alert">{error}</p>}

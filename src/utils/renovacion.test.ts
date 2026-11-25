@@ -43,3 +43,27 @@ describe('proximaItvTrasPasarla', () => {
     expect(proximaItvTrasPasarla('2026-11-25', '')).toBe('2027-11-25');
   });
 });
+
+describe('ITV de furgoneta de mercancías (N1)', () => {
+  it('cada 2 años hasta los 6, cada año hasta los 10 y cada 6 meses después', () => {
+    expect(proximaRenovacion('itv', '2026-12-10', '2026-11-20', 2022, 'furgoneta')).toBe('2028-12-10'); // 4 años
+    expect(proximaRenovacion('itv', '2026-12-10', '2026-11-20', 2020, 'furgoneta')).toBe('2028-12-10'); // 6 años: aún bienal
+    expect(proximaRenovacion('itv', '2026-12-10', '2026-11-20', 2018, 'furgoneta')).toBe('2027-12-10'); // 8 años
+    expect(proximaRenovacion('itv', '2026-12-10', '2026-11-20', 2016, 'furgoneta')).toBe('2027-12-10'); // 10 años: aún anual
+    expect(proximaRenovacion('itv', '2026-12-10', '2026-11-20', 2012, 'furgoneta')).toBe('2027-06-10'); // 14 años
+  });
+
+  it('sin año de matriculación propone 6 meses', () => {
+    expect(proximaRenovacion('itv', '2026-12-10', '2026-11-20', undefined, 'furgoneta')).toBe('2027-06-10');
+    expect(proximaItvTrasPasarla('2026-11-25', undefined, undefined, 'furgoneta')).toBe('2027-05-25');
+  });
+
+  it('al pasarla también respeta la regla de los 30 días', () => {
+    expect(proximaItvTrasPasarla('2026-11-25', '2026-12-20', 2012, 'furgoneta')).toBe('2027-06-20');
+    expect(proximaItvTrasPasarla('2026-10-01', '2026-12-20', 2012, 'furgoneta')).toBe('2027-04-01');
+  });
+
+  it('el seguro y el impuesto no dependen del tipo', () => {
+    expect(proximaRenovacion('seguro', '2026-12-10', '2026-11-20', 2012, 'furgoneta')).toBe('2027-12-10');
+  });
+});

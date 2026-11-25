@@ -2158,6 +2158,7 @@ export type Database = {
           aceite_ultima_fecha: string | null
           aceite_ultimo_km: number | null
           anio: number | null
+          tipo_vehiculo: string
           bastidor: string
           color: string | null
           combustible: string | null
@@ -2180,6 +2181,7 @@ export type Database = {
           aceite_ultima_fecha?: string | null
           aceite_ultimo_km?: number | null
           anio?: number | null
+          tipo_vehiculo?: string
           bastidor: string
           color?: string | null
           combustible?: string | null
@@ -2202,6 +2204,7 @@ export type Database = {
           aceite_ultima_fecha?: string | null
           aceite_ultimo_km?: number | null
           anio?: number | null
+          tipo_vehiculo?: string
           bastidor?: string
           color?: string | null
           combustible?: string | null

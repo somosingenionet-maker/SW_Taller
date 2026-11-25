@@ -355,7 +355,7 @@ function RenovarVencimiento({ item, vehiculo, hoy, onGuardar, onCerrar }: {
   item: ItemAviso; vehiculo?: Vehiculo; hoy: string; onGuardar: (fecha: string) => Promise<void>; onCerrar: () => void;
 }) {
   const tipo = item.tipo as Exclude<AlertaTipo, 'aceite'>;
-  const propuesta = item.fecha ? proximaRenovacion(tipo, item.fecha, hoy, vehiculo?.anio) : '';
+  const propuesta = item.fecha ? proximaRenovacion(tipo, item.fecha, hoy, vehiculo?.anio, vehiculo?.tipoVehiculo) : '';
   const [fecha, setFecha] = useState(propuesta);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
@@ -372,7 +372,7 @@ function RenovarVencimiento({ item, vehiculo, hoy, onGuardar, onCerrar }: {
         <label className="u-campo">
           <span>Nueva fecha de vencimiento</span>
           <input type="date" className="u-sola" value={fecha} onChange={(e) => setFecha(e.target.value)} />
-          <small>{tipo === 'itv' ? 'Propuesta según la edad del coche (turismo particular); cámbiala si es otro caso.' : 'Propuesta: un año después del vencimiento anterior.'}</small>
+          <small>{tipo === 'itv' ? `Propuesta según la edad y el tipo del vehículo (${vehiculo?.tipoVehiculo === 'furgoneta' ? 'furgoneta de mercancías' : 'turismo'}); cámbiala si es otro caso.` : 'Propuesta: un año después del vencimiento anterior.'}</small>
         </label>
         {error && <p className="u-error" role="alert">{error}</p>}
         <div className="u-acciones">

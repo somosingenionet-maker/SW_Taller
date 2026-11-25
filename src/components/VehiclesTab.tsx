@@ -3,7 +3,7 @@ import type { Intencion } from '../ui/navegacion';
 import FichaLateral from '../ui/FichaLateral';
 import { Matricula, TarjetaLista } from '../ui/componentes';
 import { useMovil } from '../ui/useMovil';
-import { Vehiculo, Cliente, Empresa, OTEstado, EventoOT } from '../types';
+import { Vehiculo, Cliente, Empresa, OTEstado, EventoOT, TipoVehiculo } from '../types';
 import type { NuevoAviso as DatosAviso } from '../lib/data/avisos';
 import NuevoAviso from './NuevoAviso';
 import {
@@ -183,6 +183,8 @@ export default function VehiclesTab({
       setAddFormError('Por favor, rellene de forma correcta la Marca, Modelo y Matrícula.');
       return;
     }
+    const errAnio = errorAnio(formData.anio);
+    if (errAnio) { setAddFormError(errAnio); return; }
     setAddFormError('');
     try {
       await onAddVehiculo({
@@ -203,6 +205,8 @@ export default function VehiclesTab({
   const handleEditSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
     if (editFormData) {
+      const errAnio = errorAnio(editFormData.anio);
+      if (errAnio) { avisarError(new Error(errAnio), errAnio); return; }
       try {
         await onUpdateVehiculo({
           ...editFormData,
@@ -479,6 +483,10 @@ export default function VehiclesTab({
 
               {/* Specs Grid */}
               <div className="grid grid-cols-2 gap-4">
+                <p className="col-span-2 -mb-2 text-xs text-slate-500" data-testid="vehiculo-tipo-anio">
+                  {selectedVehiculo.tipoVehiculo === 'furgoneta' ? 'Furgoneta de mercancías (N1)' : 'Turismo (M1)'}
+                  {' · '}{selectedVehiculo.anio ? `matriculado en ${selectedVehiculo.anio}` : 'sin año de matriculación'}
+                </p>
                 <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                   <div className="text-[10px] text-slate-400 font-semibold uppercase flex items-center gap-1">
                     <Car className="w-3 h-3 text-blue-500" /> Matrícula
@@ -725,6 +733,8 @@ export default function VehiclesTab({
                   />
                 </div>
 
+                <CamposTipoYAnio valor={formData} onCambio={(c) => setFormData({ ...formData, ...c })} />
+
                 <div className="border-t border-slate-100 pt-4 space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Fechas de vencimiento (para los avisos)</h4>
                   
@@ -874,6 +884,8 @@ export default function VehiclesTab({
                   />
                 </div>
 
+                <CamposTipoYAnio valor={editFormData} onCambio={(c) => setEditFormData({ ...editFormData, ...c })} />
+
                 <div className="border-t border-slate-100 pt-4 space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Fechas de vencimiento (para los avisos)</h4>
                   
@@ -940,4 +952,44 @@ export default function VehiclesTab({
       )}
     </div>
   );
+}
+
+/** Año de matriculación y tipo según la ficha técnica: con ellos se propone cuándo le toca la próxima ITV. */
+function CamposTipoYAnio({ valor, onCambio }: {
+  valor: Pick<Vehiculo, 'anio' | 'tipoVehiculo'>;
+  onCambio: (c: Pick<Vehiculo, 'anio' | 'tipoVehiculo'>) => void;
+}) {
+  const anioMax = new Date().getFullYear() + 1;
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label htmlFor="vehiculo-anio" className="block text-xs font-semibold text-slate-600 mb-1">Año de matriculación</label>
+        <input
+          id="vehiculo-anio" type="number" inputMode="numeric" min="1900" max={anioMax} step="1" placeholder="p. ej. 2018"
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          value={valor.anio ?? ''}
+          onChange={e => onCambio({ anio: e.target.value === '' ? undefined : Number(e.target.value), tipoVehiculo: valor.tipoVehiculo })}
+        />
+      </div>
+      <div>
+        <label htmlFor="vehiculo-tipo" className="block text-xs font-semibold text-slate-600 mb-1">Tipo (ficha técnica)</label>
+        <select
+          id="vehiculo-tipo"
+          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          value={valor.tipoVehiculo ?? 'turismo'}
+          onChange={e => onCambio({ anio: valor.anio, tipoVehiculo: e.target.value as TipoVehiculo })}
+        >
+          <option value="turismo">Turismo (M1)</option>
+          <option value="furgoneta">Furgoneta de mercancías (N1, hasta 3.500 kg)</option>
+        </select>
+      </div>
+      <p className="col-span-2 -mt-2 text-[11px] text-slate-400">Con el año y el tipo se propone cuándo le toca la próxima ITV (las furgonetas de mercancías la pasan más a menudo).</p>
+    </div>
+  );
+}
+
+function errorAnio(anio?: number): string {
+  if (anio === undefined) return '';
+  const max = new Date().getFullYear() + 1;
+  return Number.isInteger(anio) && anio >= 1900 && anio <= max ? '' : `El año de matriculación tiene que estar entre 1900 y ${max}.`;
 }

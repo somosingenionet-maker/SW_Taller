@@ -14,12 +14,12 @@ export type NuevoVehiculo = Omit<Vehiculo, 'id' | 'fechaRegistro'>;
 export type AceiteVehiculo = Pick<Vehiculo, 'aceiteUltimaFecha' | 'aceiteUltimoKm' | 'aceiteProximaFecha' | 'aceiteProximoKm'>;
 
 const COLS =
-  'id, marca, modelo, anio, color, combustible, matricula, bastidor, kilometraje, itv_vencimiento, seguro_vencimiento, impuesto_vencimiento, fecha_registro, ' +
+  'id, marca, modelo, anio, tipo_vehiculo, color, combustible, matricula, bastidor, kilometraje, itv_vencimiento, seguro_vencimiento, impuesto_vencimiento, fecha_registro, ' +
   'aceite_ultima_fecha, aceite_ultimo_km, aceite_proxima_fecha, aceite_proximo_km';
 
 // La BD usa snake_case; el dominio (frontend) usa camelCase. Aquí está el mapeo.
 type VehiculoRow = {
-  id: string; marca: string; modelo: string; anio: number | null; color: string | null;
+  id: string; marca: string; modelo: string; anio: number | null; tipo_vehiculo?: string | null; color: string | null;
   combustible: string | null; matricula: string; bastidor: string; kilometraje: number;
   itv_vencimiento: string | null; seguro_vencimiento: string | null;
   impuesto_vencimiento: string | null; fecha_registro: string;
@@ -33,6 +33,7 @@ function mapVehiculo(r: VehiculoRow): Vehiculo {
     marca: r.marca,
     modelo: r.modelo,
     anio: r.anio ?? undefined,
+    tipoVehiculo: r.tipo_vehiculo === 'furgoneta' ? 'furgoneta' : 'turismo',
     color: r.color ?? undefined,
     combustible: (r.combustible ?? undefined) as Vehiculo['combustible'],
     matricula: r.matricula,
@@ -56,6 +57,8 @@ function toRow(v: NuevoVehiculo) {
     marca: v.marca,
     modelo: v.modelo,
     anio: v.anio ?? null,
+    // Sin tipo (altas rápidas, importación) se deja el valor por defecto de la base: turismo.
+    ...(v.tipoVehiculo ? { tipo_vehiculo: v.tipoVehiculo } : {}),
     color: v.color || null,
     combustible: v.combustible ?? null,
     matricula: v.matricula,
