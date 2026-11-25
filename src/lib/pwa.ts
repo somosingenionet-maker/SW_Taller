@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { COLOR_DOONTY } from '../ui/colorMarca';
 
 // App instalable (PWA): registro del service worker, aviso de «Instalar» y manifiesto propio del
 // enlace del mecánico. Todo esto es una comodidad: si el navegador no lo soporta, la aplicación
@@ -55,7 +56,7 @@ export function useInstalar() {
 }
 
 /** Color hexadecimal de 6 cifras o el de reserva (el color de marca viene de la base de datos). */
-export function colorSeguro(color: string | undefined | null, reserva = '#2563eb'): string {
+export function colorSeguro(color: string | undefined | null, reserva = COLOR_DOONTY): string {
   return /^#[0-9a-fA-F]{6}$/.test(color ?? '') ? (color as string) : reserva;
 }
 

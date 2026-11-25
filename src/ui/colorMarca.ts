@@ -6,8 +6,11 @@ export const CONTRASTE_MINIMO = 4.5;
 const BLANCO = '#FFFFFF';
 export const TINTA = '#1B1A17';
 
+/** Color de marca por defecto: el naranja de Doonty (también el de un taller sin color o con uno no válido). */
+export const COLOR_DOONTY = '#E8590C';
+
 export const PRESETS_COLOR: { nombre: string; hex: string }[] = [
-  { nombre: 'Naranja Doonty', hex: '#E8590C' },
+  { nombre: 'Naranja Doonty', hex: COLOR_DOONTY },
   { nombre: 'Azul', hex: '#2563EB' },
   { nombre: 'Verde', hex: '#15803D' },
   { nombre: 'Verde azulado', hex: '#0F766E' },

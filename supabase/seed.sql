@@ -9,7 +9,7 @@ insert into public.empresas
 values
   ('emp-demo','Taller Ejemplo S.L.','Sistema de Gestión de Flota y CRM de Backoffice',
    'Taller Ejemplo S.L.','B-89419102','Calle Mayor 45, Planta 2, Madrid',
-   'contacto@tallerejemplo.net','(+34) 696 722 198','www.tallerejemplo.net','Madrid (España)','#2563eb')
+   'contacto@tallerejemplo.net','(+34) 696 722 198','www.tallerejemplo.net','Madrid (España)','#E8590C')
 on conflict (id) do nothing;
 
 insert into public.vehiculos

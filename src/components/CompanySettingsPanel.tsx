@@ -13,6 +13,7 @@ import AjustesInspeccion from './AjustesInspeccion';
 import AjustesServicios from './AjustesServicios';
 import AjustesReservas from './AjustesReservas';
 import { formatearBytes } from '../utils/imagen';
+import { COLOR_DOONTY } from '../ui/colorMarca';
 
 interface Props {
   config: Empresa;
@@ -91,7 +92,7 @@ const DEFAULT_BRAND_FIELDS: Omit<Empresa, 'id' | 'activo' | 'recordatoriosAutoma
   telefono: '',
   web: '',
   ciudad: '',
-  brandColor: '#2563eb',
+  brandColor: COLOR_DOONTY,
   logoBase64: '',
   logoUrl: '',
 };

@@ -110,6 +110,9 @@ test('el color de la empresa se elige solo en Configuración → Logo y color (n
   await expect(selector.getByTestId('lectura-color')).toContainText('oscuro'); // color claro: texto oscuro
   await selector.getByRole('button', { name: 'Verde', exact: true }).click();
   await expect(selector.getByTestId('lectura-color')).toContainText('blanco');
+  // «Restaurar por defecto» vuelve al naranja de Doonty.
+  await ventana.getByRole('button', { name: 'Restaurar por defecto' }).click();
+  await expect(selector.getByRole('button', { name: 'Naranja Doonty', exact: true })).toHaveAttribute('aria-pressed', 'true');
   // El logo subido no se pinta sobre el color elegido: el cuadro del logo solo toma el color cuando se enseñan las iniciales.
   await captura(page, 'escritorio-color');
   // Sin guardar nada: Esc con cambios pendientes no cierra la ventana, así que se descarta el cambio con «Cancelar».

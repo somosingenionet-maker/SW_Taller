@@ -23,16 +23,16 @@ describe('manifiestoMecanico', () => {
     expect(manifiestoMecanico(url, '', '#2563eb').name).toBe('Mis vehículos');
   });
   it('un color raro de la base de datos no llega al manifiesto', () => {
-    expect(manifiestoMecanico(url, 'X', 'red;evil').theme_color).toBe('#2563eb');
+    expect(manifiestoMecanico(url, 'X', 'red;evil').theme_color).toBe('#E8590C');
   });
 });
 
 describe('colorSeguro', () => {
   it('acepta #RRGGBB y rechaza el resto', () => {
     expect(colorSeguro('#0f172a')).toBe('#0f172a');
-    expect(colorSeguro('#fff')).toBe('#2563eb');
-    expect(colorSeguro('')).toBe('#2563eb');
-    expect(colorSeguro(null)).toBe('#2563eb');
+    expect(colorSeguro('#fff')).toBe('#E8590C');
+    expect(colorSeguro('')).toBe('#E8590C');
+    expect(colorSeguro(null)).toBe('#E8590C');
     expect(colorSeguro('blue', '#000000')).toBe('#000000');
   });
 });

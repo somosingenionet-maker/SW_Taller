@@ -11,6 +11,7 @@ import { etiquetaDia, textoDuracionCita } from '../utils/reservas';
 import { descargarIcs } from '../utils/calendario';
 import { mensajeCitaAlTaller, waHref } from '../utils/whatsapp';
 import { CalendarioHuecos, HorasHuecos } from './externo/Huecos';
+import { COLOR_DOONTY } from '../ui/colorMarca';
 
 const campo = 'w-full px-3.5 py-3 border border-slate-200 rounded-2xl text-sm bg-slate-50/60 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--marca)] focus:border-transparent transition';
 
@@ -68,7 +69,7 @@ export default function ReservaPublica({ slug }: { slug: string }) {
   }, [slug]);
   useEffect(() => { setDisp(null); setFecha(null); setHora(null); if (tipo) cargarDisp(tipo); }, [tipo, cargarDisp]);
 
-  const color = info?.empresa.brandColor && /^#[0-9a-fA-F]{6}$/.test(info.empresa.brandColor) ? info.empresa.brandColor : '#2563eb';
+  const color = info?.empresa.brandColor && /^#[0-9a-fA-F]{6}$/.test(info.empresa.brandColor) ? info.empresa.brandColor : COLOR_DOONTY;
 
   if (errorCarga) return <ErrorPortalPantalla tipo={errorCarga.tipo} mensaje={errorCarga.message} onReintentar={cargarInfo} />;
   if (!info) return <CargandoExterno />;

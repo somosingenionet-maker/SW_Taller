@@ -15,6 +15,7 @@ import { FILTROS, sumarMeses } from '../utils/aceite';
 import { formatDate } from '../utils/dateFormat';
 import { formatKm } from '../utils/moneda';
 import { CLASE_BOTON_CABECERA, CLASE_TARJETA, ColumnaExterna, HeroExterno, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
+import { COLOR_DOONTY } from '../ui/colorMarca';
 
 interface Props {
   token: string;
@@ -561,7 +562,7 @@ export default function PortalMecanico({ token }: Props) {
     return <ErrorPortalPantalla tipo={error?.tipo ?? 'enlace'} mensaje={error?.message ?? 'Este enlace ha caducado o no existe.'} onReintentar={primeraCarga} />;
   }
 
-  const color = data.empresa?.brandColor || '#2563eb';
+  const color = data.empresa?.brandColor || COLOR_DOONTY;
 
   return (
     <PaginaExterna color={color}>

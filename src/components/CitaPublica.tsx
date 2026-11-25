@@ -10,6 +10,7 @@ import { descargarIcs } from '../utils/calendario';
 import { mensajeCitaAlTaller, waHref } from '../utils/whatsapp';
 import { CalendarioHuecos, HorasHuecos } from './externo/Huecos';
 import { aclarar, CabeceraTarjeta, CLASE_TARJETA, ColumnaExterna, HeroExterno, oscurecer, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
+import { COLOR_DOONTY } from '../ui/colorMarca';
 
 const ESTADO: Record<string, { texto: string; clase: string }> = {
   confirmada: { texto: 'Confirmada', clase: 'bg-green-100 text-green-700' },
@@ -45,7 +46,7 @@ export default function CitaPublica({ token }: { token: string }) {
   if (errorCarga) return <ErrorPortalPantalla tipo={errorCarga.tipo} mensaje={errorCarga.message} onReintentar={cargar} />;
   if (!datos) return <CargandoExterno />;
 
-  const color = datos.empresa.brandColor && /^#[0-9a-fA-F]{6}$/.test(datos.empresa.brandColor) ? datos.empresa.brandColor : '#2563eb';
+  const color = datos.empresa.brandColor && /^#[0-9a-fA-F]{6}$/.test(datos.empresa.brandColor) ? datos.empresa.brandColor : COLOR_DOONTY;
   const e = ESTADO[datos.cita.estado] ?? ESTADO.pendiente;
 
   const cancelar = async () => {

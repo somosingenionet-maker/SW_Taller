@@ -24,7 +24,7 @@ import { getEmpresa, updateEmpresa } from './lib/data/empresa';
 import { Vehiculo, Cliente, Alerta, AvisoCliente, NotificacionCliente, InteraccionCliente, AlertaTipo, Perfil, Factura, ModuloId, OrdenTrabajo, OTEstado, Empresa, Producto, Cita } from './types';
 import Cargando from './components/Cargando';
 import { lazyConReintento } from './lib/lazy';
-import { derivarMarca, normalizarHex } from './ui/colorMarca';
+import { COLOR_DOONTY, derivarMarca, normalizarHex } from './ui/colorMarca';
 import { esOscuro, guardarTema, leerTema, type Tema } from './ui/tema';
 import type { Intencion } from './ui/navegacion';
 import type { IrA } from './ui/Marco';
@@ -670,14 +670,14 @@ export default function App() {
   );
   const avisosParaHoy = useMemo(() => itemsAvisos.filter((i) => i.fase === 'para_hoy').length, [itemsAvisos]);
 
-  const brandColor = empresa?.brandColor ?? '#E8590C';
+  const brandColor = empresa?.brandColor ?? COLOR_DOONTY;
 
   useEffect(() => {
     const root = document.documentElement;
     if (oscuro) root.dataset.tema = 'oscuro'; else delete root.dataset.tema;
     // El color del taller se corrige para que el texto se lea (contraste mínimo 4,5:1). Va en la raíz para que también lo usen las ventanas que
     // cuelgan fuera del marco (ajustes, seguridad…) y las pantallas que aún leen --brand-color.
-    const m = derivarMarca(normalizarHex(brandColor) ?? '#E8590C', oscuro);
+    const m = derivarMarca(normalizarHex(brandColor) ?? COLOR_DOONTY, oscuro);
     root.style.setProperty('--brand-color', m.boton);
     root.style.setProperty('--brand-text-color', m.sobreBoton);
     root.style.setProperty('--u-brand', m.boton);

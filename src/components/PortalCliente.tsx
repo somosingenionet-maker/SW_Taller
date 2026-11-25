@@ -7,6 +7,7 @@ import { formatDate } from '../utils/dateFormat';
 import { fmt2, formatKm } from '../utils/moneda';
 import { textoCantidad, textoCantidadSimple } from '../utils/cantidadLinea';
 import { aclarar, CabeceraTarjeta, CLASE_TARJETA, ColumnaExterna, HeroExterno, PaginaExterna, PieExterno, CargandoExterno } from './externo/ui';
+import { COLOR_DOONTY } from '../ui/colorMarca';
 
 interface Props {
   token: string;
@@ -330,7 +331,7 @@ export default function PortalCliente({ token }: Props) {
     return <ErrorPortalPantalla tipo={error?.tipo ?? 'enlace'} mensaje={error?.message ?? 'Este enlace ha caducado o no existe.'} onReintentar={cargar} />;
   }
 
-  const color = data.empresa?.brandColor || '#2563eb';
+  const color = data.empresa?.brandColor || COLOR_DOONTY;
 
   return (
     <PaginaExterna color={color}>

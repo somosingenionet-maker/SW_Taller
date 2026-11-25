@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CreditCard, LogOut, Menu, Moon, Plus, Search, Settings, Shield, ShieldCheck, Sun, SunMoon } from 'lucide-react';
 import type { Cliente, Empresa, ModuloId, OrdenTrabajo, Perfil, Vehiculo } from '../types';
-import { derivarMarca, normalizarHex } from './colorMarca';
+import { COLOR_DOONTY, derivarMarca, normalizarHex } from './colorMarca';
 import { atajosMovil, construirMenu, opcionesNuevo, type AccionNuevo, type ResultadoBusqueda } from './navegacion';
 import { Icono } from './iconos';
 import { Boton, Ventana } from './componentes';
@@ -84,7 +84,7 @@ export default function Marco(p: Props) {
     return null;
   };
 
-  const marca = useMemo(() => derivarMarca(normalizarHex(empresa.brandColor) ?? '#E8590C', p.oscuro), [empresa.brandColor, p.oscuro]);
+  const marca = useMemo(() => derivarMarca(normalizarHex(empresa.brandColor) ?? COLOR_DOONTY, p.oscuro), [empresa.brandColor, p.oscuro]);
   const iniciales = (usuario.nombre || '?').trim()[0]?.toUpperCase() ?? '?';
   // El logo del propio taller (el que sube en Configuración → Logo y color) va en el botón de la cuenta; el de Doonty Motor queda fijo en el menú.
   const logoTaller = empresa.logoBase64 || empresa.logoUrl || '';
