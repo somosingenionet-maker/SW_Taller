@@ -1,6 +1,6 @@
 import { blobADataUrl, comprimirImagen, OPCIONES_LOGO } from '../utils/imagen';
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw, Camera, ClipboardCheck, CalendarCheck, ChevronRight, ListChecks } from 'lucide-react';
+import { X, Upload, RotateCcw, Check, Building2, Wrench, Plus, Edit2, Trash2, Mail, MessageSquareText, IdCard, Landmark, Palette, Bell, Link2, Copy, ShieldOff, RefreshCw, Camera, ClipboardCheck, CalendarCheck, ChevronRight, ListChecks, MessageCircle } from 'lucide-react';
 import { AlertaTipo, Tecnico, Empresa } from '../types';
 import { listTecnicos, createTecnico, updateTecnico, deleteTecnico, setPortalTokenTecnico } from '../lib/data/tecnicos';
 import { supabase } from '../lib/supabase';
@@ -14,6 +14,7 @@ import AjustesServicios from './AjustesServicios';
 import AjustesReservas from './AjustesReservas';
 import { formatearBytes } from '../utils/imagen';
 import { COLOR_DOONTY } from '../ui/colorMarca';
+import { waHref } from '../utils/whatsapp';
 
 interface Props {
   config: Empresa;
@@ -110,6 +111,7 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
   const [editingTecnicoId, setEditingTecnicoId] = useState<string | null>(null);
   const [portalTecnicoBusy, setPortalTecnicoBusy] = useState(false);
   const [portalTecnicoCopiado, setPortalTecnicoCopiado] = useState(false);
+  const [copiadoTecnicoToken, setCopiadoTecnicoToken] = useState<string | null>(null);
 
   const recargarTecnicos = () => listTecnicos().then(setTecnicos);
   useEffect(() => { recargarTecnicos(); }, []);
@@ -129,7 +131,10 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
         const actual = tecnicos.find(t => t.id === editingTecnicoId);
         await updateTecnico({ id: editingTecnicoId, nombre, especialidad, telefono, activo: actual?.activo ?? true });
       } else {
-        await createTecnico({ nombre, especialidad, telefono, activo: true });
+        const creado = await createTecnico({ nombre, especialidad, telefono, activo: true });
+        // Cada mecánico nace con su enlace personal: es para lo que se le da de alta. Si fallara, se puede
+        // crear luego desde su tarjeta.
+        await setPortalTokenTecnico(creado.id, crypto.randomUUID()).catch(() => undefined);
       }
       await recargarTecnicos();
     } catch (err) {
@@ -140,11 +145,11 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
     setEditingTecnicoId(null);
   };
 
-  const handleGenerarPortalTecnico = async () => {
-    if (!editingTecnicoId) return;
+  const handleGenerarPortalTecnico = async (id: string | null = editingTecnicoId) => {
+    if (!id) return;
     setPortalTecnicoBusy(true);
     try {
-      await setPortalTokenTecnico(editingTecnicoId, crypto.randomUUID());
+      await setPortalTokenTecnico(id, crypto.randomUUID());
       await recargarTecnicos();
     } catch (err) {
       avisarError(err, 'No se pudo generar el enlace del mecánico.');
@@ -169,8 +174,11 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
   const handleCopiarPortalTecnico = (token: string) => {
     navigator.clipboard.writeText(`${window.location.origin}/mecanico/${token}`);
     setPortalTecnicoCopiado(true);
-    setTimeout(() => setPortalTecnicoCopiado(false), 2000);
+    setCopiadoTecnicoToken(token);
+    setTimeout(() => { setPortalTecnicoCopiado(false); setCopiadoTecnicoToken(null); }, 2000);
   };
+  const mensajeEnlaceTecnico = (t: Tecnico) =>
+    `Hola ${t.nombre}, este es tu enlace de ${draft.nombre} para ver los coches que tienes asignados y marcar las tareas desde el móvil: ${window.location.origin}/mecanico/${t.portalToken}`;
 
   const handleDeleteTecnico = async (id: string) => {
     try {
@@ -567,7 +575,7 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
                                   </button>
                                 </div>
                               ) : (
-                                <button onClick={handleGenerarPortalTecnico} disabled={portalTecnicoBusy} className="flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-50">
+                                <button onClick={() => void handleGenerarPortalTecnico()} disabled={portalTecnicoBusy} className="flex items-center gap-2 px-4 py-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-sm font-bold rounded-xl transition cursor-pointer disabled:opacity-50">
                                   <RefreshCw className="w-4 h-4" /> {portalTecnicoBusy ? 'Generando…' : 'Generar enlace'}
                                 </button>
                               )}
@@ -587,6 +595,28 @@ export default function CompanySettingsPanel({ config, pestanaInicial, onSave, o
                               <p className="text-[15px] font-semibold text-slate-800">{t.nombre}</p>
                               {t.especialidad && <p className="text-sm text-slate-500">{t.especialidad}</p>}
                               {t.telefono && <p className="text-sm text-slate-500">{t.telefono}</p>}
+                              {/* Su enlace personal a mano, sin tener que entrar a editarlo. */}
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5" data-testid="enlace-tecnico">
+                                {t.portalToken ? (
+                                  <>
+                                    <button onClick={() => handleCopiarPortalTecnico(t.portalToken!)} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer">
+                                      <Copy className="w-3.5 h-3.5" /> {copiadoTecnicoToken === t.portalToken ? 'Enlace copiado' : 'Copiar enlace'}
+                                    </button>
+                                    {(() => {
+                                      const wa = waHref(t.telefono, mensajeEnlaceTecnico(t));
+                                      return wa ? (
+                                        <a href={wa} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-green-700 hover:underline flex items-center gap-1">
+                                          <MessageCircle className="w-3.5 h-3.5" /> Enviar por WhatsApp
+                                        </a>
+                                      ) : null;
+                                    })()}
+                                  </>
+                                ) : (
+                                  <button onClick={() => void handleGenerarPortalTecnico(t.id)} disabled={portalTecnicoBusy} className="text-xs font-semibold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50">
+                                    <Link2 className="w-3.5 h-3.5" /> {portalTecnicoBusy ? 'Creando…' : 'Crear su enlace'}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <div className="flex gap-1 shrink-0">
                               <button onClick={() => openTecnicoForm(t)} aria-label={`Editar ${t.nombre}`} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"><Edit2 className="w-4 h-4" /></button>

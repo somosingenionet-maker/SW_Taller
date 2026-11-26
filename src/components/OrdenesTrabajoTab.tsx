@@ -626,9 +626,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         de abajo) para que al imprimir un presupuesto no salga también esto. */}
     <div className="flex flex-col gap-6 print:hidden">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 whitespace-nowrap">
             <Wrench size={20} className="text-blue-600" /> Órdenes de Trabajo
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">{ordenes.length} activas o entregadas hace poco</p>
@@ -673,9 +673,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      {/* Filters — con el menú lateral, la búsqueda y los 8 estados solo caben en una fila en pantallas anchas. */}
+      <div className="flex flex-col xl:flex-row gap-3">
+        <div className="relative flex-1 min-w-[16rem]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
