@@ -16,11 +16,16 @@ export interface TareasHoy {
   porEnviar: TareaOrden[];
   /** Coches dentro del taller (recibidos o en reparación), el que lleva más tiempo primero. */
   enTaller: TareaOrden[];
+  /** El cliente aprobó reparaciones en el informe de inspección y aún no están en la orden. */
+  porAnadir: (TareaOrden & { reparaciones: number; importe: number })[];
 }
+
+/** Una reparación aprobada por el cliente en el informe (ver listAprobadosEnInspecciones). */
+export interface AprobadoInspeccion { puntoId: string; ordenId: string; precio: number }
 
 const DIA = 86_400_000;
 
-export function tareasHoy(ordenes: OrdenTrabajo[], vehiculos: Vehiculo[], clientes: Cliente[], ahora: Date = new Date()): TareasHoy {
+export function tareasHoy(ordenes: OrdenTrabajo[], vehiculos: Vehiculo[], clientes: Cliente[], ahora: Date = new Date(), aprobadosInspeccion: AprobadoInspeccion[] = []): TareasHoy {
   const veh = new Map(vehiculos.map((v) => [v.id, v]));
   const cli = new Map(clientes.map((c) => [c.id, c]));
   const desde = (iso: string) => { const t = new Date(iso).getTime(); return Number.isNaN(t) ? 0 : Math.max(0, Math.floor((ahora.getTime() - t) / DIA)); };
@@ -38,7 +43,14 @@ export function tareasHoy(ordenes: OrdenTrabajo[], vehiculos: Vehiculo[], client
   const aprobados = presupuestos.filter((o) => o.presupuestoAprobado).map((o) => tarea(o, o.fechaActualizacion || o.fechaRecepcion)).sort(masAntiguoPrimero);
   const porEnviar = presupuestos.filter((o) => o.presupuestoEstado !== 'enviado' && !o.presupuestoAprobado).map((o) => tarea(o, o.fechaActualizacion || o.fechaRecepcion)).sort(masAntiguoPrimero);
   const enTaller = ordenes.filter((o) => o.estado === 'recibido' || o.estado === 'en_reparacion').map((o) => tarea(o, o.fechaRecepcion)).sort(masAntiguoPrimero);
-  return { listos, esperando, rechazados, aprobados, porEnviar, enTaller };
+  // Solo con el coche dentro: es cuando la ficha deja añadirlas a la orden.
+  const porAnadir = ordenes.filter((o) => o.estado === 'recibido' || o.estado === 'en_reparacion').flatMap((o) => {
+    const yaAnadidos = new Set(o.lineas.map((l) => l.inspeccionPuntoId).filter(Boolean));
+    const pendientes = aprobadosInspeccion.filter((a) => a.ordenId === o.id && !yaAnadidos.has(a.puntoId));
+    if (!pendientes.length) return [];
+    return [{ ...tarea(o, o.fechaActualizacion || o.fechaRecepcion), reparaciones: pendientes.length, importe: pendientes.reduce((s, a) => s + a.precio, 0) }];
+  });
+  return { listos, esperando, rechazados, aprobados, porEnviar, enTaller, porAnadir };
 }
 
 export const textoDias = (dias: number): string => (dias <= 0 ? 'hoy' : dias === 1 ? 'hace 1 día' : `hace ${dias} días`);

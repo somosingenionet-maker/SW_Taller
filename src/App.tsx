@@ -97,6 +97,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>('inicio');
   // Orden que el botón «Nuevo» o el buscador global dan a una pestaña al llegar a ella.
   const [intencion, setIntencion] = useState<Intencion | undefined>(undefined);
+  // «Facturar» en la ficha de una orden: Facturas abre una factura nueva con ella.
+  const [facturarOrden, setFacturarOrden] = useState<{ ot: OrdenTrabajo; n: number } | undefined>(undefined);
   // Aspecto claro / oscuro / automático (por persona). «Automático» sigue la preferencia del sistema.
   const [tema, setTema] = useState<Tema>(leerTema);
   const [sistemaOscuro, setSistemaOscuro] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-color-scheme: dark)').matches);
@@ -361,7 +363,10 @@ export default function App() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'ordenes_trabajo' },
         (payload) => {
-          const nueva = payload.new as { id: string; estado: OTEstado; updated_at: string; mecanico_actualizado_en: string | null };
+          const nueva = payload.new as {
+            id: string; estado: OTEstado; updated_at: string; mecanico_actualizado_en: string | null;
+            presupuesto_aprobado?: boolean | null; aceptacion_presupuesto_en?: string | null;
+          };
           setOrdenesTrabajo(prev => prev.map(ot =>
             ot.id === nueva.id ? { ...ot, estado: nueva.estado, fechaActualizacion: nueva.updated_at } : ot
           ));
@@ -370,7 +375,23 @@ export default function App() {
           // del propio taller no pasan por aquí: no mueven `mecanico_actualizado_en`.
           const antes = ordenesRef.current.find(o => o.id === nueva.id);
           const marca = (f?: string | null) => (f ? new Date(f).getTime() : 0);
-          if (antes && nueva.mecanico_actualizado_en && marca(nueva.mecanico_actualizado_en) !== marca(antes.mecanicoActualizadoEn)) {
+          const delMecanico = !!antes && !!nueva.mecanico_actualizado_en && marca(nueva.mecanico_actualizado_en) !== marca(antes.mecanicoActualizadoEn);
+          // El cliente acepta o rechaza el presupuesto desde su portal: también se relee la orden entera
+          // (aceptación, firma, historial), si no la ficha seguiría diciendo «esperando la respuesta».
+          // Solo el portal escribe la aceptación con fecha, y solo el portal rechaza: así no se confunde con el
+          // taller marcándolo aprobado al recibir el coche.
+          const aceptoEnPortal = !!antes && !!nueva.aceptacion_presupuesto_en && !antes.aceptacionPresupuesto;
+          const rechazoEnPortal = !!antes && nueva.presupuesto_aprobado === false && antes.presupuestoAprobado !== false;
+          const respuestaCliente = aceptoEnPortal || rechazoEnPortal;
+          if (antes && respuestaCliente && !delMecanico) {
+            getOrden(nueva.id)
+              .then((fresca) => {
+                setOrdenesTrabajo(prev => prev.map(o => (o.id === fresca.id ? fresca : o)));
+                avisar({ tipo: 'ok', mensaje: `${fresca.presupuestoAprobado ? 'El cliente aceptó' : 'El cliente rechazó'} el presupuesto ${fresca.numero}.` });
+              })
+              .catch((err) => console.error('No se pudo refrescar la orden', err));
+          }
+          if (delMecanico && antes) {
             getOrden(nueva.id)
               .then((fresca) => {
                 setOrdenesTrabajo(prev => prev.map(o => (o.id === fresca.id ? fresca : o)));
@@ -664,7 +685,7 @@ export default function App() {
     } catch { setPagosProv(null); }
   }, [currentUser]);
   useEffect(() => { void recargarPagos(); }, [recargarPagos]);
-  const navegar = useCallback((tab: TabId, vista?: 'porpagar') => { setComprasVista(vista === 'porpagar' ? 'porpagar' : 'compras'); setActiveTab(tab); setIntencion(undefined); }, []);
+  const navegar = useCallback((tab: TabId, vista?: 'porpagar') => { setComprasVista(vista === 'porpagar' ? 'porpagar' : 'compras'); setActiveTab(tab); setIntencion(undefined); setFacturarOrden(undefined); }, []);
   const irA = useCallback<IrA>((tab, orden) => { navegar(tab); if (orden) setIntencion({ ...orden, n: Date.now() }); }, [navegar]);
   const pagosAvisoCount = pagosProv ? pagosProv.vencidas.n + pagosProv.semana.n : 0;
 
@@ -800,6 +821,8 @@ export default function App() {
             onVistaAmpliaChange={setTallerVistaAmplia}
             onCrearAviso={handleCrearAviso}
             onAnotarItv={(vehId, fecha) => handleRenovarVencimiento(vehId, 'itv', fecha)}
+            onFacturar={activeModulos.includes('facturas') ? (ot) => { navegar('facturas'); setFacturarOrden({ ot, n: Date.now() }); } : undefined}
+            onVerFacturas={activeModulos.includes('facturas') ? () => navegar('facturas') : undefined}
           />
         )}
 
@@ -819,6 +842,7 @@ export default function App() {
             avisos={itemsAvisos}
             notificaciones={notificaciones}
             onCrearAviso={handleCrearAviso}
+            onAbrirOrden={activeModulos.includes('taller') ? (numero) => irA('taller', { tipo: 'buscar', texto: numero }) : undefined}
           />
         )}
 
@@ -863,6 +887,7 @@ export default function App() {
             onEmitirFactura={handleEmitirFactura}
             onCambiarEstadoFactura={handleCambiarEstadoFactura}
             puedeVerCompras={activeModulos.includes('compras')}
+            facturarOrden={facturarOrden}
           />
         )}
 

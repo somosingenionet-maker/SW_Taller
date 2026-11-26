@@ -347,3 +347,17 @@ export async function deleteFactura(id: string): Promise<void> {
   const { error } = await supabase.from('facturas').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
+
+export interface FacturaDeOrden { id: string; numero: string | null; estado: Factura['estado'] }
+
+/** Facturas que ya incluyen esta orden (para no facturarla dos veces y enlazar a la que haya). */
+export async function facturasDeOrden(otId: string): Promise<FacturaDeOrden[]> {
+  const { data, error } = await supabase
+    .from('factura_ot')
+    .select('facturas ( id, numero, estado )')
+    .eq('ot_id', otId);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as { facturas: FacturaDeOrden | null }[])
+    .map((r) => r.facturas)
+    .filter((f): f is FacturaDeOrden => !!f && f.estado !== 'cancelada');
+}

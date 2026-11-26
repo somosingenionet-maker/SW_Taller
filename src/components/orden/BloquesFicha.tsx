@@ -1,6 +1,8 @@
-import { Bell, Check, FileText, Mail, MessageCircle, Wrench } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Bell, Check, FileText, Mail, MessageCircle, Receipt, Wrench } from 'lucide-react';
 import type { Cliente, Empresa, EventoOT, OrdenTrabajo, Tecnico, Vehiculo } from '../../types';
 import { avisarError } from '../../lib/avisos';
+import { facturasDeOrden, type FacturaDeOrden } from '../../lib/data/facturas';
 import { fmt2 } from '../../utils/moneda';
 import { waHref } from '../../utils/whatsapp';
 import EnviarPresupuesto from '../EnviarPresupuesto';
@@ -293,6 +295,47 @@ export function HistorialOrden({ historial }: { historial: EventoOT[] }) {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+const ESTADO_FACTURA: Record<FacturaDeOrden['estado'], string> = { borrador: 'borrador', emitida: 'emitida', pagada: 'pagada', vencida: 'vencida', cancelada: 'cancelada' };
+
+/** Con el coche listo o entregado: facturar la orden (o ver que ya lo está, para no facturarla dos veces). */
+export function BloqueFactura({ selected, onFacturar, onVerFacturas }: {
+  selected: OrdenTrabajo;
+  onFacturar: (ot: OrdenTrabajo) => void;
+  onVerFacturas: () => void;
+}) {
+  const [facturas, setFacturas] = useState<FacturaDeOrden[] | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    setFacturas(null);
+    facturasDeOrden(selected.id).then((f) => { if (vivo) setFacturas(f); }).catch(() => { if (vivo) setFacturas([]); });
+    return () => { vivo = false; };
+  }, [selected.id]);
+
+  if (facturas === null) return null;
+  const facturada = facturas.length > 0;
+  return (
+    <div className={`rounded-2xl border p-4 space-y-2 ${facturada ? 'bg-slate-50 border-slate-200' : 'bg-blue-50 border-blue-200'}`} data-testid="bloque-factura">
+      <p className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1"><Receipt size={11} /> Factura</p>
+      {facturada ? (
+        <>
+          <p className="text-sm text-slate-700">
+            {facturas.map((f) => `${f.numero || 'Borrador'} (${ESTADO_FACTURA[f.estado]})`).join(' · ')}
+          </p>
+          <button onClick={onVerFacturas} className="text-xs font-semibold text-blue-600 hover:underline">Ver en Facturas →</button>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-slate-500">Esta orden aún no tiene factura. Se abre con el cliente, el vehículo y las líneas ya puestos; la revisas y la guardas.</p>
+          <button onClick={() => onFacturar(selected)} disabled={!(selected.total > 0)} data-testid="facturar-orden"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition disabled:opacity-40">
+            <Receipt size={13} /> Facturar esta orden
+          </button>
+        </>
+      )}
     </div>
   );
 }

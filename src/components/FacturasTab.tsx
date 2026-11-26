@@ -3,7 +3,7 @@ import type { Intencion } from '../ui/navegacion';
 import { TarjetaLista } from '../ui/componentes';
 import { useMovil } from '../ui/useMovil';
 import { Plus, Trash2, Edit2, X, Check, Receipt, Import, Printer, Send, Download, ChevronDown, ChevronRight as ChevronRightIcon, FileText, FileSpreadsheet } from 'lucide-react';
-import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa, EnvioAeat } from '../types';
+import { Factura, LineaDocumento, Cliente, Vehiculo, Empresa, EnvioAeat, OrdenTrabajo } from '../types';
 import { dispararEnvioAeat } from '../lib/data/verifactu';
 import {
   FacturasResumen, FacturaPeriodo, AgrupacionFacturas,
@@ -34,6 +34,8 @@ interface FacturasTabProps {
   puedeVerCompras?: boolean;
   /** Orden que llega del botón «Nuevo» del nuevo diseño (cada una trae un número distinto). */
   intencion?: Intencion;
+  /** «Facturar» en la ficha de una orden: abre una factura nueva con sus datos (cada vez trae un número distinto). */
+  facturarOrden?: { ot: OrdenTrabajo; n: number };
 }
 
 const ESTADO_FACTURA_LABELS: Record<Factura['estado'], string> = {
@@ -283,34 +285,39 @@ function FacturaPrintable({
 // -------- Factura Modal --------
 interface FacturaModalProps {
   factura: Factura | null;
+  /** «Facturar» desde la ficha de una orden: cliente, vehículo y líneas ya puestos. */
+  desdeOrden?: OrdenTrabajo;
   clientes: Cliente[];
   vehiculos: Vehiculo[];
   onSave: (f: Factura) => void;
   onClose: () => void;
 }
 
-function FacturaModal({ factura, clientes, vehiculos, onSave, onClose }: FacturaModalProps) {
+function FacturaModal({ factura, desdeOrden, clientes, vehiculos, onSave, onClose }: FacturaModalProps) {
   const today = new Date().toISOString().split('T')[0];
   const thirtyDays = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
 
-  const [clienteId, setClienteId] = useState(factura?.clienteId ?? '');
-  const [vehiculoId, setVehiculoId] = useState(factura?.vehiculoId ?? '');
+  const [clienteId, setClienteId] = useState(factura?.clienteId ?? desdeOrden?.clienteId ?? '');
+  const [vehiculoId, setVehiculoId] = useState(factura?.vehiculoId ?? desdeOrden?.vehiculoId ?? '');
   const [fecha, setFecha] = useState(factura?.fecha ?? today);
   const [fechaVencimiento, setFechaVencimiento] = useState(factura?.fechaVencimiento ?? thirtyDays);
-  const [lineas, setLineas] = useState<LineaDocumento[]>(factura?.lineas ?? []);
-  const [ivaPct, setIvaPct] = useState(factura?.ivaPct ?? 21);
+  const [lineas, setLineas] = useState<LineaDocumento[]>(factura?.lineas ?? (desdeOrden?.lineas ?? []).map(l => ({
+    id: genId('linea'), descripcion: l.descripcion, cantidad: l.cantidad, precioUnitario: l.precioUnitario, subtotal: l.subtotal,
+  })));
+  const [ivaPct, setIvaPct] = useState(factura?.ivaPct ?? desdeOrden?.ivaPct ?? 21);
   const [notas, setNotas] = useState(factura?.notas ?? '');
   const [importarOpen, setImportarOpen] = useState(false);
   const [selectedOts, setSelectedOts] = useState<Set<string>>(new Set());
-  const [otIds, setOtIds] = useState<string[]>(factura?.otIds ?? []);
+  const [otIds, setOtIds] = useState<string[]>(factura?.otIds ?? (desdeOrden ? [desdeOrden.id] : []));
   const [error, setError] = useState('');
 
   const clienteVehiculos = useMemo(() => {
     if (!clienteId) return [];
     const cli = clientes.find(c => c.id === clienteId);
-    if (!cli || !cli.vehiculosAsociados?.length) return [];
-    return vehiculos.filter(v => cli.vehiculosAsociados!.includes(v.id));
-  }, [clienteId, clientes, vehiculos]);
+    // Los suyos, y además el de la orden que se factura aunque aún no esté a su nombre.
+    const ids = new Set([...(cli?.vehiculosAsociados ?? []), ...(desdeOrden?.clienteId === clienteId && desdeOrden?.vehiculoId ? [desdeOrden.vehiculoId] : [])]);
+    return vehiculos.filter(v => ids.has(v.id));
+  }, [clienteId, clientes, vehiculos, desdeOrden]);
 
   // OT del vehículo seleccionado, ya finalizadas (listo/entregado) y con
   // líneas — se piden solo al elegir el vehículo, no hace falta el
@@ -462,6 +469,7 @@ function FacturaModal({ factura, clientes, vehiculos, onSave, onClose }: Factura
                           setSelectedOts(s);
                         }} />
                         <span>{ot.numero} · {ot.lineas.length} línea{ot.lineas.length !== 1 ? 's' : ''} — {fmt(ot.total)} €</span>
+                        {(ot.facturada || otIds.includes(ot.id)) && <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5">{otIds.includes(ot.id) ? 'ya en esta factura' : 'ya facturada'}</span>}
                       </label>
                     ))}
                     <button onClick={importarDesdetaller} disabled={selectedOts.size === 0} className="mt-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-xl disabled:opacity-40">
@@ -522,15 +530,18 @@ const PAGE_SIZE = 20;
 // -------- Main FacturasTab --------
 export default function FacturasTab({
   clientes, vehiculos, empresa,
-  onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura, puedeVerCompras = false, intencion,
+  onAddFactura, onUpdateFactura, onDeleteFactura, onEmitirFactura, onCambiarEstadoFactura, puedeVerCompras = false, intencion, facturarOrden,
 }: FacturasTabProps) {
   const movil = useMovil();
-  const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null }>({ open: false, factura: null });
+  const [facturaModal, setFacturaModal] = useState<{ open: boolean; factura: Factura | null; desdeOrden?: OrdenTrabajo }>({ open: false, factura: null });
   const [viewingDoc, setViewingDoc] = useState<Factura | null>(null);
   // Del botón «Nuevo» del nuevo diseño: abre el formulario de factura.
   useEffect(() => {
     if (intencion?.tipo === 'nuevo') setFacturaModal({ open: true, factura: null });
   }, [intencion?.n]);
+  useEffect(() => {
+    if (facturarOrden) setFacturaModal({ open: true, factura: null, desdeOrden: facturarOrden.ot });
+  }, [facturarOrden?.n]);
   const [confirmEmitir, setConfirmEmitir] = useState<Factura | null>(null);
   const [agrupacion, setAgrupacion] = useState<Agrupacion>('ninguna');
   const [exportandoGestoria, setExportandoGestoria] = useState(false);
@@ -950,6 +961,7 @@ export default function FacturasTab({
       {facturaModal.open && (
         <FacturaModal
           factura={facturaModal.factura}
+          desdeOrden={facturaModal.desdeOrden}
           clientes={clientes}
           vehiculos={vehiculos}
           onSave={handleSaveFactura}

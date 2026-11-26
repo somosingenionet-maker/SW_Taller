@@ -551,6 +551,8 @@ export interface OrdenFacturable {
   estado: OTEstado;
   total: number;
   lineas: LineaOT[];
+  /** Ya está en alguna factura (no cancelada o borrador incluidos): se avisa para no facturarla dos veces. */
+  facturada?: boolean;
 }
 
 /**
@@ -560,6 +562,7 @@ export interface OrdenFacturable {
  */
 type FacturableRow = {
   id: string; numero: string; vehiculo_id: string; estado: string; total: number;
+  factura_ot: { factura_id: string }[] | null;
   lineas_ot: LineaRow[] | null;
 };
 
@@ -567,7 +570,7 @@ export async function listOrdenesFacturables(vehiculoId: string): Promise<OrdenF
   const { data, error } = await supabase
     .from('ordenes_trabajo')
     .select(
-      'id, numero, vehiculo_id, estado, total, ' +
+      'id, numero, vehiculo_id, estado, total, factura_ot ( factura_id ), ' +
       'lineas_ot ( id, tipo, producto_id, descripcion, cantidad, precio_unitario, costo_unitario, subtotal, posicion, completado, notificado_cliente )'
     )
     .eq('vehiculo_id', vehiculoId)
@@ -581,6 +584,7 @@ export async function listOrdenesFacturables(vehiculoId: string): Promise<OrdenF
       estado: r.estado as OTEstado,
       total: r.total,
       lineas: (r.lineas_ot ?? []).slice().sort((a, b) => a.posicion - b.posicion).map(mapLinea),
+      facturada: (r.factura_ot ?? []).length > 0,
     }))
     .filter((ot) => ot.lineas.length > 0);
 }
@@ -630,4 +634,19 @@ export async function listOrdenesPorRangoRecepcion(desde: string, hasta: string)
     clienteNombre: r.cliente_nombre,
     clienteApellidos: r.cliente_apellidos,
   }));
+}
+
+export interface OrdenDeCliente { id: string; numero: string; estado: OTEstado; total: number; fechaRecepcion: string; vehiculoId: string }
+
+/** Las últimas órdenes de un cliente (para su ficha): la más reciente primero. */
+export async function listOrdenesDeCliente(clienteId: string, limite = 20): Promise<OrdenDeCliente[]> {
+  const { data, error } = await supabase
+    .from('ordenes_trabajo')
+    .select('id, numero, estado, total, fecha_recepcion, vehiculo_id')
+    .eq('cliente_id', clienteId)
+    .order('created_at', { ascending: false })
+    .limit(limite);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as { id: string; numero: string; estado: string; total: number; fecha_recepcion: string; vehiculo_id: string }[])
+    .map((r) => ({ id: r.id, numero: r.numero, estado: r.estado as OTEstado, total: Number(r.total), fechaRecepcion: r.fecha_recepcion, vehiculoId: r.vehiculo_id }));
 }

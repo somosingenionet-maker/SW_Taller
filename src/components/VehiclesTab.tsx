@@ -681,7 +681,7 @@ export default function VehiclesTab({
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.marca}
                       onChange={e => setFormData({ ...formData, marca: e.target.value })}
-                      placeholder="e.g. Toyota"
+                      placeholder="p. ej. Toyota"
                       required
                     />
                   </div>
@@ -692,7 +692,7 @@ export default function VehiclesTab({
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.modelo}
                       onChange={e => setFormData({ ...formData, modelo: e.target.value })}
-                      placeholder="e.g. Auris"
+                      placeholder="p. ej. Auris"
                       required
                     />
                   </div>
@@ -706,7 +706,7 @@ export default function VehiclesTab({
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.matricula}
                       onChange={e => setFormData({ ...formData, matricula: e.target.value.toUpperCase() })}
-                      placeholder="e.g. 1234-XYZ"
+                      placeholder="p. ej. 1234-XYZ"
                       required
                     />
                   </div>

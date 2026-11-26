@@ -6,7 +6,7 @@ import { getFirmas, type FirmasOrden as Firmas } from '../../lib/data/firmas';
 import { fmt2, formatKm } from '../../utils/moneda';
 import { textoCantidad, textoPrecioLinea } from '../../utils/cantidadLinea';
 import { resumenFiltros } from '../../utils/aceite';
-import { formatDate as fechaLarga } from '../../utils/dateFormat';
+import { formatDate as fechaLarga, formatDateShort } from '../../utils/dateFormat';
 import { fechaHoraFirma } from '../../utils/firma';
 import { FirmaImpresa } from '../FirmasOrden';
 import { TIPO_META } from './constantes';
@@ -76,12 +76,12 @@ export default function VisorPresupuesto({ ot, empresa, clientes, vehiculos, onC
               <div className="text-right">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{titulo}</p>
                 <p className="text-2xl font-black font-mono text-blue-600">{ot.numero}</p>
-                <p className="text-xs text-slate-500 mt-1">Fecha: {ot.fechaRecepcion}</p>
+                <p className="text-xs text-slate-500 mt-1">Fecha: {formatDateShort(ot.fechaRecepcion)}</p>
                 {ot.fechaEstimadaEntrega && !esListo && (
-                  <p className="text-xs text-slate-500">Entrega est.: {ot.fechaEstimadaEntrega}</p>
+                  <p className="text-xs text-slate-500">Entrega est.: {formatDateShort(ot.fechaEstimadaEntrega)}</p>
                 )}
                 {ot.fechaEntrega && (
-                  <p className="text-xs text-slate-500">Entregado: {ot.fechaEntrega}</p>
+                  <p className="text-xs text-slate-500">Entregado: {formatDateShort(ot.fechaEntrega)}</p>
                 )}
               </div>
             </div>

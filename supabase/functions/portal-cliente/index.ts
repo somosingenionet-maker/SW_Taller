@@ -225,6 +225,8 @@ async function manejarGet(admin: SupabaseClient, cliente: Cliente) {
         modelo: v.modelo,
         matricula: v.matricula,
         estadoOt: ot?.estado ?? null,
+        // Aceptó el presupuesto y el coche aún no ha entrado: el portal se lo recuerda en vez de no enseñar nada.
+        presupuestoAceptado: ot?.estado === 'presupuesto' && ot?.presupuesto_aprobado === true,
         fechaEstimadaEntrega: ot?.fecha_estimada_entrega ?? null,
       };
     }),

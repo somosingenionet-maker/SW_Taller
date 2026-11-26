@@ -6,6 +6,9 @@ import {
 } from 'lucide-react';
 import { downloadCsv } from '../utils/csvExport';
 import { formatEuros } from '../utils/moneda';
+
+/** Porcentaje con un decimal y coma: «12,5». */
+const pct1 = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 import {
   RentabilidadPeriodo, TecnicoStat, ClienteTop,
   getRentabilidadPeriodo, getRentabilidadEstadoActual, getRentabilidadTecnicos, getRentabilidadTopClientes,
@@ -94,7 +97,7 @@ function KpiCard({ label, value, sub, delta, icon, accent = 'blue' }: KpiCardPro
       {delta != null && (
         <div className={`flex items-center gap-1 text-xs font-semibold ${delta >= 0 ? 'text-teal-600' : 'text-rose-500'}`}>
           {delta >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-          {delta >= 0 ? '+' : ''}{delta.toFixed(1)}% vs período anterior
+          {delta >= 0 ? '+' : ''}{pct1(delta)}% vs período anterior
         </div>
       )}
     </div>
@@ -224,7 +227,7 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
       {/* KPIs principales */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="Facturación"
+          label="Facturación (IVA incl.)"
           value={fmtDec(facturacionActual)}
           sub={`${entregadasActualCount} OTs entregadas`}
           delta={deltaFacturacion}
@@ -312,11 +315,11 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
               })}
               <div className="border-t border-slate-100 pt-3 space-y-1.5">
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-400">Total facturado</span>
+                  <span className="text-slate-400">Total facturado (sin IVA)</span>
                   <span className="font-semibold text-slate-700">{fmtDec(margenTipo.total)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-400">Costo (mano de obra + productos)</span>
+                  <span className="text-slate-400">Coste (mano de obra + productos)</span>
                   <span className="font-semibold text-slate-700">{fmtDec(margenTipo.totalCosto)}</span>
                 </div>
                 <div className="flex justify-between text-xs pt-1 border-t border-slate-100">
@@ -339,7 +342,7 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
                 <span className="text-xs font-semibold text-rose-600 flex items-center gap-1">
                   <XCircle className="w-3.5 h-3.5" /> Tasa de cancelación
                 </span>
-                <span className="text-lg font-black text-rose-700">{tasaCancelacion.toFixed(1)}%</span>
+                <span className="text-lg font-black text-rose-700">{pct1(tasaCancelacion)}%</span>
               </div>
               <p className="text-[10px] text-rose-400">{canceladas} canceladas de {otsActualTotal} OTs en el período</p>
             </div>
@@ -349,7 +352,7 @@ export default function AnalyticsTab({ clientes }: AnalyticsTabProps) {
                 <span className="text-xs font-semibold text-teal-600 flex items-center gap-1">
                   <Target className="w-3.5 h-3.5" /> Conversión presupuestos
                 </span>
-                <span className="text-lg font-black text-teal-700">{tasaConversion.toFixed(1)}%</span>
+                <span className="text-lg font-black text-teal-700">{pct1(tasaConversion)}%</span>
               </div>
               <div className="bg-teal-100 rounded-full h-2 overflow-hidden mt-2">
                 <div className="h-full bg-teal-500 rounded-full" style={{ width: `${tasaConversion}%` }} />

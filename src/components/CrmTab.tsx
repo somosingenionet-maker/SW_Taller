@@ -19,6 +19,7 @@ import { downloadCsv } from '../utils/csvExport';
 import { avisarError } from '../lib/avisos';
 import { mensajeDeError } from '../lib/errores';
 import { contarClientesConOTAbierta } from '../lib/data/ordenes';
+import OrdenesDelCliente from './OrdenesDelCliente';
 
 interface CrmTabProps {
   clientes: Cliente[];
@@ -38,6 +39,8 @@ interface CrmTabProps {
   avisos: ItemAviso[];
   notificaciones: NotificacionCliente[];
   onCrearAviso: (a: DatosAviso) => Promise<void>;
+  /** Abre una orden del cliente en el taller (por su número). */
+  onAbrirOrden?: (numero: string) => void;
 }
 
 export default function CrmTab({
@@ -54,7 +57,8 @@ export default function CrmTab({
   intencion,
   avisos,
   notificaciones,
-  onCrearAviso
+  onCrearAviso,
+  onAbrirOrden,
 }: CrmTabProps) {
   const movil = useMovil();
   const [showImport, setShowImport] = useState(false);
@@ -572,6 +576,8 @@ export default function CrmTab({
                 </div>
               )}
 
+              <OrdenesDelCliente clienteId={selectedCliente.id} vehiculos={vehiculos} onAbrir={onAbrirOrden} />
+
               {/* Portal del Cliente */}
               <div className="pt-4 border-t border-slate-50">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-2">
@@ -754,7 +760,7 @@ export default function CrmTab({
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.nombre}
                       onChange={e => setFormData({ ...formData, nombre: e.target.value })}
-                      placeholder="e.g. Pilar"
+                      placeholder="p. ej. Pilar"
                       required
                     />
                   </div>
@@ -765,7 +771,7 @@ export default function CrmTab({
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.apellidos}
                       onChange={e => setFormData({ ...formData, apellidos: e.target.value })}
-                      placeholder="e.g. Ramos Ortiz"
+                      placeholder="p. ej. Ramos Ortiz"
                       required
                     />
                   </div>
@@ -779,7 +785,7 @@ export default function CrmTab({
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.nifNiePasaporte}
                       onChange={e => setFormData({ ...formData, nifNiePasaporte: e.target.value.toUpperCase() })}
-                      placeholder="e.g. 12345678W o NIE"
+                      placeholder="p. ej. 12345678W o NIE"
                       required
                     />
                   </div>
@@ -790,7 +796,7 @@ export default function CrmTab({
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                       value={formData.telefono}
                       onChange={e => setFormData({ ...formData, telefono: e.target.value })}
-                      placeholder="e.g. +34 600 000 000"
+                      placeholder="p. ej. +34 600 000 000"
                       required
                     />
                   </div>
@@ -803,7 +809,7 @@ export default function CrmTab({
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={formData.correo}
                     onChange={e => setFormData({ ...formData, correo: e.target.value })}
-                    placeholder="e.g. pilar.ramos@gmail.com"
+                    placeholder="p. ej. pilar.ramos@gmail.com"
                   />
                 </div>
 

@@ -257,3 +257,23 @@ export async function getEnlaceCliente(clienteId: string): Promise<string | null
   if (error) throw new Error(error.message);
   return data.portal_token ? `${window.location.origin}/portal/${data.portal_token}` : null;
 }
+
+export interface AprobadoEnInspeccion { puntoId: string; ordenId: string; precio: number }
+
+/**
+ * Reparaciones que el cliente aprobó en un informe de inspección ya respondido (para avisar en «Hoy» de
+ * las que aún no se han añadido a su orden). Solo puntos con problema y con precio, como al añadirlos.
+ */
+export async function listAprobadosEnInspecciones(): Promise<AprobadoEnInspeccion[]> {
+  const { data, error } = await supabase
+    .from('inspeccion_puntos')
+    .select('id, precio, inspecciones!inner ( orden_id, estado )')
+    .eq('decision', 'aprobado')
+    .in('estado', ['atencion', 'urgente'])
+    .gt('precio', 0)
+    .eq('inspecciones.estado', 'respondida');
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as { id: string; precio: number; inspecciones: { orden_id: string } | null }[])
+    .filter((r) => r.inspecciones)
+    .map((r) => ({ puntoId: r.id, ordenId: r.inspecciones!.orden_id, precio: Number(r.precio) }));
+}

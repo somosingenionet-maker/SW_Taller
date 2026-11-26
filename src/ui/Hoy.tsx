@@ -9,7 +9,8 @@ import type { AccionPaso } from '../utils/guiaInicial';
 import { resumenPendientes, type ItemAviso } from '../utils/avisos';
 import GuiaInicial from '../components/GuiaInicial';
 import { Boton, Chip, Llavero, Matricula, Tarjeta } from './componentes';
-import { saludo, tareasHoy, textoDias, type TareaOrden } from './tareasHoy';
+import { saludo, tareasHoy, textoDias, type AprobadoInspeccion, type TareaOrden } from './tareasHoy';
+import { listAprobadosEnInspecciones } from '../lib/data/inspecciones';
 import type { IrA } from './Marco';
 
 interface Props {
@@ -47,7 +48,10 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
 
   const hoyIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const fechaLarga = useMemo(() => { const s = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return s.charAt(0).toUpperCase() + s.slice(1); }, []);
-  const t = useMemo(() => tareasHoy(ordenes, vehiculos, clientes), [ordenes, vehiculos, clientes]);
+  // Reparaciones que el cliente aprobó en el informe de inspección: se piden aparte (no vienen con las órdenes).
+  const [aprobadosInsp, setAprobadosInsp] = useState<AprobadoInspeccion[]>([]);
+  useEffect(() => { if (puede('taller')) listAprobadosEnInspecciones().then(setAprobadosInsp).catch(() => setAprobadosInsp([])); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [ordenes]);
+  const t = useMemo(() => tareasHoy(ordenes, vehiculos, clientes, new Date(), aprobadosInsp), [ordenes, vehiculos, clientes, aprobadosInsp]);
   const clientePorId = useMemo(() => new Map(clientes.map((c) => [c.id, c])), [clientes]);
   const citasHoy = useMemo(() => citas.filter((c) => (c.estado === 'pendiente' || c.estado === 'confirmada') && c.fechaHora.slice(0, 10) === hoyIso).sort((a, b) => a.fechaHora.localeCompare(b.fechaHora)), [citas, hoyIso]);
   const avisosHoy = useMemo(() => avisos.filter((a) => a.fase === 'para_hoy'), [avisos]);
@@ -64,7 +68,7 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
     </button>
   );
 
-  const hayMoverOrdenes = t.listos.length + t.esperando.length + t.rechazados.length + t.aprobados.length + t.porEnviar.length > 0;
+  const hayMoverOrdenes = t.listos.length + t.esperando.length + t.rechazados.length + t.aprobados.length + t.porEnviar.length + t.porAnadir.length > 0;
   const facturasVencidas = resumen?.facturasVencidas ?? 0;
 
   return (
@@ -123,6 +127,10 @@ export default function Hoy({ currentUser, citas, clientes, vehiculos, avisos, m
             <Tarjeta>
               <div className="u-card-cab"><h3>Para mover hoy</h3><button type="button" className="u-enlace marca" onClick={() => onNavegar('taller')}>Ver el taller →</button></div>
               {!hayMoverOrdenes && <p className="u-vacio-mini" data-testid="hoy-nada-que-mover">Nada pendiente de entregar ni de contestar. Buen momento para recibir un coche.</p>}
+              {t.porAnadir.length > 0 && <>
+                <div className="u-sub">Reparaciones aprobadas por añadir · {t.porAnadir.length}</div>
+                {t.porAnadir.map((x) => <FilaOrden key={x.orden.id} x={x} texto={`El cliente aprobó ${x.reparaciones === 1 ? '1 reparación' : `${x.reparaciones} reparaciones`} del informe (${fmt2(x.importe)} € + IVA) · añádelas a la orden`} chip={<Chip tono="listo">Aprobado</Chip>} />)}
+              </>}
               {t.listos.length > 0 && <>
                 <div className="u-sub">Listos para entregar · {t.listos.length}</div>
                 {t.listos.map((x) => <FilaOrden key={x.orden.id} x={x} texto={x.orden.notificacionEnviada ? `Cliente avisado · listo ${textoDias(x.dias)}` : `Falta avisar al cliente · listo ${textoDias(x.dias)}`} chip={<Chip tono="listo">Listo</Chip>} />)}

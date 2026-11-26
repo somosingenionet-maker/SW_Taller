@@ -46,7 +46,7 @@ describe('tareasHoy', () => {
     expect(t.enTaller[0]).toMatchObject({ dias: 68, vehiculo: { matricula: '9007TST' }, cliente: { nombre: 'Isabel' } });
   });
   it('sin órdenes no hay nada', () => {
-    expect(tareasHoy([], [], [], ahora)).toEqual({ listos: [], esperando: [], rechazados: [], aprobados: [], porEnviar: [], enTaller: [] });
+    expect(tareasHoy([], [], [], ahora)).toEqual({ listos: [], esperando: [], rechazados: [], aprobados: [], porEnviar: [], enTaller: [], porAnadir: [] });
   });
   it('fechas raras no rompen y el día de hoy no es negativo', () => {
     const t = tareasHoy([ot('1', 'recibido', { fechaRecepcion: 'no-es-fecha' }), ot('2', 'recibido', { fechaRecepcion: new Date(ahora.getTime() + 86_400_000).toISOString() })], veh, cli, ahora);
@@ -60,5 +60,21 @@ describe('textos', () => {
     expect(saludo(new Date(2026, 0, 1, 9))).toBe('Buenos días');
     expect(saludo(new Date(2026, 0, 1, 15))).toBe('Buenas tardes');
     expect(saludo(new Date(2026, 0, 1, 22))).toBe('Buenas noches');
+  });
+});
+
+describe('tareasHoy · reparaciones aprobadas por añadir', () => {
+  it('avisa de lo aprobado en el informe que aún no está en la orden, solo con el coche dentro', () => {
+    const conLinea = ot('a', 'en_reparacion', { lineas: [{ id: 'l1', tipo: 'mano_de_obra', descripcion: 'Pastillas', cantidad: 1, precioUnitario: 80, subtotal: 80, inspeccionPuntoId: 'p1' }] });
+    const sinLinea = ot('b', 'recibido', { lineas: [] });
+    const entregada = ot('c', 'entregado', { lineas: [] });
+    const aprobados = [
+      { puntoId: 'p1', ordenId: 'a', precio: 80 }, // ya añadida
+      { puntoId: 'p2', ordenId: 'b', precio: 80 },
+      { puntoId: 'p3', ordenId: 'b', precio: 20 },
+      { puntoId: 'p4', ordenId: 'c', precio: 50 }, // ya entregada: no se puede añadir
+    ];
+    const t = tareasHoy([conLinea, sinLinea, entregada], veh, cli, ahora, aprobados);
+    expect(t.porAnadir.map((x) => [x.orden.id, x.reparaciones, x.importe])).toEqual([['b', 2, 100]]);
   });
 });

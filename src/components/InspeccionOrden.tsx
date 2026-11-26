@@ -211,6 +211,15 @@ export default function InspeccionOrden({ ot, retencionMeses, empresa, clienteNo
     cargar().catch((e) => { setInsp(null); setError(mensajeDeError(e, 'No se pudo cargar la inspección.')); });
   }, [cargar]);
 
+  // El mecánico (y el cliente al responder el informe) marcan la orden con `mecanicoActualizadoEn`: cuando cambia
+  // se relee la inspección, para ver al momento lo que ha aprobado el cliente sin recargar la página.
+  const marcaOrden = useRef(ot.mecanicoActualizadoEn);
+  useEffect(() => {
+    if (marcaOrden.current === ot.mecanicoActualizadoEn) return;
+    marcaOrden.current = ot.mecanicoActualizadoEn;
+    void cargar().catch(() => undefined);
+  }, [ot.mecanicoActualizadoEn, cargar]);
+
   // El mecánico trabaja desde su móvil: mientras está en curso, la pantalla del taller se refresca sola.
   useEffect(() => {
     if (insp?.estado !== 'borrador') return;

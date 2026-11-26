@@ -33,10 +33,10 @@ import { useMovil } from '../ui/useMovil';
 import type { NuevoAviso as DatosAviso } from '../lib/data/avisos';
 import BadgeEstado from './orden/BadgeEstado';
 import VisorPresupuesto from './orden/VisorPresupuesto';
-import { BloqueAvisoListo, BloqueAvisoTecnico, BloqueLineasNuevas, BloquePresupuesto, HistorialOrden } from './orden/BloquesFicha';
+import { BloqueAvisoListo, BloqueAvisoTecnico, BloqueFactura, BloqueLineasNuevas, BloquePresupuesto, HistorialOrden } from './orden/BloquesFicha';
 import LineaTipoYProducto from './orden/LineaTipoYProducto';
 import EntregaPreItvModal from './orden/EntregaPreItvModal';
-import { formatDate } from '../utils/dateFormat';
+import { formatDate, formatDateShort } from '../utils/dateFormat';
 import CamposCantidadPrecio from './orden/CamposCantidadPrecio';
 import { cantidadValida, textoCantidad, textoPrecioLinea } from '../utils/cantidadLinea';
 import { crearServicio, listServicios, type Servicio } from '../lib/data/servicios';
@@ -75,9 +75,12 @@ interface Props {
   esAdmin?: boolean;
   /** Pre-ITV: al entregar, anota en el vehículo el nuevo vencimiento de la ITV (reabre el aviso con el ciclo nuevo). */
   onAnotarItv?: (vehiculoId: string, nuevoVencimiento: string) => Promise<void>;
+  /** Abre una factura nueva con esta orden (solo si el usuario tiene el módulo Facturas). */
+  onFacturar?: (ot: OrdenTrabajo) => void;
+  onVerFacturas?: () => void;
 }
 
-export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo, onCrearAviso, esAdmin = false, onAnotarItv }: Props) {
+export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empresa, productos, onAdd, onUpdate, onDelete, onRefrescada, onCreateProducto, onVistaAmpliaChange, intencion, onCrearCliente, onCrearVehiculo, onCrearAviso, esAdmin = false, onAnotarItv, onFacturar, onVerFacturas }: Props) {
   const movil = useMovil();
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   useEffect(() => { listTecnicos().then(setTecnicos); }, []);
@@ -238,7 +241,12 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
   useEffect(() => {
     if (!intencion) return;
     if (intencion.tipo === 'nuevo') openCreate(intencion.modo ?? 'recibido');
-    else setSearch(intencion.texto ?? '');
+    else {
+      setSearch(intencion.texto ?? '');
+      // Si es justo el número de una orden (desde «Hoy» o la ficha del cliente), se abre directamente.
+      const exacta = ordenes.find((o) => o.numero === intencion.texto);
+      if (exacta) getOrden(exacta.id).then(setSelected).catch(() => setSelected(exacta));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intencion?.n]);
 
@@ -738,7 +746,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     seleccionada={selected?.id === f.id}
                     titulo={<><span className="font-mono text-xs font-bold text-blue-700">{f.numero}</span><br />{f.vehiculoMarca} {f.vehiculoModelo} <span className="u-matri">{f.vehiculoMatricula}</span></>}
                     importe={f.total > 0 ? `${fmt2(f.total)}\u00a0€` : <span className="text-slate-300 font-normal text-xs">Por definir</span>}
-                    lineas={[`${f.clienteNombre} ${f.clienteApellidos}`, `Recepción: ${f.fechaRecepcion}`]}
+                    lineas={[`${f.clienteNombre} ${f.clienteApellidos}`, `Recepción: ${formatDateShort(f.fechaRecepcion)}`]}
                     pie={<>
                       <BadgeEstado estado={f.estado} presupuestoEstado={f.presupuestoEstado} presupuestoAprobado={f.presupuestoAprobado} notificacionEnviada={f.notificacionEnviada} />
                       {(f.estado === 'recibido' || f.estado === 'en_reparacion') && f.tareasTotal > 0 && f.tareasHechas === f.tareasTotal && (
@@ -775,7 +783,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                         <div className="text-[11px] text-slate-400">{f.vehiculoMatricula}</div>
                       </td>
                       <td className="px-4 py-3 text-slate-700">{f.clienteNombre} {f.clienteApellidos}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{f.fechaRecepcion}</td>
+                      <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{formatDateShort(f.fechaRecepcion)}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-1 items-start">
                           <BadgeEstado estado={f.estado} presupuestoEstado={f.presupuestoEstado} presupuestoAprobado={f.presupuestoAprobado} notificacionEnviada={f.notificacionEnviada} />
@@ -831,7 +839,7 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                     {selected.esPreItv && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-bold" data-testid="chip-pre-itv"><ShieldCheck size={11} /> Pre-ITV</span>}
                   </div>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {selected.estado === 'presupuesto' ? 'Solicitud del' : 'Recibido el'} {selected.fechaRecepcion}
+                    {selected.estado === 'presupuesto' ? 'Solicitud del' : 'Recibido el'} {formatDate(selected.fechaRecepcion)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -896,9 +904,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
 
                 {/* Dates */}
                 <div className="flex gap-4 text-xs text-slate-500">
-                  <span className="flex items-center gap-1"><Calendar size={11} /> {selected.estado === 'presupuesto' ? 'Solicitud:' : 'Recepción:'} <strong>{selected.fechaRecepcion}</strong></span>
-                  {selected.fechaEstimadaEntrega && <span className="flex items-center gap-1"><Calendar size={11} /> Est. entrega: <strong>{selected.fechaEstimadaEntrega}</strong></span>}
-                  {selected.fechaEntrega && <span className="flex items-center gap-1 text-green-600"><Check size={11} /> Entregado: <strong>{selected.fechaEntrega}</strong></span>}
+                  <span className="flex items-center gap-1"><Calendar size={11} /> {selected.estado === 'presupuesto' ? 'Solicitud:' : 'Recepción:'} <strong>{formatDate(selected.fechaRecepcion)}</strong></span>
+                  {selected.fechaEstimadaEntrega && <span className="flex items-center gap-1"><Calendar size={11} /> Est. entrega: <strong>{formatDate(selected.fechaEstimadaEntrega)}</strong></span>}
+                  {selected.fechaEntrega && <span className="flex items-center gap-1 text-green-600"><Check size={11} /> Entregado: <strong>{formatDate(selected.fechaEntrega)}</strong></span>}
                 </div>
 
                 {/* Problem + Diagnosis */}
@@ -1096,6 +1104,9 @@ export default function OrdenesTrabajoTab({ ordenes, vehiculos, clientes, empres
                 )}
                 {selected.estado === 'listo' && (
                   <BloqueAvisoListo selected={selected} clientes={clientes} vehiculos={vehiculos} empresa={empresa} onMarcarNotificado={handleNotificarListo} />
+                )}
+                {(selected.estado === 'listo' || selected.estado === 'entregado') && onFacturar && onVerFacturas && (
+                  <BloqueFactura selected={selected} onFacturar={(ot) => { setSelected(null); onFacturar(ot); }} onVerFacturas={() => { setSelected(null); onVerFacturas(); }} />
                 )}
                 {selected.tecnicoAsignado && (selected.estado === 'recibido' || selected.estado === 'en_reparacion') && (
                   <BloqueAvisoTecnico selected={selected} tecnicos={tecnicos} vehiculos={vehiculos} generando={generandoPortalTecnico} onAsegurarPortal={asegurarPortalTecnico} />

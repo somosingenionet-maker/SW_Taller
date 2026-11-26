@@ -34,6 +34,9 @@ function VehiculoStatus({ v, color }: { v: PortalData['vehiculos'][number]; colo
         <div>
           <p className="text-[15px] font-extrabold text-slate-800 leading-tight">{v.marca} {v.modelo}</p>
           <p className="text-xs font-mono tracking-wider text-slate-400 mt-0.5">{v.matricula}</p>
+          {v.presupuestoAceptado && (
+            <p className="text-xs font-bold mt-1.5" style={{ color }} data-testid="portal-presupuesto-aceptado">✓ Presupuesto aceptado · te esperamos en el taller</p>
+          )}
         </div>
       </div>
     );

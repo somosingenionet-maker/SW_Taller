@@ -40,6 +40,10 @@ const EMPTY_FORM: FormState = {
 
 const UNIDADES = ['unidad', 'litro', 'kg', 'metro', 'caja'];
 
+/** «1 unidad», «0 unidades», «3 litros»: la unidad en plural salvo con 1. */
+const PLURAL_UNIDAD: Record<string, string> = { unidad: 'unidades', litro: 'litros', metro: 'metros', caja: 'cajas' };
+const unidadCon = (n: number, unidad: string) => (n === 1 ? unidad : PLURAL_UNIDAD[unidad] ?? unidad);
+
 export default function InventarioTab({ productos, onAddProducto, onUpdateProducto, onDeleteProducto, onRegistrarMovimiento, onImportado }: InventarioTabProps) {
   const movil = useMovil();
   const [showImport, setShowImport] = useState(false);
@@ -68,7 +72,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
   const valorInventario = useMemo(() => productos.reduce((sum, p) => sum + p.stockActual * p.costo, 0), [productos]);
 
   const handleExportCsv = () => {
-    const headers = ['Nombre', 'SKU', 'Descripción', 'Unidad', 'Precio Venta', 'Costo', 'Stock Actual', 'Stock Mínimo', 'Activo'];
+    const headers = ['Nombre', 'SKU', 'Descripción', 'Unidad', 'Precio Venta', 'Coste', 'Stock Actual', 'Stock Mínimo', 'Activo'];
     const rows = productos.map(p => [
       p.nombre, p.sku ?? '', p.descripcion ?? '', p.unidad, String(p.precioVenta), String(p.costo),
       String(p.stockActual), String(p.stockMinimo), p.activo ? 'Sí' : 'No',
@@ -154,7 +158,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
           <Package size={20} className="text-blue-600" /> Inventario
         </h2>
-        <p className="text-xs text-slate-400 mt-0.5">{productos.length} productos registrados</p>
+        <p className="text-xs text-slate-400 mt-0.5">{productos.length} {productos.length === 1 ? 'producto registrado' : 'productos registrados'}</p>
       </div>
 
       {/* Stat tiles */}
@@ -230,9 +234,9 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
                   key={p.id}
                   titulo={<>{p.nombre}{p.sku && <span className="block text-[11px] font-normal text-slate-400 font-mono">{p.sku}</span>}</>}
                   importe={formatEuros(p.precioVenta).replace(/\s/g, '\u00a0')}
-                  lineas={[`Costo ${formatEuros(p.costo).replace(/\s/g, '\u00a0')}`, bajoStock(p) ? `Stock bajo: mínimo ${p.stockMinimo}` : null]}
+                  lineas={[`Coste ${formatEuros(p.costo).replace(/\s/g, '\u00a0')}`, bajoStock(p) ? `Stock bajo: mínimo ${p.stockMinimo}` : null]}
                   pie={<>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${bajoStock(p) ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{p.stockActual} {p.unidad}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${bajoStock(p) ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{p.stockActual} {unidadCon(p.stockActual, p.unidad)}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.activo ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{p.activo ? 'Activo' : 'Inactivo'}</span>
                   </>}
                   acciones={<>
@@ -251,7 +255,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
                 <th className="px-4 py-3">Producto</th>
                 <th className="px-4 py-3">Stock</th>
                 <th className="px-4 py-3">Precio venta</th>
-                <th className="px-4 py-3">Costo</th>
+                <th className="px-4 py-3">Coste</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
               </tr>
@@ -265,7 +269,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
                   </td>
                   <td className="px-4 py-3">
                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${bajoStock(p) ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>
-                      {p.stockActual} {p.unidad}
+                      {p.stockActual} {unidadCon(p.stockActual, p.unidad)}
                     </span>
                     {bajoStock(p) && <span className="block text-[10px] text-rose-500 mt-0.5">Mínimo: {p.stockMinimo}</span>}
                   </td>
@@ -338,7 +342,7 @@ export default function InventarioTab({ productos, onAddProducto, onUpdateProduc
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1">Costo €</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Coste €</label>
                   <input type="number" min="0" step="0.01" value={form.costo} onChange={(e) => setForm((f) => ({ ...f, costo: e.target.value }))}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>

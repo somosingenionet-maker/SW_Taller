@@ -6,6 +6,8 @@ export interface PortalVehiculo {
   modelo: string;
   matricula: string;
   estadoOt: 'presupuesto' | 'recibido' | 'en_reparacion' | 'listo' | null;
+  /** Presupuesto aceptado y coche aún fuera (las versiones antiguas de la función no lo envían). */
+  presupuestoAceptado?: boolean;
   fechaEstimadaEntrega: string | null;
 }
 
