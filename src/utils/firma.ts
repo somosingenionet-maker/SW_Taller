@@ -22,6 +22,15 @@ export function importeCambiadoTrasFirma(firmado: number | undefined, actual: nu
   return firmado != null && Math.abs(firmado - actual) >= 0.005;
 }
 
+/**
+ * Lo que el cliente aprobó aparte en el informe de inspección (líneas que salen de un punto), con IVA.
+ * Esas reparaciones ya tienen su propia aceptación, así que no son una «diferencia» sin aceptar del presupuesto.
+ */
+export function aprobadoEnInspeccionConIva(lineas: { inspeccionPuntoId?: string; subtotal: number }[], ivaPct: number): number {
+  const base = lineas.filter((l) => l.inspeccionPuntoId).reduce((s, l) => s + l.subtotal, 0);
+  return Math.round(base * (1 + ivaPct / 100) * 100) / 100;
+}
+
 /** «13 nov. 2026 · 18:42», en la hora del aparato. */
 export function fechaHoraFirma(iso: string): string {
   const d = new Date(iso);

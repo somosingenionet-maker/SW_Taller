@@ -587,8 +587,13 @@ export default function App() {
     setOrdenesTrabajo(prev => [creada, ...prev]);
     // El servidor pasa el kilometraje de la orden a la ficha del vehículo: se relee para verlo al momento.
     if (creada.kilometrajeEntrada > 0 || creada.esCambioAceite) void recargarVehiculos().catch(() => undefined);
+    // Un coche que aún no es de nadie queda a nombre del cliente de su primera orden: sin eso, al facturar
+    // no aparece en el cliente y no se pueden traer las líneas de la orden. Si ya tiene dueño, no se toca.
+    if (creada.clienteId && creada.vehiculoId && !clientes.some(c => c.vehiculosAsociados?.includes(creada.vehiculoId))) {
+      void asociarVehiculo(creada.clienteId, creada.vehiculoId).then(() => recargarClientes()).catch(() => undefined);
+    }
     return creada;
-  }, [recargarVehiculos]);
+  }, [recargarVehiculos, recargarClientes, clientes]);
 
   // El tablero del taller (5 columnas de ancho fijo) no cabe en el máximo
   // centrado normal y aparece con scroll horizontal aunque sobre espacio en

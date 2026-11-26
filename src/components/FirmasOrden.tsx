@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AlertTriangle, Check, PenTool } from 'lucide-react';
 import type { OrdenTrabajo } from '../types';
 import { getAceptacion, getFirmas, tipoDispositivo, type AceptacionDetalle, type FirmasOrden as Firmas } from '../lib/data/firmas';
-import { fechaHoraFirma, importeCambiadoTrasFirma } from '../utils/firma';
+import { aprobadoEnInspeccionConIva, fechaHoraFirma, importeCambiadoTrasFirma } from '../utils/firma';
 import { fmt2 } from '../utils/moneda';
 
 interface Props {
@@ -42,7 +42,8 @@ export default function FirmasOrden({ ot, onFirmar }: Props) {
   const fe = ot.firmaEntrega;
   const importeCambiado = importeCambiadoTrasFirma(fp?.total, ot.total);
   const ap = ot.aceptacionPresupuesto;
-  const importeCambiadoAceptacion = !!ap && importeCambiadoTrasFirma(ap.total, ot.total);
+  const extraInspeccion = aprobadoEnInspeccionConIva(ot.lineas, ot.ivaPct);
+  const importeCambiadoAceptacion = !!ap && importeCambiadoTrasFirma(ap.total + extraInspeccion, ot.total);
   // Si el cliente ya aceptó desde su móvil, no hace falta pedirle además la firma dibujada.
   const puedeFirmarPresupuesto = !fp && !ap && ot.estado !== 'cancelado' && ot.total > 0;
   const puedeFirmarEntrega = !fe && (ot.estado === 'listo' || ot.estado === 'entregado');
@@ -76,12 +77,12 @@ export default function FirmasOrden({ ot, onFirmar }: Props) {
             <p className="text-xs font-semibold text-slate-700">Presupuesto aceptado desde el portal</p>
             <p className="text-xs text-slate-500">Por <span className="font-semibold text-slate-700">{ap.nombre}</span> · {fechaHoraFirma(ap.en)}</p>
             <p className="text-[11px] text-slate-400">
-              Importe aceptado: {fmt2(ap.total)} €
+              Importe aceptado: {fmt2(ap.total)} €{extraInspeccion > 0 ? ` + ${fmt2(extraInspeccion)} € en la inspección` : ''}
               {aceptacion ? ` · ${tipoDispositivo(aceptacion.dispositivo)}${aceptacion.ip ? ` · IP ${aceptacion.ip}` : ''}` : ''}
             </p>
             {importeCambiadoAceptacion && (
               <p role="alert" className="mt-1 flex items-start gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1.5">
-                <AlertTriangle size={12} className="shrink-0 mt-0.5" /> El importe ha cambiado desde la aceptación ({fmt2(ap.total)} € aceptados, {fmt2(ot.total)} € ahora). La aceptación no cubre la diferencia.
+                <AlertTriangle size={12} className="shrink-0 mt-0.5" /> El importe ha cambiado desde la aceptación ({fmt2(ap.total)} € aceptados{extraInspeccion > 0 ? ` + ${fmt2(extraInspeccion)} € aprobados en la inspección` : ''}, {fmt2(ot.total)} € ahora). La aceptación no cubre la diferencia.
               </p>
             )}
           </div>

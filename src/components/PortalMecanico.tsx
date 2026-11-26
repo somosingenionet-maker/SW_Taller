@@ -111,23 +111,35 @@ function OrdenCard({ orden, inspeccion, color, token, nuevo, abierta, onAlternar
   const pendientes = orden.tareas.length - hechas;
   const todoHecho = orden.tareas.length > 0 && pendientes === 0;
 
+  // Los guardados van en fila, uno detrás de otro. Si el mecánico escribe la nota de un punto y enseguida la
+  // reparación, salen dos guardados seguidos; en paralelo podía terminar antes el segundo y el primero (que aún
+  // no llevaba la reparación) la borraba sin avisar.
+  const cola = useRef<Promise<unknown>>(Promise.resolve());
+  const enCola = useRef(0);
+
   /** Ejecuta una acción contra el servidor y vuelve a leer la lista: lo que se ve es siempre lo guardado. */
-  const ejecutar = async (accion: () => Promise<void>) => {
-    setError('');
+  const ejecutar = (accion: () => Promise<void>): Promise<boolean> => {
+    enCola.current += 1;
     setOcupado(true);
-    onVisto();
-    try {
-      await accion();
-      await onCambio();
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.');
-      // Puede que la orden haya cambiado en el taller: se relee para enseñar el estado real.
-      await onCambio().catch(() => undefined);
-      return false;
-    } finally {
-      setOcupado(false);
-    }
+    const turno = cola.current.then(async () => {
+      setError('');
+      onVisto();
+      try {
+        await accion();
+        await onCambio();
+        return true;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'No se pudo guardar. Inténtalo de nuevo.');
+        // Puede que la orden haya cambiado en el taller: se relee para enseñar el estado real.
+        await onCambio().catch(() => undefined);
+        return false;
+      } finally {
+        enCola.current -= 1;
+        if (enCola.current === 0) setOcupado(false);
+      }
+    });
+    cola.current = turno.catch(() => undefined);
+    return turno;
   };
 
   const elegirDuracion = async (minutos: number) => {

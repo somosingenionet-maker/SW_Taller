@@ -416,7 +416,7 @@ function FacturaModal({ factura, clientes, vehiculos, onSave, onClose }: Factura
                 {clienteVehiculos.map(v => <option key={v.id} value={v.id}>{v.marca} {v.modelo} — {v.matricula}</option>)}
               </select>
               {clienteId && clienteVehiculos.length === 0 && (
-                <p className="text-[11px] text-amber-600 mt-1">Este cliente no tiene vehículos asociados. Asócialos desde CRM &gt; Clientes.</p>
+                <p className="text-[11px] text-amber-600 mt-1">Este cliente no tiene vehículos a su nombre. Asócialos en Clientes → su ficha → Editar → Vehículos asociados.</p>
               )}
             </div>
             <div>

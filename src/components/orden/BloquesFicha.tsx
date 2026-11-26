@@ -19,14 +19,23 @@ export function BloquePresupuesto({ selected, clientes, vehiculos, empresa, onCa
 }) {
   const enTaller = selected.estado !== 'presupuesto';
   const enviado = selected.presupuestoEstado === 'enviado';
-  const aceptado = !!selected.aceptacionPresupuesto || (enTaller && selected.presupuestoAprobado === true);
-  if (enTaller && aceptado) {
+  // Aceptado desde el portal (con o sin el coche dentro) o aprobado a mano con el coche ya en el taller.
+  const aceptado = !!selected.aceptacionPresupuesto || selected.presupuestoAprobado === true;
+  const rechazado = enviado && selected.presupuestoAprobado === false;
+  if (aceptado) {
     const a = selected.aceptacionPresupuesto;
     return (
-      <div id="bloque-presupuesto" className="rounded-2xl border border-green-200 bg-green-50 p-4 space-y-1" data-testid="presupuesto-aprobado">
+      <div id="bloque-presupuesto" className="rounded-2xl border border-green-200 bg-green-50 p-4 space-y-2" data-testid="presupuesto-aprobado">
         <p className="text-xs font-bold uppercase text-slate-500">Presupuesto</p>
         <p className="text-sm font-semibold text-green-800 flex items-center gap-1.5"><Check size={14} /> Aprobado por el cliente</p>
         {a && <p className="text-xs text-slate-500">{a.nombre} · {new Date(a.en).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })} · {fmt2(a.total)} €</p>}
+        {!enTaller && <p className="text-xs text-slate-600">Siguiente paso: recibir el coche cuando lo traiga.</p>}
+        {!enTaller && (
+          <button onClick={() => onVerPdf(selected)}
+            className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-semibold hover:bg-slate-50 transition">
+            <FileText size={13} /> Ver / Descargar PDF
+          </button>
+        )}
       </div>
     );
   }
@@ -35,11 +44,13 @@ export function BloquePresupuesto({ selected, clientes, vehiculos, empresa, onCa
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold uppercase text-slate-500">{enTaller ? 'Presupuesto para aprobación' : 'Presupuesto'}</p>
         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${enviado ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-          {enviado ? (selected.presupuestoAprobado === false ? 'Rechazado' : 'Enviado') : 'Pendiente de envío'}
+          {enviado ? (rechazado ? 'Rechazado' : 'Enviado') : 'Pendiente de envío'}
         </span>
       </div>
       <p className="text-xs text-slate-500">
-        {enviado
+        {rechazado
+          ? 'El cliente lo rechazó desde su portal. Puedes cambiar las líneas y volver a enviárselo.'
+          : enviado
           ? 'Esperando la respuesta del cliente. Puede aceptarlo o rechazarlo desde su portal.'
           : enTaller
             ? 'El coche ya está en el taller. Cuando tengas el diagnóstico y las líneas con su precio, envíaselo al cliente: recibe un enlace a su portal donde lo aprueba desde el móvil, y queda guardada su aceptación.'

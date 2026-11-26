@@ -148,8 +148,9 @@ export default function VehiclesTab({
     const hoy = new Date();
     const limite = new Date(hoy.getTime() + DIAS_ALERTA * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     return {
-      itvAlerta: vehiculos.filter(v => v.itvVencimiento <= limite).length,
-      seguroAlerta: vehiculos.filter(v => v.seguroVencimiento <= limite).length,
+      // Sin fecha no cuenta: '' <= limite daría «vencida» a todos los coches sin fecha anotada.
+      itvAlerta: vehiculos.filter(v => v.itvVencimiento && v.itvVencimiento <= limite).length,
+      seguroAlerta: vehiculos.filter(v => v.seguroVencimiento && v.seguroVencimiento <= limite).length,
     };
   }, [vehiculos]);
 
@@ -160,9 +161,10 @@ export default function VehiclesTab({
       matricula: '',
       bastidor: '',
       kilometraje: '' as unknown as number,
-      itvVencimiento: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      seguroVencimiento: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      impuestoVencimiento: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      // Vacías: una fecha inventada acabaría en los avisos al cliente y en su portal como si fuera la real.
+      itvVencimiento: '',
+      seguroVencimiento: '',
+      impuestoVencimiento: ''
     });
     setIsAddingOpen(true);
   };
@@ -737,6 +739,7 @@ export default function VehiclesTab({
 
                 <div className="border-t border-slate-100 pt-4 space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Fechas de vencimiento (para los avisos)</h4>
+                  <p className="text-[11px] text-slate-400 -mt-1">Opcionales: pon solo las que sepas (están en la tarjeta ITV y en el recibo del seguro). Sin fecha no se le avisa de eso.</p>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
@@ -746,7 +749,6 @@ export default function VehiclesTab({
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={formData.itvVencimiento}
                         onChange={e => setFormData({ ...formData, itvVencimiento: e.target.value })}
-                        required
                       />
                     </div>
                     <div>
@@ -756,7 +758,6 @@ export default function VehiclesTab({
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={formData.seguroVencimiento}
                         onChange={e => setFormData({ ...formData, seguroVencimiento: e.target.value })}
-                        required
                       />
                     </div>
                     <div>
@@ -766,7 +767,6 @@ export default function VehiclesTab({
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={formData.impuestoVencimiento}
                         onChange={e => setFormData({ ...formData, impuestoVencimiento: e.target.value })}
-                        required
                       />
                     </div>
                   </div>
@@ -888,6 +888,7 @@ export default function VehiclesTab({
 
                 <div className="border-t border-slate-100 pt-4 space-y-3">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest font-display">Fechas de vencimiento (para los avisos)</h4>
+                  <p className="text-[11px] text-slate-400 -mt-1">Opcionales: pon solo las que sepas (están en la tarjeta ITV y en el recibo del seguro). Sin fecha no se le avisa de eso.</p>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
@@ -897,7 +898,6 @@ export default function VehiclesTab({
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={editFormData.itvVencimiento}
                         onChange={e => setEditFormData({ ...editFormData, itvVencimiento: e.target.value })}
-                        required
                       />
                     </div>
                     <div>
@@ -907,7 +907,6 @@ export default function VehiclesTab({
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={editFormData.seguroVencimiento}
                         onChange={e => setEditFormData({ ...editFormData, seguroVencimiento: e.target.value })}
-                        required
                       />
                     </div>
                     <div>
@@ -917,7 +916,6 @@ export default function VehiclesTab({
                         className="w-full px-2.5 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                         value={editFormData.impuestoVencimiento}
                         onChange={e => setEditFormData({ ...editFormData, impuestoVencimiento: e.target.value })}
-                        required
                       />
                     </div>
                   </div>
