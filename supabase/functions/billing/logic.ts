@@ -24,6 +24,25 @@ export function cobraAlta(e: { stripe_subscription_id: string | null }, cfg: Pic
   return !!cfg.precioAlta && !e.stripe_subscription_id;
 }
 
+/** Stripe solo acepta un fin de prueba en Checkout si queda al menos 48 h; se deja un margen de una hora. */
+export const MIN_SEGUNDOS_PRUEBA = 49 * 3600;
+
+/**
+ * Si el taller se suscribe durante su prueba gratuita, la primera cuota se cobra el día que acaba la
+ * prueba (no pierde los días que le quedan). Devuelve ese momento en segundos Unix, o undefined si no
+ * está en prueba, ya tuvo una suscripción o le queda tan poco que Stripe no lo admite (se cobra ya).
+ * Ojo: la cuota de alta (precio de pago único) Stripe la cobra igualmente al suscribirse.
+ */
+export function finPruebaParaCheckout(
+  e: { stripe_subscription_id: string | null; estado_suscripcion: string; acceso_hasta: string | null },
+  ahora: number = Math.floor(Date.now() / 1000),
+): number | undefined {
+  if (e.stripe_subscription_id || e.estado_suscripcion !== 'prueba' || !e.acceso_hasta) return undefined;
+  const fin = Math.floor(Date.parse(e.acceso_hasta) / 1000);
+  if (!Number.isFinite(fin) || fin - ahora < MIN_SEGUNDOS_PRUEBA) return undefined;
+  return fin;
+}
+
 /** ¿Ya tiene una suscripción viva? Entonces no se crea otra: se gestiona desde el portal. */
 export function tieneSuscripcionViva(e: { stripe_subscription_id: string | null; estado_suscripcion: string }): boolean {
   return !!e.stripe_subscription_id && (e.estado_suscripcion === 'activa' || e.estado_suscripcion === 'impago');
@@ -36,9 +55,11 @@ export function paramsCheckout(args: {
   clienteStripe: string | null;
   /** true en la primera suscripción (ver cobraAlta): añade la cuota de alta a la primera factura. */
   conAlta?: boolean;
+  /** Fin de la prueba gratuita (segundos Unix, ver finPruebaParaCheckout): la primera cuota se cobra entonces. */
+  finPrueba?: number;
   cfg: ConfigCobro;
 }): Record<string, unknown> {
-  const { empresaId, email, plan, clienteStripe, conAlta, cfg } = args;
+  const { empresaId, email, plan, clienteStripe, conAlta, finPrueba, cfg } = args;
   const iva = cfg.tasaIva ? { tax_rates: [cfg.tasaIva] } : {};
   return {
     mode: 'subscription',
@@ -46,7 +67,7 @@ export function paramsCheckout(args: {
     // Con esto el webhook sabe a qué empresa pertenece el pago.
     client_reference_id: empresaId,
     metadata: { empresa_id: empresaId },
-    subscription_data: { metadata: { empresa_id: empresaId } },
+    subscription_data: { metadata: { empresa_id: empresaId }, ...(finPrueba ? { trial_end: finPrueba } : {}) },
     line_items: [
       { price: plan === 'anual' ? cfg.precioAnual : cfg.precioMensual, quantity: 1, ...iva },
       // Un precio de pago único en modo suscripción se cobra una sola vez, en la primera factura.

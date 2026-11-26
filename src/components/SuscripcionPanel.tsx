@@ -64,6 +64,8 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onE
     }
   });
   const aviso = avisoSuscripcion(s);
+  // Le quedan al menos 49 h de prueba: la primera cuota se cobra al acabarla (ver finPruebaParaCheckout en billing).
+  const pruebaSigue = s.estado === 'prueba' && !!s.accesoHasta && Date.parse(s.accesoHasta) - Date.now() >= 49 * 3_600_000;
   const puedePagar = s.estado !== 'sin_limite' && !(s.estadoStripe === 'activa' && s.tieneCliente && s.estado !== 'vencida');
 
   // El error sale justo encima del botón pulsado, que es donde está mirando el taller.
@@ -96,7 +98,7 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onE
               {s.plan ? `Plan ${s.plan}. ` : ''}{s.cancelarAlFinal ? 'Termina el' : 'Próxima renovación:'} {fecha(finPeriodo(s))}.
             </p>
           )}
-          {aviso && <p className={`text-xs ${aviso.nivel === 'error' ? 'text-rose-600' : aviso.nivel === 'aviso' ? 'text-amber-700' : 'text-slate-500'}`}>{aviso.texto}</p>}
+          {aviso && !(s.estado === 'prueba' && aviso.nivel === 'info') && <p className={`text-xs ${aviso.nivel === 'error' ? 'text-rose-600' : aviso.nivel === 'aviso' ? 'text-amber-700' : 'text-slate-500'}`}>{aviso.texto}</p>}
         </div>
 
         {!esAdmin ? (
@@ -118,9 +120,12 @@ export default function SuscripcionPanel({ suscripcion: s, esAdmin, empresa, onE
                     </button>
                   ))}
                 </div>
-                {!s.tieneCliente && (
+                {!s.tieneCliente && (pruebaSigue ? (
+                  // Igual que billing (finPruebaParaCheckout): con 49 h o más de prueba, la primera cuota espera.
+                  <p className="text-xs text-slate-500">Hoy solo se cobra la <b>cuota de alta de 199&nbsp;€ + IVA</b> (una sola vez). La primera cuota se cobra el <b>{fecha(s.accesoHasta)}</b>, cuando acaba tu prueba: no pierdes los días que te quedan.</p>
+                ) : (
                   <p className="text-xs text-slate-500">La primera factura incluye además la <b>cuota de alta de 199&nbsp;€ + IVA</b>, una sola vez.</p>
-                )}
+                ))}
                 <div className="border border-slate-200 rounded-2xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-bold text-slate-700">Datos de facturación</p>

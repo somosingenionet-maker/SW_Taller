@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert@1';
-import { cobraAlta, esPlan, paramsCheckout, paramsPortal, tieneSuscripcionViva } from './logic.ts';
+import { cobraAlta, esPlan, finPruebaParaCheckout, paramsCheckout, paramsPortal, tieneSuscripcionViva } from './logic.ts';
 
 const cfg = { precioMensual: 'price_m', precioAnual: 'price_a', tasaIva: 'txr_21', appUrl: 'https://motor.doonty.com' };
 
@@ -88,4 +88,24 @@ Deno.test('datos fiscales: dice qué falta, comprueba el NIF y pide código post
   assertEquals(problemaDatosFiscales({ ...bien, nif: '' }), 'Para poder hacerte la factura necesitamos el NIF de tu empresa.');
   assertEquals(problemaDatosFiscales({ ...bien, nif: 'B67776816' })?.startsWith('El NIF no es correcto'), true);
   assertEquals(problemaDatosFiscales({ ...bien, direccion_fiscal: 'Calle Mayor 4' }), 'Falta el código postal en la dirección fiscal.');
+});
+
+Deno.test('finPruebaParaCheckout: en prueba con días por delante, la primera cuota espera al fin de la prueba', () => {
+  const ahora = Date.parse('2026-11-26T09:00:00Z') / 1000;
+  const e = { stripe_subscription_id: null, estado_suscripcion: 'prueba', acceso_hasta: '2026-12-10T08:54:40Z' };
+  assertEquals(finPruebaParaCheckout(e, ahora), Date.parse('2026-12-10T08:54:40Z') / 1000);
+  // Menos de 49 h: Stripe no lo admite y se cobra ya.
+  assertEquals(finPruebaParaCheckout({ ...e, acceso_hasta: '2026-11-28T09:00:00Z' }, ahora), undefined);
+  // Ni fuera de la prueba ni si ya tuvo una suscripción.
+  assertEquals(finPruebaParaCheckout({ ...e, estado_suscripcion: 'cancelada' }, ahora), undefined);
+  assertEquals(finPruebaParaCheckout({ ...e, stripe_subscription_id: 'sub_1' }, ahora), undefined);
+  assertEquals(finPruebaParaCheckout({ ...e, acceso_hasta: null }, ahora), undefined);
+});
+
+Deno.test('paramsCheckout: con fin de prueba pone trial_end y mantiene la cuota de alta', () => {
+  const p = paramsCheckout({ empresaId: 'emp-1', email: 'a@b.es', plan: 'mensual', clienteStripe: null, conAlta: true, finPrueba: 1796900000, cfg: { ...cfg, precioAlta: 'price_alta' } }) as Record<string, any>;
+  assertEquals(p.subscription_data, { metadata: { empresa_id: 'emp-1' }, trial_end: 1796900000 });
+  assertEquals(p.line_items.length, 2);
+  const sin = paramsCheckout({ empresaId: 'emp-1', email: 'a@b.es', plan: 'mensual', clienteStripe: null, cfg }) as Record<string, any>;
+  assertEquals(sin.subscription_data, { metadata: { empresa_id: 'emp-1' } });
 });
